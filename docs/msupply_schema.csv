@@ -1,0 +1,1995 @@
+"table_name","ordinal_position","column_name","data_type","udt_name","is_nullable","column_default","constraint_type","foreign_key_name","foreign_table","foreign_column"
+"abbreviation",1,"abbreviation","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"abbreviation",2,"expansion","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"abbreviation",3,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"account",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"account",2,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"account",3,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"account",4,"account_type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"adverse_drug_reaction",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"adverse_drug_reaction",2,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"adverse_drug_reaction",3,"name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"adverse_drug_reaction",4,"user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"adverse_drug_reaction",5,"data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"adverse_drug_reaction",6,"entry_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"adverse_drug_reaction",7,"entry_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"adverse_drug_reaction",8,"form_schema_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"aggregator",1,"id","integer","int4","NO","nextval('aggregator_id_seq'::regclass)",NULL,NULL,NULL,NULL
+"aggregator",2,"storeid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"aggregator",3,"itemid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"aggregator",4,"monthyear","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"aggregator",5,"value","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"aggregator",6,"fulldate","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"aggregator",7,"dataelement","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"aggregator",8,"temp1","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"aggregator",9,"temp2","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"aggregator",10,"temp3","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"asset",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"asset",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",3,"serial","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",4,"notes","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",5,"date_created","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"asset",6,"date_last_status_change","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"asset",7,"location_contact_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",8,"spare_name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",9,"condition_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",10,"status_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",11,"type_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",12,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",13,"proposed_status_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",14,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",15,"make","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",16,"model","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",17,"supplier_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",18,"purchase_order_number","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",19,"date_acquisition","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"asset",20,"date_next_maintenance_due","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"asset",21,"date_last_verification","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"asset",22,"date_disposal","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"asset",23,"date_purchase_order","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"asset",24,"date_in_service","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"asset",25,"date_insurance_renewal","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"asset",26,"location_name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",27,"custodian_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",28,"custodian_phone_number","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",29,"custodian_email","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",30,"original_cost","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"asset",31,"purchase_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"asset",32,"purchase_costs","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"asset",33,"disposal_value","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"asset",34,"lifespan_months","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"asset",35,"insurer_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",36,"insurance_policy_number","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",37,"custodian_location","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset",38,"chart_of_accounts","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"asset_condition",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"asset_condition",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset_condition",3,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"asset_document_type",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"asset_document_type",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset_document_type",3,"display_order","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"asset_document_type",4,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"asset_property",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"asset_property",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset_property",3,"information","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"asset_property",4,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset_property",5,"is_read_only","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"asset_property",6,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"asset_property",7,"category","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset_property_asset_join",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"asset_property_asset_join",2,"asset_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset_property_asset_join",3,"asset_property_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset_property_asset_join",4,"asset_property_value","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"asset_status",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"asset_status",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset_status",3,"ids_can_select_after","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"asset_status",4,"can_be_first_status","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"asset_status",5,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"asset_status",6,"is_a_final_status","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"asset_type",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"asset_type",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset_type",3,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"asset_type",4,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"authorisationqueue",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"authorisationqueue",2,"storeid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authorisationqueue",3,"recordid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authorisationqueue",4,"authoriserid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authorisationqueue",5,"status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authorisationqueue",6,"statusdate","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"authorisationqueue",7,"statustime","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"authorisationqueue",8,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authorisationqueue",9,"recordtype","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authorisationqueue",10,"userid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authorisationqueue",11,"groupid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authorisationqueue",12,"priority","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"authorisationqueue",13,"autoauthorisationdate","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"authorisationqueue",14,"autoauthorisationtime","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"authorisationqueue",15,"ispriorityreached","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"authorisationqueue",16,"userinfo","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authoriser",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"authoriser",2,"storeid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authoriser",3,"recordtype","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authoriser",4,"userid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authoriser",5,"priority","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"authoriser",6,"reporttype","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authoriser",7,"reportname","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authoriser",8,"otherpartytag","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authoriser",9,"otherpartyid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"authoriser",10,"autoauthorisationperiod","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"authoriser",11,"shouldautoauthorise","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"authoriser",12,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"authoriser",13,"list_master_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"backorder",1,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"backorder",2,"quantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"backorder",3,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"backorder",4,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"backorder",5,"name_id_customer","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"backorder",6,"order date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"backorder",7,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"backorder",8,"item_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"backorder",9,"name_id_supplier","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"backorder",10,"customer_transaction_id_ordered","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"backorder",11,"status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"backorder",12,"spare_2","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"backorder",13,"order_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"backorder",14,"price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"backorder",15,"units","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"backorder",16,"account_stock_id_spare","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"backorder",17,"account_purchases_id_spare","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"backorder",18,"account_income_id_spare","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"backorder",19,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"barcode",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"barcode",2,"itemid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"barcode",3,"packsize","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"barcode",4,"parentid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"barcode",5,"manufacturerid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"barcode",6,"barcode","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"barcode",7,"spare_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"bill_of_material",1,"bom_master_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"bill_of_material",2,"transaction_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"bill_of_material",3,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"bill_of_material",4,"item_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"bill_of_material",5,"spare_units_v180","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"bill_of_material",6,"line_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"bill_of_material",7,"quantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"bill_of_material",8,"yeild","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"bill_of_material",9,"total_used","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"bill_of_material",10,"unit_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"bill_of_material",11,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"bill_of_material",12,"spare","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"bom_master",1,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"bom_master",2,"ingredient_item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"bom_master",3,"quantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"bom_master",4,"units_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"bom_master",5,"spare_units_v180","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"bom_master",6,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"bom_master",7,"line_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"box",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"box",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"box",3,"weight","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"box",4,"volume","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"box",5,"transactionid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"box",6,"length","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"box",7,"width","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"box",8,"height","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"box",9,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"box",10,"type_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"box_line",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"box_line",2,"box_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"box_line",3,"trans_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"box_line",4,"quantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"box_line",5,"weight","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"box_line",6,"volume","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"box_line",7,"confirmed_by","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"box_line",8,"confirmed_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"box_line",9,"confirmed_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"box_type",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"box_type",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"box_type",3,"length","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"box_type",4,"width","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"box_type",5,"height","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"box_type",6,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"box_type",7,"number_available","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"box_type",8,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"budget_period",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"budget_period",2,"period_description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"budget_period",3,"start_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"budget_period",4,"end_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"budget_period",5,"is_locked","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"budget_period",6,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"chart_of_accounts",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"chart_of_accounts",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"chart_of_accounts",3,"parent_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"clinician",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"clinician",2,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"clinician",3,"last_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"clinician",4,"initials","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"clinician",5,"first_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"clinician",6,"registration_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"clinician",7,"category","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"clinician",8,"address1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"clinician",9,"address2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"clinician",10,"phone","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"clinician",11,"mobile","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"clinician",12,"email","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"clinician",13,"female","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"clinician",14,"active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"clinician",15,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"clinician",16,"oms_fields","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"clinician",17,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"clinician_store_join",1,"prescriber_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"clinician_store_join",2,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"clinician_store_join",3,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",1,"name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",2,"first","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",3,"position","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",4,"spare","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"contact",5,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",6,"last","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",7,"phone","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",8,"email","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",9,"category","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",10,"category2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",11,"category3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",12,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"contact",13,"address1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",14,"address2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",15,"country","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",16,"web_username","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",17,"web_password","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact",18,"is_active_web_user","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"contact_group",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"contact_group",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact_group",3,"spare","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"contact_group_membership",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"contact_group_membership",2,"contact_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact_group_membership",3,"contact_group_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"contact_group_membership",4,"spare","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"currency",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"currency",2,"rate","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"currency",3,"currency","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"currency",4,"is_home_currency","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"currency",5,"date_updated","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"currency",6,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"custom_data",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"custom_data",2,"created_by_user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"custom_data",3,"date_created","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"custom_data",4,"real_1","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"custom_data",5,"text_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"custom_data",6,"date_1","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"custom_data",7,"real_2","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"custom_data",8,"text_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"custom_data",9,"date_2","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"custom_data",10,"category_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"custom_data",11,"real_3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"custom_data",12,"text_3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"custom_data",13,"date_3","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"custom_data",14,"real_4","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"custom_data",15,"text_4","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"custom_data",16,"date_4","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"custom_data_category",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"custom_data_category",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"custom_data_category",3,"settings","bytea","bytea","YES",NULL,NULL,NULL,NULL,NULL
+"custom_data_category",4,"entered_by_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"custom_data_category",5,"date_created","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"custom_stock_5",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"custom_stock_5",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"custom_stock_5",3,"is_hidden","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"custom_stock_6",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"custom_stock_6",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"custom_stock_6",3,"is_hidden","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"custom_stock_7",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"custom_stock_7",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"custom_stock_7",3,"is_hidden","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"custom_stock_8",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"custom_stock_8",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"custom_stock_8",3,"is_hidden","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"d_aggregator_monthly_soh",1,"id","integer","int4","NO","nextval('d_aggregator_monthly_soh_id_seq'::regclass)",NULL,NULL,NULL,NULL
+"d_aggregator_monthly_soh",2,"storeid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"d_aggregator_monthly_soh",3,"itemid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"d_aggregator_monthly_soh",4,"monthyear","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"d_aggregator_monthly_soh",5,"value","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"d_aggregator_monthly_soh",6,"fulldate","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"d_aggregator_monthly_soh",7,"dataelement","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"d_aggregator_monthly_soh",8,"temp1","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"d_use_rate_level",1,"is_site_name_category4","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"d_use_rate_level",2,"yearmonth","text","text","NO",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",3,"site_id","text","text","NO",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",4,"store_num","integer","int4","NO",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",5,"date","date","date","NO",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",6,"days_since_last_sync","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",7,"supplier_requisition","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",8,"customer_requisition","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",9,"supplier_invoice","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",10,"customer_invoices","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",11,"dispensing","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",12,"stock_takes","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",13,"SYNC","boolean","bool","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",14,"REQUISITION","boolean","bool","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",15,"STOCKTAKE","boolean","bool","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",16,"DISPENSING","boolean","bool","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",17,"DISTRIBUTION","boolean","bool","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",18,"RECEPTION","boolean","bool","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",19,"level","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_level",20,"updated_date","timestamp without time zone","timestamp","YES","CURRENT_TIMESTAMP",NULL,NULL,NULL,NULL
+"d_use_rate_monthly_store_data",1,"sync_id_remote_site","integer","int4","NO",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_monthly_store_data",2,"store_id","text","text","NO",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_monthly_store_data",3,"category4_id","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_monthly_store_data",4,"yearmonth","text","text","NO",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_monthly_store_data",5,"date","date","date","NO",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_monthly_store_data",6,"days_since_last_sync","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_monthly_store_data",7,"supplier_requisition","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_monthly_store_data",8,"customer_requisition","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_monthly_store_data",9,"supplier_invoice","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_monthly_store_data",10,"customer_invoices","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_monthly_store_data",11,"dispensing","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_monthly_store_data",12,"stock_takes","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"d_use_rate_monthly_store_data",13,"updated_date","timestamp without time zone","timestamp","YES","CURRENT_TIMESTAMP",NULL,NULL,NULL,NULL
+"dashboard_report",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"dashboard_report",2,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"dashboard_report",3,"method_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"dashboard_report",4,"update_period","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"dashboard_report",5,"last_updated_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"dashboard_report",6,"last_updated_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"dashboard_report",7,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"dashboard_report",8,"minimum_update_period","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"dashboard_report",9,"json","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"dashboard_report",10,"report_parameters","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"dashboard_report",11,"runafter","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"dashboard_report",12,"notificationrules","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"dashboard_tab",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"dashboard_tab",2,"internal_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"dashboard_tab",3,"banner","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"dashboard_tab",4,"reports","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"dashboard_tab",5,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"dashboard_tab",6,"tab_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"dashboard_tab",7,"spare_7","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"dashboard_tab",8,"spare_8","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"dashboard_tab",9,"spare_9","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"diagnosis",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"diagnosis",2,"icd_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"diagnosis",3,"icd_description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"diagnosis",4,"valid_till","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"diagnosis",5,"notes","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"district_mos",1,"time","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"district_mos",2,"district","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"district_mos",3,"store","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"district_mos",4,"value","double precision","float8","YES",NULL,NULL,NULL,NULL,NULL
+"district_mos",5,"geojson","json","json","YES",NULL,NULL,NULL,NULL,NULL
+"doc_reference",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"doc_reference",2,"file_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"doc_reference",3,"table_no","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"doc_reference",4,"linked_record_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"doc_reference",5,"date_original","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"doc_reference",6,"time_original","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"doc_reference",7,"date_first_saved","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"doc_reference",8,"time_first_saved","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"doc_reference",9,"date_last_modified","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"doc_reference",10,"md5_checksum","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"doc_reference",11,"user_id_first_saved","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"doc_reference",12,"user_id_last_modified","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"doc_reference",13,"version_no","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"doc_reference",14,"stored_document","bytea","bytea","YES",NULL,NULL,NULL,NULL,NULL
+"doc_reference",15,"type_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_interaction",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"drug_interaction",2,"affected_group_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_interaction",3,"affecting_group_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_interaction",4,"notes","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_interaction",5,"alert_message","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_interaction",6,"action","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_interaction",7,"clinical_significance","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_interaction",8,"quality_of_evidence","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_interaction",9,"spare","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_interaction",10,"author","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_interaction",11,"date_modified","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"drug_interaction_group",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"drug_interaction_group",2,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"drug_register",2,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register",3,"supplier_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register",4,"manufacturer_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register",5,"trade_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register",6,"pack_size","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register",7,"application_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"drug_register",8,"application_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"drug_register",9,"approval_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"drug_register",10,"registration_expiry_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"drug_register",11,"modified_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"drug_register",12,"modified_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"drug_register",13,"created_by","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register",14,"registration_number","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register",15,"is_currently_registered","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"drug_register",16,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register",17,"category1_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register",18,"category2_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register",19,"category3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register",20,"category4","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register",21,"status_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register_category1",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"drug_register_category1",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register_category2",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"drug_register_category2",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register_status",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"drug_register_status",2,"spare_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"drug_register_status",3,"spare_headline","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register_status",4,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"drug_register_status",5,"spare_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"drug_register_status",6,"color","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"ethnicity",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"ethnicity",2,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"export_log",1,"id","character varying","varchar","YES",NULL,NULL,NULL,NULL,NULL
+"export_log",2,"datetime","timestamp without time zone","timestamp","YES",NULL,NULL,NULL,NULL,NULL
+"export_log",3,"start_timestamp","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"export_log",4,"end_timestamp","integer","int4","YES",NULL,NULL,NULL,NULL,NULL
+"export_log",5,"event_type","character varying","varchar","YES",NULL,NULL,NULL,NULL,NULL
+"export_log",6,"comment","character varying","varchar","YES",NULL,NULL,NULL,NULL,NULL
+"form_schema",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"form_schema",2,"json_schema","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"form_schema",3,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"form_schema",4,"version","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"form_schema",5,"ui_schema","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"geojson",1,"id","character varying","varchar","YES",NULL,NULL,NULL,NULL,NULL
+"geojson",2,"data","json","json","YES",NULL,NULL,NULL,NULL,NULL
+"geojson",3,"name","character varying","varchar","YES",NULL,NULL,NULL,NULL,NULL
+"goods_received",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"goods_received",2,"purchase_order_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received",3,"entry_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"goods_received",4,"received_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"goods_received",5,"supplier_reference","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received",6,"user_id_created","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received",7,"user_id_modified","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received",8,"status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received",9,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received",10,"budget_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received",11,"donor_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received",12,"serial_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"goods_received",13,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received",14,"linked_transaction_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received",15,"oms_fields","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"goods_received_line",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"goods_received_line",2,"goods_received_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received_line",3,"order_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received_line",4,"pack_received","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"goods_received_line",5,"quantity_received","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"goods_received_line",6,"batch_received","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received_line",7,"weight_per_pack","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"goods_received_line",8,"expiry_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"goods_received_line",9,"line_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"goods_received_line",10,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received_line",11,"item_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received_line",12,"location_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received_line",13,"volume_per_pack","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"goods_received_line",14,"manufacturer_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received_line",15,"pack_quan_in_inner","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"goods_received_line",16,"pack_inners_in_outer","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"goods_received_line",17,"spare_note_has_been_actioned","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"goods_received_line",18,"is_authorised","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"goods_received_line",19,"authorised_comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received_line",20,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received_line",21,"kit_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"goods_received_line",22,"cost_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"goods_received_line",23,"remotecustomerinvoicelineid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received_line",24,"custom_stock_field_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received_line",25,"custom_stock_field_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received_line",26,"custom_stock_field_3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received_line",27,"custom_stock_field_4","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"goods_received_line",28,"oms_fields","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"indicator_attribute",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"indicator_attribute",2,"indicator_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"indicator_attribute",3,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"indicator_attribute",4,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"indicator_attribute",5,"index","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"indicator_attribute",6,"is_required","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"indicator_attribute",7,"value_type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"indicator_attribute",8,"axis","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"indicator_attribute",9,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"indicator_attribute",10,"default_value","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"indicator_value",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"indicator_value",2,"facility_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"indicator_value",3,"period_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"indicator_value",4,"column_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"indicator_value",5,"row_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"indicator_value",6,"value","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"indicator_value",7,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"insuranceprovider",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"insuranceprovider",2,"providername","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"insuranceprovider",3,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"insuranceprovider",4,"prescriptionvaliditydays","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"insuranceprovider",5,"isactive","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"integration",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"integration",2,"api_url","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"integration",3,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"integration",4,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"integration",5,"email","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"integration",6,"password","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"integration",7,"token","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"integration",8,"enabled","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"integration",9,"additionaldata","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"item",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"item",2,"item_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",3,"start_of_year_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"item",4,"manufacture_method","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",5,"default_pack_size","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item",6,"dose_picture","bytea","bytea","YES",NULL,NULL,NULL,NULL,NULL
+"item",7,"atc_category","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",8,"medication_purpose","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",9,"instructions","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",10,"user_field_7","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",11,"flags","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",12,"ddd_value","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",13,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",14,"other_names","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",15,"type_of","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",16,"price_editable","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",17,"margin","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item",18,"barcode_spare","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",19,"spare_ignore_for_orders","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",20,"sms_pack_size","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item",21,"expiry_date_mandatory","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",22,"volume_per_pack","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item",23,"department_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",24,"weight","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item",25,"essential_drug_list","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",26,"catalogue_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",27,"indic_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item",28,"user_field_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",29,"spare_hold_for_issue","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",30,"builds_only","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",31,"reference_bom_quantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item",32,"use_bill_of_materials","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",33,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",34,"spare_hold_for_receive","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",35,"message","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",36,"interaction_group_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",37,"spare_pack_to_one_on_receive","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",38,"cross_ref_item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",39,"strength","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",40,"user_field_4","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",41,"user_field_6","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",42,"spare_internal_analysis","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item",43,"user_field_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",44,"user_field_3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",45,"ddd factor","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item",46,"account_stock_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",47,"account_purchases_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",48,"account_income_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",49,"unit_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",50,"outer_pack_size","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item",51,"category_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",52,"abc_category","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",53,"warning_quantity","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item",54,"user_field_5","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item",55,"print_units_in_dis_labels","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",56,"volume_per_outer_pack","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item",57,"normal_stock","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",58,"critical_stock","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",59,"spare_non_stock","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",60,"non_stock_name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",61,"is_sync","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",62,"sms_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",63,"category2_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",64,"category3_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",65,"buy_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item",66,"ven_category","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",67,"universalcodes_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",68,"universalcodes_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",69,"kit_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"item",70,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"item",71,"doses","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item",72,"is_vaccine","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item",73,"restricted_location_type_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item",74,"product_specifications","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_amc_projection",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"item_amc_projection",2,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_amc_projection",3,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_amc_projection",4,"year_month","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_amc_projection",5,"projection_value","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_amc_projection",6,"projection_type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_category",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"item_category",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_category",3,"sort_order","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_category",4,"summary_only","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_category",5,"parent_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_category",6,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"item_category2",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"item_category2",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_category2",3,"sort_order","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_category2",4,"summary_only","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_category3",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"item_category3",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_category3",3,"sort_order","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_category3",4,"summary_only","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_category_level1",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"item_category_level1",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_category_level1",3,"sort_order","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_category_level1",4,"summary_only","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_category_level1",5,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"item_category_level2",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"item_category_level2",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_category_level2",3,"sort_order","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_category_level2",4,"summary_only","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_category_level2",5,"parent_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_department",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"item_department",2,"department","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_department",3,"issue","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_department",4,"order_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_direction",1,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_direction",2,"priority","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_direction",3,"directions","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_direction",4,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"item_line",1,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",2,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",3,"pack_size","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_line",4,"expiry_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"item_line",5,"batch","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",6,"available","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_line",7,"program_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",8,"cost_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_line",9,"sell_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_line",10,"hold","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_line",11,"initial_quan","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_line",12,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"item_line",13,"quantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_line",14,"name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",15,"manufacturer_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",16,"location_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",17,"volume_per_pack","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_line",18,"stock_on_hand_tot","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_line",19,"total_volume","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_line",20,"user_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",21,"user_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",22,"user_3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",23,"user_4","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",24,"pack_quan_per_inner","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_line",25,"pack_inners_per_outer","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_line",26,"note","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",27,"vvm_status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",28,"donor_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",29,"total_cost","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_line",30,"user_5_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",31,"user_6_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",32,"user_7_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",33,"user_8_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",34,"kit_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"item_line",35,"barcodeid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",36,"extradata","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"item_line",37,"repack_original_trans_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",38,"weight_per_pack","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_line",39,"om_item_variant_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",40,"om_doses","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_line",41,"vvm_status_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",42,"spare_text","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line",43,"oms_fields","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"item_line_note",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"item_line_note",2,"il_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line_note",3,"vvm_status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line_note",4,"entered_by_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line_note",5,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_line_note",6,"date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"item_note",1,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_note",2,"date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"item_note",3,"note","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_note",4,"whentodisplay","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_note",5,"created_by_user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_note",6,"modified_by_user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_note",7,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_note",8,"color_code","smallint","int2","YES","0",NULL,NULL,NULL,NULL
+"item_note",9,"beep_times","smallint","int2","YES","0",NULL,NULL,NULL,NULL
+"item_note",10,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"item_note",11,"spare","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_program_department",1,"id","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"item_program_department",2,"code","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"item_program_department",3,"name","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"item_program_department",4,"department","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"item_property_join",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"item_property_join",2,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_property_join",3,"property_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_property_join",4,"value","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"item_store_join",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"item_store_join",2,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_store_join",3,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_store_join",4,"default_location_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_store_join",5,"location_bulk_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_store_join",6,"include_on_price_list","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_store_join",7,"indic_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_store_join",8,"report_quantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_store_join",9,"minimum_stock","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_store_join",10,"pack_to_one","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_store_join",11,"default_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_store_join",12,"hold_for_issue","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_store_join",13,"margin","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_store_join",14,"inactive","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_store_join",15,"pack_to_one_allow","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_store_join",16,"restricted_location_type_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_store_join",17,"non_stock","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_store_join",18,"non_stock_name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_store_join",19,"forecast_method","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_store_join",20,"estimated_amc","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_store_join",21,"amc_modification_factor","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_store_join",22,"projection_for_calcs","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_store_join",23,"hold_for_receive","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_store_join",24,"ignore_for_orders","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_store_join",25,"maximum_stock","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_store_join",26,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"item_store_join",27,"pickface_pack_size","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_store_join",28,"pickface_replenish_at_packs","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_store_join",29,"pickface_replenish_up_to_packs","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_store_join",30,"pickface_location_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_store_join",31,"bulk_replenish_at_packs","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_store_join",32,"bulk_replenish_up_to_packs","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"item_store_program",1,"store","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"item_store_program",2,"storeid","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"item_store_program",3,"item","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"item_store_program",4,"itemcode","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"item_store_program",5,"itemid","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"item_store_program",6,"program","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"item_store_program",7,"minimum","real","float4","YES",NULL,NULL,NULL,NULL,NULL
+"item_store_program",8,"maximum","real","float4","YES",NULL,NULL,NULL,NULL,NULL
+"item_warning_link",1,"spare","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"item_warning_link",2,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_warning_link",3,"warning_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"item_warning_link",4,"priority","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"item_warning_link",5,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"label",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"label",2,"heading","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"label",3,"body","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"label",4,"footer_left_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"label",5,"footer_right_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"label",6,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"label",7,"footer_left_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"label",8,"footer_right_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"label",9,"footer_centred","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"label",10,"heading_font_size","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"label",11,"footer_font_size","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"label",12,"body_font_size","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"label",13,"line_height","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"label",14,"footer_font_size_1","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"label",15,"footer_font_size_2","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"label",16,"num_labels_on_single_label","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"list_local_line",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"list_local_line",2,"spare_name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"list_local_line",3,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"list_local_line",4,"imprest_quantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"list_local_line",5,"list_master_name_join_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"list_local_line",6,"line_no","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"list_local_line",7,"price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"list_master",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"list_master",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"list_master",3,"date_created","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"list_master",4,"created_by_user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"list_master",5,"note","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"list_master",6,"gets_new_items","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"list_master",7,"tags","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"list_master",8,"isprogram","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"list_master",9,"programsettings","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"list_master",10,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"list_master",11,"ispatientlist","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"list_master",12,"is_hiv","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"list_master",13,"issupplierhubcatalog","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"list_master",14,"inactive","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"list_master",15,"is_immunisation","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"list_master",16,"is_default_price_list","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"list_master",17,"discount_percentage","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"list_master",18,"is_non_program_list","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"list_master_line",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"list_master_line",2,"item_master_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"list_master_line",3,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"list_master_line",4,"imprest_quan","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"list_master_line",5,"order_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"list_master_line",6,"price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"list_master_name_join",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"list_master_name_join",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"list_master_name_join",3,"name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"list_master_name_join",4,"list_master_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"list_master_name_join",5,"include_web","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"list_master_name_join",6,"include_imprest","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"list_master_name_join",7,"include_stock_hist","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"list_master_name_join",8,"price_list","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"location",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"location",2,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"location",3,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"location",4,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"location",5,"volume","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"location",6,"type_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"location",7,"object_type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"location",8,"parent_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"location",9,"colour","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"location",10,"bottom_y_coordinate","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"location",11,"summary_only","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"location",12,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"location",13,"priority","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"location",14,"hold","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"location",15,"replenishment_type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"location",16,"asset_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"location_coordinate",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"location_coordinate",2,"location_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"location_coordinate",3,"point_num","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"location_coordinate",4,"x","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"location_coordinate",5,"y","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"location_movement",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"location_movement",2,"location_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"location_movement",3,"enter_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"location_movement",4,"enter_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"location_movement",5,"exit_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"location_movement",6,"exit_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"location_movement",7,"item_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"location_movement",8,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"location_type",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"location_type",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"location_type",3,"temperature_min","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"location_type",4,"temperature_max","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"location_type",5,"customdata","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"log",1,"entry_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"log",2,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"log",3,"event","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"log",4,"event_type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"log",5,"time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"log",6,"source_record_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"log",7,"source_table","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"log",8,"user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"log",9,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"log",10,"data_json","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"medicine_administrator",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"medicine_administrator",2,"first_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"medicine_administrator",3,"last_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"medicine_administrator",4,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"medicine_administrator",5,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"message",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"message",2,"tostoreid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"message",3,"fromstoreid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"message",4,"body","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"message",5,"createddate","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"message",6,"createdtime","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"message",7,"status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"message",8,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"name",2,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",3,"fax","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",4,"phone","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",5,"customer","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name",6,"bill_address1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",7,"bill_address2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",8,"supplier","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name",9,"charge code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",10,"margin","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"name",11,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",12,"currency_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",13,"country","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",14,"freightfac","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"name",15,"email","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",16,"custom1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",17,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",18,"last","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",19,"first","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",20,"title","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",21,"female","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name",22,"date_of_birth","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"name",23,"overpayment","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"name",24,"group_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",25,"hold","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name",26,"ship_address1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",27,"ship_address2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",28,"url","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",29,"barcode","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",30,"postal_address1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",31,"postal_address2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",32,"category1_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",33,"region_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",34,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",35,"price_category","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",36,"flag","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",37,"manufacturer","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name",38,"print_invoice_alphabetical","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name",39,"custom2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",40,"custom3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",41,"default_order_days","smallint","int2","YES","0",NULL,NULL,NULL,NULL
+"name",42,"connection_type","smallint","int2","YES","0",NULL,NULL,NULL,NULL
+"name",43,"patient_photo","bytea","bytea","YES",NULL,NULL,NULL,NULL,NULL
+"name",44,"next_of_kin_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",45,"pobox","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",46,"zip","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"name",47,"middle","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",48,"preferred","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name",49,"blood_group","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",50,"marital_status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",51,"benchmark","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name",52,"next_of_kin_relative","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",53,"mother_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",54,"postal_address3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",55,"postal_address4","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",56,"bill_address3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",57,"bill_address4","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",58,"ship_address3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",59,"ship_address4","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",60,"ethnicity_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",61,"occupation_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",62,"religion_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",63,"national_health_number","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",64,"master_rtm_supplier_code","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"name",65,"ordering_method","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",66,"donor","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name",67,"latitude","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"name",68,"longitude","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"name",69,"master_rtm_supplier_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",70,"category2_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",71,"category3_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",72,"category4_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",73,"category5_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",74,"category6_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",75,"bill_address5","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",76,"bill_postal_zip_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",77,"postal_address5","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",78,"postal_zip_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",79,"ship_address5","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",80,"ship_postal_zip_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",81,"supplying_store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",82,"license_number","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",83,"license_expiry","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"name",84,"has_current_license","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name",85,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"name",86,"maximum_credit","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"name",87,"nationality_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",88,"created_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"name",89,"integration_reference_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",90,"isdeceased","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name",91,"is_deleted","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name",92,"om_created_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",93,"om_gender","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",94,"hsh_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",95,"hsh_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",96,"hsh_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",97,"om_date_of_death","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"name",98,"spare_alpha_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name",99,"spare_alpha_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_budget",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"name_budget",2,"name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_budget",3,"budget_period_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_budget",4,"amount","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"name_budget",5,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_budget",6,"date_entered","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"name_budget",7,"additional_budget","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name_category1",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"name_category1",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category1",3,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category1",4,"parent_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category1",5,"user_field1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category1",6,"user_field2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category1_level1",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"name_category1_level1",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category1_level1",3,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category1_level2",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"name_category1_level2",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category1_level2",3,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category1_level2",4,"parent_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category2",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"name_category2",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category2",3,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category2",4,"user_field1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category2",5,"user_field2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category3",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"name_category3",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category3",3,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category3",4,"user_field1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category3",5,"user_field2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category4",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"name_category4",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category4",3,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category4",4,"user_field1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category4",5,"user_field2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category5",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"name_category5",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category5",3,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category5",4,"user_field1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category5",5,"user_field2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category6",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"name_category6",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category6",3,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category6",4,"user_field1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_category6",5,"user_field2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_group",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"name_group",2,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_note",1,"patient_event_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_note",2,"entry_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"name_note",3,"note","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_note",4,"name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_note",5,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"name_note",6,"value","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"name_note",7,"boolean_value","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name_note",8,"created_by_user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_note",9,"modified_by_user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_note",10,"whentodisplay","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_note",11,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_note",12,"color_code","smallint","int2","YES","0",NULL,NULL,NULL,NULL
+"name_note",13,"beep_times","smallint","int2","YES","0",NULL,NULL,NULL,NULL
+"name_note",14,"data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"name_note",15,"is_deleted","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name_store_join",1,"name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_store_join",2,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_store_join",3,"inactive","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name_store_join",4,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"name_store_join",5,"spare_category_id","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"name_store_join",6,"spare_category_optional_id","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"name_store_join",7,"spare_category_optional2_id","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"name_store_join",8,"om_name_is_customer","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name_store_join",9,"om_name_is_supplier","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"name_tag",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"name_tag",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_tag_join",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"name_tag_join",2,"name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"name_tag_join",3,"name_tag_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"nameinsurancejoin",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"nameinsurancejoin",2,"insuranceproviderid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"nameinsurancejoin",3,"nameid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"nameinsurancejoin",4,"oms_fields","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"nameinsurancejoin",5,"isactive","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"nameinsurancejoin",6,"policynumberfamily","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"nameinsurancejoin",7,"policynumberperson","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"nameinsurancejoin",8,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"nameinsurancejoin",9,"discountrate","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"nameinsurancejoin",10,"expirydate","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"nameinsurancejoin",11,"policynumberfull","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"nameinsurancejoin",12,"enteredbyid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"nationality",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"nationality",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"occupation",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"occupation",2,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_activity_log",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"om_activity_log",2,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_activity_log",3,"user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_activity_log",4,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_activity_log",5,"record_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_activity_log",6,"datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_activity_log",7,"changed_from","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_activity_log",8,"changed_to","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_document",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"om_document",2,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_document",3,"parent_ids","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_document",4,"user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_document",5,"datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_document",6,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_document",7,"data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"om_document",8,"form_schema_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_document",9,"status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_document",10,"owner_name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_document",11,"context_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_document_registry",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"om_document_registry",2,"document_type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_document_registry",3,"category","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_document_registry",4,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_document_registry",5,"spare","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_document_registry",6,"form_schema_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_document_registry",7,"config","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"om_document_registry",8,"context_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_user_permission",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"om_user_permission",2,"user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_user_permission",3,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_user_permission",4,"permission","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"om_user_permission",5,"context_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"options",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"options",2,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"options",3,"isactive","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"options",4,"title","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_event",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"patient_event",2,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_event",3,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_event",4,"event_type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_event",5,"unit","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_medication",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"patient_medication",2,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_medication",3,"name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_medication",4,"dose_morning","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_medication",5,"dose_lunch","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_medication",6,"dose_evening","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_medication",7,"dose_bedtime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_medication",8,"purpose","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_medication",9,"instructions","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_medication",10,"user_created_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_medication",11,"date_created","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"patient_medication",12,"user_modified_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_medication",13,"date_modified","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"patient_medication",14,"notes","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"patient_medication",15,"trans_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"paymenttype",1,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"paymenttype",2,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"paymenttype",3,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"period",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"period",2,"periodscheduleid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"period",3,"startdate","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"period",4,"enddate","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"period",5,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"period",6,"inactive","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"period_amount",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"period_amount",2,"budget_period_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"period_amount",3,"account_code_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"period_amount",4,"budget","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"periodschedule",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"periodschedule",2,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"permission",1,"name_group_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"permission",2,"item_dept_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"permission",3,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"placeholder4",1,"id","integer","int4","NO","0",NULL,NULL,NULL,NULL
+"pref",1,"item","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"pref",2,"user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"pref",3,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"pref",4,"network_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"pref",5,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"pref",6,"data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"program_indicator",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"program_indicator",2,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"program_indicator",3,"program_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"program_indicator",4,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"property",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"property",2,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"property",3,"read_only","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"property",4,"key","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",1,"name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",2,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"purchase_order",3,"creation_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"purchase_order",4,"target_months","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",5,"status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",6,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",7,"currency_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",8,"inv_sub_total","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",9,"freight","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",10,"cost_in_local_currency","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",11,"curr_rate","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",12,"reference","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",13,"lines","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",14,"requested_delivery_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"purchase_order",15,"locked","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"purchase_order",16,"confirm_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"purchase_order",17,"created_by","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",18,"last_edited_by","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",19,"order_total_after_discount","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",20,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",21,"supplier_agent","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",22,"delivery_method","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",23,"authorizing_officer_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",24,"authorizing_officer_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",25,"freight_conditions","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",26,"additional_instructions","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",27,"total_foreign_currency_expected","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",28,"total_local_currency_expected","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",29,"agent_commission","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",30,"document_charge","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",31,"communications_charge","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",32,"insurance_charge","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",33,"freight_charge","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",34,"po_sent_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"purchase_order",35,"supplier_discount_amount","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",36,"order_total_before_discount","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",37,"inv_discount_amount","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",38,"quote_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",39,"editedremotely","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"purchase_order",40,"heading_message","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",41,"budget_period_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",42,"category_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",43,"include_in_on_order_calcs","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"purchase_order",44,"colour","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",45,"user_field_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",46,"date_contract_signed","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"purchase_order",47,"date_advance_payment","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"purchase_order",48,"date_goods_received_at_port","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"purchase_order",49,"is_authorised","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"purchase_order",50,"auth_checksum","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",51,"donor_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",52,"user_field_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",53,"serial_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",54,"linked_transaction_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order",55,"lookbackmonths","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order",56,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"purchase_order",57,"minimumexpirydate","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"purchase_order",58,"oms_fields","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"purchase_order_category",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"purchase_order_category",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_category",3,"user_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_category",4,"user_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_category",5,"user_3","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order_line",1,"purchase_order_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_line",2,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_line",3,"non_stock_name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_line",4,"packsize_ordered","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order_line",5,"cost_from_invoice","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order_line",6,"cost_local","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order_line",7,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_line",8,"batch","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_line",9,"expiry","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"purchase_order_line",10,"quan_original_order","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order_line",11,"quan_adjusted_order","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order_line",12,"quan_rec_to_date","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order_line",13,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_line",14,"spare_estmated_cost","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order_line",15,"item_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_line",16,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"purchase_order_line",17,"pack_units","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_line",18,"price_expected_after_discount","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order_line",19,"price_extension_expected","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order_line",20,"supplier_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_line",21,"price_per_pack_before_discount","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order_line",22,"quote_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_line",23,"volume_per_pack","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order_line",24,"location_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_line",25,"manufacturer_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_line",26,"delivery_date_requested","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"purchase_order_line",27,"line_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"purchase_order_line",28,"note","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"purchase_order_line",29,"note_show_on_goods_rec","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"purchase_order_line",30,"delivery_date_expected","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"purchase_order_line",31,"note_has_been_actioned","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"purchase_order_line",32,"kit_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"purchase_order_line",33,"suggestedquantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order_line",34,"snapshotquantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"purchase_order_line",35,"oms_fields","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"quote",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"quote",2,"tender_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote",3,"names_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote",4,"sent_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"quote",5,"responded_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"quote",6,"supplier_ref","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote",7,"currency_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote",8,"rate_per_m3","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote",9,"rate_per_kg","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote",10,"deliveries_requested","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"quote",11,"validitydate","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"quote",12,"mycomment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote",13,"suppliercomment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote",14,"downloaded","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"quote_line",1,"edit_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"quote_line",2,"name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",3,"price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote_line",4,"preferred","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"quote_line",5,"pack_size","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote_line",6,"currency_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",7,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",8,"net_cost","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote_line",9,"adj cost","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote_line",10,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",11,"strip pack","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"quote_line",12,"supplier_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",13,"supplier_bar_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",14,"price_break_comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",15,"price_break_quanity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote_line",16,"price_break_discount","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote_line",17,"supplier_preferred_pack_size","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote_line",18,"freight_comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",19,"freight_per_preferred_pack","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote_line",20,"lead_time_days","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"quote_line",21,"valid_until_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"quote_line",22,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"quote_line",23,"disqualified","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"quote_line",24,"quote_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",25,"tender_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",26,"manufacturer_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",27,"freight_factor","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote_line",28,"date_created","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"quote_line",29,"volume_per_pack","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote_line",30,"freight_total","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote_line",31,"expirydate","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",32,"deliverytime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",33,"spare","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"quote_line",34,"currency_rate","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote_line",35,"line_num","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"quote_line",36,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"quote_line",37,"min_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote_line",38,"max_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote_line",39,"purchase_order_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",40,"total_cost","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"quote_line",41,"supplier_number_of_packs","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"quote_line",42,"method_of_delivery","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",43,"evaluator_comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"quote_line",44,"tender_currency_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"region",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"region",2,"parent_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"region",3,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"region",4,"geometry","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"region_mos",1,"time","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"region_mos",2,"region","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"region_mos",3,"store","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"region_mos",4,"value","double precision","float8","YES",NULL,NULL,NULL,NULL,NULL
+"region_mos",5,"geojson","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"region_property_join",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"region_property_join",2,"region_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"region_property_join",3,"property_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"region_property_join",4,"value","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"region_property_join",5,"date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"region_property_join",6,"spare_num_patients_stopped","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"region_property_join",7,"spare_comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"religion",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"religion",2,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"reminder",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"reminder",2,"due_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"reminder",3,"repeat_has_been_generated","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"reminder",4,"message_text","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"reminder",5,"completed","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"reminder",6,"repeats_automatically","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"reminder",7,"repeat_type","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"reminder",8,"repeat_interval","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"reminder",9,"user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"reminder",10,"repeat_day","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"reminder",11,"created_by_user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"reminder",12,"date_completed","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"reminder",13,"colour","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"reminder",14,"next_repeat_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"reminder",15,"repeat_series_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"reminder",16,"avoid_weekends","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"reminder",17,"entry_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"repeat_table",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"repeat_table",2,"name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"repeat_table",3,"total_repeats","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"repeat_table",4,"repeats_left","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"repeat_table",5,"quantity_blob","bytea","bytea","YES",NULL,NULL,NULL,NULL,NULL
+"repeat_table",6,"expiry_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"repeat_table",7,"issuedrepeatinfo","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"replenishment",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"replenishment",2,"date_created","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"replenishment",3,"date_finalised","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"replenishment",4,"user_id_created_by","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"replenishment",5,"user_id_assigned_to","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"replenishment",6,"from_item_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"replenishment",7,"from_number_of_packs","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"replenishment",8,"from_location_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"replenishment",9,"to_item_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"replenishment",10,"to_number_of_packs","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"replenishment",11,"to_pack_size","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"replenishment",12,"to_location_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"replenishment",13,"status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"replenishment",14,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"replenishment",15,"authorised","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"replenishment",16,"spare_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"reports_by_user",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"reports_by_user",2,"created_by","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"reports_by_user",3,"last_modified","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"reports_by_user",4,"user_can_access","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"reports_by_user",5,"user_can_edit","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"reports_by_user",6,"report_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"reports_by_user",7,"settings","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"reports_by_user",8,"report_description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"reports_by_user",9,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"requisition",2,"date_stock_take","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"requisition",3,"user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",4,"name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",5,"status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",6,"date_entered","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"requisition",7,"nsh_custinv_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",8,"daystosupply","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"requisition",9,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",10,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",11,"date_order_received","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"requisition",12,"previous_csh_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",13,"serial_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"requisition",14,"requester_reference","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",15,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",16,"colour","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"requisition",17,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"requisition",18,"linked_requisition_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",19,"linked_purchase_order_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",20,"authorisationstatus","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",21,"thresholdmos","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition",22,"ordertype","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",23,"periodid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",24,"programid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",25,"lastmodifiedat","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"requisition",26,"is_emergency","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"requisition",27,"isremoteorder","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"requisition",28,"om_created_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",29,"om_sent_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",30,"om_finalised_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",31,"om_max_months_of_stock","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition",32,"om_status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",33,"om_colour","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",34,"om_expected_delivery_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"requisition",35,"date_required","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"requisition",36,"requisition_category_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",37,"donor_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition",38,"oms_fields","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"requisition_category",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"requisition_category",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition_category",3,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"requisition_line",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"requisition_line",2,"requisition_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition_line",3,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition_line",4,"stock_on_hand","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",5,"actualquan","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",6,"imprest_or_prev_quantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",7,"colour","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",8,"line_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",9,"cust_prev_stock_balance","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",10,"cust_stock_received","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",11,"cust_stock_order","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",12,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition_line",13,"cust_loss_adjust","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",14,"days_out_or_new_demand","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",15,"previous_stock_on_hand","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",16,"daily_usage","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",17,"suggested_quantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",18,"adjusted_consumption","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",19,"linked_requisition_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition_line",20,"purchase_order_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition_line",21,"optionid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition_line",22,"cust_stock_issued","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",23,"itemname","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition_line",24,"stocklosses","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",25,"stockadditions","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",26,"stockexpiring","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",27,"dosforamcadjustment","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",28,"requestedpacksize","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",29,"approved_quantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"requisition_line",30,"authoriser_comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition_line",31,"om_snapshot_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition_line",32,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"requisition_line",33,"spare_text","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"requisition_line",34,"oms_fields","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"sensor",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"sensor",2,"locationid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sensor",3,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sensor",4,"macaddress","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sensor",5,"batterylevel","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"sensor",6,"temperature","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"sensor",7,"lastconnectiondate","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"sensor",8,"lastconnectiontime","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"sensor",9,"storeid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sensor",10,"loginterval","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"sensor",11,"numberoflogs","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"sensor",12,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"sensor",13,"log_delay_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"sensor",14,"log_delay_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"sensor",15,"programmed_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"sensor",16,"programmed_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"sensor",17,"asset_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sensor",18,"om_last_connection_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sensorlog",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"sensorlog",2,"sensorid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sensorlog",3,"locationid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sensorlog",4,"aggregation","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sensorlog",5,"date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"sensorlog",6,"time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"sensorlog",7,"customdata","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"sensorlog",8,"isinbreach","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"sensorlog",9,"storeid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sensorlog",10,"temperature","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"sensorlogitemlinejoin",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"sensorlogitemlinejoin",2,"itemlineid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sensorlogitemlinejoin",3,"sensorlogid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"ship_method",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"ship_method",2,"method","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"site",2,"site_id","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"site",3,"sync_out_ids","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",4,"app_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",5,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",6,"password","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",7,"spare_address","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",8,"prefs","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",9,"hardwareid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",10,"app_version","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",11,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",12,"sync_version","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",13,"initialisation_status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",14,"last_sync_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"site",15,"last_sync_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"site",16,"support_client_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",17,"is_omsupply_central_server","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"site",18,"omsupply_central_server_url","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",19,"first_sync_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"site",20,"first_sync_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"site",21,"support_start_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"site",22,"support_end_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"site",23,"license_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",24,"funder_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",25,"concurrent_users_licensed","smallint","int2","YES","0",NULL,NULL,NULL,NULL
+"site",26,"project_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",27,"last_connection_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"site",28,"last_connection_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"site",29,"disabled_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"site",30,"support_level","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site",31,"password_hash","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site_log",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"site_log",2,"date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"site_log",3,"site_id","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"site_log",4,"event","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site_log",5,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site_log",6,"data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"site_log",7,"time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"site_settings",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"site_settings",2,"site_id","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"site_settings",3,"server_url","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"site_settings",4,"sync_is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"site_settings",5,"sync_interval","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"site_settings",6,"sync_batch_size","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"site_settings",7,"use_node_http_client","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"stock_status",1,"storeid","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"stock_status",2,"store","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"stock_status",3,"itemid","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"stock_status",4,"name","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"stock_status",5,"code","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"stock_status",6,"quantity","numeric","numeric","YES",NULL,NULL,NULL,NULL,NULL
+"stock_status",7,"amc","numeric","numeric","YES",NULL,NULL,NULL,NULL,NULL
+"stock_status",8,"program","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"stock_status",9,"minimum","numeric","numeric","YES",NULL,NULL,NULL,NULL,NULL
+"stock_status",10,"maximum","numeric","numeric","YES",NULL,NULL,NULL,NULL,NULL
+"stock_status",11,"mos","numeric","numeric","YES",NULL,NULL,NULL,NULL,NULL
+"stock_status",12,"status","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"stock_status_thresholds",1,"prefix","character varying","varchar","YES",NULL,NULL,NULL,NULL,NULL
+"stock_status_thresholds",2,"minimum","real","float4","YES",NULL,NULL,NULL,NULL,NULL
+"stock_status_thresholds",3,"maximum","real","float4","YES",NULL,NULL,NULL,NULL,NULL
+"stock_status_thresholds",4,"suffix","character varying","varchar","YES",NULL,NULL,NULL,NULL,NULL
+"stock_take",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"stock_take",2,"stock_take_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"stock_take",3,"stock_take_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"stock_take",4,"created_by_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take",5,"status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take",6,"finalised_by_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take",7,"invad_additions_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take",8,"invad_reductions_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take",9,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take",10,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take",11,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take",12,"locked","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"stock_take",13,"stock_take_created_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"stock_take",14,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take",15,"serial_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"stock_take",16,"programid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take",17,"om_created_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take",18,"om_finalised_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take",19,"reference","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take",20,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"stock_take",21,"om_counted_by","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take",22,"om_verified_by","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take",23,"om_is_initial_stocktake","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"stock_take",24,"oms_fields","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"stock_take_lines",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",2,"stock_take_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",3,"item_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",4,"snapshot_qty","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"stock_take_lines",5,"snapshot_packsize","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"stock_take_lines",6,"stock_take_qty","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"stock_take_lines",7,"line_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"stock_take_lines",8,"location_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",9,"colour","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"stock_take_lines",10,"expiry","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"stock_take_lines",11,"cost_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"stock_take_lines",12,"sell_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"stock_take_lines",13,"batch","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",14,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",15,"donor_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",16,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",17,"optionid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",18,"is_edited","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"stock_take_lines",19,"spare","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"stock_take_lines",20,"vaccine_vial_monitor_status_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",21,"om_note","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",22,"custom_stock_field_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",23,"custom_stock_field_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",24,"custom_stock_field_3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",25,"custom_stock_field_4","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",26,"countedexpirydate","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"stock_take_lines",27,"hold","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"stock_take_lines",28,"item_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",29,"volume_per_pack","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"stock_take_lines",30,"weight_per_pack","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"stock_take_lines",31,"manufacturer_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",32,"snapshot_location_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",33,"snapshot_batch","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",34,"snapshot_expiry_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"stock_take_lines",35,"custom_stock_field_5_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",36,"custom_stock_field_6_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",37,"custom_stock_field_7_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",38,"custom_stock_field_8_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",39,"om_item_variant_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"stock_take_lines",40,"oms_fields","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"store",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"store",2,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",3,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",4,"name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",5,"mwks_export_mode","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",6,"is_his","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"store",7,"sort_issues_by_status_spare","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"store",8,"disabled","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"store",9,"responsible_user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",10,"organisation_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",11,"address_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",12,"address_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",13,"logo","bytea","bytea","YES",NULL,NULL,NULL,NULL,NULL
+"store",14,"sync_id_remote_site","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"store",15,"address_3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",16,"address_4","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",17,"address_5","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",18,"postal_zip_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",19,"store_mode","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",20,"phone","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",21,"tags","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",22,"spare_user_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",23,"spare_user_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",24,"spare_user_3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",25,"spare_user_4","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",26,"spare_user_5","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",27,"spare_user_6","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",28,"spare_user_7","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",29,"spare_user_8","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",30,"spare_user_9","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",31,"spare_user_10","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",32,"spare_user_11","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",33,"spare_user_12","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",34,"spare_user_13","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",35,"spare_user_14","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",36,"spare_user_15","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",37,"spare_user_16","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store",38,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"store",39,"created_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"store",40,"oms_central_migration_status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store_credential",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"store_credential",2,"password","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store_credential",3,"username","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store_credential",4,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"store_item_mos",1,"store_id","character varying","varchar","YES",NULL,NULL,NULL,NULL,NULL
+"store_item_mos",2,"item_id","character varying","varchar","YES",NULL,NULL,NULL,NULL,NULL
+"store_item_mos",3,"mos_min","real","float4","YES",NULL,NULL,NULL,NULL,NULL
+"store_item_mos",4,"mos_pcu","real","float4","YES",NULL,NULL,NULL,NULL,NULL
+"store_item_mos",5,"mos_max","real","float4","YES",NULL,NULL,NULL,NULL,NULL
+"store_mos",1,"current_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"store_mos",2,"store","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"store_mos",3,"value","double precision","float8","YES",NULL,NULL,NULL,NULL,NULL
+"store_mos",4,"latitude","double precision","float8","YES",NULL,NULL,NULL,NULL,NULL
+"store_mos",5,"longitude","double precision","float8","YES",NULL,NULL,NULL,NULL,NULL
+"store_mos",6,"item","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"store_period_schedules",1,"storeid","character varying","varchar","NO",NULL,NULL,NULL,NULL,NULL
+"store_period_schedules",2,"periodscheduleid","character varying","varchar","NO",NULL,NULL,NULL,NULL,NULL
+"store_period_schedules",3,"programid","character varying","varchar","NO",NULL,NULL,NULL,NULL,NULL
+"store_transactions",1,"date","timestamp with time zone","timestamptz","YES",NULL,NULL,NULL,NULL,NULL
+"store_transactions",2,"store","text","text","YES",NULL,NULL,NULL,NULL,NULL
+"store_transactions",3,"month","bigint","int8","YES",NULL,NULL,NULL,NULL,NULL
+"store_transactions",4,"week","bigint","int8","YES",NULL,NULL,NULL,NULL,NULL
+"sync_buffer",1,"id","integer","int4","NO","0",NULL,NULL,NULL,NULL
+"sync_buffer",2,"site_id","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"sync_buffer",3,"sync_out_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sync_buffer",4,"table_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sync_buffer",5,"record_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sync_buffer",6,"record_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"sync_buffer",7,"action","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sync_buffer",8,"integration_error","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"sync_out",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"sync_out",2,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sync_out",3,"table_num","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"sync_out",4,"record_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sync_out",5,"to_from_id","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"sync_out",6,"record_data","bytea","bytea","YES",NULL,NULL,NULL,NULL,NULL
+"sync_out",7,"sequence","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"sync_out",8,"table_id_num","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"sync_out",9,"merge_id_to_keep","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sync_out",10,"merge_id_to_delete","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sync_out",11,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"sync_out",12,"date_created","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"sync_out",13,"time_created","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"table_log",1,"log_id","character varying","varchar","YES",NULL,NULL,NULL,NULL,NULL
+"table_log",2,"table","character varying","varchar","YES",NULL,NULL,NULL,NULL,NULL
+"table_log",3,"status","character varying","varchar","YES",NULL,NULL,NULL,NULL,NULL
+"temperature_breach",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"temperature_breach",2,"start_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"temperature_breach",3,"start_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"temperature_breach",4,"end_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"temperature_breach",5,"end_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"temperature_breach",6,"location_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_breach",7,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_breach",8,"temperature_breach_config_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_breach",9,"acknowledged","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"temperature_breach",10,"sensor_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_breach",11,"threshold_maximum_temperature","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"temperature_breach",12,"threshold_minimum_temperature","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"temperature_breach",13,"threshold_duration","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"temperature_breach",14,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_breach",15,"duration","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"temperature_breach",16,"om_start_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_breach",17,"om_end_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_breach",18,"om_comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_breach_config",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"temperature_breach_config",2,"maximum_temperature","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"temperature_breach_config",3,"minimum_temperature","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"temperature_breach_config",4,"duration","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"temperature_breach_config",5,"colour","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_breach_config",6,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_breach_config",7,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"temperature_breach_config",8,"location_type_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_breach_config",9,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_breach_config",10,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_breach_config",11,"location_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_log",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"temperature_log",2,"temperature","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"temperature_log",3,"date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"temperature_log",4,"time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"temperature_log",5,"location_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_log",6,"temperature_breach_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_log",7,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_log",8,"sensor_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"temperature_log",9,"log_interval","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"temperature_log",10,"om_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"tender",2,"desc","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender",3,"status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender",4,"creation_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"tender",5,"issue_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"tender",6,"due_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"tender",7,"created_by_user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender",8,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender",9,"conditions","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender",10,"our_ref","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender",11,"locked","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"tender",12,"tender_inter_month","smallint","int2","YES","0",NULL,NULL,NULL,NULL
+"tender",13,"po_calc_method","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"tender",14,"print_item_desc","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"tender",15,"create_split_deliveries","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"tender",16,"print_tender_conditions","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"tender",17,"benchmarksupplier_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender",18,"tendersyncstatus","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender",19,"targetdays","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"tender",20,"requesteddeliverydate","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"tender",21,"emailsubject","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender",22,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender",23,"closing_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"tender",24,"serial_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"tender",25,"incoterm_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_condition",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"tender_condition",2,"tender_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_condition",3,"order","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_condition",4,"heading","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_condition",5,"body","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_condition",6,"date_created","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"tender_condition",7,"created_by_user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_condition",8,"active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"tender_condition",9,"print_what","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"tender_condition",10,"flag","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_condition",11,"condition_cat_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_condition",12,"is_master_condition","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"tender_condition_category",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"tender_condition_category",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_currency",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"tender_currency",2,"tender_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_currency",3,"currency_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_currency",4,"rate","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"tender_currency",5,"date_updated","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"tender_line",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"tender_line",2,"tender_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_line",3,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_line",4,"item_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_line",5,"noofpacks","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"tender_line",6,"unit_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_line",7,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_line",8,"pack_size","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"tender_line",9,"conditions","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_line",10,"totalquantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"tender_line",11,"indicative_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"tender_line",12,"line_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"tender_line",13,"generated_qty","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"tender_line",14,"colour","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"tender_line",15,"selection_notes","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"tender_line",16,"is_synced","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"trans_line",1,"transaction_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",2,"item_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",3,"batch","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",4,"price_extension","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"trans_line",5,"note","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",6,"sell_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"trans_line",7,"expiry_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"trans_line",8,"cost_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"trans_line",9,"pack_size","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"trans_line",10,"quantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"trans_line",11,"box_number","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",12,"item_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",13,"line_number","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"trans_line",14,"item_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",15,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"trans_line",16,"supp_trans_line_id_ns","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",17,"goods_received_lines_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",18,"manufacturer_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",19,"foreign_currency_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"trans_line",20,"location_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",21,"volume_per_pack","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"trans_line",22,"repeat_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",23,"user_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",24,"user_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",25,"user_3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",26,"user_4","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",27,"pack_size_inner","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"trans_line",28,"pack_inners_in_outer","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"trans_line",29,"is_from_inventory_adjustment","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"trans_line",30,"weight","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"trans_line",31,"source_backorder_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",32,"order_lines_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",33,"donor_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",34,"local_charge_line_total","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"trans_line",35,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",36,"linked_transact_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",37,"user_5_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",38,"user_6_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",39,"user_7_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",40,"user_8_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",41,"linked_trans_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",42,"barcodeid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",43,"sentquantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"trans_line",44,"optionid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",45,"isvvmpassed","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",46,"program_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",47,"prescribedquantity","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"trans_line",48,"vaccine_vial_monitor_status_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",49,"sent_pack_size","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"trans_line",50,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"trans_line",51,"medicine_administrator_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",52,"om_item_code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",53,"om_tax","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"trans_line",54,"om_total_before_tax","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"trans_line",55,"om_total_after_tax","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"trans_line",56,"om_item_variant_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",57,"spare_text","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_line",58,"oms_fields","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"trans_note",1,"transact_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_note",2,"note","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"trans_note",3,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"trans_note",4,"spare","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"transact",1,"name_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",2,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"transact",3,"invoice_num","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"transact",4,"amount_outstanding","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"transact",5,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",6,"entry_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"transact",7,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",8,"status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",9,"total","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"transact",10,"export_batch","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"transact",11,"linked_transaction_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",12,"their_ref","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",13,"confirm_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"transact",14,"service_descrip","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",15,"service_price","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"transact",16,"subtotal","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"transact",17,"tax","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"transact",18,"user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",19,"pickslip_printed_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"transact",20,"prescriber_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",21,"goods_received_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",22,"invoice_printed_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"transact",23,"ship_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"transact",24,"ship_method_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",25,"ship_method_comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",26,"waybill_number","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",27,"number_of_cartons","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"transact",28,"arrival_date_estimated","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"transact",29,"arrival_date_actual","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"transact",30,"responsible_officer_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",31,"mode","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",32,"category_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",33,"confirm_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"transact",34,"foreign_currency_total","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"transact",35,"currency_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",36,"hold","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"transact",37,"currency_rate","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"transact",38,"supplier_charge_fc","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"transact",39,"local_charge_distributed","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"transact",40,"budget_period_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",41,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",42,"user1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",43,"user2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",44,"mwks_sequence_num","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"transact",45,"is_cancellation","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"transact",46,"user3","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",47,"user4","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",48,"colour","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"transact",49,"original_po_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",50,"donor_default_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",51,"date_order_received","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"transact",52,"date_order_written","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"transact",53,"contact_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",54,"encounter_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",55,"is_authorised","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"transact",56,"requisition_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",57,"entry_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"transact",58,"linked_goods_received_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",59,"authorisationstatus","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",60,"nameinsurancejoinid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",61,"insurancediscountamount","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"transact",62,"optionid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",63,"insurancediscountrate","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"transact",64,"internaldata","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"transact",65,"lastmodifiedat","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"transact",66,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"transact",67,"goodsreceivedconfirmation","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"transact",68,"paymenttypeid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",69,"diagnosis_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",70,"wardid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",71,"category2_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",72,"om_created_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",73,"om_allocated_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",74,"om_picked_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",75,"om_shipped_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",76,"om_delivered_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",77,"om_verified_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",78,"om_status","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",79,"om_colour","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",80,"om_type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",81,"om_transport_reference","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",82,"finalised_date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"transact",83,"programid","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",84,"tax_rate","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"transact",85,"om_original_shipment_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",86,"finalised_time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"transact",87,"gender","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",88,"om_expected_delivery_datetime","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transact",89,"oms_fields","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"transaction_category",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"transaction_category",2,"category","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transaction_category",3,"type","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transaction_category",4,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transaction_category",5,"master_category_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transaction_category",6,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"transaction_master_category",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"transaction_master_category",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"transaction_master_category",3,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"unit",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"unit",2,"units","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"unit",3,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"unit",4,"order_number","double precision","float8","YES","0",NULL,NULL,NULL,NULL
+"user",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"user",2,"name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",3,"startup_method","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",4,"signature","bytea","bytea","YES",NULL,NULL,NULL,NULL,NULL
+"user",5,"nblogins","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"user",6,"lastlogin","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"user",7,"group_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",8,"mode","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",9,"qdump_offset_b","bytea","bytea","YES",NULL,NULL,NULL,NULL,NULL
+"user",10,"active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"user",11,"permissions_spare","bytea","bytea","YES",NULL,NULL,NULL,NULL,NULL
+"user",12,"lasttime","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"user",13,"initials","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",14,"first_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",15,"last_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",16,"date_of_birth","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"user",17,"address_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",18,"address_2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",19,"e_mail","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",20,"phone1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",21,"phone2","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",22,"date_created","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"user",23,"date_left","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"user",24,"job_title","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",25,"responsible_officer","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"user",26,"language","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"user",27,"use_ldap","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"user",28,"ldap_login_string","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",29,"receives_sms_errors","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"user",30,"is_group","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"user",31,"dashboard_tabs","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"user",32,"custom_data","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"user",33,"windows_user_name","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",34,"license_category_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",35,"tags","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"user",36,"type","jsonb","jsonb","YES",NULL,NULL,NULL,NULL,NULL
+"user",37,"isinactiveauthoriser","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"user",38,"spare_1","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user",39,"password_hash","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user_license_category",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"user_license_category",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user_license_category",3,"max_users_logged_in","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"user_store",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"user_store",2,"user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user_store",3,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"user_store",4,"can_login","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"user_store",5,"store_default","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"user_store",6,"can_action_replenishments","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"user_store",7,"permissions","bytea","bytea","YES",NULL,NULL,NULL,NULL,NULL
+"vaccine_vial_monitor_status",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"vaccine_vial_monitor_status",2,"description","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"vaccine_vial_monitor_status",3,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"vaccine_vial_monitor_status",4,"level","integer","int4","YES","0",NULL,NULL,NULL,NULL
+"vaccine_vial_monitor_status",5,"is_active","boolean","bool","YES","false",NULL,NULL,NULL,NULL
+"vaccine_vial_monitor_status_log",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"vaccine_vial_monitor_status_log",2,"status_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"vaccine_vial_monitor_status_log",3,"date","date","date","YES",NULL,NULL,NULL,NULL,NULL
+"vaccine_vial_monitor_status_log",4,"time","time without time zone","time","YES","'00:00:00'::time without time zone",NULL,NULL,NULL,NULL
+"vaccine_vial_monitor_status_log",5,"item_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"vaccine_vial_monitor_status_log",6,"store_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"vaccine_vial_monitor_status_log",7,"comment","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"vaccine_vial_monitor_status_log",8,"user_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"vaccine_vial_monitor_status_log",9,"trans_line_id","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"warning",1,"id","text","text","NO","''::text",NULL,NULL,NULL,NULL
+"warning",2,"code","text","text","YES","''::text",NULL,NULL,NULL,NULL
+"warning",3,"warning_text","text","text","YES","''::text",NULL,NULL,NULL,NULL

@@ -1,0 +1,10 @@
+{
+  "name": "dqa-msupply",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "build:contracts": "npm run build -w @dqa/contracts",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}
