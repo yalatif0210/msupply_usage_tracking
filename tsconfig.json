@@ -1,22 +1,7 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "lib": [
-      "ES2022"
-    ],
-    "declaration": true,
-    "outDir": "dist",
-    "rootDir": "src",
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-    "exactOptionalPropertyTypes": true,
-    "verbatimModuleSyntax": true,
-    "skipLibCheck": true
-  },
-  "include": [
-    "src/**/*.ts"
+  "files": [],
+  "references": [
+    { "path": "./packages/contracts" },
+    { "path": "./apps/api" }
   ]
 }

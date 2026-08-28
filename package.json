@@ -2,9 +2,24 @@
   "name": "dqa-msupply",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["packages/*", "apps/*"],
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "build:contracts": "npm run build -w @dqa/contracts",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "migrate": "npm run migrate -w @dqa/api",
+    "migrate:status": "npm run migrate:status -w @dqa/api"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
   }
 }

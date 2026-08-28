@@ -1,0 +1,20 @@
+# Environnement de développement local. La production est décrite séparément.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dqa
+      POSTGRES_PASSWORD: dqa
+      POSTGRES_DB: dqa
+    ports:
+      - '5432:5432'
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U dqa']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db_data:

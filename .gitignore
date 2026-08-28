@@ -10,3 +10,4 @@ coverage/
 Re_ SQL.zip
 .angular/
 tmp/
+*.tsbuildinfo
