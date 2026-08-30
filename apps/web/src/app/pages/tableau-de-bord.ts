@@ -1,17 +1,19 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { LIBELLES_PILIER, PILIERS } from '@dqa/contracts';
 import { AuthService } from '../core/auth.service';
 
 @Component({
   selector: 'dqa-tableau-de-bord',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterLink],
   template: `
     <header>
       <h1>Tableau de bord DQA mSupply</h1>
       @if (auth.utilisateur(); as u) {
         <p>
           {{ u.nom }} — <em>{{ u.role }}</em>
+          <a routerLink="/imports">Journal des imports</a>
           <button type="button" (click)="deconnexion()">Se déconnecter</button>
         </p>
       }

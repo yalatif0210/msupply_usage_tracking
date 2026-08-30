@@ -135,11 +135,12 @@ export type AnomalieImport = z.infer<typeof anomalieImportSchema>;
 export const lotImportSchema = z.object({
   id: z.number().int().positive(),
   nomFichier: z.string(),
-  cyclePaqd: z.string(),
-  moisPaqd: moisPaqdSchema,
+  cyclePaqd: z.string().nullable(),
+  moisPaqd: moisPaqdSchema.nullable(),
   recuLe: z.string().datetime(),
   importeLe: z.string().datetime().nullable(),
   statut: statutImportSchema,
+  motifRejet: z.string().nullable(),
   nbLignesDeclarees: z.record(z.string(), z.number().int().nonnegative()),
   nbLignesReelles: z.record(z.string(), z.number().int().nonnegative()),
 });

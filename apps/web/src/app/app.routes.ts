@@ -11,5 +11,10 @@ export const routes: Routes = [
     canActivate: [gardeAuthentifie],
     loadComponent: () => import('./pages/tableau-de-bord').then((m) => m.TableauDeBordPage),
   },
+  {
+    path: 'imports',
+    canActivate: [gardeAuthentifie],
+    loadComponent: () => import('./pages/journal-imports').then((m) => m.JournalImportsPage),
+  },
   { path: '**', redirectTo: '' },
 ];
