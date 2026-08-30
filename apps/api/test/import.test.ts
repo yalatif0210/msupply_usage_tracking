@@ -64,6 +64,15 @@ describe('import du classeur jusqu\'au staging', () => {
       `SELECT nature FROM dqa.fact_transaction WHERE transaction_id = 'TX-1'`,
     );
     expect(tx.rows[0].nature).toBe('dispensation');
+
+    // et l'historique du mois est gelé (score composite NULL — P5/P6 seuls)
+    const hist = await base.pool.query(
+      `SELECT score_composite, grille_id FROM dqa.hist_score_site
+       WHERE site_id = 'SITE-1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+    );
+    expect(hist.rowCount).toBe(1);
+    expect(hist.rows[0].score_composite).toBeNull();
+    expect(hist.rows[0].grille_id).not.toBeNull();
   });
 
   it('rejette un classeur au compteur METADATA faux : rien en staging', async () => {

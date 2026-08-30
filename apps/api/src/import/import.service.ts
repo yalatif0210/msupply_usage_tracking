@@ -6,6 +6,7 @@ import { ClasseurIllisibleError, lireClasseur, type ClasseurLu } from './lecture
 import { COMPTEURS_METADATA, JEUX } from './contrat-jeux.js';
 import { StagingService } from './staging.service.js';
 import { PromotionService } from './promotion.service.js';
+import { RafraichissementService } from './rafraichissement.service.js';
 import { ValidationService } from './validation.service.js';
 import { ImportRepository } from './import.repository.js';
 
@@ -24,6 +25,7 @@ export class ImportService {
     private readonly validation: ValidationService,
     private readonly staging: StagingService,
     private readonly promotion: PromotionService,
+    private readonly rafraichissement: RafraichissementService,
     private readonly repo: ImportRepository,
   ) {}
 
@@ -91,6 +93,20 @@ export class ImportService {
     if (anomaliesReferences.length > 0) {
       await this.enregistrerAnomalies(lotId, anomaliesReferences);
     }
+
+    // Rafraîchissement des indicateurs + gel de l'historique, HORS transaction
+    // (ADR 0003) : un échec ici ne perd pas le lot promu.
+    try {
+      await this.rafraichissement.rafraichir(lotId);
+    } catch {
+      await this.enregistrerAnomalies(lotId, [
+        { onglet: null, ligneSource: null, gravite: 'avertissement',
+          code: 'RAFRAICHISSEMENT_DIFFERE',
+          message: 'lot promu ; le rafraîchissement des scores a échoué et sera rejoué',
+          valeurBrute: null },
+      ]);
+    }
+
     const lot = await this.repo.lot(lotId);
     return { statut: 'valide', lot: lot!, anomalies: [...anomalies, ...anomaliesReferences] };
   }
