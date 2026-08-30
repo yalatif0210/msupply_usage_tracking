@@ -12,13 +12,13 @@ lot passe « validé » ; à tout échec de promotion, le lot entier est annulé
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** done (commit 981ad60)
 
-- [ ] La promotion s'exécute en une transaction ; un échec forcé en cours de promotion laisse le core intact et le lot non « validé ».
-- [ ] Les tables du core sont alimentées depuis le staging avec les identifiants mSupply en clés ; un second import du même classeur produit un état de core identique (vérifié par comptages + contenu).
-- [ ] Un classeur corrigé pour le même `mois_paqd` écrase les lignes de core concernées, sans doublon.
-- [ ] `nature` est dérivée selon les règles ordonnées du canevas §4.5 (ajustement via liens d'inventaire / drapeau de ligne d'abord).
-- [ ] Les lignes référençant un site / produit / programme absent ne sont pas promues et apparaissent en anomalies.
-- [ ] Chaque ligne de core promue référence son lot source.
-- [ ] Le chevauchement de 45 jours entre deux classeurs successifs se réconcilie par upsert sans duplication.
-- [ ] Tests : couture A (poster classeur → asserter l'état du core, re-poster → inchangé).
+- [x] Promotion en transaction unique (celle du lot) ; un échec (doublon de PK d'inventaire) annule staging + core, lot « rejeté ».
+- [x] Core alimenté depuis le staging sur les identifiants mSupply ; un second import du même classeur produit un core identique (comptages + valeurs).
+- [x] Un classeur corrigé pour le même mois écrase les lignes (`quantite` 30 → 99), sans doublon.
+- [x] `nature` : valeur de l'extraction si dans le vocabulaire, sinon dérivée (liens INVAD `stg_inventaires.invad_*` puis `type_transaction` + `mode`).
+- [x] Lignes à référence absente non promues → anomalie `REFERENCE_NON_PROMUE`.
+- [x] Chaque ligne de core porte `lot_id_source`.
+- [x] Chevauchement de 45 j réconcilié par upsert (mêmes clés → mise à jour, pas de doublon).
+- [x] 6 tests d'intégration (couture A/B).
