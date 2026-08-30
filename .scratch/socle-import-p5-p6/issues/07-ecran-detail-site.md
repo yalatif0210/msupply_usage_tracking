@@ -12,13 +12,13 @@ réponse API non conforme au contrat plutôt que d'afficher `undefined`.
 
 **Blocked by:** 03, 06
 
-**Status:** ready-for-agent
+**Status:** done (commit 0ff42a9)
 
-- [ ] `GET` détail site renvoie un `DetailSite` restreint (P5, P6 uniquement) validé par le schéma Zod du contrat ; `GET` liste des sites supporte les filtres district / région / programme ; endpoints référentiels programmes et districts. Tout exige une session `lecteur`.
-- [ ] L'écran de détail rend les piliers P5 et P6 avec sous-composante, valeur, seuil, badge de statut, et raison si NON_CALCULABLE.
-- [ ] Un sélecteur de mois et un sélecteur de programme changent les chiffres affichés.
-- [ ] Aucun score composite nulle part sur l'écran ; « 2 piliers sur 6 » est affiché.
-- [ ] État vide explicite quand le site n'a pas d'historique gelé.
-- [ ] Les services HTTP typés valident les réponses contre le contrat et lèvent sur non-conformité (couture D).
-- [ ] La mise en page est lisible en projection (contrastes francs, chiffres généreux) selon `DESIGN_SYSTEM.md`.
-- [ ] Tests : couture A (gel de l'historique via import → appels des endpoints → assertions) + couture D.
+- [x] `GET /api/sites/:id` → `DetailSite` restreint P5/P6, validé côté test par `detailSiteSchema` ; `GET /api/sites` avec filtres district/région/programme ; `GET /api/referentiel/programmes|districts`. Toutes authentifiées.
+- [x] Écran détail : piliers P5 et P6 avec sous-composante, valeur, seuil (grille), badge de statut binaire, raison si NON_CALCULABLE.
+- [x] Sélecteurs de programme et de mois (ce dernier apparaît dès qu'il y a plus d'un mois mesuré) ; rechargement à chaque changement. `DetailSite.moisDisponibles` alimente la liste.
+- [x] Aucun score composite ; badge « 2 piliers sur 6 » sur l'écran, `scoreComposite` null dans le contrat.
+- [x] État vide explicite (`moisPaqd` null, `piliers` vide → message dédié) ; 404 → « site inconnu ou hors périmètre ».
+- [x] `SitesService` valide chaque réponse via `validerReponse(schema, data)` et lève sur non-conformité.
+- [x] `DESIGN_SYSTEM.md` : badges de statut, chiffres `2.4rem` tabular-nums, contrastes francs.
+- [x] 8 tests : 6 e2e API (couture A) + 2 couture D.

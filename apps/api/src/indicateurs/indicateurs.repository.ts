@@ -121,21 +121,23 @@ export class IndicateursRepository {
     if (site.rowCount === 0) return null;
 
     const prog = programmeId ?? null;
+    const moisRows = await this.pool.query<{ mois_paqd: string }>(
+      `SELECT DISTINCT mois_paqd FROM dqa.hist_score_site
+       WHERE site_id = $1 AND programme_id IS NOT DISTINCT FROM $2
+       ORDER BY mois_paqd DESC`,
+      [siteId, prog],
+    );
+    const moisDisponibles = moisRows.rows.map((r) => r.mois_paqd);
     const mois =
-      moisDemande ??
-      (
-        await this.pool.query<{ m: string | null }>(
-          `SELECT max(mois_paqd) AS m FROM dqa.hist_score_site
-           WHERE site_id = $1 AND programme_id IS NOT DISTINCT FROM $2`,
-          [siteId, prog],
-        )
-      ).rows[0]?.m ??
-      undefined;
+      moisDemande && moisDisponibles.includes(moisDemande)
+        ? moisDemande
+        : moisDisponibles[0];
 
     if (!mois) {
       return {
         site: versSite(site.rows[0]!),
         moisPaqd: null,
+        moisDisponibles: [],
         programmeId: prog,
         piliersCouverts: 0,
         piliersTotal: 6,
@@ -180,6 +182,7 @@ export class IndicateursRepository {
     return {
       site: versSite(site.rows[0]!),
       moisPaqd: mois,
+      moisDisponibles,
       programmeId: prog,
       piliersCouverts: PILIERS_COUVERTS.length,
       piliersTotal: 6,

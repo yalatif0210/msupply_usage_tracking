@@ -35,8 +35,19 @@ import { Entete } from '../ui/entete';
               }
             </select>
           </label>
+          @if (d.moisDisponibles.length > 1) {
+            <label>
+              Mois PAQD
+              <select [(ngModel)]="mois" (ngModelChange)="recharger()">
+                @for (m of d.moisDisponibles; track m) {
+                  <option [value]="m">{{ m }}</option>
+                }
+              </select>
+            </label>
+          } @else {
+            <span class="mois">Mois PAQD : {{ d.moisPaqd ?? '—' }}</span>
+          }
           <span class="couverture">{{ d.piliersCouverts }} piliers sur {{ d.piliersTotal }}</span>
-          <span class="mois">Mois PAQD : {{ d.moisPaqd ?? '—' }}</span>
         </div>
 
         @if (d.piliers.length === 0) {
@@ -101,6 +112,7 @@ export class DetailSitePage {
   private readonly service = inject(SitesService);
 
   protected programmeId = '';
+  protected mois = '';
   protected readonly detail = signal<DetailSite | null>(null);
   protected readonly programmes = signal<Programme[]>([]);
   protected readonly chargement = signal(true);
@@ -117,9 +129,12 @@ export class DetailSitePage {
   protected async recharger(): Promise<void> {
     this.chargement.set(true);
     try {
-      this.detail.set(
-        await this.service.detailSite(this.id(), { programmeId: this.programmeId || undefined }),
-      );
+      const d = await this.service.detailSite(this.id(), {
+        programmeId: this.programmeId || undefined,
+        mois: this.mois || undefined,
+      });
+      this.mois = d.moisPaqd ?? '';
+      this.detail.set(d);
     } catch {
       this.detail.set(null);
     }

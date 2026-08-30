@@ -73,6 +73,8 @@ export const detailSiteSchema = z.object({
   site: siteSchema,
   /** Mois PAQD affiché, ou `null` si le site n'a encore aucune mesure. */
   moisPaqd: moisPaqdSchema.nullable(),
+  /** Mois PAQD pour lesquels le site a une mesure, du plus récent au plus ancien. */
+  moisDisponibles: z.array(moisPaqdSchema),
   /** Filtre programme appliqué, ou `null` pour « tous programmes ». */
   programmeId: z.string().nullable(),
   piliersCouverts: z.number().int().nonnegative(),
