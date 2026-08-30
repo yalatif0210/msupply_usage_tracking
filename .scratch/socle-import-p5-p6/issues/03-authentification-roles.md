@@ -11,11 +11,11 @@ utilisateur authentifié vers le tableau de bord.
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (commit ab6d538)
 
-- [ ] Un endpoint de connexion accepte identifiant + mot de passe et renvoie une session (cookie httpOnly) ; un endpoint de déconnexion l'efface.
-- [ ] Une garde de rôle protège les routes : anonyme → 401, mauvais rôle → 403.
-- [ ] Les rôles `lecteur` / `coordination` / `admin` sont modélisés ; une migration seede au moins un compte par rôle.
-- [ ] L'écran de connexion du front authentifie et redirige ; une visite non authentifiée d'une route du tableau de bord atterrit sur la connexion.
-- [ ] Les mots de passe sont stockés hachés (jamais en clair).
-- [ ] Tests : la garde passe pour le bon rôle et échoue pour l'anonyme et le mauvais rôle.
+- [x] `POST /api/auth/connexion` accepte identifiant + mot de passe et pose un cookie `dqa_session` httpOnly ; `POST /api/auth/deconnexion` l'efface (204).
+- [x] Garde globale : anonyme → 401 ; `@Roles([...])` → mauvais rôle 403. `@Public()` pour santé et connexion.
+- [x] Rôles `lecteur` / `coordination` / `admin` modélisés ; migration 0010 seede un compte par rôle.
+- [x] Front : service + garde d'auth, écran de connexion, redirection vers `/connexion` pour toute route protégée non authentifiée ; proxy dev `/api`.
+- [x] Mots de passe hachés (scrypt, `node:crypto`) — hash seedé, jamais de clair en base.
+- [x] 6 tests d'intégration (base éphémère) : anonyme 401, santé publique 200, mauvais mot de passe 401, cookie httpOnly, /moi puis déconnexion → 401, garde de rôle lecteur 403 / coordination 200.
