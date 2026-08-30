@@ -48,10 +48,11 @@ suivie. Trois cycles par an, calés sur l'année civile (C1 : janvier–avril, C
 mai–août, C3 : septembre–décembre).
 
 **Grille de paramètres** :
-Le jeu daté des poids de piliers et des seuils de sous-composantes en vigueur
-pour une période donnée. Éditée par la coordination nationale ; une modification
-ne vaut que pour les cycles à venir. Chaque score historisé référence la grille
-avec laquelle il a été calculé et reste immuable.
+Le jeu daté des poids de piliers, des seuils de sous-composantes et — pour les
+sous-composantes évaluées par taux de conformité (écart SDU, écart consommation)
+— de la tolérance par produit. Éditée par la coordination nationale ; une
+modification ne vaut que pour les cycles à venir. Chaque score historisé
+référence la grille avec laquelle il a été calculé et reste immuable.
 _Éviter_ : param_seuil, configuration, barème
 
 **Mois PAQD** :
@@ -89,21 +90,21 @@ coordination, pas dérivée de mSupply.
 _Éviter_ : produit suivi, produit critique
 
 **Écart SDU (P4)** :
-Amplitude de l'écart, à la date du dernier inventaire du mois, entre la quantité
-théorique mSupply et le stock physiquement compté, agrégée sur les produits
-traceurs : `Σ |théorique − compté| / Σ compté`. Le stock **compté** (la réalité)
-est au dénominateur : on mesure de combien la théorie s'écarte du réel. Conforme
-sous le seuil de la grille ; NON_CALCULABLE si `Σ compté = 0`.
+Part des produits traceurs dont le stock physiquement compté au dernier
+inventaire du mois est **dans la tolérance** de la quantité théorique mSupply :
+`|théorique − compté| / compté ≤ tolérance` (le compté, la réalité, au
+dénominateur). Statut CONFORME si ce taux atteint le seuil de la grille.
+Tolérance et seuil viennent de la grille. NON_CALCULABLE si aucun produit
+traceur inventorié dans le mois.
 
 **Écart consommation (P4)** :
-Amplitude de l'écart, sur un mois PAQD, entre la consommation *déclarée* (somme
-des dispensations saisies) et la consommation *reconstituée* — cette dernière
-tenant lieu de réalité et donc placée au dénominateur :
-`Σ |déclarée − reconstituée| / Σ reconstituée`. La consommation reconstituée d'un
-produit = `stock_début + réceptions − stock_fin` entre le **premier** et le
-**dernier** inventaire finalisé du mois (les deux inventaires bornants). Conforme
-sous le seuil de la grille. NON_CALCULABLE sans deux inventaires bornants ou si
-`Σ reconstituée ≤ 0`.
+Part des produits traceurs dont la consommation *déclarée* (somme des
+dispensations saisies) est dans la tolérance de la consommation *reconstituée* :
+`|déclarée − reconstituée| / reconstituée ≤ tolérance`. La consommation
+reconstituée d'un produit = `stock_début + réceptions − stock_fin` entre le
+**premier** et le **dernier** inventaire finalisé du mois (les deux inventaires
+bornants). Un produit sans deux inventaires bornants ou dont la reconstituée est
+≤ 0 est exclu du calcul. NON_CALCULABLE si aucun produit évaluable.
 _Éviter_ : écart SDU (réservé à la sous-composante ci-dessus)
 
 **Concordance physique / théorique (P5)** :
