@@ -12,13 +12,13 @@ pas déposer.
 
 **Blocked by:** 02, 03
 
-**Status:** ready-for-agent
+**Status:** done (commit 901b3f6)
 
-- [ ] `POST` d'un classeur par un `coordination` renvoie un `ResultatImport` (union discriminée valide/rejeté) ; un `lecteur` reçoit 403.
-- [ ] Classeur propre : les lignes de chaque onglet écrites dans le `stg_*` correspondant, lot « validé », réponse portant le lot et les anomalies non bloquantes.
-- [ ] Règles bloquantes (gravité `erreur`, rejettent le classeur entier) : écart d'un compteur METADATA ; onglet obligatoire absent ou nom de colonne (ligne 5) modifié ; `mois_paqd` absent / mal formé / dans le futur / hors cycle connu / plus ancien que le mois précédent ; `mois_debut` / `mois_fin` incohérents avec `mois_paqd`.
-- [ ] Règles non bloquantes (avertissement, remontées dans les anomalies) : référence croisée non résolue ; date / nombre / booléen mal formé.
-- [ ] Les dates saisies en texte `AAAA-MM-JJ` sont lues sans décalage de reconversion Excel.
-- [ ] `GET` journal liste les lots (date, mois PAQD, statut, compteurs) ; `GET` anomalies d'un lot liste gravité / onglet / ligne source / code / message.
-- [ ] La couche staging n'échoue jamais sur une valeur mal formée — elle la capture.
-- [ ] Tests : un cas passant + un cas échouant par règle de validation (couture C) ; aller-retour HTTP sur un classeur de fixture (couture A).
+- [x] `POST /api/imports` par `coordination` renvoie un `ResultatImport` (union discriminée) ; `lecteur` → 403.
+- [x] Classeur propre : lignes écrites dans chaque `stg_*`, lot « validé » (mois PAQD figé), réponse portant le lot et les avertissements.
+- [x] Règles bloquantes : compteur METADATA (R1) ; onglet / colonne manquants (R2) ; `mois_paqd` mal formé, futur, trop ancien (R3) ; `mois_debut`/`mois_fin` incohérents avec cycle + rang (R4).
+- [x] Règles non bloquantes : référence croisée (R5) ; date / nombre / booléen mal formés (R6) ; `nature` hors vocabulaire (R7) ; champ requis vide.
+- [x] Lecture `.xlsx` sans dépendance lourde (fflate) ; valeurs lues en texte brut, dates `AAAA-MM-JJ` sans reconversion.
+- [x] `GET /api/imports` (lots : date, mois, statut, compteurs) ; `GET /api/imports/:id/anomalies` (gravité, onglet, ligne source, code, message). Front : écran journal.
+- [x] Staging n'échoue jamais sur une valeur mal formée (null si vide, texte sinon) ; les avertissements n'empêchent pas le staging.
+- [x] 23 tests : 18 de validation (couture C, cas passant + échouant par règle), 5 e2e (couture A).
