@@ -172,6 +172,31 @@ const ETAPES: { nom: string; sql: string }[] = [
         lot_id_source = EXCLUDED.lot_id_source, maj_le = now()`,
   },
   {
+    nom: 'fact_requisition',
+    sql: `
+      INSERT INTO dqa.fact_requisition
+        (requisition_id, site_id, programme_id, periode_id, mois_couvert,
+         date_soumission, date_inventaire_ref, date_reception,
+         statut, statut_autorisation, type_requisition, lot_id_source, maj_le)
+      SELECT r.requisition_id, r.site_id, p.programme_id, nullif(r.periode_id, ''),
+             to_char(r.mois_couvert_debut::date, 'YYYY-MM'),
+             ${D('r.date_soumission')}, ${D('r.date_inventaire_ref')}, ${D('r.date_reception')},
+             nullif(r.statut, ''), nullif(r.statut_autorisation, ''), nullif(r.type_requisition, ''),
+             $1, now()
+      FROM dqa.stg_requisitions r
+      JOIN dqa.dim_site s ON s.site_id = r.site_id
+      LEFT JOIN dqa.dim_programme p ON p.programme_id = r.programme_id
+      WHERE r.lot_id = $1 AND r.requisition_id IS NOT NULL
+        AND r.mois_couvert_debut ~ '^\\d{4}-\\d{2}-\\d{2}$'
+      ON CONFLICT (requisition_id) DO UPDATE SET
+        site_id = EXCLUDED.site_id, programme_id = EXCLUDED.programme_id,
+        periode_id = EXCLUDED.periode_id, mois_couvert = EXCLUDED.mois_couvert,
+        date_soumission = EXCLUDED.date_soumission, date_inventaire_ref = EXCLUDED.date_inventaire_ref,
+        date_reception = EXCLUDED.date_reception, statut = EXCLUDED.statut,
+        statut_autorisation = EXCLUDED.statut_autorisation, type_requisition = EXCLUDED.type_requisition,
+        lot_id_source = EXCLUDED.lot_id_source, maj_le = now()`,
+  },
+  {
     nom: 'fact_stock_snapshot',
     sql: `
       INSERT INTO dqa.fact_stock_snapshot
@@ -219,6 +244,11 @@ export class PromotionService {
               WHERE il.lot_id = $1
                 AND (NOT EXISTS (SELECT 1 FROM dqa.fact_inventaire fi WHERE fi.inventaire_id = il.inventaire_id)
                   OR NOT EXISTS (SELECT 1 FROM dqa.dim_produit p WHERE p.produit_id = il.produit_id))` },
+      { onglet: 'REQUISITIONS', code: 'REFERENCE_NON_PROMUE',
+        message: 'réquisition non promue : site absent du core',
+        sql: `SELECT ligne_source, requisition_id AS v FROM dqa.stg_requisitions r
+              WHERE r.lot_id = $1 AND r.requisition_id IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM dqa.dim_site s WHERE s.site_id = r.site_id)` },
     ];
     const out: AnomalieImport[] = [];
     for (const r of requetes) {

@@ -98,6 +98,65 @@ describe('promotion staging → core', () => {
     ).toBe(true);
   });
 
+  it('promeut les réquisitions avec leur mois couvert dérivé', async () => {
+    const res = await deposer(construireClasseur(optionsValides()), 'req1.xlsx');
+    expect(res.body.statut).toBe('valide');
+    const { rows } = await base.pool.query(
+      `SELECT site_id, programme_id, mois_couvert, date_soumission, lot_id_source
+       FROM dqa.fact_requisition WHERE requisition_id = 'R-1'`,
+    );
+    expect(rows[0].mois_couvert).toBe('2026-08');
+    expect(rows[0].site_id).toBe('SITE-1');
+    expect(rows[0].programme_id).toBe('PROG-1');
+    expect(rows[0].lot_id_source).not.toBeNull();
+  });
+
+  it('ré-importer laisse fact_requisition identique (upsert requisition_id)', async () => {
+    await deposer(construireClasseur(optionsValides()), 'req2a.xlsx');
+    const avant = await compte('fact_requisition');
+    await deposer(construireClasseur(optionsValides()), 'req2b.xlsx');
+    expect(await compte('fact_requisition')).toBe(avant);
+  });
+
+  it('une réquisition à mois_couvert_debut mal formé n\'entre pas en core', async () => {
+    const opts = optionsValides();
+    const req = opts.jeux.find((j) => j.nom === 'REQUISITIONS')!.lignes[0]!;
+    req['requisition_id'] = 'R-MALFORMEE';
+    req['mois_couvert_debut'] = 'jamais';
+    const res = await deposer(construireClasseur(opts), 'req3.xlsx');
+    expect(res.body.statut).toBe('valide');
+    const promue = await base.pool.query(
+      `SELECT 1 FROM dqa.fact_requisition WHERE requisition_id = 'R-MALFORMEE'`,
+    );
+    expect(promue.rowCount).toBe(0);
+    expect(
+      res.body.anomalies.some((x: { code: string }) => x.code === 'MOIS_COUVERT_INVALIDE'),
+    ).toBe(true);
+  });
+
+  it('une réquisition à site inconnu n\'est pas promue et devient une anomalie', async () => {
+    const opts = optionsValides();
+    opts.jeux.find((j) => j.nom === 'REQUISITIONS')!.lignes.push({
+      requisition_id: 'R-ORPHELINE', site_id: 'SITE-FANTOME', programme_id: 'PROG-1', periode_id: '',
+      mois_couvert_debut: '2026-08-01', mois_couvert_fin: '2026-08-31', date_soumission: '2026-09-05',
+      date_inventaire_ref: '2026-08-29', date_reception: '', statut: 'fn',
+      statut_autorisation: 'authorised', type_requisition: 'Ordinaire',
+    });
+    opts.metadata['nb_lignes_REQUISITIONS'] = '2';
+    const res = await deposer(construireClasseur(opts), 'req4.xlsx');
+    expect(res.body.statut).toBe('valide');
+    const promue = await base.pool.query(
+      `SELECT 1 FROM dqa.fact_requisition WHERE requisition_id = 'R-ORPHELINE'`,
+    );
+    expect(promue.rowCount).toBe(0);
+    expect(
+      res.body.anomalies.some(
+        (x: { code: string; onglet: string | null }) =>
+          x.code === 'REFERENCE_NON_PROMUE' && x.onglet === 'REQUISITIONS',
+      ),
+    ).toBe(true);
+  });
+
   it('un échec de promotion annule tout : staging et core intacts, lot non validé', async () => {
     // provoque un doublon de clé primaire d'inventaire dans le même lot
     const opts = optionsValides();

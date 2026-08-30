@@ -41,7 +41,7 @@ Réponse : `ResultatImport` (union discriminée `valide` / `rejete`).
 |---|---|---|
 | Contrôle | `import_lot`, `import_anomalie` | `ImportService` |
 | Staging | `stg_sites` … `stg_requisitions` (9, tout en `TEXT`) | `StagingService` |
-| Core | `dim_site`, `dim_produit`, `dim_programme`, `dim_site_programme`, `fact_transaction`, `fact_ligne_transaction`, `fact_inventaire`, `fact_inventaire_ligne`, `fact_stock_snapshot` | `PromotionService` (upsert) |
+| Core | `dim_site`, `dim_produit`, `dim_programme`, `dim_site_programme`, `fact_transaction`, `fact_ligne_transaction`, `fact_inventaire`, `fact_inventaire_ligne`, `fact_stock_snapshot`, `fact_requisition` | `PromotionService` (upsert) |
 | Indicateurs | `mv_p5_concordance`, `mv_p6_ajustements`, `mv_score_pilier`, `hist_score_site` | procédure `rafraichir_et_geler` |
 
 Le contrat des 9 jeux (colonnes attendues, champs requis, références croisées,
@@ -60,6 +60,7 @@ d'extraction se répercute là.
 | `REFERENCE_CROISEE` | avertissement | `site_id` / `produit_id` / … cité mais absent du jeu de référence |
 | `DATE_MAL_FORMEE`, `NOMBRE_INVALIDE`, `BOOLEEN_INVALIDE`, `CHAMP_REQUIS_VIDE` | avertissement | format de champ |
 | `NATURE_INCONNUE` | avertissement | `nature` hors vocabulaire contrôlé |
+| `MOIS_COUVERT_INVALIDE` | avertissement | `mois_couvert_debut` d'une réquisition absent, mal formé ou hors du cycle PAQD déclaré — la réquisition est écartée de la promotion |
 | `REFERENCE_NON_PROMUE` | avertissement | ligne non promue au core faute de dépendance |
 | `RAFRAICHISSEMENT_DIFFERE` | avertissement | lot promu, rafraîchissement des scores échoué |
 
@@ -89,6 +90,11 @@ règle — voir `test/import-validation.test.ts`.
 - **Promotion tout-ou-rien** dans la transaction du lot ; le rafraîchissement est
   volontairement **hors** transaction (ADR 0003) pour qu'un `REFRESH` lent ou
   fautif ne perde pas un lot déjà promu.
+- **Mois couvert d'une réquisition dérivé à la promotion** : `fact_requisition.mois_couvert`
+  = `to_char(mois_couvert_debut, 'YYYY-MM')`, jamais le mois de `date_soumission`.
+  Une réquisition compte pour le mois de son inventaire de référence de fin de
+  mois. Un `mois_couvert_debut` mal formé écarte la ligne de la promotion (garde
+  regex) après l'avoir signalée (`MOIS_COUVERT_INVALIDE`) ; l'import reste valide.
 
 ## Pièges connus
 

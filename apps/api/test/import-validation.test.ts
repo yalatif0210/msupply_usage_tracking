@@ -125,4 +125,23 @@ describe('ValidationService — un cas passant et un cas échouant par règle', 
     expect(aCode(r, 'NATURE_INCONNUE')).toBe(true);
     expect(r.bloquant).toBe(false);
   });
+
+  // R8 — mois couvert des réquisitions
+  it('R8 passe quand mois_couvert_debut tombe dans le cycle déclaré', () => {
+    expect(aCode(valider(), 'MOIS_COUVERT_INVALIDE')).toBe(false);
+  });
+  it('R8 signale (avertissement) un mois_couvert_debut hors cycle sans bloquer', () => {
+    const r = valider((o) => {
+      o.jeux.find((j) => j.nom === 'REQUISITIONS')!.lignes[0]!['mois_couvert_debut'] = '2026-01-01';
+    });
+    expect(aCode(r, 'MOIS_COUVERT_INVALIDE')).toBe(true);
+    expect(r.bloquant).toBe(false);
+  });
+  it('R8 signale (avertissement) un mois_couvert_debut mal formé sans bloquer', () => {
+    const r = valider((o) => {
+      o.jeux.find((j) => j.nom === 'REQUISITIONS')!.lignes[0]!['mois_couvert_debut'] = 'aout 2026';
+    });
+    expect(aCode(r, 'MOIS_COUVERT_INVALIDE')).toBe(true);
+    expect(r.bloquant).toBe(false);
+  });
 });

@@ -66,6 +66,10 @@ describe('import du classeur jusqu\'au staging', () => {
       `SELECT nature FROM dqa.fact_transaction WHERE transaction_id = 'TX-1'`,
     );
     expect(tx.rows[0].nature).toBe('dispensation');
+    const req = await base.pool.query(
+      `SELECT mois_couvert FROM dqa.fact_requisition WHERE requisition_id = 'R-1'`,
+    );
+    expect(req.rows[0].mois_couvert).toBe('2026-08');
 
     // et l'historique du mois est gelé (score composite NULL — P5/P6 seuls)
     const hist = await base.pool.query(

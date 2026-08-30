@@ -45,6 +45,7 @@ export class ValidationService {
     anomalies.push(...this.reglesCompteurs(classeur));
     anomalies.push(...this.reglesFormats(classeur));
     anomalies.push(...this.reglesReferencesCroisees(classeur));
+    anomalies.push(...this.reglesRequisitions(classeur));
 
     const bloquant = anomalies.some((a) => a.gravite === 'erreur');
     return { anomalies, bloquant, contexte: bloquant ? null : this.contexte(classeur) };
@@ -218,6 +219,40 @@ export class ValidationService {
               code: 'REFERENCE_CROISEE', message: `${ref.colonne} « ${v} » absent de ${ref.jeu}`, valeurBrute: v }));
           }
         }
+      }
+    }
+    return out;
+  }
+
+  // ── R8 : mois couvert des réquisitions ──────────────────────────────────
+  // Une réquisition couvre le mois de son inventaire de référence de fin de
+  // mois (`mois_couvert_debut`). Un mois absent, mal formé ou hors du cycle
+  // PAQD déclaré est signalé sans bloquer : la réquisition sera écartée de la
+  // promotion mais l'import reste valide.
+  private reglesRequisitions(classeur: ClasseurLu): AnomalieImport[] {
+    const onglet = classeur.onglets.get('REQUISITIONS');
+    if (!onglet) return []; // absence d'onglet déjà signalée par R2
+    const cycle = classeur.metadata.get('cycle_paqd')?.trim() ?? '';
+    const cy = /^(\d{4})-C([123])$/.exec(cycle);
+    if (!cy) return []; // cycle lui-même invalide → déjà bloquant (R3)
+    const annee = Number(cy[1]);
+    const moisDuCycle = MOIS_CYCLE[cy[2] ?? ''] ?? [];
+    const out: AnomalieImport[] = [];
+    for (const ligne of onglet.lignes) {
+      const v = ligne.valeurs['mois_couvert_debut'] ?? '';
+      const m = /^(\d{4})-(\d{2})-\d{2}$/.exec(v);
+      if (!m) {
+        out.push(ano({ onglet: 'REQUISITIONS', ligneSource: ligne.ligneSource, gravite: 'avertissement',
+          code: 'MOIS_COUVERT_INVALIDE',
+          message: `mois_couvert_debut absent ou mal formé (attendu AAAA-MM-JJ) : « ${v} »`,
+          valeurBrute: v || null }));
+        continue;
+      }
+      if (Number(m[1]) !== annee || !moisDuCycle.includes(Number(m[2]))) {
+        out.push(ano({ onglet: 'REQUISITIONS', ligneSource: ligne.ligneSource, gravite: 'avertissement',
+          code: 'MOIS_COUVERT_INVALIDE',
+          message: `mois_couvert_debut « ${v} » hors du cycle déclaré ${cycle}`,
+          valeurBrute: v }));
       }
     }
     return out;
