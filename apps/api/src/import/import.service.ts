@@ -5,6 +5,7 @@ import { PG_POOL } from '../database/database.module.js';
 import { ClasseurIllisibleError, lireClasseur, type ClasseurLu } from './lecture-classeur.js';
 import { COMPTEURS_METADATA, JEUX } from './contrat-jeux.js';
 import { StagingService } from './staging.service.js';
+import { PromotionService } from './promotion.service.js';
 import { ValidationService } from './validation.service.js';
 import { ImportRepository } from './import.repository.js';
 
@@ -22,6 +23,7 @@ export class ImportService {
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly validation: ValidationService,
     private readonly staging: StagingService,
+    private readonly promotion: PromotionService,
     private readonly repo: ImportRepository,
   ) {}
 
@@ -57,10 +59,13 @@ export class ImportService {
       return rejet(motif, anomalies);
     }
 
+    let anomaliesReferences: AnomalieImport[] = [];
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
       await this.staging.ecrire(lotId, classeur, client);
+      await this.promotion.promouvoir(lotId, client);
+      anomaliesReferences = await this.promotion.anomaliesReferences(lotId, client);
       await client.query(
         `UPDATE dqa.import_lot
          SET statut = 'valide', importe_le = now(),
@@ -83,8 +88,11 @@ export class ImportService {
       client.release();
     }
 
+    if (anomaliesReferences.length > 0) {
+      await this.enregistrerAnomalies(lotId, anomaliesReferences);
+    }
     const lot = await this.repo.lot(lotId);
-    return { statut: 'valide', lot: lot!, anomalies };
+    return { statut: 'valide', lot: lot!, anomalies: [...anomalies, ...anomaliesReferences] };
   }
 
   private compteursDeclares(classeur: ClasseurLu): Record<string, number> {

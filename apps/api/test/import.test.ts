@@ -55,9 +55,15 @@ describe('import du classeur jusqu\'au staging', () => {
     expect(sites.rows[0].site_id).toBe('SITE-1');
     const lignes = await base.pool.query('SELECT * FROM dqa.stg_lignes_transactions');
     expect(lignes.rowCount).toBe(1);
-    // rien n'atteint le core
-    const core = await base.pool.query('SELECT count(*)::int AS c FROM dqa.dim_site');
-    expect(core.rows[0].c).toBe(0);
+    // et le core est promu
+    const dimSite = await base.pool.query(
+      `SELECT dans_perimetre_dqa FROM dqa.dim_site WHERE site_id = 'SITE-1'`,
+    );
+    expect(dimSite.rows[0].dans_perimetre_dqa).toBe(true);
+    const tx = await base.pool.query(
+      `SELECT nature FROM dqa.fact_transaction WHERE transaction_id = 'TX-1'`,
+    );
+    expect(tx.rows[0].nature).toBe('dispensation');
   });
 
   it('rejette un classeur au compteur METADATA faux : rien en staging', async () => {
