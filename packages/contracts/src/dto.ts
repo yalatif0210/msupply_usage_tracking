@@ -36,6 +36,22 @@ export const programmeSchema = z.object({
 });
 export type Programme = z.infer<typeof programmeSchema>;
 
+/** Produit traceur — liste de référence administrée dans la console (ADR 0005). */
+export const produitTraceurSchema = z.object({
+  produitCode: z.string().min(1),
+  libelle: z.string().nullable(),
+  actif: z.boolean(),
+  majLe: z.string().datetime(),
+});
+export type ProduitTraceur = z.infer<typeof produitTraceurSchema>;
+
+export const entreeProduitTraceurSchema = z.object({
+  produitCode: z.string().min(1).max(120),
+  libelle: z.string().max(300).optional(),
+  actif: z.boolean().optional(),
+});
+export type EntreeProduitTraceur = z.infer<typeof entreeProduitTraceurSchema>;
+
 // ─── Détail d'un site ───────────────────────────────────────────────────────
 
 export const uniteMesureSchema = z.enum(['pct', 'jours', 'nombre', 'ratio']);

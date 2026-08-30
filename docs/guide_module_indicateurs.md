@@ -61,6 +61,15 @@ Cette tranche ne couvre que **P5 et P6**. `DetailSite` :
   réponse non conforme au contrat lève une erreur explicite plutôt que de
   propager des `undefined` (ARCHITECTURE.md §4). C'est la couture de test D.
 
+## Administration des produits traceurs
+
+`GET /api/admin/traceurs` (lecture, tout rôle), `PUT /api/admin/traceurs/:code`
+et `DELETE /api/admin/traceurs/:code` (rôle `coordination`). La liste initiale
+vient de la migration 0013 ; la coordination l'ajuste ensuite via l'écran
+`/admin/traceurs`. Désactiver (`actif = false`) retire le produit des calculs
+P5/P6 au prochain rafraîchissement sans perdre l'historique. `produit_code` doit
+correspondre au `produit_code` du fichier d'extraction (= `item.code` mSupply).
+
 ## Pièges connus
 
 - Les colonnes numériques de PostgreSQL (`numeric`) reviennent en **texte** via
