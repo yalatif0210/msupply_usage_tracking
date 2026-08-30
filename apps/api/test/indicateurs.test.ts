@@ -3,10 +3,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { demarrerBaseEphemere, type BaseEphemere } from './helpers/db.js';
 
 /**
- * Couture B — vues P5/P6 et gel de l'historique, contre des données de core
- * fabriquées à la main.
+ * Couture B — vues d'indicateurs (P3, P5, P6), score composite et gel de
+ * l'historique, contre des données de core fabriquées à la main.
  */
-describe('vues P5/P6 et gel', () => {
+describe('vues d\'indicateurs, composite et gel', () => {
   let base: BaseEphemere;
   let db: Pool;
 
@@ -35,10 +35,13 @@ describe('vues P5/P6 et gel', () => {
     avecInventaire?: boolean;
     nbAjustements?: number;
     nbMouvements?: number;
+    /** Sorties de stock supplémentaires, une par (jour, nature) — pilotent P3. */
+    sorties?: { jour: string; nature?: 'dispensation' | 'distribution' }[];
   }) => {
     const {
       perimetre = true, comptee = 100, theorique = 100,
       avecInventaire = true, nbAjustements = 0, nbMouvements = 4,
+      sorties = [],
     } = opts;
     await db.query(
       `INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, statut)
@@ -47,17 +50,31 @@ describe('vues P5/P6 et gel', () => {
     await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S1','CSU',$1)`, [perimetre]);
     await db.query(`INSERT INTO dqa.dim_programme (programme_id, programme_nom) VALUES ('P1','VIH')`);
     await db.query(`INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom) VALUES ('I1','ARV','ARV')`);
+    // Mouvements P6 : posés un dimanche (2026-08-02, jour non ouvrable) pour ne
+    // pas alimenter P3 involontairement — les tests P3 passent par `sorties`.
     for (let i = 0; i < nbMouvements; i++) {
       const ajust = i < nbAjustements;
       await db.query(
         `INSERT INTO dqa.fact_transaction (transaction_id, site_id, nature, programme_id, statut, date_confirmation, lot_id_source)
-         VALUES ($1,'S1',$2,'P1','fn',$3::date,1)`,
-        [`T${i}`, ajust ? 'ajustement_negatif' : 'dispensation', `2026-08-${10 + i}`],
+         VALUES ($1,'S1',$2,'P1','fn','2026-08-02',1)`,
+        [`T${i}`, ajust ? 'ajustement_negatif' : 'dispensation'],
       );
       await db.query(
         `INSERT INTO dqa.fact_ligne_transaction (ligne_id, transaction_id, produit_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
          VALUES ($1,$2,'I1',1,1,$3,1)`,
         [`L${i}`, `T${i}`, ajust],
+      );
+    }
+    for (const [k, s] of sorties.entries()) {
+      await db.query(
+        `INSERT INTO dqa.fact_transaction (transaction_id, site_id, nature, programme_id, statut, date_confirmation, lot_id_source)
+         VALUES ($1,'S1',$2,'P1','fn',$3::date,1)`,
+        [`SO${k}`, s.nature ?? 'dispensation', s.jour],
+      );
+      await db.query(
+        `INSERT INTO dqa.fact_ligne_transaction (ligne_id, transaction_id, produit_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
+         VALUES ($1,$2,'I1',1,1,false,1)`,
+        [`SOL${k}`, `SO${k}`],
       );
     }
     if (avecInventaire) {
@@ -131,6 +148,84 @@ describe('vues P5/P6 et gel', () => {
     const tous = await scorePilier(null);
     expect(parProg).toBeDefined();
     expect(tous).toBeDefined();
+  });
+
+  // ── P3 — régularité de saisie ────────────────────────────────────────────
+  // Août 2026 : 20 jours ouvrables (Aug 7 = fête de l'Indépendance, exclue).
+  // Seuil grille = 65 % → 13 jours ouvrables avec sortie pour être CONFORME.
+  const joursOuvrablesAout = [
+    '2026-08-03', '2026-08-04', '2026-08-05', '2026-08-06',
+    '2026-08-10', '2026-08-11', '2026-08-12', '2026-08-13', '2026-08-14',
+    '2026-08-17', '2026-08-18', '2026-08-19', '2026-08-20', '2026-08-21',
+    '2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28', '2026-08-31',
+  ];
+  const p3 = async () => {
+    const { rows } = await db.query<{
+      nb_jours_avec_sortie: number;
+      nb_ouvrables: number;
+      taux_regularite_pct: string | null;
+    }>(
+      `SELECT nb_jours_avec_sortie::int, nb_ouvrables::int, taux_regularite_pct
+       FROM dqa.mv_p3_regularite WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+    );
+    return rows[0];
+  };
+
+  it('P3 ALERTE sous le seuil de régularité', async () => {
+    await socle({ nbMouvements: 0, sorties: joursOuvrablesAout.slice(0, 4).map((j) => ({ jour: j })) });
+    expect((await p3())?.taux_regularite_pct).toBe('20.0'); // 4 / 20
+    expect((await scorePilier(null))?.p_regularite).toBe('0.0');
+  });
+
+  it('P3 CONFORME quand ≥ 65 % des jours ouvrables ont une sortie', async () => {
+    await socle({ nbMouvements: 0, sorties: joursOuvrablesAout.slice(0, 13).map((j) => ({ jour: j })) });
+    const v = await p3();
+    expect(v?.nb_ouvrables).toBe(20);
+    expect(v?.taux_regularite_pct).toBe('65.0'); // 13 / 20
+    expect((await scorePilier(null))?.p_regularite).toBe('100.0');
+  });
+
+  it('P3 ne compte pas une sortie faite un jour férié', async () => {
+    await socle({
+      nbMouvements: 0,
+      sorties: [...joursOuvrablesAout.slice(0, 12), '2026-08-07'].map((j) => ({ jour: j })),
+    });
+    // 12 jours ouvrables + le 7 août (férié, exclu) → 12 / 20, pas 13 / 20
+    expect((await p3())?.nb_jours_avec_sortie).toBe(12);
+    expect((await scorePilier(null))?.p_regularite).toBe('0.0');
+  });
+
+  it('P3 compte les distributions d\'un district comme des sorties', async () => {
+    await socle({
+      nbMouvements: 0,
+      sorties: joursOuvrablesAout.slice(0, 13).map((j) => ({ jour: j, nature: 'distribution' as const })),
+    });
+    expect((await p3())?.nb_jours_avec_sortie).toBe(13);
+    expect((await scorePilier(null))?.p_regularite).toBe('100.0');
+  });
+
+  it('P3 NON_CALCULABLE quand le site n\'a aucune sortie sur le mois', async () => {
+    await socle({ nbMouvements: 0 }); // inventaire présent → P5 calculable, mais aucune sortie
+    const { rowCount } = await db.query(
+      `SELECT 1 FROM dqa.mv_p3_regularite WHERE site_id = 'S1'`,
+    );
+    expect(rowCount).toBe(0);
+    const sp = await scorePilier(null);
+    expect(sp).toBeDefined();
+    expect(sp?.p_regularite).toBeNull();
+  });
+
+  it('le composite intègre P3 dans la renormalisation', async () => {
+    // P3 ALERTE (0, poids 15), P5 CONFORME (100, poids 25), P6 CONFORME (100, poids 10)
+    // → (0·15 + 100·25 + 100·10) / (15 + 25 + 10) = 3500 / 50 = 70.0
+    await socle({
+      comptee: 100, theorique: 100, nbMouvements: 0,
+      sorties: joursOuvrablesAout.slice(0, 4).map((j) => ({ jour: j })),
+    });
+    const sp = await scorePilier(null);
+    expect(sp?.p_regularite).toBe('0.0');
+    expect(sp?.score_composite).toBe('70.0');
+    expect(sp?.classification).toBe('NON_CONFORME');
   });
 
   it('gèle le mois du lot dans hist_score_site avec les six colonnes de pilier', async () => {

@@ -14,6 +14,7 @@ import {
   type ScorePilier,
   type ScoreSite,
   type Site,
+  type SousComposante,
 } from '@dqa/contracts';
 import { PG_POOL } from '../database/database.module.js';
 
@@ -187,23 +188,31 @@ export class IndicateursRepository {
       p_ecart_sdu: string | null;
       p_concordance: string | null;
       p_ajustements: string | null;
+      taux_regularite_pct: string | null;
       taux_concordance_pct: string | null;
       ratio_ajustements_pct: string | null;
+      seuil_regularite: string | null;
       seuil_concordance: string | null;
       seuil_ajustements: string | null;
     }>(
       `SELECT h.score_composite, h.classification,
               h.p_completude, h.p_promptitude, h.p_regularite,
               h.p_ecart_sdu, h.p_concordance, h.p_ajustements,
-              p5.taux_concordance_pct, p6.ratio_ajustements_pct,
+              p3.taux_regularite_pct, p5.taux_concordance_pct, p6.ratio_ajustements_pct,
+              sc3.seuil AS seuil_regularite,
               sc5.seuil AS seuil_concordance, sc6.seuil AS seuil_ajustements
        FROM dqa.hist_score_site h
+       LEFT JOIN dqa.mv_p3_regularite p3
+              ON p3.site_id = h.site_id AND p3.mois_paqd = h.mois_paqd
+             AND p3.programme_id IS NOT DISTINCT FROM h.programme_id
        LEFT JOIN dqa.mv_p5_concordance p5
               ON p5.site_id = h.site_id AND p5.mois_paqd = h.mois_paqd
              AND p5.programme_id IS NOT DISTINCT FROM h.programme_id
        LEFT JOIN dqa.mv_p6_ajustements p6
               ON p6.site_id = h.site_id AND p6.mois_paqd = h.mois_paqd
              AND p6.programme_id IS NOT DISTINCT FROM h.programme_id
+       LEFT JOIN dqa.grille_seuil_sous_composante sc3
+              ON sc3.grille_id = h.grille_id AND sc3.sous_composante = 'regularite_saisie'
        LEFT JOIN dqa.grille_seuil_sous_composante sc5
               ON sc5.grille_id = h.grille_id AND sc5.sous_composante = 'concordance'
        LEFT JOIN dqa.grille_seuil_sous_composante sc6
@@ -225,7 +234,7 @@ export class IndicateursRepository {
     const piliers: ScorePilier[] = [
       this.pilierNonMesure('P1'),
       this.pilierNonMesure('P2'),
-      this.pilierNonMesure('P3'),
+      this.pilierP3(scoresPiliers.P3, h?.taux_regularite_pct ?? null, h?.seuil_regularite ?? null),
       this.pilierNonMesure('P4'),
       this.pilierP5(scoresPiliers.P5, h?.taux_concordance_pct ?? null, h?.seuil_concordance ?? null),
       this.pilierP6(scoresPiliers.P6, h?.ratio_ajustements_pct ?? null, h?.seuil_ajustements ?? null),
@@ -247,7 +256,7 @@ export class IndicateursRepository {
   }
 
   private mesure(
-    sc: 'concordance' | 'ratio_ajustements',
+    sc: SousComposante,
     score: string | null,
     valeur: string | null,
     seuil: string | null,
@@ -264,6 +273,12 @@ export class IndicateursRepository {
       statut,
       raison: statut === 'NON_CALCULABLE' ? raisonNC : null,
     };
+  }
+
+  private pilierP3(score: string | null, taux: string | null, seuil: string | null): ScorePilier {
+    const m = this.mesure('regularite_saisie', score, taux, seuil, 'pct',
+      'Aucune sortie de stock exploitable sur le mois');
+    return this.envelopper('P3', score, [m]);
   }
 
   private pilierP5(score: string | null, taux: string | null, seuil: string | null): ScorePilier {

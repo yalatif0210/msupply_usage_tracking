@@ -17,18 +17,31 @@ renormalisation.
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done (branche piliers-p1-p4-score-composite)
 
-- [ ] Une migration numérotée crée la vue matérialisée de P3 : jours ouvrables
+- [x] Une migration numérotée crée la vue matérialisée de P3 : jours ouvrables
       avec au moins une sortie de stock ÷ jours ouvrables du mois PAQD, par site
-      et par programme.
-- [ ] « Sortie de stock » = dispensation pour un site de dispensation,
-      distribution vers un site rattaché pour un district.
-- [ ] Le score de pilier P3 est ajouté à la vue de score de pilier et à la
+      et par programme. → `db/migrations/0016_vue_p3_regularite.sql`
+- [x] « Sortie de stock » = dispensation pour un site de dispensation,
+      distribution vers un site rattaché pour un district (`nature ∈
+      {dispensation, distribution}`, la distribution étant portée par le site
+      district dans `fact_transaction`).
+- [x] Le score de pilier P3 est ajouté à la vue de score de pilier et à la
       procédure de rafraîchissement ; le composite se recalcule avec P3.
-- [ ] `GET /api/sites/:id` renvoie P3 avec sa sous-composante (valeur, seuil,
-      statut) ou NON_CALCULABLE avec raison.
-- [ ] La fiche site affiche la carte P3.
-- [ ] Couture B : test de la formule (mois avec fériés, site sans mouvement →
-      NON_CALCULABLE, cas au-dessus / en dessous du seuil). Couture A : bout en
-      bout, un import produit un score P3 visible sur la fiche.
+- [x] `GET /api/sites/:id` renvoie P3 avec sa sous-composante (valeur, seuil,
+      statut) ou NON_CALCULABLE avec raison (« Aucune sortie de stock
+      exploitable sur le mois »).
+- [x] La fiche site affiche la carte P3 (rendu générique des `ScorePilier`).
+- [x] Couture B : ALERTE / CONFORME au seuil 65 % (13 j / 20), férié exclu,
+      distribution comptée, NON_CALCULABLE sans sortie, composite renormalisé
+      avec P3. Couture A : `lecture-indicateurs` et `import` vérifient P3 +
+      composite bout en bout.
+
+## Comments
+
+- `mv_p3` dérive le mois PAQD de `dim_temps.mois_paqd` (jointure sur le jour de
+  confirmation) plutôt que d'un `to_char` — garantit la cohérence avec le
+  dénominateur des jours ouvrables.
+- `mv_score_pilier` et `rafraichir_et_geler` sont recréées à chaque ticket de
+  pilier : c'est le prix du découpage ticket-par-ticket avec migrations
+  immuables. L'état final reste lisible.
