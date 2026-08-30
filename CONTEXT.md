@@ -14,8 +14,8 @@ _Éviter_ : composante, axe, dimension, critère
 
 **Sous-composante** :
 La grandeur mesurée qui alimente un pilier. Un pilier regroupe une ou plusieurs
-sous-composantes (P1 en a trois, P2 en a deux, P3 à P6 une seule). Chaque
-sous-composante a une valeur, un seuil et un statut.
+sous-composantes (P1 en a trois, P2 et P4 en ont deux, P3/P5/P6 une seule).
+Chaque sous-composante a une valeur, un seuil et un statut.
 _Éviter_ : indicateur, composante, métrique
 
 **Score de pilier** :
@@ -83,10 +83,28 @@ au plus tard le 5 du mois suivant (centres de santé), le 7 (HG, CHR), le 10
 (autres structures).
 
 **Produit traceur** :
-Un des produits retenus par la mission pour les calculs de précision (P4) et de
+Un des produits retenus par la mission pour les calculs d'écart (P4) et de
 concordance (P5). La liste est administrée dans la console web par la
 coordination, pas dérivée de mSupply.
 _Éviter_ : produit suivi, produit critique
+
+**Écart SDU (P4)** :
+Amplitude de l'écart, à la date d'un inventaire, entre le stock physiquement
+compté et la quantité théorique mSupply, moyennée sur les produits traceurs :
+`|compté − théorique| / théorique`. Conforme sous le seuil de la grille.
+
+**Écart consommation (P4)** :
+Amplitude de l'écart, sur un mois PAQD, entre la consommation *déclarée* (somme
+des dispensations saisies) et la consommation *reconstituée* à partir du
+mouvement de stock entre les **deux inventaires bornant le mois** (premier et
+dernier inventaire finalisé) : `stock_début + réceptions − stock_fin`. Conforme
+sous le seuil de la grille. NON_CALCULABLE sans deux inventaires bornants ou si
+la consommation reconstituée est nulle.
+_Éviter_ : écart SDU (réservé à la sous-composante ci-dessus)
+
+**Concordance physique / théorique (P5)** :
+Rapport moyen entre stock compté et stock théorique au dernier inventaire du
+mois, sur les produits traceurs. Statut binaire selon le seuil de la grille.
 
 **Réquisition** :
 Une commande mensuelle de réapprovisionnement, par programme, adressée par un
@@ -123,6 +141,6 @@ aux données.
 | P1 | Complétude des transactions | 10 % | complétude des inventaires, des réquisitions, des réceptions |
 | P2 | Promptitude des transactions | 15 % | promptitude des inventaires, des réquisitions |
 | P3 | Régularité de saisie (dispensation) | 15 % | régularité de saisie |
-| P4 | Écart SDU produits traceurs | 25 % | écart SDU |
+| P4 | Écart SDU produits traceurs | 25 % | écart SDU, écart consommation |
 | P5 | Concordance physique / théorique | 25 % | concordance |
 | P6 | Ratio d'ajustements | 10 % | ratio d'ajustements |
