@@ -75,8 +75,19 @@ describe('vues P5/P6 et gel', () => {
   };
 
   const scorePilier = async (programme: string | null) => {
-    const { rows } = await db.query<{ p_concordance: string | null; p_ajustements: string | null }>(
-      `SELECT p_concordance, p_ajustements FROM dqa.mv_score_pilier
+    const { rows } = await db.query<{
+      p_completude: string | null;
+      p_promptitude: string | null;
+      p_regularite: string | null;
+      p_ecart_sdu: string | null;
+      p_concordance: string | null;
+      p_ajustements: string | null;
+      score_composite: string | null;
+      classification: string | null;
+    }>(
+      `SELECT p_completude, p_promptitude, p_regularite, p_ecart_sdu,
+              p_concordance, p_ajustements, score_composite, classification
+       FROM dqa.mv_score_pilier
        WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND coalesce(programme_id,'') = $1`,
       [programme ?? ''],
     );
@@ -122,16 +133,59 @@ describe('vues P5/P6 et gel', () => {
     expect(tous).toBeDefined();
   });
 
-  it('gèle le mois du lot dans hist_score_site, score composite NULL', async () => {
+  it('gèle le mois du lot dans hist_score_site avec les six colonnes de pilier', async () => {
     await socle({});
     const { rows } = await db.query(
-      `SELECT mois_paqd, score_composite, grille_id, lot_id FROM dqa.hist_score_site
-       WHERE site_id = 'S1' AND programme_id IS NULL`,
+      `SELECT mois_paqd, p_completude, p_promptitude, p_regularite, p_ecart_sdu,
+              p_concordance, p_ajustements, score_composite, classification, grille_id, lot_id
+       FROM dqa.hist_score_site WHERE site_id = 'S1' AND programme_id IS NULL`,
     );
     expect(rows[0].mois_paqd).toBe('2026-08');
-    expect(rows[0].score_composite).toBeNull();
+    // P1..P4 pas encore outillés → NULL ; P5/P6 gelés
+    expect(rows[0].p_completude).toBeNull();
+    expect(rows[0].p_promptitude).toBeNull();
+    expect(rows[0].p_regularite).toBeNull();
+    expect(rows[0].p_ecart_sdu).toBeNull();
+    expect(rows[0].p_concordance).toBe('100.0');
+    expect(rows[0].p_ajustements).toBe('100.0');
     expect(rows[0].grille_id).not.toBeNull();
     expect(rows[0].lot_id).not.toBeNull();
+  });
+
+  it('renormalise le composite sur les seuls piliers calculables (P5 + P6)', async () => {
+    // P5 sous le seuil (0), P6 conforme (100). Poids grille v1 : P5 = 25, P6 = 10.
+    // Composite renormalisé = (0·25 + 100·10) / (25 + 10) = 1000 / 35 = 28.6.
+    await socle({ comptee: 70, theorique: 100, nbMouvements: 10, nbAjustements: 0 });
+    const tous = await scorePilier(null);
+    expect(tous?.p_concordance).toBe('0.0');
+    expect(tous?.p_ajustements).toBe('100.0');
+    expect(tous?.score_composite).toBe('28.6');
+    expect(tous?.classification).toBe('NON_CONFORME');
+  });
+
+  it('composite = 100 et CONFORME quand P5 et P6 sont tous deux conformes', async () => {
+    await socle({ comptee: 100, theorique: 100, nbMouvements: 10, nbAjustements: 0 });
+    const tous = await scorePilier(null);
+    expect(tous?.score_composite).toBe('100.0');
+    expect(tous?.classification).toBe('CONFORME');
+  });
+
+  it('n\'inscrit aucune ligne d\'historique pour un site sans donnée du mois', async () => {
+    await socle({ avecInventaire: false, nbMouvements: 0 });
+    const { rowCount } = await db.query(`SELECT 1 FROM dqa.hist_score_site WHERE site_id = 'S1'`);
+    expect(rowCount).toBe(0);
+  });
+
+  it('classe le composite aux bornes 90 et 75 (classer_composite)', async () => {
+    const { rows } = await db.query<{ s: string; c: string | null }>(
+      `SELECT v.s::text AS s, dqa.classer_composite(v.s) AS c
+       FROM (VALUES (90.0), (89.9), (75.0), (74.9)) AS v(s)`,
+    );
+    const par = Object.fromEntries(rows.map((r) => [r.s, r.c]));
+    expect(par['90.0']).toBe('CONFORME');
+    expect(par['89.9']).toBe('PARTIELLEMENT_CONFORME');
+    expect(par['75.0']).toBe('PARTIELLEMENT_CONFORME');
+    expect(par['74.9']).toBe('NON_CONFORME');
   });
 
   it('un re-gel du même mois met à jour la ligne sans doublon', async () => {

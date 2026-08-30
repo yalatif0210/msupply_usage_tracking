@@ -48,31 +48,40 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(res.status).toBe(401);
   });
 
-  it('liste les sites du périmètre avec leurs scores P5 et P6', async () => {
+  it('liste les sites du périmètre avec leur score composite (P5 + P6 renormalisés)', async () => {
     const a = await lecteur();
     const res = await a.get('/api/sites');
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     const s = res.body[0];
     expect(s.site.siteId).toBe('SITE-1');
-    expect(s.scoreComposite).toBeNull();
-    expect(s.scoresPiliers.map((p: { pilier: string }) => p.pilier).sort()).toEqual(['P5', 'P6']);
+    // P5 et P6 conformes dans la fixture → composite renormalisé = 100
+    expect(Number(s.scoreComposite)).toBe(100);
+    expect(s.classification).toBe('CONFORME');
+    expect(s.scoresPiliers.map((p: { pilier: string }) => p.pilier).sort()).toEqual([
+      'P1', 'P2', 'P3', 'P4', 'P5', 'P6',
+    ]);
   });
 
-  it('renvoie un DetailSite conforme au contrat, restreint à P5/P6, sans score composite', async () => {
+  it('renvoie un DetailSite conforme au contrat : six piliers, composite et classification', async () => {
     const a = await lecteur();
     const res = await a.get('/api/sites/SITE-1');
     expect(res.status).toBe(200);
     const detail = detailSiteSchema.parse(res.body);
-    expect(detail.piliersCouverts).toBe(2);
+    expect(detail.piliersCouverts).toBe(2); // seuls P5 et P6 sont outillés
     expect(detail.piliersTotal).toBe(6);
-    expect(detail.scoreComposite).toBeNull();
-    expect(detail.classification).toBeNull();
-    expect(detail.piliers.map((p) => p.pilier)).toEqual(['P5', 'P6']);
+    expect(Number(detail.scoreComposite)).toBe(100);
+    expect(detail.classification).toBe('CONFORME');
+    expect(detail.piliers.map((p) => p.pilier)).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']);
     const p5 = detail.piliers.find((p) => p.pilier === 'P5')!;
     expect(p5.sousComposantes[0]?.sousComposante).toBe('concordance');
     expect(['CONFORME', 'ALERTE', 'NON_CALCULABLE']).toContain(p5.sousComposantes[0]?.statut);
     expect(p5.sousComposantes[0]?.seuil).not.toBeNull();
+    // P1..P4 pas encore outillés : score null, sous-composantes NON_CALCULABLE avec raison
+    const p1 = detail.piliers.find((p) => p.pilier === 'P1')!;
+    expect(p1.score).toBeNull();
+    expect(p1.sousComposantes).toHaveLength(3);
+    expect(p1.sousComposantes.every((sc) => sc.statut === 'NON_CALCULABLE' && sc.raison !== null)).toBe(true);
   });
 
   it('filtre le détail par programme', async () => {

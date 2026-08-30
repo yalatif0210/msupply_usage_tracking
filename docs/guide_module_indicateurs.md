@@ -26,7 +26,7 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 
 | Source | Usage |
 |---|---|
-| `hist_score_site` | scores de pilier gelés par (site, mois PAQD, programme) |
+| `hist_score_site` | six scores de pilier + `score_composite` + `classification` gelés par (site, mois PAQD, programme) |
 | `mv_p5_concordance` | valeur mesurée de la concordance (%) |
 | `mv_p6_ajustements` | valeur mesurée du ratio d'ajustements (%) |
 | `grille_seuil_sous_composante` | seuil affiché, via `hist_score_site.grille_id` |
@@ -38,18 +38,35 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 
 ## Modèle de restitution
 
-Cette tranche ne couvre que **P5 et P6**. `DetailSite` :
+`DetailSite` porte **toujours les six `ScorePilier`** (P1..P6). Seuls P5 et P6
+ont aujourd'hui une vue d'indicateur ; P1..P4 sortent avec `score = null` et
+leurs sous-composantes en `NON_CALCULABLE` (raison « Pilier pas encore mesuré
+sur ce site ») jusqu'à l'arrivée de leur vue (tickets 03..06).
 
-- `piliersCouverts = 2`, `piliersTotal = 6` ;
-- `scoreComposite = null`, `classification = null` — **aucun score composite
-  n'est affiché** tant que les six piliers ne sont pas là (décision du grilling,
-  round 8) ;
-- chaque `ScorePilier` porte une seule `MesureSousComposante` :
-  `statut` = `CONFORME` (score 100) / `ALERTE` (score 0) / `NON_CALCULABLE`
-  (score null), `raison` renseignée dans ce dernier cas.
+- `piliersCouverts` = nombre de scores de pilier non nuls (2 aujourd'hui) ;
+  `piliersTotal = 6`. L'écran affiche « Score calculé sur N piliers sur 6 »
+  quand `N < 6`.
+- `scoreComposite` = somme pondérée des scores de pilier calculables, divisée
+  par la somme de leurs poids (renormalisation, spec §« Score composite »).
+  `null` si aucun pilier n'est calculable.
+- `classification` : `CONFORME` ≥ 90, `PARTIELLEMENT_CONFORME` ≥ 75, sinon
+  `NON_CONFORME` (fonction SQL `classer_composite`, bornes de `CLAUDE.md` §5).
+- chaque `MesureSousComposante` : `statut` = `CONFORME` (score 100) / `ALERTE`
+  (score 0) / `NON_CALCULABLE` (score null), `raison` renseignée dans ce
+  dernier cas.
+
+`GET /api/sites` trie les sites par `score_composite` **croissant**, sites sans
+mesure (`NULL`) en dernier — les sites en difficulté remontent en tête.
 
 ## Décisions de conception
 
+- **Renormalisation en base, pas dans l'API** : `mv_score_pilier` calcule le
+  composite via un `CROSS JOIN LATERAL` des six paires (pilier, score) filtré
+  sur `score IS NOT NULL`, joint aux poids de la grille. L'API lit la valeur
+  gelée, elle ne repondère jamais (CLAUDE.md §3).
+- **`classer_composite(numeric)`** : fonction SQL `IMMUTABLE` isolant les
+  bornes 90 / 75, testable directement et réutilisable par les écrans
+  nationaux à venir.
 - **Statut binaire** (pas de PARTIEL) au niveau sous-composante : décision du
   grilling (D5). Le score de pilier vaut 100, 0 ou null.
 - **`moisPaqd` nullable + `moisDisponibles`** dans `DetailSite` : permet un état
@@ -60,6 +77,9 @@ Cette tranche ne couvre que **P5 et P6**. `DetailSite` :
 - **Front : validation Zod systématique des réponses** (`validerReponse`) — une
   réponse non conforme au contrat lève une erreur explicite plutôt que de
   propager des `undefined` (ARCHITECTURE.md §4). C'est la couture de test D.
+- **`ui/badge-classification`** : pastille de rangement du site (vert / ambre /
+  rouge), à côté de `ui/badge-statut` (statut de sous-composante). Partagé par
+  la fiche site et la liste des sites.
 
 ## Administration des produits traceurs
 

@@ -1,14 +1,16 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import type { Programme, ScoreSite } from '@dqa/contracts';
 import { SitesService } from '../core/sites.service';
+import { BadgeClassification } from '../ui/badge-classification';
 import { Entete } from '../ui/entete';
 
 @Component({
   selector: 'dqa-liste-sites',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, Entete],
+  imports: [FormsModule, RouterLink, Entete, BadgeClassification, DecimalPipe],
   template: `
     <dqa-entete />
     <main>
@@ -46,8 +48,8 @@ import { Entete } from '../ui/entete';
               <th>Site</th>
               <th>District</th>
               <th>Mois</th>
-              <th>P5 — Concordance</th>
-              <th>P6 — Ratio d'ajustements</th>
+              <th class="num">Score composite</th>
+              <th>Classification</th>
             </tr>
           </thead>
           <tbody>
@@ -56,13 +58,21 @@ import { Entete } from '../ui/entete';
                 <td><a [routerLink]="['/sites', s.site.siteId]">{{ s.site.siteNom }}</a></td>
                 <td>{{ s.site.district ?? '—' }}</td>
                 <td>{{ s.moisPaqd ?? '—' }}</td>
-                <td [class]="classe(pilier(s, 'P5'))">{{ affiche(pilier(s, 'P5')) }}</td>
-                <td [class]="classe(pilier(s, 'P6'))">{{ affiche(pilier(s, 'P6')) }}</td>
+                <td class="num">
+                  {{ s.scoreComposite === null ? '—' : (s.scoreComposite | number: '1.0-1') }}
+                </td>
+                <td>
+                  @if (s.moisPaqd) {
+                    <dqa-badge-classification [classification]="s.classification" />
+                  } @else {
+                    <span class="vide">Aucune mesure</span>
+                  }
+                </td>
               </tr>
             }
           </tbody>
         </table>
-        <p class="note">Couverture partielle : 2 piliers sur 6.</p>
+        <p class="note">Sites triés du score le plus faible au plus élevé ; sites sans mesure en fin de liste.</p>
       }
     </main>
   `,
@@ -74,10 +84,10 @@ import { Entete } from '../ui/entete';
     select { padding: 0.4rem; }
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid #d9d9d6; }
-    td.CONFORME { color: #1b5e20; font-weight: 600; }
-    td.ALERTE { color: #8a1c13; font-weight: 600; }
-    td.NON_CALCULABLE { color: #999; }
+    th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    td.num { font-size: 1.1rem; font-weight: 600; }
     .note { color: #5b5b5b; font-size: 0.85rem; }
+    .vide { color: #5b5b5b; }
   `,
 })
 export class ListeSitesPage {
@@ -110,19 +120,5 @@ export class ListeSitesPage {
       }),
     );
     this.chargement.set(false);
-  }
-
-  protected pilier(s: ScoreSite, code: 'P5' | 'P6'): number | null {
-    return s.scoresPiliers.find((x) => x.pilier === code)?.score ?? null;
-  }
-
-  protected affiche(score: number | null): string {
-    if (score === null) return 'Non calculable';
-    return score >= 100 ? 'Conforme' : 'Alerte';
-  }
-
-  protected classe(score: number | null): string {
-    if (score === null) return 'NON_CALCULABLE';
-    return score >= 100 ? 'CONFORME' : 'ALERTE';
   }
 }

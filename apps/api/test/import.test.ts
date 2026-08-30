@@ -71,13 +71,19 @@ describe('import du classeur jusqu\'au staging', () => {
     );
     expect(req.rows[0].mois_couvert).toBe('2026-08');
 
-    // et l'historique du mois est gelé (score composite NULL — P5/P6 seuls)
+    // et l'historique du mois est gelé : le produit de la fixture n'est pas un
+    // traceur seedé → P5 NON_CALCULABLE ; P6 conforme → composite renormalisé sur
+    // le seul P6 = 100, classification CONFORME.
     const hist = await base.pool.query(
-      `SELECT score_composite, grille_id FROM dqa.hist_score_site
+      `SELECT p_concordance, p_ajustements, score_composite, classification, grille_id
+       FROM dqa.hist_score_site
        WHERE site_id = 'SITE-1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
     );
     expect(hist.rowCount).toBe(1);
-    expect(hist.rows[0].score_composite).toBeNull();
+    expect(hist.rows[0].p_concordance).toBeNull();
+    expect(hist.rows[0].p_ajustements).toBe('100.0');
+    expect(hist.rows[0].score_composite).toBe('100.0');
+    expect(hist.rows[0].classification).toBe('CONFORME');
     expect(hist.rows[0].grille_id).not.toBeNull();
   });
 

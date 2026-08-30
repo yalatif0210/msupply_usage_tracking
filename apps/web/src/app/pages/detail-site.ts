@@ -4,13 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import type { DetailSite, Programme } from '@dqa/contracts';
 import { SitesService } from '../core/sites.service';
+import { BadgeClassification } from '../ui/badge-classification';
 import { BadgeStatut } from '../ui/badge-statut';
 import { Entete } from '../ui/entete';
 
 @Component({
   selector: 'dqa-detail-site',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, Entete, BadgeStatut, DecimalPipe],
+  imports: [FormsModule, RouterLink, Entete, BadgeStatut, BadgeClassification, DecimalPipe],
   template: `
     <dqa-entete />
     <main>
@@ -47,7 +48,6 @@ import { Entete } from '../ui/entete';
           } @else {
             <span class="mois">Mois PAQD : {{ d.moisPaqd ?? '—' }}</span>
           }
-          <span class="couverture">{{ d.piliersCouverts }} piliers sur {{ d.piliersTotal }}</span>
         </div>
 
         @if (d.piliers.length === 0) {
@@ -55,6 +55,24 @@ import { Entete } from '../ui/entete';
             Aucune mesure pour ce site. Le premier import contenant ce site alimentera l'écran.
           </p>
         } @else {
+          <div class="composite">
+            <div class="score">
+              <div class="chiffre">
+                {{ d.scoreComposite === null ? '—' : (d.scoreComposite | number: '1.0-1') }}
+              </div>
+              <div class="sur">/ 100</div>
+            </div>
+            <div class="rang">
+              <dqa-badge-classification [classification]="d.classification" />
+              @if (d.piliersCouverts < d.piliersTotal) {
+                <div class="partiel">
+                  Score calculé sur {{ d.piliersCouverts }} pilier{{ d.piliersCouverts > 1 ? 's' : '' }}
+                  sur {{ d.piliersTotal }}
+                </div>
+              }
+            </div>
+          </div>
+
           <div class="cartes">
             @for (pil of d.piliers; track pil.pilier) {
               <article class="carte">
@@ -93,8 +111,13 @@ import { Entete } from '../ui/entete';
     .controles { display: flex; gap: 1.5rem; align-items: center; margin: 1.5rem 0; flex-wrap: wrap; }
     label { display: grid; gap: 0.3rem; font-size: 0.85rem; }
     select { padding: 0.4rem; }
-    .couverture { background: #edf0f5; padding: 0.2rem 0.6rem; font-size: 0.8rem; }
     .mois { color: #5b5b5b; font-size: 0.9rem; }
+    .composite { display: flex; align-items: center; gap: 1.5rem; border: 1px solid #d9d9d6; background: #fff; padding: 1.2rem 1.5rem; margin-bottom: 1.5rem; }
+    .composite .score { display: flex; align-items: baseline; gap: 0.5rem; }
+    .composite .chiffre { font-size: 3.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+    .composite .sur { font-size: 1.1rem; color: #5b5b5b; }
+    .composite .rang { display: grid; gap: 0.4rem; }
+    .composite .partiel { color: #5b5b5b; font-size: 0.85rem; }
     .cartes { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
     .carte { border: 1px solid #d9d9d6; background: #fff; padding: 1.2rem; }
     .carte h2 { font-size: 1rem; margin: 0 0 1rem; }
