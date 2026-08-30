@@ -100,9 +100,9 @@ règle — voir `test/import-validation.test.ts`.
   le lot). C'est voulu — le canevas V2 garantit l'unicité à la source. Les
   **lignes** d'inventaire, elles, sont agrégées par `GROUP BY (inventaire,
   produit, lot)`.
-- `dim_produit_traceur` est **seedée avec des placeholders** : tant que la vraie
-  liste de la mission n'est pas chargée, P5 et P6 restent NON_CALCULABLE sur des
-  données réelles.
+- `dim_produit_traceur` est seedée (migration 0013) avec les **13 produits
+  traceurs** de l'onglet PRODUITS du fichier d'extraction fourni par la DAP
+  (`produit_code` = `item.code`). À revoir à chaque cycle si le panier évolue.
 - Le gabarit `Canevas_Extraction_mSupply_DQA_v2.xlsx` contient une ligne
   d'exemple en ligne 6 : importé tel quel, il est rejeté (compteurs à 0 vs
   lignes d'exemple). C'est le comportement attendu — la DAP supprime la ligne

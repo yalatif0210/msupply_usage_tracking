@@ -84,14 +84,22 @@ describe('socle base de données DQA', () => {
     expect(rowCount).toBeGreaterThan(0);
   });
 
-  it('les migrations de seed sont re-jouables (ON CONFLICT DO NOTHING)', async () => {
-    // 0008 et 0009 doivent pouvoir être rejouées sans erreur ni doublon
+  it('seede la liste réelle des produits traceurs (13, sans placeholder)', async () => {
+    const { rows } = await db.query<{ n: string; p: string }>(
+      `SELECT count(*)::text AS n,
+              count(*) FILTER (WHERE produit_code LIKE '\\_\\_PLACEHOLDER%')::text AS p
+       FROM dqa.dim_produit_traceur`,
+    );
+    expect(rows[0]?.n).toBe('13');
+    expect(rows[0]?.p).toBe('0');
+  });
+
+  it('les migrations de seed sont re-jouables (ON CONFLICT)', async () => {
     const avant = await db.query<{ c: string }>(
       `SELECT count(*)::text AS c FROM dqa.dim_produit_traceur`,
     );
     await db.query(`INSERT INTO dqa.dim_produit_traceur (produit_code, libelle)
-                    VALUES ('__PLACEHOLDER_TRACEUR_1__', 'x')
-                    ON CONFLICT (produit_code) DO NOTHING`);
+                    VALUES ('3100014-ARV', 'x') ON CONFLICT (produit_code) DO UPDATE SET libelle = EXCLUDED.libelle`);
     const apres = await db.query<{ c: string }>(
       `SELECT count(*)::text AS c FROM dqa.dim_produit_traceur`,
     );
