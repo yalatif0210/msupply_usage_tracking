@@ -4,6 +4,8 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { closePool } from '../src/db/pool.js';
+import { lotImportSchema } from '@dqa/contracts';
+import { z } from 'zod';
 import { construireClasseur, optionsValides } from './helpers/classeur.js';
 import { demarrerBaseEphemere, type BaseEphemere } from './helpers/db.js';
 
@@ -110,7 +112,8 @@ describe('import du classeur jusqu\'au staging', () => {
     const a = await agentCoordination();
     const liste = await a.get('/api/imports');
     expect(liste.status).toBe(200);
-    expect(Array.isArray(liste.body)).toBe(true);
+    // chaque lot est conforme au contrat (id numérique, etc.)
+    z.array(lotImportSchema).parse(liste.body);
     expect(liste.body.length).toBeGreaterThanOrEqual(3);
 
     const lotRejete = liste.body.find((l: { statut: string }) => l.statut === 'rejete');

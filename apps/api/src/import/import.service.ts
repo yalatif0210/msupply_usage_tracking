@@ -139,7 +139,7 @@ export class ImportService {
       const v = g(k);
       return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
     };
-    const { rows } = await this.pool.query<{ id: number }>(
+    const { rows } = await this.pool.query<{ id: string }>(
       `INSERT INTO dqa.import_lot
          (nom_fichier, date_extraction, realisee_par, version_msupply,
           fenetre_debut, fenetre_fin, statut, nb_lignes_declarees, nb_lignes_reelles)
@@ -151,7 +151,7 @@ export class ImportService {
         JSON.stringify(declares), JSON.stringify(reels),
       ],
     );
-    return rows[0]!.id;
+    return Number(rows[0]!.id);
   }
 
   private async enregistrerAnomalies(lotId: number, anomalies: AnomalieImport[]): Promise<void> {

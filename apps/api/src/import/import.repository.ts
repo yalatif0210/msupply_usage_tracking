@@ -4,7 +4,7 @@ import type { AnomalieImport, LotImport } from '@dqa/contracts';
 import { PG_POOL } from '../database/database.module.js';
 
 interface LigneLot {
-  id: number;
+  id: string; // bigint → renvoyé en texte par pg
   nom_fichier: string;
   cycle_paqd: string | null;
   mois_paqd: string | null;
@@ -18,7 +18,7 @@ interface LigneLot {
 
 function versLot(r: LigneLot): LotImport {
   return {
-    id: r.id,
+    id: Number(r.id),
     nomFichier: r.nom_fichier,
     cyclePaqd: r.cycle_paqd,
     moisPaqd: r.mois_paqd,
