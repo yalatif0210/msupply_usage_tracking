@@ -1,21 +1,14 @@
 import { Pool } from 'pg';
 
-/**
- * Chaîne de connexion PostgreSQL. Aucune valeur par défaut de production : la
- * variable doit être fournie par l'environnement (Docker Compose, CI, .env).
- */
-export function databaseUrl(): string {
-  const url = process.env.DATABASE_URL;
-  if (!url) {
-    throw new Error('DATABASE_URL manquante');
-  }
-  return url;
-}
-
 let pool: Pool | undefined;
 
+/**
+ * Pool PostgreSQL partagé. La connexion est paresseuse : le pool se construit
+ * sans erreur même sans `DATABASE_URL`, l'échec ne survient qu'à la première
+ * requête (utile pour les tests qui ne touchent pas la base).
+ */
 export function getPool(): Pool {
-  pool ??= new Pool({ connectionString: databaseUrl() });
+  pool ??= new Pool({ connectionString: process.env.DATABASE_URL });
   return pool;
 }
 

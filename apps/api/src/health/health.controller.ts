@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { PILIERS } from '@dqa/contracts';
+import { Public } from '../auth/auth.metadata.js';
 
 interface EtatSante {
   statut: 'ok';
@@ -11,6 +12,7 @@ interface EtatSante {
 /** Contrôle de santé — non authentifié, utilisé par l'infra et les tests. */
 @Controller('sante')
 export class HealthController {
+  @Public()
   @Get()
   sante(): EtatSante {
     return {
