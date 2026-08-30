@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { gardeAuthentifie } from './core/auth.guard';
+import { gardeAuthentifie, gardeRole } from './core/auth.guard';
 
 export const routes: Routes = [
   {
@@ -20,6 +20,11 @@ export const routes: Routes = [
     path: 'imports',
     canActivate: [gardeAuthentifie],
     loadComponent: () => import('./pages/journal-imports').then((m) => m.JournalImportsPage),
+  },
+  {
+    path: 'admin/traceurs',
+    canActivate: [gardeAuthentifie, gardeRole(['coordination', 'admin'])],
+    loadComponent: () => import('./pages/admin-traceurs').then((m) => m.AdminTraceursPage),
   },
   { path: '**', redirectTo: '' },
 ];

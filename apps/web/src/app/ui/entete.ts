@@ -12,6 +12,9 @@ import { AuthService } from '../core/auth.service';
       <nav>
         <a routerLink="/imports">Journal des imports</a>
         @if (auth.utilisateur(); as u) {
+          @if (u.role === 'coordination' || u.role === 'admin') {
+            <a routerLink="/admin/traceurs">Traceurs</a>
+          }
           <span class="user">{{ u.nom }} · {{ u.role }}</span>
           <button type="button" (click)="deconnexion()">Déconnexion</button>
         }
