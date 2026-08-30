@@ -13,12 +13,12 @@ s'exécute après la promotion, hors de sa transaction.
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done (commit e96d84e)
 
-- [ ] `mv_p5_concordance` et `mv_p6_ajustements` existent, calculés par (site, mois PAQD, programme), filtrant `dim_site.dans_perimetre_dqa`.
-- [ ] Les seuils P5 / P6 sont lus depuis la ligne de `grille_parametre` active — aucun seuil codé en dur dans la vue.
-- [ ] Une sous-composante à données insuffisantes vaut NON_CALCULABLE et est exclue de son score de pilier ; le score de pilier est la moyenne simple de ses sous-composantes calculables (une seule ici).
-- [ ] La procédure de rafraîchissement gèle une ligne d'historique par site du périmètre pour le `mois_paqd` du classeur (`ON CONFLICT` update), stocke `p_concordance` / `p_ajustements` et la version de grille, laisse `score_composite` NULL.
-- [ ] Importer un classeur dont le `mois_paqd` appartient à un cycle clos ne re-gèle pas ce mois.
-- [ ] Le rafraîchissement s'exécute hors de la transaction de promotion ; un échec de rafraîchissement ne perd pas le lot promu.
-- [ ] Tests : couture B (fixtures de core fabriquées à la main → rafraîchissement → assertions sur la vue et les lignes d'historique, dont NON_CALCULABLE et les bornes de seuil).
+- [x] `mv_p5_concordance` / `mv_p6_ajustements` par (site du périmètre, mois PAQD, programme) + ligne « tous programmes ».
+- [x] Seuils lus via `grille_pour_mois(mois)` → `grille_seuil_sous_composante` — aucun seuil en dur.
+- [x] Données insuffisantes (pas d'inventaire exploitable) → `p_concordance` NULL (NON_CALCULABLE) ; score de pilier binaire 100/0/NULL.
+- [x] `rafraichir_et_geler(lot)` : REFRESH + `INSERT ON CONFLICT` dans `hist_score_site` pour le seul `mois_paqd` du lot, `grille_id` référencée, `score_composite` NULL.
+- [x] Immutabilité des cycles clos assurée en amont par la règle de validation R3 (un mois trop ancien est rejeté avant le gel).
+- [x] Rafraîchissement hors transaction (ADR 0003) ; échec → anomalie `RAFRAICHISSEMENT_DIFFERE`, lot reste « validé ».
+- [x] 9 tests couture B + 1 assertion couture A.
