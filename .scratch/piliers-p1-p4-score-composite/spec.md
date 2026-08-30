@@ -68,9 +68,9 @@ Compléter le modèle à six piliers :
 16. En tant qu'agent de coordination, je veux que la promptitude des réquisitions compare la date de soumission au jour limite (5 / 7 / 10) du mois suivant selon le type de structure du site.
 17. En tant qu'agent de coordination, je veux que la régularité de saisie compte, pour un district, les distributions vers les sites rattachés comme des sorties de stock.
 18. En tant qu'agent de coordination, je veux que la régularité ne compte que les jours ouvrables du calendrier (jours fériés exclus).
-19. En tant qu'agent de coordination, je veux que l'écart SDU d'un site soit la moyenne, sur les produits traceurs, de `|compté − théorique| / théorique` au dernier inventaire du mois.
-20. En tant qu'agent de coordination, je veux que l'écart consommation soit `|conso déclarée − conso reconstituée| / conso reconstituée`, où la conso reconstituée = stock du premier inventaire + réceptions − stock du dernier inventaire.
-21. En tant qu'agent de coordination, je veux que l'écart consommation soit NON_CALCULABLE sans deux inventaires bornant le mois, ou si la consommation reconstituée est nulle.
+19. En tant qu'agent de coordination, je veux que l'écart SDU d'un site soit `Σ|théorique − compté| / Σ compté` sur les produits traceurs, au dernier inventaire du mois — le stock **compté** (la réalité) au dénominateur, et une agrégation `Σ / Σ` (pas une moyenne de ratios par produit) pour ne pas laisser un petit stock dominer.
+20. En tant qu'agent de coordination, je veux que l'écart consommation soit `Σ|déclarée − reconstituée| / Σ reconstituée`, où la conso reconstituée d'un produit = stock du premier inventaire + réceptions − stock du dernier inventaire.
+21. En tant qu'agent de coordination, je veux que l'écart SDU soit NON_CALCULABLE si `Σ compté = 0`, et l'écart consommation NON_CALCULABLE sans deux inventaires bornant le mois ou si `Σ reconstituée ≤ 0`.
 22. En tant qu'agent de coordination, je veux que chaque sous-composante soit CONFORME ou ALERTE selon le seuil de la grille active pour le mois — jamais un seuil codé en dur.
 23. En tant qu'agent de coordination, je veux que le seuil `écart consommation` existe dans la grille (2 %, sens « inférieur ou égal », par défaut).
 24. En tant qu'agent de coordination, je veux que le score d'un pilier soit la moyenne simple de ses sous-composantes calculables (CONFORME = 100, ALERTE = 0).
@@ -134,12 +134,14 @@ la variante « tous programmes » retire le filtre programme.
 | **P2** | promptitude inventaires | programmes gérés avec un `stock_take` finalisé daté dans **`[mois_fin − 2, mois_fin]`** / programmes gérés | ≥ 65, sup |
 | | promptitude réquisitions | réquisitions du mois soumises (`date_soumission`) ≤ `jour_limite_requisition` du mois M+1 / réquisitions attendues (= programmes gérés) | ≥ 65, sup |
 | **P3** | régularité de saisie | jours ouvrables du mois (`dim_temps` `est_ouvrable`) avec ≥ 1 `fact_transaction` `nature ∈ {dispensation, distribution}` confirmée ce jour / jours ouvrables du mois | ≥ 65, sup |
-| **P4** | écart SDU | moyenne sur les produits traceurs de `|quantite_comptee − quantite_theorique| / quantite_theorique · 100` au **dernier** inventaire finalisé du mois ; **NON_CALCULABLE si aucun** | ≤ 2, inf |
-| | écart consommation | `|conso_declaree − conso_reconstituee| / conso_reconstituee · 100` ; `conso_reconstituee = stock_debut + receptions − stock_fin` entre le **premier** et le **dernier** inventaire finalisé du mois ; `conso_declaree = Σ quantite_unitaire` des lignes de transactions `nature = dispensation` sur l'intervalle ; **NON_CALCULABLE si < 2 inventaires bornants ou `conso_reconstituee = 0`** | ≤ 2, inf |
+| **P4** | écart SDU | `Σ \|quantite_theorique − quantite_comptee\| / Σ quantite_comptee · 100` sur les produits traceurs, au **dernier** inventaire finalisé du mois. Le **compté** (réalité) au dénominateur ; agrégation `Σ / Σ`, pas une moyenne de ratios. **NON_CALCULABLE si aucun inventaire traceur ou `Σ quantite_comptee = 0`** | ≤ 2, inf |
+| | écart consommation | `Σ \|conso_declaree − conso_reconstituee\| / Σ conso_reconstituee · 100` sur les produits traceurs. Par produit : `conso_reconstituee = stock_debut + receptions − stock_fin` entre le **premier** et le **dernier** inventaire finalisé du mois ; `conso_declaree = Σ quantite_unitaire` des lignes de transactions `nature = dispensation` sur l'intervalle ; `receptions` idem avec `nature = reception`. **NON_CALCULABLE si < 2 inventaires bornants ou `Σ conso_reconstituee ≤ 0`** | ≤ 2, inf |
 | **P5**, **P6** | *(inchangés — tranche précédente)* | | |
 
-`receptions` (pour l'écart consommation) = Σ `quantite_unitaire` des lignes de
-transactions `nature = reception` sur l'intervalle, pour les produits traceurs.
+Toutes les quantités de P4 sont exprimées en unités de dispensation
+(`quantite_unitaire` = `quantite × taille_conditionnement` pour les lignes,
+`quantite_comptee` / `quantite_theorique` déjà en unités dans
+`fact_inventaire_ligne`).
 
 ### Score composite (renormalisation)
 
@@ -225,8 +227,8 @@ Cas minimaux :
 - P2a : inventaire dans les 3 derniers jours → compte ; inventaire le 10 → ne compte pas.
 - P2b : réquisition soumise avant / après le jour limite selon `type_structure`.
 - P3 : ≥ 65 % des jours ouvrables avec sortie → CONFORME ; en dessous → ALERTE ; distributions comptées pour un district.
-- P4 écart SDU : moyenne des écarts ≤ 2 % → CONFORME ; au-dessus → ALERTE ; aucun inventaire traceur → NON_CALCULABLE.
-- P4 écart consommation : deux inventaires + réceptions → valeur attendue ; un seul inventaire → NON_CALCULABLE ; conso reconstituée nulle → NON_CALCULABLE.
+- P4 écart SDU : `Σ|théorique−compté| / Σ compté` ≤ 2 % → CONFORME ; au-dessus → ALERTE ; aucun inventaire traceur ou `Σ compté = 0` → NON_CALCULABLE. Vérifier qu'un petit stock à écart trivial ne fait pas basculer le résultat (test dédié : un produit théo 1000/compté 980 + un produit théo 5/compté 8 → écart pooled ≈ 2,3 %, pas 30 %).
+- P4 écart consommation : deux inventaires + réceptions → valeur pooled attendue ; un seul inventaire → NON_CALCULABLE ; `Σ reconstituée ≤ 0` → NON_CALCULABLE.
 - Composite : six piliers présents → somme pondérée exacte ; un pilier NON_CALCULABLE → poids renormalisés ; bornes de classification (90, 75).
 - Gel : `hist_score_site` porte les six `p_*`, `score_composite`, `classification`, `grille_id` ; un re-gel ne duplique pas.
 

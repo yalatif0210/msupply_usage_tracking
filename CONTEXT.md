@@ -89,17 +89,21 @@ coordination, pas dérivée de mSupply.
 _Éviter_ : produit suivi, produit critique
 
 **Écart SDU (P4)** :
-Amplitude de l'écart, à la date d'un inventaire, entre le stock physiquement
-compté et la quantité théorique mSupply, moyennée sur les produits traceurs :
-`|compté − théorique| / théorique`. Conforme sous le seuil de la grille.
+Amplitude de l'écart, à la date du dernier inventaire du mois, entre la quantité
+théorique mSupply et le stock physiquement compté, agrégée sur les produits
+traceurs : `Σ |théorique − compté| / Σ compté`. Le stock **compté** (la réalité)
+est au dénominateur : on mesure de combien la théorie s'écarte du réel. Conforme
+sous le seuil de la grille ; NON_CALCULABLE si `Σ compté = 0`.
 
 **Écart consommation (P4)** :
 Amplitude de l'écart, sur un mois PAQD, entre la consommation *déclarée* (somme
-des dispensations saisies) et la consommation *reconstituée* à partir du
-mouvement de stock entre les **deux inventaires bornant le mois** (premier et
-dernier inventaire finalisé) : `stock_début + réceptions − stock_fin`. Conforme
+des dispensations saisies) et la consommation *reconstituée* — cette dernière
+tenant lieu de réalité et donc placée au dénominateur :
+`Σ |déclarée − reconstituée| / Σ reconstituée`. La consommation reconstituée d'un
+produit = `stock_début + réceptions − stock_fin` entre le **premier** et le
+**dernier** inventaire finalisé du mois (les deux inventaires bornants). Conforme
 sous le seuil de la grille. NON_CALCULABLE sans deux inventaires bornants ou si
-la consommation reconstituée est nulle.
+`Σ reconstituée ≤ 0`.
 _Éviter_ : écart SDU (réservé à la sous-composante ci-dessus)
 
 **Concordance physique / théorique (P5)** :
