@@ -12,14 +12,14 @@ seedée. Pas encore de vue d'indicateur.
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (commit 3e4daf9)
 
-- [ ] `import_lot` : compteurs déclarés / constatés (JSONB), mois et cycle PAQD, statut avec contrainte `recu|en_cours|valide|rejete`, **pas de `empreinte_sha256`**.
-- [ ] `import_anomalie` : gravité avec contrainte `info|avertissement|erreur`, FK `lot_id` en cascade.
-- [ ] Un `stg_*` par jeu du contrat V2 (`SITES`, `SITE_PROGRAMME`, `PRODUITS`, `TRANSACTIONS`, `LIGNES_TRANSACTIONS`, `STOCK_ACTUEL`, `INVENTAIRES`, `INVENTAIRE_LIGNES`, `REQUISITIONS`), colonnes `TEXT`, aucune contrainte, `lot_id` sur chaque ligne.
-- [ ] Dimensions et faits du core avec identifiants mSupply en clés naturelles ; chaque table `fact_*` porte l'identifiant du lot source.
-- [ ] `grille_parametre` : table datée (période de validité), seedée avec les six poids de piliers et les seuils P5 (= 100 %) / P6 (≤ 5 %) de `CLAUDE.md` §5.
-- [ ] `dim_temps` seedé avec les jours ouvrables (jours fériés Côte d'Ivoire exclus) couvrant au moins le cycle PAQD courant et le précédent.
-- [ ] `dim_produit_traceur` seedé.
-- [ ] Une base vierge migre proprement de bout en bout ; des assertions de schéma confirment tables, colonnes et lignes de seed.
-- [ ] `initial.sql` supprimé une fois les migrations équivalentes en place (ADR 0001).
+- [x] `import_lot` : compteurs déclarés / constatés (JSONB), mois et cycle PAQD, statut avec contrainte `recu|en_cours|valide|rejete`, **pas de `empreinte_sha256`**.
+- [x] `import_anomalie` : gravité avec contrainte `info|avertissement|erreur`, FK `lot_id` en cascade.
+- [x] Un `stg_*` par jeu du contrat V2 (9 tables), colonnes `TEXT`, aucune contrainte, `lot_id` + `ligne_source` sur chaque ligne.
+- [x] Dimensions et faits du core avec identifiants mSupply en clés naturelles ; chaque table `fact_*` porte `lot_id_source`.
+- [x] `grille_parametre` : table datée (période de validité), seedée v1 — six poids (somme 100) + neuf seuils de sous-composantes (`CLAUDE.md` §5), avec `sens` sup/inf. Vue `v_grille_active`.
+- [x] `dim_temps` seedé 2025-2027 (1095 jours, 771 ouvrables), fériés fixes CI dans `jour_ferie`, `cycle_paqd` C1/C2/C3.
+- [x] `dim_produit_traceur` seedé (placeholder à remplacer par la liste de la mission).
+- [x] Une base vierge migre proprement de bout en bout ; 7 assertions de schéma via testcontainers.
+- [x] `initial.sql` supprimé (ADR 0001).
