@@ -71,7 +71,8 @@ export type ScorePilier = z.infer<typeof scorePilierSchema>;
 
 export const detailSiteSchema = z.object({
   site: siteSchema,
-  moisPaqd: moisPaqdSchema,
+  /** Mois PAQD affiché, ou `null` si le site n'a encore aucune mesure. */
+  moisPaqd: moisPaqdSchema.nullable(),
   /** Filtre programme appliqué, ou `null` pour « tous programmes ». */
   programmeId: z.string().nullable(),
   piliersCouverts: z.number().int().nonnegative(),

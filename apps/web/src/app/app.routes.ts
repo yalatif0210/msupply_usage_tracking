@@ -9,7 +9,12 @@ export const routes: Routes = [
   {
     path: '',
     canActivate: [gardeAuthentifie],
-    loadComponent: () => import('./pages/tableau-de-bord').then((m) => m.TableauDeBordPage),
+    loadComponent: () => import('./pages/liste-sites').then((m) => m.ListeSitesPage),
+  },
+  {
+    path: 'sites/:id',
+    canActivate: [gardeAuthentifie],
+    loadComponent: () => import('./pages/detail-site').then((m) => m.DetailSitePage),
   },
   {
     path: 'imports',
