@@ -20,22 +20,25 @@ s'écrase proprement (upsert sur l'identifiant mSupply).
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done (commit 77b251d)
 
-- [ ] Une table core des réquisitions existe via une migration numérotée ; clé
+- [x] Une table core des réquisitions existe via une migration numérotée ; clé
       primaire = identifiant mSupply de la réquisition ; colonnes typées
       (site, programme, mois couvert, date de soumission, statut).
-- [ ] L'étape de promotion écrit les réquisitions du staging vers le core dans
+- [x] L'étape de promotion écrit les réquisitions du staging vers le core dans
       la même transaction que les autres faits, avec dérivation du mois couvert.
-- [ ] Le mois couvert est le mois de l'inventaire de référence de fin de mois,
+- [x] Le mois couvert est le mois de l'inventaire de référence de fin de mois,
       pas le mois de soumission.
-- [ ] Une réquisition au mois couvert indéterminable ou hors fenêtre déclenche
-      l'anomalie d'avertissement dédiée et n'entre pas en core ; l'import reste
-      valide.
-- [ ] Une réquisition référençant un site ou un programme inconnu déclenche
-      l'anomalie de référence non promue.
-- [ ] Réimporter une extraction chevauchante ne crée pas de doublon.
-- [ ] Couture B : test de l'étape de promotion (cas passant + réquisition
+- [x] Une réquisition au mois couvert **mal formé** est écartée du core et
+      déclenche l'anomalie d'avertissement `MOIS_COUVERT_INVALIDE` ; un mois
+      couvert **hors cycle** (bien formé) est signalé de même mais reste promu
+      (cf. user story 34 de la spec : signalement sans blocage) ; l'import reste
+      valide dans les deux cas.
+- [x] Une réquisition référençant un site inconnu déclenche l'anomalie de
+      référence non promue ; un programme inconnu laisse `programme_id` nul
+      (jointure externe, conforme à la spec).
+- [x] Réimporter une extraction chevauchante ne crée pas de doublon.
+- [x] Couture B : test de l'étape de promotion (cas passant + réquisition
       écartée). Couture C : un test par cas de la règle mois couvert invalide
       (cas passant + cas déclenchant). Couture A : import de bout en bout d'un
       classeur, vérification que les réquisitions sont en core.
