@@ -189,22 +189,34 @@ export class IndicateursRepository {
       p_concordance: string | null;
       p_ajustements: string | null;
       taux_regularite_pct: string | null;
+      taux_sdu_pct: string | null;
+      taux_conso_pct: string | null;
+      score_sdu: string | null;
+      score_conso: string | null;
       taux_concordance_pct: string | null;
       ratio_ajustements_pct: string | null;
       seuil_regularite: string | null;
+      seuil_ecart_sdu: string | null;
+      seuil_ecart_conso: string | null;
       seuil_concordance: string | null;
       seuil_ajustements: string | null;
     }>(
       `SELECT h.score_composite, h.classification,
               h.p_completude, h.p_promptitude, h.p_regularite,
               h.p_ecart_sdu, h.p_concordance, h.p_ajustements,
-              p3.taux_regularite_pct, p5.taux_concordance_pct, p6.ratio_ajustements_pct,
+              p3.taux_regularite_pct,
+              p4.taux_sdu_pct, p4.taux_conso_pct, p4.score_sdu, p4.score_conso,
+              p5.taux_concordance_pct, p6.ratio_ajustements_pct,
               sc3.seuil AS seuil_regularite,
+              sc4s.seuil AS seuil_ecart_sdu, sc4c.seuil AS seuil_ecart_conso,
               sc5.seuil AS seuil_concordance, sc6.seuil AS seuil_ajustements
        FROM dqa.hist_score_site h
        LEFT JOIN dqa.mv_p3_regularite p3
               ON p3.site_id = h.site_id AND p3.mois_paqd = h.mois_paqd
              AND p3.programme_id IS NOT DISTINCT FROM h.programme_id
+       LEFT JOIN dqa.mv_p4_ecart p4
+              ON p4.site_id = h.site_id AND p4.mois_paqd = h.mois_paqd
+             AND p4.programme_id IS NOT DISTINCT FROM h.programme_id
        LEFT JOIN dqa.mv_p5_concordance p5
               ON p5.site_id = h.site_id AND p5.mois_paqd = h.mois_paqd
              AND p5.programme_id IS NOT DISTINCT FROM h.programme_id
@@ -213,6 +225,10 @@ export class IndicateursRepository {
              AND p6.programme_id IS NOT DISTINCT FROM h.programme_id
        LEFT JOIN dqa.grille_seuil_sous_composante sc3
               ON sc3.grille_id = h.grille_id AND sc3.sous_composante = 'regularite_saisie'
+       LEFT JOIN dqa.grille_seuil_sous_composante sc4s
+              ON sc4s.grille_id = h.grille_id AND sc4s.sous_composante = 'ecart_sdu'
+       LEFT JOIN dqa.grille_seuil_sous_composante sc4c
+              ON sc4c.grille_id = h.grille_id AND sc4c.sous_composante = 'ecart_consommation'
        LEFT JOIN dqa.grille_seuil_sous_composante sc5
               ON sc5.grille_id = h.grille_id AND sc5.sous_composante = 'concordance'
        LEFT JOIN dqa.grille_seuil_sous_composante sc6
@@ -235,7 +251,14 @@ export class IndicateursRepository {
       this.pilierNonMesure('P1'),
       this.pilierNonMesure('P2'),
       this.pilierP3(scoresPiliers.P3, h?.taux_regularite_pct ?? null, h?.seuil_regularite ?? null),
-      this.pilierNonMesure('P4'),
+      this.pilierP4(scoresPiliers.P4, {
+        tauxSdu: h?.taux_sdu_pct ?? null,
+        scoreSdu: h?.score_sdu ?? null,
+        seuilSdu: h?.seuil_ecart_sdu ?? null,
+        tauxConso: h?.taux_conso_pct ?? null,
+        scoreConso: h?.score_conso ?? null,
+        seuilConso: h?.seuil_ecart_conso ?? null,
+      }),
       this.pilierP5(scoresPiliers.P5, h?.taux_concordance_pct ?? null, h?.seuil_concordance ?? null),
       this.pilierP6(scoresPiliers.P6, h?.ratio_ajustements_pct ?? null, h?.seuil_ajustements ?? null),
     ];
@@ -279,6 +302,20 @@ export class IndicateursRepository {
     const m = this.mesure('regularite_saisie', score, taux, seuil, 'pct',
       'Aucune sortie de stock exploitable sur le mois');
     return this.envelopper('P3', score, [m]);
+  }
+
+  private pilierP4(
+    score: string | null,
+    p4: {
+      tauxSdu: string | null; scoreSdu: string | null; seuilSdu: string | null;
+      tauxConso: string | null; scoreConso: string | null; seuilConso: string | null;
+    },
+  ): ScorePilier {
+    const sdu = this.mesure('ecart_sdu', p4.scoreSdu, p4.tauxSdu, p4.seuilSdu, 'pct',
+      'Aucun produit traceur inventorié ce mois');
+    const conso = this.mesure('ecart_consommation', p4.scoreConso, p4.tauxConso, p4.seuilConso, 'pct',
+      'Aucun produit évaluable : deux inventaires bornants et une consommation reconstituée positive sont requis');
+    return this.envelopper('P4', score, [sdu, conso]);
   }
 
   private pilierP5(score: string | null, taux: string | null, seuil: string | null): ScorePilier {

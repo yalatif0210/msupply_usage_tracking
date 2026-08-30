@@ -216,16 +216,161 @@ describe('vues d\'indicateurs, composite et gel', () => {
   });
 
   it('le composite intègre P3 dans la renormalisation', async () => {
-    // P3 ALERTE (0, poids 15), P5 CONFORME (100, poids 25), P6 CONFORME (100, poids 10)
-    // → (0·15 + 100·25 + 100·10) / (15 + 25 + 10) = 3500 / 50 = 70.0
+    // P3 ALERTE (0, poids 15), P4 CONFORME (100, poids 25), P5 CONFORME (100, poids 25),
+    // P6 CONFORME (100, poids 10) → (0·15 + 100·25 + 100·25 + 100·10) / 75 = 6000 / 75 = 80.0
     await socle({
       comptee: 100, theorique: 100, nbMouvements: 0,
       sorties: joursOuvrablesAout.slice(0, 4).map((j) => ({ jour: j })),
     });
     const sp = await scorePilier(null);
     expect(sp?.p_regularite).toBe('0.0');
-    expect(sp?.score_composite).toBe('70.0');
-    expect(sp?.classification).toBe('NON_CONFORME');
+    expect(sp?.score_composite).toBe('80.0');
+    expect(sp?.classification).toBe('PARTIELLEMENT_CONFORME');
+  });
+
+  // ── P4 — écart SDU et écart consommation ─────────────────────────────────
+  const p4 = async (programme: string | null = null) => {
+    const { rows } = await db.query<{
+      taux_sdu_pct: string | null;
+      nb_produits_sdu: number;
+      taux_conso_pct: string | null;
+      nb_produits_conso: number;
+      score_sdu: string | null;
+      score_conso: string | null;
+      p_ecart_sdu: string | null;
+    }>(
+      `SELECT taux_sdu_pct, nb_produits_sdu::int, taux_conso_pct, nb_produits_conso::int,
+              score_sdu, score_conso, p_ecart_sdu
+       FROM dqa.mv_p4_ecart
+       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND coalesce(programme_id,'') = $1`,
+      [programme ?? ''],
+    );
+    return rows[0];
+  };
+  const inventaire = async (id: string, jour: string, produit: string, theorique: number, comptee: number) => {
+    await db.query(
+      `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
+       VALUES ($1,'S1','P1',$2::date,'fn',1) ON CONFLICT (inventaire_id) DO NOTHING`,
+      [id, jour],
+    );
+    await db.query(
+      `INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
+       VALUES ($1,$2,'X',$3,$4,1)`,
+      [id, produit, theorique, comptee],
+    );
+  };
+  const mouvement = async (id: string, nature: string, jour: string, produit: string, qte: number) => {
+    await db.query(
+      `INSERT INTO dqa.fact_transaction (transaction_id, site_id, nature, programme_id, statut, date_confirmation, lot_id_source)
+       VALUES ($1,'S1',$2,'P1','fn',$3::date,1)`,
+      [id, nature, jour],
+    );
+    await db.query(
+      `INSERT INTO dqa.fact_ligne_transaction (ligne_id, transaction_id, produit_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
+       VALUES ($1,$2,$3,$4,1,false,1)`,
+      [`${id}L`, id, produit, qte],
+    );
+  };
+
+  it('P4 écart SDU CONFORME quand le produit est juste dans la tolérance', async () => {
+    await socle({ nbMouvements: 0, comptee: 100, theorique: 102 }); // 2 % pile
+    const v = await p4();
+    expect(v?.nb_produits_sdu).toBe(1);
+    expect(v?.taux_sdu_pct).toBe('100.0');
+    expect(v?.score_sdu).toBe('100.0');
+  });
+
+  it('P4 écart SDU ALERTE quand le produit est juste hors tolérance', async () => {
+    await socle({ nbMouvements: 0, comptee: 100, theorique: 103 }); // 3 % > 2 %
+    const v = await p4();
+    expect(v?.taux_sdu_pct).toBe('0.0');
+    expect(v?.score_sdu).toBe('0.0');
+  });
+
+  it('P4 écart SDU : compté 0 / théorique 0 conforme, compté 0 / théorique > 0 non conforme', async () => {
+    await socle({ nbMouvements: 0, comptee: 0, theorique: 0 });
+    expect((await p4())?.taux_sdu_pct).toBe('100.0');
+    await db.query(`TRUNCATE dqa.hist_score_site, dqa.fact_inventaire_ligne, dqa.fact_inventaire,
+      dqa.fact_ligne_transaction, dqa.fact_transaction, dqa.dim_site_programme,
+      dqa.dim_produit, dqa.dim_programme, dqa.dim_site, dqa.import_lot RESTART IDENTITY CASCADE`);
+    await socle({ nbMouvements: 0, comptee: 0, theorique: 5 });
+    expect((await p4())?.taux_sdu_pct).toBe('0.0');
+  });
+
+  it('P4 écart SDU : un petit stock non conforme n\'écrase pas un grand panier conforme', async () => {
+    // 10 produits traceurs, 9 conformes, 1 hors tolérance → taux = 90 %, pas une
+    // moyenne d'amplitude dominée par le petit stock.
+    await socle({ nbMouvements: 0, comptee: 1000, theorique: 1000 }); // I1 conforme
+    for (let i = 2; i <= 10; i++) {
+      await db.query(`INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom) VALUES ($1,$1,$1)`, [`I${i}`]);
+      await db.query(`INSERT INTO dqa.dim_produit_traceur (produit_code, libelle) VALUES ($1,$1)`, [`I${i}`]);
+      // I2..I9 conformes (écart nul), I10 hors tolérance sur un tout petit stock
+      const [theo, compte] = i === 10 ? [2, 1] : [500, 500];
+      await db.query(
+        `INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
+         VALUES ('INV1',$1,'X',$2,$3,1)`,
+        [`I${i}`, theo, compte],
+      );
+    }
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    const v = await p4();
+    expect(v?.nb_produits_sdu).toBe(10);
+    expect(v?.taux_sdu_pct).toBe('90.0');
+    expect(v?.score_sdu).toBe('100.0'); // 90 ≥ seuil 90
+  });
+
+  it('P4 écart SDU NON_CALCULABLE sans produit traceur inventorié', async () => {
+    await db.query(`DELETE FROM dqa.dim_produit_traceur`);
+    await socle({ nbMouvements: 4 }); // mouvements → P6 calculable, mais aucun traceur
+    const { rowCount } = await db.query(`SELECT 1 FROM dqa.mv_p4_ecart WHERE site_id = 'S1'`);
+    expect(rowCount).toBe(0);
+    expect((await scorePilier(null))?.p_ecart_sdu).toBeNull();
+  });
+
+  it('P4 écart consommation : produit évaluable et classé conforme', async () => {
+    await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // INV1 le 28/08, stock fin = 50
+    await inventaire('INV0', '2026-08-03', 'I1', 100, 100);        // stock début = 100
+    await mouvement('RC1', 'reception', '2026-08-10', 'I1', 30);   // + 30 dans l'intervalle
+    await mouvement('DI1', 'dispensation', '2026-08-15', 'I1', 80); // déclarée = 80
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    // reconstituée = 100 + 30 − 50 = 80 ; |80 − 80| / 80 = 0 % ≤ 2 % → conforme
+    const v = await p4();
+    expect(v?.nb_produits_conso).toBe(1);
+    expect(v?.taux_conso_pct).toBe('100.0');
+    expect(v?.score_conso).toBe('100.0');
+  });
+
+  it('P4 écart consommation : un seul inventaire → produit exclu → NON_CALCULABLE', async () => {
+    await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // seul INV1
+    const v = await p4();
+    expect(v?.taux_sdu_pct).not.toBeNull();     // SDU reste calculable
+    expect(v?.nb_produits_conso).toBe(0);
+    expect(v?.taux_conso_pct).toBeNull();
+    expect(v?.score_conso).toBeNull();
+    // score de pilier P4 = moyenne des seules sous-composantes calculables = SDU
+    expect((await scorePilier(null))?.p_ecart_sdu).toBe(v?.score_sdu);
+  });
+
+  it('P4 écart consommation : reconstituée ≤ 0 → produit exclu', async () => {
+    await socle({ nbMouvements: 0, comptee: 100, theorique: 100 }); // stock fin = 100
+    await inventaire('INV0', '2026-08-03', 'I1', 10, 10);           // stock début = 10, aucune réception
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    // reconstituée = 10 + 0 − 100 = −90 ≤ 0 → exclu
+    expect((await p4())?.nb_produits_conso).toBe(0);
+    expect((await p4())?.taux_conso_pct).toBeNull();
+  });
+
+  it('P4 : score de pilier = moyenne des deux sous-composantes calculables', async () => {
+    await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // SDU conforme (100)
+    await inventaire('INV0', '2026-08-03', 'I1', 100, 100);
+    await mouvement('RC1', 'reception', '2026-08-10', 'I1', 0);
+    await mouvement('DI1', 'dispensation', '2026-08-15', 'I1', 10); // déclarée 10 vs reconstituée 50 → 80 % > 2 % → ALERTE (0)
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    const v = await p4();
+    expect(v?.score_sdu).toBe('100.0');
+    expect(v?.score_conso).toBe('0.0');
+    expect(v?.p_ecart_sdu).toBe('50.0'); // (100 + 0) / 2
+    expect((await scorePilier(null))?.p_ecart_sdu).toBe('50.0');
   });
 
   it('gèle le mois du lot dans hist_score_site avec les six colonnes de pilier', async () => {
@@ -236,29 +381,33 @@ describe('vues d\'indicateurs, composite et gel', () => {
        FROM dqa.hist_score_site WHERE site_id = 'S1' AND programme_id IS NULL`,
     );
     expect(rows[0].mois_paqd).toBe('2026-08');
-    // P1..P4 pas encore outillés → NULL ; P5/P6 gelés
+    // P1/P2 pas encore outillés → NULL ; P3 sans sortie → NULL ; P4/P5/P6 gelés
     expect(rows[0].p_completude).toBeNull();
     expect(rows[0].p_promptitude).toBeNull();
     expect(rows[0].p_regularite).toBeNull();
-    expect(rows[0].p_ecart_sdu).toBeNull();
+    expect(rows[0].p_ecart_sdu).toBe('100.0');
     expect(rows[0].p_concordance).toBe('100.0');
     expect(rows[0].p_ajustements).toBe('100.0');
     expect(rows[0].grille_id).not.toBeNull();
     expect(rows[0].lot_id).not.toBeNull();
   });
 
-  it('renormalise le composite sur les seuls piliers calculables (P5 + P6)', async () => {
-    // P5 sous le seuil (0), P6 conforme (100). Poids grille v1 : P5 = 25, P6 = 10.
-    // Composite renormalisé = (0·25 + 100·10) / (25 + 10) = 1000 / 35 = 28.6.
+  it('renormalise le composite sur les seuls piliers calculables', async () => {
+    // P3 absent (aucune sortie) → son poids (15) sort du dénominateur.
+    // P4 hors tolérance (0), P5 sous le seuil (0), P6 conforme (100).
+    // Composite = (0·25 + 0·25 + 100·10) / (25 + 25 + 10) = 1000 / 60 = 16.7
+    // (et non 10.0 : les poids de P1, P2, P3 ne comptent pas).
     await socle({ comptee: 70, theorique: 100, nbMouvements: 10, nbAjustements: 0 });
     const tous = await scorePilier(null);
+    expect(tous?.p_regularite).toBeNull();
+    expect(tous?.p_ecart_sdu).toBe('0.0');
     expect(tous?.p_concordance).toBe('0.0');
     expect(tous?.p_ajustements).toBe('100.0');
-    expect(tous?.score_composite).toBe('28.6');
+    expect(tous?.score_composite).toBe('16.7');
     expect(tous?.classification).toBe('NON_CONFORME');
   });
 
-  it('composite = 100 et CONFORME quand P5 et P6 sont tous deux conformes', async () => {
+  it('composite = 100 et CONFORME quand P4, P5 et P6 sont tous conformes', async () => {
     await socle({ comptee: 100, theorique: 100, nbMouvements: 10, nbAjustements: 0 });
     const tous = await scorePilier(null);
     expect(tous?.score_composite).toBe('100.0');

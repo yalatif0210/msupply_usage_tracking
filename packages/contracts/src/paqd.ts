@@ -52,6 +52,7 @@ export const SOUS_COMPOSANTES = [
   'promptitude_requisitions',
   'regularite_saisie',
   'ecart_sdu',
+  'ecart_consommation',
   'concordance',
   'ratio_ajustements',
 ] as const;
@@ -66,6 +67,7 @@ export const PILIER_DE_SOUS_COMPOSANTE: Record<SousComposante, Pilier> = {
   promptitude_requisitions: 'P2',
   regularite_saisie: 'P3',
   ecart_sdu: 'P4',
+  ecart_consommation: 'P4',
   concordance: 'P5',
   ratio_ajustements: 'P6',
 };
@@ -78,6 +80,7 @@ export const LIBELLES_SOUS_COMPOSANTE: Record<SousComposante, string> = {
   promptitude_requisitions: 'Promptitude des réquisitions',
   regularite_saisie: 'Régularité de saisie',
   ecart_sdu: 'Écart SDU',
+  ecart_consommation: 'Écart consommation',
   concordance: 'Concordance physique / théorique',
   ratio_ajustements: "Ratio d'ajustements",
 };
@@ -86,7 +89,7 @@ export const SOUS_COMPOSANTES_DU_PILIER: Record<Pilier, readonly SousComposante[
   P1: ['completude_inventaires', 'completude_requisitions', 'completude_receptions'],
   P2: ['promptitude_inventaires', 'promptitude_requisitions'],
   P3: ['regularite_saisie'],
-  P4: ['ecart_sdu'],
+  P4: ['ecart_sdu', 'ecart_consommation'],
   P5: ['concordance'],
   P6: ['ratio_ajustements'],
 };

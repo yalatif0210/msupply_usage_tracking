@@ -50,14 +50,17 @@ describe('sous-composantes', () => {
       expect(PILIERS).toContain(PILIER_DE_SOUS_COMPOSANTE[sc]);
     }
   });
-  it('la liste par pilier couvre exactement les 9 sous-composantes', () => {
+  it('la liste par pilier couvre exactement les 10 sous-composantes', () => {
     const aplat = PILIERS.flatMap((p) => SOUS_COMPOSANTES_DU_PILIER[p]);
     expect([...aplat].sort()).toEqual([...SOUS_COMPOSANTES].sort());
+    expect(SOUS_COMPOSANTES).toHaveLength(10);
   });
-  it('P1 en a trois, P2 deux, P3..P6 une', () => {
+  it('P1 en a trois, P2 et P4 deux, P3/P5/P6 une', () => {
     expect(SOUS_COMPOSANTES_DU_PILIER.P1).toHaveLength(3);
     expect(SOUS_COMPOSANTES_DU_PILIER.P2).toHaveLength(2);
     expect(SOUS_COMPOSANTES_DU_PILIER.P3).toHaveLength(1);
+    expect(SOUS_COMPOSANTES_DU_PILIER.P4).toHaveLength(2);
+    expect(SOUS_COMPOSANTES_DU_PILIER.P5).toHaveLength(1);
     expect(SOUS_COMPOSANTES_DU_PILIER.P6).toHaveLength(1);
   });
 });

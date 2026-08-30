@@ -63,7 +63,13 @@ describe('socle base de données DQA', () => {
     );
     expect(Number(rows[0]?.somme)).toBe(100);
     const seuils = await db.query(`SELECT * FROM dqa.grille_seuil_sous_composante`);
-    expect(seuils.rowCount).toBe(9);
+    expect(seuils.rowCount).toBe(10);
+    // écart SDU et écart consommation portent une tolérance par produit
+    const tol = await db.query<{ n: string }>(
+      `SELECT count(*)::text AS n FROM dqa.grille_seuil_sous_composante
+       WHERE sous_composante IN ('ecart_sdu', 'ecart_consommation') AND tolerance = 2.00`,
+    );
+    expect(tol.rows[0]?.n).toBe('2');
   });
 
   it('seede le calendrier avec jours ouvrables et fériés CI', async () => {

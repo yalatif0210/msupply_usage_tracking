@@ -30,26 +30,40 @@ l'écart consommation y sont ajoutés (tolérance par défaut 2 %, seuil par dé
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** done (branche piliers-p1-p4-score-composite)
 
-- [ ] Une migration numérotée ajoute la colonne de tolérance à la grille de
-      seuils de sous-composante et seed l'écart SDU + l'écart consommation avec
-      les valeurs par défaut.
-- [ ] Une migration numérotée crée la vue matérialisée de P4 : deux
-      sous-composantes en taux de conformité, par site et par programme.
-- [ ] L'écart SDU compare compté et théorique au dernier inventaire du mois,
-      compté au dénominateur.
-- [ ] L'écart consommation compare consommation déclarée et reconstituée entre
-      les deux inventaires bornants ; exclusion des produits sans double
-      inventaire ou à reconstituée ≤ 0.
-- [ ] Le contrat partagé ajoute la sous-composante écart consommation ; P4
-      compte désormais deux sous-composantes.
-- [ ] Le score de pilier P4 est câblé dans la vue de score de pilier et la
-      procédure de rafraîchissement ; le composite se recalcule avec P4.
-- [ ] `GET /api/sites/:id` renvoie P4 avec ses deux sous-composantes ou
-      NON_CALCULABLE avec raison.
-- [ ] La fiche site affiche la carte P4 avec ses deux sous-composantes.
-- [ ] Couture B : un test par sous-composante — produit juste dans / juste hors
-      tolérance, produit exclu (pas de double inventaire, reconstituée ≤ 0),
-      aucun produit traceur → NON_CALCULABLE, taux au-dessus / en dessous du
-      seuil. Couture A : bout en bout, un import produit un score P4 visible.
+- [x] Une migration numérotée ajoute la colonne de tolérance à la grille de
+      seuils de sous-composante et seed l'écart SDU (bascule taux de conformité :
+      seuil 90, sens sup, tolérance 2) + l'écart consommation (mêmes valeurs).
+      → `db/migrations/0017_vue_p4_ecart.sql`
+- [x] Une migration numérotée crée `mv_p4_ecart` : deux sous-composantes en taux
+      de conformité, par site et par programme (+ agrégat tous programmes).
+- [x] L'écart SDU compare compté et théorique au dernier inventaire du mois,
+      compté au dénominateur, produit par produit ; cas limites compté 0.
+- [x] L'écart consommation compare déclarée et reconstituée entre les deux
+      inventaires bornants ; exclusion des produits sans double inventaire ou à
+      reconstituée ≤ 0.
+- [x] `@dqa/contracts` : `ecart_consommation` ajouté à `SOUS_COMPOSANTES`,
+      `PILIER_DE_SOUS_COMPOSANTE`, `LIBELLES_SOUS_COMPOSANTE`,
+      `SOUS_COMPOSANTES_DU_PILIER.P4` (deux sous-composantes).
+- [x] Score de pilier P4 = moyenne simple des deux sous-composantes calculables,
+      câblé dans `mv_score_pilier` et `rafraichir_et_geler` ; composite recalculé.
+- [x] `GET /api/sites/:id` renvoie P4 avec ses deux sous-composantes (valeur,
+      seuil, statut) ou NON_CALCULABLE avec raison par sous-composante.
+- [x] La fiche site affiche la carte P4 (rendu générique, deux sous-composantes).
+- [x] Couture B : SDU juste dans / hors tolérance, cas limites compté 0, panier
+      10 produits (9 conformes → 90 %), NON_CALCULABLE sans traceur ; conso
+      évaluable/conforme, un seul inventaire → exclu, reconstituée ≤ 0 → exclu,
+      moyenne des deux sous-composantes. Couture A : `lecture-indicateurs`
+      vérifie P4 + composite bout en bout.
+
+## Comments
+
+- L'agrégat « tous programmes » de `mv_p4_ecart` est construit par `UNION ALL`
+  (duplication des lignes avec `prog = NULL`) plutôt que `GROUPING SETS`, parce
+  que le dernier inventaire et les bornes doivent être recalculés au grain
+  « tous programmes », pas agrégés depuis le grain programme.
+- `p_ecart_sdu` garde son nom de colonne historique (migration 0007) bien qu'il
+  porte maintenant la moyenne des deux sous-composantes de P4.
+- `schema.test.ts` : la grille compte désormais 10 seuils (ajout
+  `ecart_consommation`).

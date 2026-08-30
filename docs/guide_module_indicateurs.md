@@ -28,6 +28,7 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 |---|---|
 | `hist_score_site` | six scores de pilier + `score_composite` + `classification` gelés par (site, mois PAQD, programme) |
 | `mv_p3_regularite` | taux de jours ouvrables avec sortie de stock (%) |
+| `mv_p4_ecart` | taux de conformité écart SDU et écart consommation (%), scores et p_ecart_sdu |
 | `mv_p5_concordance` | valeur mesurée de la concordance (%) |
 | `mv_p6_ajustements` | valeur mesurée du ratio d'ajustements (%) |
 | `grille_seuil_sous_composante` | seuil affiché, via `hist_score_site.grille_id` |
@@ -39,16 +40,34 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 
 ## Modèle de restitution
 
-`DetailSite` porte **toujours les six `ScorePilier`** (P1..P6). P3, P5 et P6
-ont une vue d'indicateur ; P1, P2, P4 sortent avec `score = null` et leurs
+`DetailSite` porte **toujours les six `ScorePilier`** (P1..P6). P3, P4, P5 et
+P6 ont une vue d'indicateur ; P1 et P2 sortent avec `score = null` et leurs
 sous-composantes en `NON_CALCULABLE` (raison « Pilier pas encore mesuré sur ce
-site ») jusqu'à l'arrivée de leur vue (tickets 04..06).
+site ») jusqu'à l'arrivée de leur vue (tickets 05, 06).
 
 **P3 — régularité de saisie** (`mv_p3_regularite`) : jours ouvrables du mois
 PAQD avec au moins une sortie de stock (`nature ∈ {dispensation, distribution}`
 un jour `dim_temps.est_ouvrable`) ÷ jours ouvrables du mois. Sous-composante
 unique `regularite_saisie`, seuil grille 65 %. NON_CALCULABLE si le site n'a
 aucune sortie exploitable → pas de ligne dans la vue.
+
+**P4 — écart SDU et écart consommation** (`mv_p4_ecart`) : deux sous-composantes
+en **taux de conformité** (part des produits traceurs dans la tolérance de la
+grille, pas une amplitude — spec §« P4 en taux de conformité »).
+- `ecart_sdu` : `|théorique − compté| / compté ≤ tolérance` au dernier
+  inventaire finalisé du mois par produit ; compté (réalité) au dénominateur.
+  Cas limites : compté 0 / théorique 0 → conforme ; compté 0 / théorique > 0 →
+  non conforme. NON_CALCULABLE si aucun produit traceur inventorié.
+- `ecart_consommation` : `|déclarée − reconstituée| / reconstituée ≤ tolérance`
+  entre le premier et le dernier inventaire du mois. `reconstituée =
+  stock_début + réceptions − stock_fin` sur l'intervalle `(d_début, d_fin]`.
+  Produit sans deux inventaires bornants ou reconstituée ≤ 0 → exclu.
+  NON_CALCULABLE si aucun produit évaluable.
+
+Le score de pilier P4 (`p_ecart_sdu`, hérité du nom historique) est la moyenne
+simple des scores des deux sous-composantes calculables. Tolérance (2 %) et
+seuil de taux (90 %) viennent de `grille_seuil_sous_composante.tolerance` /
+`.seuil` — à confirmer avec la coordination PAQD.
 
 - `piliersCouverts` = nombre de scores de pilier non nuls (2 aujourd'hui) ;
   `piliersTotal = 6`. L'écran affiche « Score calculé sur N piliers sur 6 »
