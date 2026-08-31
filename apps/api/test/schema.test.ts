@@ -72,13 +72,13 @@ describe('socle base de données DQA', () => {
     expect(tol.rows[0]?.n).toBe('2');
   });
 
-  it('seede le calendrier avec jours ouvrables et fériés CI', async () => {
+  it('seede le calendrier (jours calendaires, mois et cycles PAQD)', async () => {
     const total = await db.query<{ c: string }>(`SELECT count(*)::text AS c FROM dqa.dim_temps`);
     expect(Number(total.rows[0]?.c)).toBeGreaterThan(1000);
-    const feteNationale = await db.query<{ est_ouvrable: boolean }>(
-      `SELECT est_ouvrable FROM dqa.dim_temps WHERE jour = DATE '2026-08-07'`,
+    const aout = await db.query<{ c: string }>(
+      `SELECT count(*)::text AS c FROM dqa.dim_temps WHERE mois_paqd = '2026-08'`,
     );
-    expect(feteNationale.rows[0]?.est_ouvrable).toBe(false);
+    expect(aout.rows[0]?.c).toBe('31');
     const cycle = await db.query<{ cycle_paqd: string }>(
       `SELECT cycle_paqd FROM dqa.dim_temps WHERE jour = DATE '2026-05-15'`,
     );

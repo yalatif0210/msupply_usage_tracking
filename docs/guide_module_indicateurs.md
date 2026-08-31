@@ -36,7 +36,7 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 | `mv_synthese_nationale` | agrégats nationaux / région / district / programme par mois PAQD |
 | `mv_p1_completude` | taux de complétude inventaires / réquisitions / réceptions (%), scores et p_completude |
 | `mv_p2_promptitude` | taux de promptitude inventaires / réquisitions (%), scores et p_promptitude |
-| `mv_p3_regularite` | taux de jours ouvrables avec sortie de stock (%) |
+| `mv_p3_regularite` | taux de jours du mois avec sortie de stock (%) |
 | `mv_p4_ecart` | taux de conformité écart SDU et écart consommation (%), scores et p_ecart_sdu |
 | `mv_p5_concordance` | valeur mesurée de la concordance (%) |
 | `mv_p6_ajustements` | valeur mesurée du ratio d'ajustements (%) |
@@ -83,11 +83,13 @@ jamais NON_CALCULABLE : ne rien soumettre pénalise P2. NON_CALCULABLE seulement
 si le site n'a aucun programme géré déclaré. Score de pilier P2 = moyenne
 simple des deux sous-composantes.
 
-**P3 — régularité de saisie** (`mv_p3_regularite`) : jours ouvrables du mois
-PAQD avec au moins une sortie de stock (`nature ∈ {dispensation, distribution}`
-un jour `dim_temps.est_ouvrable`) ÷ jours ouvrables du mois. Sous-composante
-unique `regularite_saisie`, seuil grille 65 %. NON_CALCULABLE si le site n'a
-aucune sortie exploitable → pas de ligne dans la vue.
+**P3 — régularité de saisie** (`mv_p3_regularite`) : jours du mois PAQD avec au
+moins une sortie de stock (`nature ∈ {dispensation, distribution}`) ÷ jours
+calendaires du mois. Aucun jour n'est retranché — en milieu hospitalier la
+dispensation a lieu 7 j/7, le PAQD ne défalque ni week-ends ni fériés (arbitrage
+coordination du 2026-08-31, migration 0024). Sous-composante unique
+`regularite_saisie`, seuil grille 65 %. NON_CALCULABLE si le site n'a aucune
+sortie exploitable → pas de ligne dans la vue.
 
 **P4 — écart SDU et écart consommation** (`mv_p4_ecart`) : deux sous-composantes
 en **taux de conformité** (part des produits traceurs dans la tolérance de la

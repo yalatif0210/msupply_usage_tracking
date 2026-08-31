@@ -50,14 +50,14 @@ describe('vues d\'indicateurs, composite et gel', () => {
     await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S1','CSU',$1)`, [perimetre]);
     await db.query(`INSERT INTO dqa.dim_programme (programme_id, programme_nom) VALUES ('P1','VIH')`);
     await db.query(`INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom) VALUES ('I1','ARV','ARV')`);
-    // Mouvements P6 : posés un dimanche (2026-08-02, jour non ouvrable) pour ne
-    // pas alimenter P3 involontairement — les tests P3 passent par `sorties`.
+    // Mouvements P6 : les non-ajustements sont des `reception` (hors P3, qui ne
+    // compte que dispensation / distribution) — les tests P3 passent par `sorties`.
     for (let i = 0; i < nbMouvements; i++) {
       const ajust = i < nbAjustements;
       await db.query(
         `INSERT INTO dqa.fact_transaction (transaction_id, site_id, nature, programme_id, statut, date_confirmation, lot_id_source)
          VALUES ($1,'S1',$2,'P1','fn','2026-08-02',1)`,
-        [`T${i}`, ajust ? 'ajustement_negatif' : 'dispensation'],
+        [`T${i}`, ajust ? 'ajustement_negatif' : 'reception'],
       );
       await db.query(
         `INSERT INTO dqa.fact_ligne_transaction (ligne_id, transaction_id, produit_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
@@ -153,56 +153,58 @@ describe('vues d\'indicateurs, composite et gel', () => {
   });
 
   // ── P3 — régularité de saisie ────────────────────────────────────────────
-  // Août 2026 : 20 jours ouvrables (Aug 7 = fête de l'Indépendance, exclue).
-  // Seuil grille = 65 % → 13 jours ouvrables avec sortie pour être CONFORME.
-  const joursOuvrablesAout = [
-    '2026-08-03', '2026-08-04', '2026-08-05', '2026-08-06',
-    '2026-08-10', '2026-08-11', '2026-08-12', '2026-08-13', '2026-08-14',
-    '2026-08-17', '2026-08-18', '2026-08-19', '2026-08-20', '2026-08-21',
-    '2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28', '2026-08-31',
-  ];
+  // Août 2026 : 31 jours calendaires (dispensation 7 j/7 en milieu hospitalier,
+  // ni week-ends ni fériés retranchés). Seuil grille = 65 % → 21 jours avec
+  // sortie pour être CONFORME (round(21 / 31 * 100, 1) = 67.7).
+  const joursAout = Array.from({ length: 31 }, (_, i) => `2026-08-${String(i + 1).padStart(2, '0')}`);
   const p3 = async () => {
     const { rows } = await db.query<{
       nb_jours_avec_sortie: number;
-      nb_ouvrables: number;
+      nb_jours: number;
       taux_regularite_pct: string | null;
     }>(
-      `SELECT nb_jours_avec_sortie::int, nb_ouvrables::int, taux_regularite_pct
+      `SELECT nb_jours_avec_sortie::int, nb_jours::int, taux_regularite_pct
        FROM dqa.mv_p3_regularite WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
     );
     return rows[0];
   };
 
   it('P3 ALERTE sous le seuil de régularité', async () => {
-    await socle({ nbMouvements: 0, sorties: joursOuvrablesAout.slice(0, 4).map((j) => ({ jour: j })) });
-    expect((await p3())?.taux_regularite_pct).toBe('20.0'); // 4 / 20
+    await socle({ nbMouvements: 0, sorties: joursAout.slice(0, 4).map((j) => ({ jour: j })) });
+    expect((await p3())?.taux_regularite_pct).toBe('12.9'); // 4 / 31
     expect((await scorePilier(null))?.p_regularite).toBe('0.0');
   });
 
-  it('P3 CONFORME quand ≥ 65 % des jours ouvrables ont une sortie', async () => {
-    await socle({ nbMouvements: 0, sorties: joursOuvrablesAout.slice(0, 13).map((j) => ({ jour: j })) });
+  it('P3 ALERTE juste sous le seuil (20 / 31 = 64.5 %)', async () => {
+    await socle({ nbMouvements: 0, sorties: joursAout.slice(0, 20).map((j) => ({ jour: j })) });
+    expect((await p3())?.taux_regularite_pct).toBe('64.5');
+    expect((await scorePilier(null))?.p_regularite).toBe('0.0');
+  });
+
+  it('P3 CONFORME juste au-dessus du seuil (21 / 31 = 67.7 %)', async () => {
+    await socle({ nbMouvements: 0, sorties: joursAout.slice(0, 21).map((j) => ({ jour: j })) });
     const v = await p3();
-    expect(v?.nb_ouvrables).toBe(20);
-    expect(v?.taux_regularite_pct).toBe('65.0'); // 13 / 20
+    expect(v?.nb_jours).toBe(31);
+    expect(v?.taux_regularite_pct).toBe('67.7'); // 21 / 31
     expect((await scorePilier(null))?.p_regularite).toBe('100.0');
   });
 
-  it('P3 ne compte pas une sortie faite un jour férié', async () => {
+  it('P3 compte une sortie faite un week-end ou un ancien jour férié', async () => {
+    // 01/08 = samedi, 02/08 = dimanche, 07/08 = ex-fête nationale
     await socle({
       nbMouvements: 0,
-      sorties: [...joursOuvrablesAout.slice(0, 12), '2026-08-07'].map((j) => ({ jour: j })),
+      sorties: ['2026-08-01', '2026-08-02', '2026-08-07'].map((j) => ({ jour: j })),
     });
-    // 12 jours ouvrables + le 7 août (férié, exclu) → 12 / 20, pas 13 / 20
-    expect((await p3())?.nb_jours_avec_sortie).toBe(12);
-    expect((await scorePilier(null))?.p_regularite).toBe('0.0');
+    expect((await p3())?.nb_jours_avec_sortie).toBe(3);
+    expect((await scorePilier(null))?.p_regularite).toBe('0.0'); // 3 / 31 → ALERTE
   });
 
   it('P3 compte les distributions d\'un district comme des sorties', async () => {
     await socle({
       nbMouvements: 0,
-      sorties: joursOuvrablesAout.slice(0, 13).map((j) => ({ jour: j, nature: 'distribution' as const })),
+      sorties: joursAout.slice(0, 21).map((j) => ({ jour: j, nature: 'distribution' as const })),
     });
-    expect((await p3())?.nb_jours_avec_sortie).toBe(13);
+    expect((await p3())?.nb_jours_avec_sortie).toBe(21);
     expect((await scorePilier(null))?.p_regularite).toBe('100.0');
   });
 
@@ -222,7 +224,7 @@ describe('vues d\'indicateurs, composite et gel', () => {
     // → (0·15 + 100·25 + 100·25 + 100·10) / (15 + 25 + 25 + 10) = 6000 / 75 = 80.0
     await socle({
       comptee: 100, theorique: 100, nbMouvements: 0,
-      sorties: joursOuvrablesAout.slice(0, 4).map((j) => ({ jour: j })),
+      sorties: joursAout.slice(0, 4).map((j) => ({ jour: j })),
     });
     const sp = await scorePilier(null);
     expect(sp?.p_regularite).toBe('0.0');

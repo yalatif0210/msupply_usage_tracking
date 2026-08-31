@@ -74,7 +74,7 @@ describe('import du classeur jusqu\'au staging', () => {
     // et l'historique du mois est gelé : le produit de la fixture n'est pas un
     // traceur seedé → P4 et P5 NON_CALCULABLE ; inventaire + réquisition → P1 = 100 ;
     // inventaire le 29/08 + réquisition le 05/09 (ESPC, limite 5) → P2 = 100 ;
-    // 1 dispensation un jour ouvrable → P3 ALERTE (0) ; P6 conforme (100).
+    // 1 dispensation sur 1 jour du mois (sur 31) → P3 ALERTE (0) ; P6 conforme (100).
     // Composite renormalisé sur P1 + P2 + P3 + P6 :
     // (100·10 + 100·15 + 0·15 + 100·10) / (10 + 15 + 15 + 10) = 3500 / 50 = 70, NON_CONFORME.
     const hist = await base.pool.query(

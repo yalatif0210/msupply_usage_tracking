@@ -118,9 +118,11 @@ référence de fin de mois) et doit être soumise au plus tard le 5, 7 ou 10 du
 mois M+1 selon le type de structure. Comptée pour M, jamais pour M+1.
 
 **Régularité de saisie (P3)** :
-Part des jours ouvrables du mois où le site a enregistré au moins une sortie de
-stock. « Sortie de stock » = une dispensation pour un site de dispensation, une
-distribution vers un site rattaché pour un district.
+Part des jours calendaires du mois où le site a enregistré au moins une sortie
+de stock. « Sortie de stock » = une dispensation pour un site de dispensation,
+une distribution vers un site rattaché pour un district. Aucun jour n'est
+retranché : en milieu hospitalier la dispensation a lieu 7 j/7, le PAQD ne
+défalque ni week-ends ni jours fériés.
 
 **Statut d'une sous-composante** :
 Binaire : CONFORME si le seuil du pilier est atteint, ALERTE sinon. Ou

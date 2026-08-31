@@ -41,7 +41,12 @@ renormalisation.
 
 - `mv_p3` dérive le mois PAQD de `dim_temps.mois_paqd` (jointure sur le jour de
   confirmation) plutôt que d'un `to_char` — garantit la cohérence avec le
-  dénominateur des jours ouvrables.
+  dénominateur.
+- **Révisé (migration 0024, 2026-08-31)** : le dénominateur passe des jours
+  ouvrables aux jours **calendaires** du mois. Milieu hospitalier, dispensation
+  7 j/7 — le PAQD ne défalque ni week-ends ni fériés. `dim_temps.est_ouvrable`
+  et la table `jour_ferie` sont supprimées, plus aucune lecture. Voir
+  `.scratch/p3-jours-calendaires/`.
 - `mv_score_pilier` et `rafraichir_et_geler` sont recréées à chaque ticket de
   pilier : c'est le prix du découpage ticket-par-ticket avec migrations
   immuables. L'état final reste lisible.
