@@ -60,6 +60,7 @@ describe('API de lecture — sites et détail P5/P6', () => {
     // → (100·10 + 100·15 + 0·15 + 100·25 + 100·25 + 100·10) / 100 = 8500 / 100 = 85
     expect(Number(s.scoreComposite)).toBe(85);
     expect(s.classification).toBe('PARTIELLEMENT_CONFORME');
+    expect(s.piliersCouverts).toBe(6);
     expect(s.scoresPiliers.map((p: { pilier: string }) => p.pilier).sort()).toEqual([
       'P1', 'P2', 'P3', 'P4', 'P5', 'P6',
     ]);

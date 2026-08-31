@@ -26,15 +26,27 @@ interface LigneSite {
   type_structure: string | null;
 }
 
-/** Colonnes de score de pilier gelées dans hist_score_site, dans l'ordre P1..P6. */
-const COLONNES_PILIER: Record<Pilier, string> = {
-  P1: 'p_completude',
-  P2: 'p_promptitude',
-  P3: 'p_regularite',
-  P4: 'p_ecart_sdu',
-  P5: 'p_concordance',
-  P6: 'p_ajustements',
-};
+/**
+ * Valeurs brutes d'une sous-composante telles que rendues par `pg` (texte) :
+ * `pct` = taux mesuré, `score` = 100 / 0 / null (CONFORME / ALERTE / NON_CALCULABLE).
+ * Les deux voyagent toujours ensemble.
+ */
+interface MesureBrute {
+  pct: string | null;
+  score: string | null;
+}
+
+const brute = (pct: string | null | undefined, score: string | null | undefined): MesureBrute => ({
+  pct: pct ?? null,
+  score: score ?? null,
+});
+
+/** Nombre de scores de pilier non nuls, calculé en SQL sur la ligne gelée `h`. */
+const COMPTE_PILIERS_SQL = `(
+    (h.p_completude  IS NOT NULL)::int + (h.p_promptitude IS NOT NULL)::int
+  + (h.p_regularite  IS NOT NULL)::int + (h.p_ecart_sdu   IS NOT NULL)::int
+  + (h.p_concordance IS NOT NULL)::int + (h.p_ajustements IS NOT NULL)::int
+)`;
 
 const versSite = (r: LigneSite): Site => ({
   siteId: r.site_id,
@@ -93,6 +105,7 @@ export class IndicateursRepository {
         mois_paqd: string | null;
         score_composite: string | null;
         classification: Classification | null;
+        piliers_couverts: number | null;
         p_completude: string | null;
         p_promptitude: string | null;
         p_regularite: string | null;
@@ -109,6 +122,7 @@ export class IndicateursRepository {
        )
        SELECT s.site_id, s.site_code, s.site_nom, s.district, s.region, s.type_structure,
               d.mois_paqd, h.score_composite, h.classification,
+              ${COMPTE_PILIERS_SQL} AS piliers_couverts,
               h.p_completude, h.p_promptitude, h.p_regularite,
               h.p_ecart_sdu, h.p_concordance, h.p_ajustements
        FROM dqa.dim_site s
@@ -124,6 +138,7 @@ export class IndicateursRepository {
     return rows.map((r) => ({
       site: versSite(r),
       moisPaqd: r.mois_paqd,
+      piliersCouverts: r.piliers_couverts ?? 0,
       scoreComposite: nombreOuNull(r.score_composite),
       classification: r.classification,
       scoresPiliers: [
@@ -178,6 +193,7 @@ export class IndicateursRepository {
     const { rows } = await this.pool.query<{
       score_composite: string | null;
       classification: Classification | null;
+      piliers_couverts: number | null;
       p_completude: string | null;
       p_promptitude: string | null;
       p_regularite: string | null;
@@ -210,6 +226,7 @@ export class IndicateursRepository {
       seuil_ajustements: string | null;
     }>(
       `SELECT h.score_composite, h.classification,
+              ${COMPTE_PILIERS_SQL} AS piliers_couverts,
               h.p_completude, h.p_promptitude, h.p_regularite,
               h.p_ecart_sdu, h.p_concordance, h.p_ajustements,
               p1.completude_inventaires_pct, p1.completude_requisitions_pct, p1.completude_receptions_pct,
@@ -263,53 +280,36 @@ export class IndicateursRepository {
     );
     const h = rows[0];
 
-    const scoresPiliers: Record<Pilier, string | null> = {
-      P1: h?.p_completude ?? null,
-      P2: h?.p_promptitude ?? null,
-      P3: h?.p_regularite ?? null,
-      P4: h?.p_ecart_sdu ?? null,
-      P5: h?.p_concordance ?? null,
-      P6: h?.p_ajustements ?? null,
-    };
-
     const piliers: ScorePilier[] = [
-      this.pilierP1(scoresPiliers.P1, {
-        seuil: h?.seuil_completude ?? null,
-        invPct: h?.completude_inventaires_pct ?? null,
-        invScore: h?.score_inventaires ?? null,
-        reqPct: h?.completude_requisitions_pct ?? null,
-        reqScore: h?.score_requisitions ?? null,
-        recPct: h?.completude_receptions_pct ?? null,
-        recScore: h?.score_receptions ?? null,
+      this.pilierP1(h?.p_completude ?? null, h?.seuil_completude ?? null, {
+        inv: brute(h?.completude_inventaires_pct, h?.score_inventaires),
+        req: brute(h?.completude_requisitions_pct, h?.score_requisitions),
+        rec: brute(h?.completude_receptions_pct, h?.score_receptions),
       }),
-      this.pilierP2(scoresPiliers.P2, {
-        seuil: h?.seuil_promptitude ?? null,
-        invPct: h?.promptitude_inventaires_pct ?? null,
-        invScore: h?.p2_score_inventaires ?? null,
-        reqPct: h?.promptitude_requisitions_pct ?? null,
-        reqScore: h?.p2_score_requisitions ?? null,
+      this.pilierP2(h?.p_promptitude ?? null, h?.seuil_promptitude ?? null, {
+        inv: brute(h?.promptitude_inventaires_pct, h?.p2_score_inventaires),
+        req: brute(h?.promptitude_requisitions_pct, h?.p2_score_requisitions),
       }),
-      this.pilierP3(scoresPiliers.P3, h?.taux_regularite_pct ?? null, h?.seuil_regularite ?? null),
-      this.pilierP4(scoresPiliers.P4, {
-        tauxSdu: h?.taux_sdu_pct ?? null,
-        scoreSdu: h?.score_sdu ?? null,
+      this.pilierP3(h?.p_regularite ?? null, h?.seuil_regularite ?? null,
+        brute(h?.taux_regularite_pct, h?.p_regularite)),
+      this.pilierP4(h?.p_ecart_sdu ?? null, {
+        sdu: brute(h?.taux_sdu_pct, h?.score_sdu),
         seuilSdu: h?.seuil_ecart_sdu ?? null,
-        tauxConso: h?.taux_conso_pct ?? null,
-        scoreConso: h?.score_conso ?? null,
+        conso: brute(h?.taux_conso_pct, h?.score_conso),
         seuilConso: h?.seuil_ecart_conso ?? null,
       }),
-      this.pilierP5(scoresPiliers.P5, h?.taux_concordance_pct ?? null, h?.seuil_concordance ?? null),
-      this.pilierP6(scoresPiliers.P6, h?.ratio_ajustements_pct ?? null, h?.seuil_ajustements ?? null),
+      this.pilierP5(h?.p_concordance ?? null, h?.seuil_concordance ?? null,
+        brute(h?.taux_concordance_pct, h?.p_concordance)),
+      this.pilierP6(h?.p_ajustements ?? null, h?.seuil_ajustements ?? null,
+        brute(h?.ratio_ajustements_pct, h?.p_ajustements)),
     ];
-
-    const piliersCouverts = piliers.filter((p) => p.score !== null).length;
 
     return {
       site: versSite(siteRow),
       moisPaqd: mois,
       moisDisponibles,
       programmeId: prog,
-      piliersCouverts,
+      piliersCouverts: h?.piliers_couverts ?? 0,
       piliersTotal: 6,
       scoreComposite: nombreOuNull(h?.score_composite ?? null),
       classification: h?.classification ?? null,
@@ -317,21 +317,20 @@ export class IndicateursRepository {
     };
   }
 
+  /** Une sous-composante rendue : statut binaire dérivé du score de sous-composante. */
   private mesure(
     sc: SousComposante,
-    score: string | null,
-    valeur: string | null,
+    m: MesureBrute,
     seuil: string | null,
-    unite: MesureSousComposante['unite'],
     raisonNC: string,
   ): MesureSousComposante {
-    const statut = score === null ? 'NON_CALCULABLE' : Number(score) >= 100 ? 'CONFORME' : 'ALERTE';
+    const statut = m.score === null ? 'NON_CALCULABLE' : Number(m.score) >= 100 ? 'CONFORME' : 'ALERTE';
     return {
       sousComposante: sc,
       libelle: LIBELLES_SOUS_COMPOSANTE[sc],
-      valeur: valeur === null ? null : Number(valeur),
-      unite,
-      seuil: seuil === null ? null : Number(seuil),
+      valeur: nombreOuNull(m.pct),
+      unite: 'pct',
+      seuil: nombreOuNull(seuil),
       statut,
       raison: statut === 'NON_CALCULABLE' ? raisonNC : null,
     };
@@ -339,67 +338,56 @@ export class IndicateursRepository {
 
   private pilierP1(
     score: string | null,
-    p1: {
-      seuil: string | null;
-      invPct: string | null; invScore: string | null;
-      reqPct: string | null; reqScore: string | null;
-      recPct: string | null; recScore: string | null;
-    },
+    seuil: string | null,
+    m: { inv: MesureBrute; req: MesureBrute; rec: MesureBrute },
   ): ScorePilier {
-    const inv = this.mesure('completude_inventaires', p1.invScore, p1.invPct, p1.seuil, 'pct',
-      'Aucun programme géré déclaré pour ce site');
-    const req = this.mesure('completude_requisitions', p1.reqScore, p1.reqPct, p1.seuil, 'pct',
-      'Aucun programme géré déclaré pour ce site');
-    const rec = this.mesure('completude_receptions', p1.recScore, p1.recPct, p1.seuil, 'pct',
-      'Aucune facture fournisseur adressée au site ce mois');
-    return this.envelopper('P1', score, [inv, req, rec]);
+    const raisonProg = 'Aucun programme géré déclaré pour ce site';
+    return this.envelopper('P1', score, [
+      this.mesure('completude_inventaires', m.inv, seuil, raisonProg),
+      this.mesure('completude_requisitions', m.req, seuil, raisonProg),
+      this.mesure('completude_receptions', m.rec, seuil,
+        'Aucune facture fournisseur adressée au site ce mois'),
+    ]);
   }
 
   private pilierP2(
     score: string | null,
-    p2: {
-      seuil: string | null;
-      invPct: string | null; invScore: string | null;
-      reqPct: string | null; reqScore: string | null;
-    },
+    seuil: string | null,
+    m: { inv: MesureBrute; req: MesureBrute },
   ): ScorePilier {
-    const inv = this.mesure('promptitude_inventaires', p2.invScore, p2.invPct, p2.seuil, 'pct',
-      'Aucun inventaire finalisé ce mois');
-    const req = this.mesure('promptitude_requisitions', p2.reqScore, p2.reqPct, p2.seuil, 'pct',
-      'Aucune réquisition couvrant ce mois');
-    return this.envelopper('P2', score, [inv, req]);
+    return this.envelopper('P2', score, [
+      this.mesure('promptitude_inventaires', m.inv, seuil, 'Aucun inventaire finalisé ce mois'),
+      this.mesure('promptitude_requisitions', m.req, seuil, 'Aucune réquisition couvrant ce mois'),
+    ]);
   }
 
-  private pilierP3(score: string | null, taux: string | null, seuil: string | null): ScorePilier {
-    const m = this.mesure('regularite_saisie', score, taux, seuil, 'pct',
-      'Aucune sortie de stock exploitable sur le mois');
-    return this.envelopper('P3', score, [m]);
+  private pilierP3(score: string | null, seuil: string | null, m: MesureBrute): ScorePilier {
+    return this.envelopper('P3', score, [
+      this.mesure('regularite_saisie', m, seuil, 'Aucune sortie de stock exploitable sur le mois'),
+    ]);
   }
 
   private pilierP4(
     score: string | null,
-    p4: {
-      tauxSdu: string | null; scoreSdu: string | null; seuilSdu: string | null;
-      tauxConso: string | null; scoreConso: string | null; seuilConso: string | null;
-    },
+    m: { sdu: MesureBrute; seuilSdu: string | null; conso: MesureBrute; seuilConso: string | null },
   ): ScorePilier {
-    const sdu = this.mesure('ecart_sdu', p4.scoreSdu, p4.tauxSdu, p4.seuilSdu, 'pct',
-      'Aucun produit traceur inventorié ce mois');
-    const conso = this.mesure('ecart_consommation', p4.scoreConso, p4.tauxConso, p4.seuilConso, 'pct',
-      'Aucun produit évaluable : deux inventaires bornants et une consommation reconstituée positive sont requis');
-    return this.envelopper('P4', score, [sdu, conso]);
+    return this.envelopper('P4', score, [
+      this.mesure('ecart_sdu', m.sdu, m.seuilSdu, 'Aucun produit traceur inventorié ce mois'),
+      this.mesure('ecart_consommation', m.conso, m.seuilConso,
+        'Aucun produit évaluable : deux inventaires bornants et une consommation reconstituée positive sont requis'),
+    ]);
   }
 
-  private pilierP5(score: string | null, taux: string | null, seuil: string | null): ScorePilier {
-    const m = this.mesure('concordance', score, taux, seuil, 'pct',
-      'Aucun inventaire finalisé exploitable pour le mois');
-    return this.envelopper('P5', score, [m]);
+  private pilierP5(score: string | null, seuil: string | null, m: MesureBrute): ScorePilier {
+    return this.envelopper('P5', score, [
+      this.mesure('concordance', m, seuil, 'Aucun inventaire finalisé exploitable pour le mois'),
+    ]);
   }
 
-  private pilierP6(score: string | null, ratio: string | null, seuil: string | null): ScorePilier {
-    const m = this.mesure('ratio_ajustements', score, ratio, seuil, 'pct',
-      'Aucun mouvement de stock pour le mois');
-    return this.envelopper('P6', score, [m]);
+  private pilierP6(score: string | null, seuil: string | null, m: MesureBrute): ScorePilier {
+    return this.envelopper('P6', score, [
+      this.mesure('ratio_ajustements', m, seuil, 'Aucun mouvement de stock pour le mois'),
+    ]);
   }
 
   private envelopper(

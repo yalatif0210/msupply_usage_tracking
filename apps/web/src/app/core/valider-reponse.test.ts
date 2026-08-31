@@ -42,6 +42,7 @@ describe('validerReponse (couture D)', () => {
       {
         site,
         moisPaqd: '2026-08',
+        piliersCouverts: 2,
         scoreComposite: null,
         classification: null,
         scoresPiliers: [{ pilier: 'P5', score: 100 }, { pilier: 'P6', score: null }],

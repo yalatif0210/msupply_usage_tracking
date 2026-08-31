@@ -64,6 +64,11 @@ import { Entete } from '../ui/entete';
                 <td>
                   @if (s.moisPaqd) {
                     <dqa-badge-classification [classification]="s.classification" />
+                    @if (s.piliersCouverts < 6) {
+                      <span class="couverture" title="Score composite renormalisé sur une couverture partielle">
+                        {{ s.piliersCouverts }}/6 piliers
+                      </span>
+                    }
                   } @else {
                     <span class="vide">Aucune mesure</span>
                   }
@@ -88,6 +93,7 @@ import { Entete } from '../ui/entete';
     td.num { font-size: 1.1rem; font-weight: 600; }
     .note { color: #5b5b5b; font-size: 0.85rem; }
     .vide { color: #5b5b5b; }
+    .couverture { display: inline-block; margin-left: 0.5rem; padding: 0.1rem 0.4rem; background: #edf0f5; color: #4a4a4a; font-size: 0.75rem; }
   `,
 })
 export class ListeSitesPage {

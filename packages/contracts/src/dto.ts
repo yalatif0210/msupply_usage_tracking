@@ -110,6 +110,8 @@ export type DetailSite = z.infer<typeof detailSiteSchema>;
 export const scoreSiteSchema = z.object({
   site: siteSchema,
   moisPaqd: moisPaqdSchema.nullable(),
+  /** Nombre de piliers effectivement mesurés (≤ 6) : le composite est renormalisé dessus. */
+  piliersCouverts: z.number().int().min(0).max(6),
   scoreComposite: pourcentageSchema.nullable(),
   classification: classificationSchema.nullable(),
   scoresPiliers: z.array(
