@@ -27,6 +27,7 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 | Source | Usage |
 |---|---|
 | `hist_score_site` | six scores de pilier + `score_composite` + `classification` gelés par (site, mois PAQD, programme) |
+| `mv_p1_completude` | taux de complétude inventaires / réquisitions / réceptions (%), scores et p_completude |
 | `mv_p3_regularite` | taux de jours ouvrables avec sortie de stock (%) |
 | `mv_p4_ecart` | taux de conformité écart SDU et écart consommation (%), scores et p_ecart_sdu |
 | `mv_p5_concordance` | valeur mesurée de la concordance (%) |
@@ -40,10 +41,24 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 
 ## Modèle de restitution
 
-`DetailSite` porte **toujours les six `ScorePilier`** (P1..P6). P3, P4, P5 et
-P6 ont une vue d'indicateur ; P1 et P2 sortent avec `score = null` et leurs
+`DetailSite` porte **toujours les six `ScorePilier`** (P1..P6). P1, P3, P4, P5
+et P6 ont une vue d'indicateur ; P2 sort avec `score = null` et ses
 sous-composantes en `NON_CALCULABLE` (raison « Pilier pas encore mesuré sur ce
-site ») jusqu'à l'arrivée de leur vue (tickets 05, 06).
+site ») jusqu'à l'arrivée de sa vue (ticket 06).
+
+**P1 — complétude des transactions** (`mv_p1_completude`) : trois
+sous-composantes, seuil grille 100 %.
+- `completude_inventaires` : programmes gérés (`dim_site_programme` actif) avec
+  ≥ 1 inventaire finalisé ce mois ÷ programmes gérés.
+- `completude_requisitions` : programmes gérés avec ≥ 1 réquisition
+  `mois_couvert = mois PAQD` ÷ programmes gérés.
+- `completude_receptions` : réceptions finalisées ce mois ÷ factures
+  fournisseur du mois ; NON_CALCULABLE si aucune facture.
+
+Une ligne P1 n'existe que pour un mois où le site a une activité (inventaire,
+réquisition, réception ou facture) : un mois vide reste un état vide, pas un
+score de zéro. Score de pilier P1 = moyenne simple des sous-composantes
+calculables.
 
 **P3 — régularité de saisie** (`mv_p3_regularite`) : jours ouvrables du mois
 PAQD avec au moins une sortie de stock (`nature ∈ {dispensation, distribution}`

@@ -188,6 +188,12 @@ export class IndicateursRepository {
       p_ecart_sdu: string | null;
       p_concordance: string | null;
       p_ajustements: string | null;
+      completude_inventaires_pct: string | null;
+      completude_requisitions_pct: string | null;
+      completude_receptions_pct: string | null;
+      score_inventaires: string | null;
+      score_requisitions: string | null;
+      score_receptions: string | null;
       taux_regularite_pct: string | null;
       taux_sdu_pct: string | null;
       taux_conso_pct: string | null;
@@ -195,6 +201,7 @@ export class IndicateursRepository {
       score_conso: string | null;
       taux_concordance_pct: string | null;
       ratio_ajustements_pct: string | null;
+      seuil_completude: string | null;
       seuil_regularite: string | null;
       seuil_ecart_sdu: string | null;
       seuil_ecart_conso: string | null;
@@ -204,13 +211,19 @@ export class IndicateursRepository {
       `SELECT h.score_composite, h.classification,
               h.p_completude, h.p_promptitude, h.p_regularite,
               h.p_ecart_sdu, h.p_concordance, h.p_ajustements,
+              p1.completude_inventaires_pct, p1.completude_requisitions_pct, p1.completude_receptions_pct,
+              p1.score_inventaires, p1.score_requisitions, p1.score_receptions,
               p3.taux_regularite_pct,
               p4.taux_sdu_pct, p4.taux_conso_pct, p4.score_sdu, p4.score_conso,
               p5.taux_concordance_pct, p6.ratio_ajustements_pct,
+              sc1.seuil AS seuil_completude,
               sc3.seuil AS seuil_regularite,
               sc4s.seuil AS seuil_ecart_sdu, sc4c.seuil AS seuil_ecart_conso,
               sc5.seuil AS seuil_concordance, sc6.seuil AS seuil_ajustements
        FROM dqa.hist_score_site h
+       LEFT JOIN dqa.mv_p1_completude p1
+              ON p1.site_id = h.site_id AND p1.mois_paqd = h.mois_paqd
+             AND p1.programme_id IS NOT DISTINCT FROM h.programme_id
        LEFT JOIN dqa.mv_p3_regularite p3
               ON p3.site_id = h.site_id AND p3.mois_paqd = h.mois_paqd
              AND p3.programme_id IS NOT DISTINCT FROM h.programme_id
@@ -223,6 +236,8 @@ export class IndicateursRepository {
        LEFT JOIN dqa.mv_p6_ajustements p6
               ON p6.site_id = h.site_id AND p6.mois_paqd = h.mois_paqd
              AND p6.programme_id IS NOT DISTINCT FROM h.programme_id
+       LEFT JOIN dqa.grille_seuil_sous_composante sc1
+              ON sc1.grille_id = h.grille_id AND sc1.sous_composante = 'completude_inventaires'
        LEFT JOIN dqa.grille_seuil_sous_composante sc3
               ON sc3.grille_id = h.grille_id AND sc3.sous_composante = 'regularite_saisie'
        LEFT JOIN dqa.grille_seuil_sous_composante sc4s
@@ -248,7 +263,15 @@ export class IndicateursRepository {
     };
 
     const piliers: ScorePilier[] = [
-      this.pilierNonMesure('P1'),
+      this.pilierP1(scoresPiliers.P1, {
+        seuil: h?.seuil_completude ?? null,
+        invPct: h?.completude_inventaires_pct ?? null,
+        invScore: h?.score_inventaires ?? null,
+        reqPct: h?.completude_requisitions_pct ?? null,
+        reqScore: h?.score_requisitions ?? null,
+        recPct: h?.completude_receptions_pct ?? null,
+        recScore: h?.score_receptions ?? null,
+      }),
       this.pilierNonMesure('P2'),
       this.pilierP3(scoresPiliers.P3, h?.taux_regularite_pct ?? null, h?.seuil_regularite ?? null),
       this.pilierP4(scoresPiliers.P4, {
@@ -296,6 +319,24 @@ export class IndicateursRepository {
       statut,
       raison: statut === 'NON_CALCULABLE' ? raisonNC : null,
     };
+  }
+
+  private pilierP1(
+    score: string | null,
+    p1: {
+      seuil: string | null;
+      invPct: string | null; invScore: string | null;
+      reqPct: string | null; reqScore: string | null;
+      recPct: string | null; recScore: string | null;
+    },
+  ): ScorePilier {
+    const inv = this.mesure('completude_inventaires', p1.invScore, p1.invPct, p1.seuil, 'pct',
+      'Aucun programme géré déclaré pour ce site');
+    const req = this.mesure('completude_requisitions', p1.reqScore, p1.reqPct, p1.seuil, 'pct',
+      'Aucun programme géré déclaré pour ce site');
+    const rec = this.mesure('completude_receptions', p1.recScore, p1.recPct, p1.seuil, 'pct',
+      'Aucune facture fournisseur adressée au site ce mois');
+    return this.envelopper('P1', score, [inv, req, rec]);
   }
 
   private pilierP3(score: string | null, taux: string | null, seuil: string | null): ScorePilier {

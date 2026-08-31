@@ -48,16 +48,17 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(res.status).toBe(401);
   });
 
-  it('liste les sites du périmètre avec leur score composite (P3 + P4 + P5 + P6 renormalisés)', async () => {
+  it('liste les sites du périmètre avec leur score composite (P1 + P3 + P4 + P5 + P6 renormalisés)', async () => {
     const a = await lecteur();
     const res = await a.get('/api/sites');
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     const s = res.body[0];
     expect(s.site.siteId).toBe('SITE-1');
-    // fixture : P3 ALERTE (0), écart SDU conforme → P4 = 100, P5 conforme, P6 conforme
-    // → (0·15 + 100·25 + 100·25 + 100·10) / (15 + 25 + 25 + 10) = 6000 / 75 = 80
-    expect(Number(s.scoreComposite)).toBe(80);
+    // fixture : P1 = 100 (inventaire + réquisition, réceptions NON_CALCULABLE),
+    // P3 ALERTE (0), P4 = 100 (écart SDU conforme), P5 conforme, P6 conforme
+    // → (100·10 + 0·15 + 100·25 + 100·25 + 100·10) / (10 + 15 + 25 + 25 + 10) = 7000 / 85 = 82.4
+    expect(Number(s.scoreComposite)).toBe(82.4);
     expect(s.classification).toBe('PARTIELLEMENT_CONFORME');
     expect(s.scoresPiliers.map((p: { pilier: string }) => p.pilier).sort()).toEqual([
       'P1', 'P2', 'P3', 'P4', 'P5', 'P6',
@@ -69,9 +70,9 @@ describe('API de lecture — sites et détail P5/P6', () => {
     const res = await a.get('/api/sites/SITE-1');
     expect(res.status).toBe(200);
     const detail = detailSiteSchema.parse(res.body);
-    expect(detail.piliersCouverts).toBe(4); // P3, P4, P5, P6 outillés
+    expect(detail.piliersCouverts).toBe(5); // P1, P3, P4, P5, P6 outillés
     expect(detail.piliersTotal).toBe(6);
-    expect(Number(detail.scoreComposite)).toBe(80);
+    expect(Number(detail.scoreComposite)).toBe(82.4);
     expect(detail.classification).toBe('PARTIELLEMENT_CONFORME');
     expect(detail.piliers.map((p) => p.pilier)).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']);
     const p5 = detail.piliers.find((p) => p.pilier === 'P5')!;
@@ -86,13 +87,19 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(p4.sousComposantes.map((sc) => sc.sousComposante)).toEqual(['ecart_sdu', 'ecart_consommation']);
     expect(p4.sousComposantes[0]?.statut).toBe('CONFORME');
     expect(p4.sousComposantes[1]?.statut).toBe('NON_CALCULABLE');
-    expect(p4.sousComposantes[1]?.raison).not.toBeNull();
-    expect(Number(p4.score)).toBe(100);
-    // P1, P2 pas encore outillés : score null, sous-composantes NON_CALCULABLE avec raison
+    // P1 : inventaires + réquisitions conformes, réceptions NON_CALCULABLE (aucune facture)
     const p1 = detail.piliers.find((p) => p.pilier === 'P1')!;
-    expect(p1.score).toBeNull();
-    expect(p1.sousComposantes).toHaveLength(3);
-    expect(p1.sousComposantes.every((sc) => sc.statut === 'NON_CALCULABLE' && sc.raison !== null)).toBe(true);
+    expect(p1.sousComposantes.map((sc) => sc.sousComposante)).toEqual([
+      'completude_inventaires', 'completude_requisitions', 'completude_receptions',
+    ]);
+    expect(p1.sousComposantes[0]?.statut).toBe('CONFORME');
+    expect(p1.sousComposantes[1]?.statut).toBe('CONFORME');
+    expect(p1.sousComposantes[2]?.statut).toBe('NON_CALCULABLE');
+    expect(Number(p1.score)).toBe(100);
+    // P2 pas encore outillé : score null, sous-composantes NON_CALCULABLE avec raison
+    const p2 = detail.piliers.find((p) => p.pilier === 'P2')!;
+    expect(p2.score).toBeNull();
+    expect(p2.sousComposantes.every((sc) => sc.statut === 'NON_CALCULABLE' && sc.raison !== null)).toBe(true);
   });
 
   it('filtre le détail par programme', async () => {

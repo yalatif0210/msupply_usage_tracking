@@ -22,20 +22,29 @@ renormalisation.
 
 **Blocked by:** 01, 04
 
-**Status:** ready-for-agent
+**Status:** done (branche piliers-p1-p4-score-composite)
 
-- [ ] Une migration numérotée crée la vue matérialisée de P1 : trois
-      sous-composantes, par site et par programme, dénominateurs = nombre de
-      programmes gérés (inventaires, réquisitions) et nombre de factures
+- [x] `db/migrations/0018_vue_p1_completude.sql` crée `mv_p1_completude` : trois
+      sous-composantes, par site et par programme (+ agrégat tous programmes),
+      dénominateurs = programmes gérés (inventaires, réquisitions) et factures
       fournisseur (réceptions).
-- [ ] La complétude des réceptions est NON_CALCULABLE en l'absence de facture
-      fournisseur sur le mois.
-- [ ] Le score de pilier P1 est câblé dans la vue de score de pilier et la
-      procédure de rafraîchissement ; le composite se recalcule avec P1.
-- [ ] `GET /api/sites/:id` renvoie P1 avec ses trois sous-composantes ou
-      NON_CALCULABLE avec raison par sous-composante.
-- [ ] La fiche site affiche la carte P1 avec ses trois sous-composantes.
-- [ ] Couture B : un test par sous-composante — site à un programme vs
-      plusieurs, mois complet vs partiel, aucune facture fournisseur →
-      réceptions NON_CALCULABLE. Couture A : bout en bout, un import produit un
-      score P1 visible.
+- [x] `completude_receptions` NON_CALCULABLE sans facture fournisseur du mois.
+- [x] Score de pilier P1 (moyenne des sous-composantes calculables) câblé dans
+      `mv_score_pilier` et `rafraichir_et_geler` ; composite recalculé.
+- [x] `GET /api/sites/:id` renvoie P1 avec ses trois sous-composantes (valeur,
+      seuil, statut) ou NON_CALCULABLE avec raison par sous-composante.
+- [x] La fiche site affiche la carte P1 (rendu générique, trois sous-composantes).
+- [x] Couture B (nouveau bloc `vue P1 — complétude`) : inventaires 1/1 vs 1/2,
+      grain par programme, réquisitions via `mois_couvert`, réceptions =
+      factures / < factures / aucune facture → NON_CALCULABLE, moyenne des
+      sous-composantes, mois sans activité → aucune ligne. Couture A :
+      `lecture-indicateurs` et `import` vérifient P1 + composite bout en bout.
+
+## Comments
+
+- Une ligne P1 n'est produite que pour un `(site, mois)` avec activité
+  (inventaire, réquisition, réception ou facture) — sinon un mois vide
+  donnerait un score de zéro trompeur (user story 40).
+- `completude_receptions` est filtrée par programme quand un programme est
+  demandé ; les factures/réceptions sans `programme_id` ne comptent alors que
+  dans l'agrégat « tous programmes ».

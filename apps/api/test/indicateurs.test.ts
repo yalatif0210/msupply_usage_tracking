@@ -442,3 +442,149 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect(rows[0].c).toBe(1);
   });
 });
+
+/**
+ * Couture B — P1 complétude des transactions (trois sous-composantes).
+ */
+describe('vue P1 — complétude des transactions', () => {
+  let base: BaseEphemere;
+  let db: Pool;
+
+  beforeAll(async () => {
+    base = await demarrerBaseEphemere();
+    db = base.pool;
+  }, 120_000);
+
+  afterAll(async () => {
+    await base.stop();
+  });
+
+  beforeEach(async () => {
+    await db.query(`SET search_path TO dqa, public`);
+    await db.query(`TRUNCATE dqa.hist_score_site, dqa.fact_requisition, dqa.fact_inventaire_ligne,
+      dqa.fact_inventaire, dqa.fact_ligne_transaction, dqa.fact_transaction,
+      dqa.dim_site_programme, dqa.dim_produit, dqa.dim_programme, dqa.dim_site,
+      dqa.import_lot RESTART IDENTITY CASCADE`);
+    await db.query(
+      `INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, statut)
+       VALUES ('t.xlsx','2026-C2','2026-08','2026-08-01','2026-08-31','valide')`,
+    );
+    await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S1','CSU',true)`);
+  });
+
+  const programmeGere = async (id: string) => {
+    await db.query(`INSERT INTO dqa.dim_programme (programme_id, programme_nom) VALUES ($1,$1)
+                    ON CONFLICT DO NOTHING`, [id]);
+    await db.query(`INSERT INTO dqa.dim_site_programme (site_id, programme_id, actif) VALUES ('S1',$1,true)`, [id]);
+  };
+  const inventaireFinalise = async (id: string, programme: string) => {
+    await db.query(
+      `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
+       VALUES ($1,'S1',$2,'2026-08-20','fn',1)`,
+      [id, programme],
+    );
+  };
+  const requisition = async (id: string, programme: string, mois = '2026-08') => {
+    await db.query(
+      `INSERT INTO dqa.fact_requisition (requisition_id, site_id, programme_id, mois_couvert, lot_id_source)
+       VALUES ($1,'S1',$2,$3,1)`,
+      [id, programme, mois],
+    );
+  };
+  const transactionRec = async (id: string, nature: 'reception' | 'facture_fournisseur') => {
+    await db.query(
+      `INSERT INTO dqa.fact_transaction (transaction_id, site_id, nature, statut, date_confirmation, lot_id_source)
+       VALUES ($1,'S1',$2,'fn','2026-08-12',1)`,
+      [id, nature],
+    );
+  };
+  const p1 = async (programme: string | null = null) => {
+    const { rows } = await db.query<{
+      completude_inventaires_pct: string | null;
+      completude_requisitions_pct: string | null;
+      completude_receptions_pct: string | null;
+      score_inventaires: string | null;
+      score_requisitions: string | null;
+      score_receptions: string | null;
+      p_completude: string | null;
+    }>(
+      `SELECT completude_inventaires_pct, completude_requisitions_pct, completude_receptions_pct,
+              score_inventaires, score_requisitions, score_receptions, p_completude
+       FROM dqa.mv_p1_completude
+       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND coalesce(programme_id,'') = $1`,
+      [programme ?? ''],
+    );
+    return rows[0];
+  };
+
+  it('complétude inventaires : tous les programmes gérés inventoriés → 100 → CONFORME', async () => {
+    await programmeGere('VIH');
+    await inventaireFinalise('INV1', 'VIH');
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    expect((await p1())?.completude_inventaires_pct).toBe('100.0');
+    expect((await p1())?.score_inventaires).toBe('100.0');
+  });
+
+  it('complétude inventaires : un programme géré non inventorié → < 100 → ALERTE', async () => {
+    await programmeGere('VIH');
+    await programmeGere('TB');
+    await inventaireFinalise('INV1', 'VIH');
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    expect((await p1())?.completude_inventaires_pct).toBe('50.0'); // 1 / 2
+    expect((await p1())?.score_inventaires).toBe('0.0');
+    // grain par programme : VIH conforme, TB non
+    expect((await p1('VIH'))?.completude_inventaires_pct).toBe('100.0');
+    expect((await p1('TB'))?.completude_inventaires_pct).toBe('0.0');
+  });
+
+  it('complétude réquisitions : idem via mois_couvert', async () => {
+    await programmeGere('VIH');
+    await programmeGere('TB');
+    await requisition('R1', 'VIH', '2026-08');
+    await requisition('R2', 'TB', '2026-07'); // couvre un autre mois → ne compte pas
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    expect((await p1())?.completude_requisitions_pct).toBe('50.0');
+  });
+
+  it('complétude réceptions : réceptions = factures → CONFORME', async () => {
+    await programmeGere('VIH');
+    await requisition('R1', 'VIH');
+    await transactionRec('F1', 'facture_fournisseur');
+    await transactionRec('F2', 'facture_fournisseur');
+    await transactionRec('RC1', 'reception');
+    await transactionRec('RC2', 'reception');
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    expect((await p1())?.completude_receptions_pct).toBe('100.0');
+    expect((await p1())?.score_receptions).toBe('100.0');
+  });
+
+  it('complétude réceptions : aucune facture → NON_CALCULABLE', async () => {
+    await programmeGere('VIH');
+    await inventaireFinalise('INV1', 'VIH');
+    await transactionRec('RC1', 'reception'); // réception sans facture
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    const v = await p1();
+    expect(v?.completude_receptions_pct).toBeNull();
+    expect(v?.score_receptions).toBeNull();
+  });
+
+  it('score de pilier P1 = moyenne des sous-composantes calculables', async () => {
+    await programmeGere('VIH');
+    await inventaireFinalise('INV1', 'VIH');   // inventaires 100
+    await requisition('R1', 'VIH');            // réquisitions 100
+    // aucune facture → réceptions NON_CALCULABLE → moyenne de (100, 100) = 100
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    expect((await p1())?.p_completude).toBe('100.0');
+    const { rows } = await db.query<{ p_completude: string | null }>(
+      `SELECT p_completude FROM dqa.mv_score_pilier WHERE site_id = 'S1' AND programme_id IS NULL`,
+    );
+    expect(rows[0]?.p_completude).toBe('100.0');
+  });
+
+  it('aucune ligne P1 pour un mois sans activité', async () => {
+    await programmeGere('VIH'); // programme géré mais aucune transaction du mois
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    const { rowCount } = await db.query(`SELECT 1 FROM dqa.mv_p1_completude WHERE site_id = 'S1'`);
+    expect(rowCount).toBe(0);
+  });
+});
