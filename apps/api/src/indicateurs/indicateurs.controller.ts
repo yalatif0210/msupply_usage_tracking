@@ -1,6 +1,6 @@
 import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
-import type { DetailSite, Programme, ScoreSite } from '@dqa/contracts';
-import { filtreSitesSchema, moisPaqdSchema } from '@dqa/contracts';
+import type { DetailSite, Programme, ScoreSite, SyntheseNationale } from '@dqa/contracts';
+import { filtreSitesSchema, moisPaqdSchema, syntheseQuerySchema } from '@dqa/contracts';
 import { IndicateursRepository } from './indicateurs.repository.js';
 
 @Controller()
@@ -25,6 +25,12 @@ export class IndicateursController {
     return detail;
   }
 
+  @Get('synthese')
+  synthese(@Query() query: Record<string, string>): Promise<SyntheseNationale> {
+    const q = syntheseQuerySchema.parse(query);
+    return this.repo.synthese(q);
+  }
+
   @Get('referentiel/programmes')
   programmes(): Promise<Programme[]> {
     return this.repo.programmes();
@@ -33,5 +39,10 @@ export class IndicateursController {
   @Get('referentiel/districts')
   districts(): Promise<string[]> {
     return this.repo.districts();
+  }
+
+  @Get('referentiel/regions')
+  regions(): Promise<string[]> {
+    return this.repo.regions();
   }
 }

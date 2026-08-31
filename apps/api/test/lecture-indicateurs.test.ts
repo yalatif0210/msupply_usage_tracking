@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { detailSiteSchema } from '@dqa/contracts';
+import { detailSiteSchema, syntheseNationaleSchema } from '@dqa/contracts';
 import { AppModule } from '../src/app.module.js';
 import { closePool } from '../src/db/pool.js';
 import { construireClasseur, optionsValides } from './helpers/classeur.js';
@@ -118,11 +118,67 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(res.status).toBe(404);
   });
 
-  it('sert les référentiels programmes et districts', async () => {
+  it('sert les référentiels programmes, districts et régions', async () => {
     const a = await lecteur();
     const prog = await a.get('/api/referentiel/programmes');
     expect(prog.body.some((p: { programmeCode: string | null }) => p.programmeCode === 'VIH')).toBe(true);
     const dist = await a.get('/api/referentiel/districts');
     expect(dist.body).toContain('BONDOUKOU');
+    const reg = await a.get('/api/referentiel/regions');
+    expect(reg.body).toContain('GONTOUGO');
+  });
+
+  it('GET /api/synthese exige une authentification', async () => {
+    const res = await request(app.getHttpServer()).get('/api/synthese');
+    expect(res.status).toBe(401);
+  });
+
+  it('GET /api/synthese rend une synthèse conforme au contrat', async () => {
+    const a = await lecteur();
+    const res = await a.get('/api/synthese');
+    expect(res.status).toBe(200);
+    const s = syntheseNationaleSchema.parse(res.body);
+    expect(s.moisPaqd).toBe('2026-08');
+    expect(s.moisDisponibles).toContain('2026-08');
+    // une seule structure importée : SITE-1, PARTIELLEMENT CONFORME (composite 85)
+    expect(s.national.nbSites).toBe(1);
+    expect(s.national.nbMesures).toBe(1);
+    expect(Number(s.national.scoreCompositeMoyen)).toBe(85);
+    expect(s.national.repartition.PARTIELLEMENT_CONFORME).toBe(1);
+    expect(
+      s.national.repartition.CONFORME +
+        s.national.repartition.PARTIELLEMENT_CONFORME +
+        s.national.repartition.NON_CONFORME +
+        s.national.repartition.SANS_MESURE,
+    ).toBe(s.national.nbSites);
+    expect(s.national.moyennesPiliers.map((m) => m.pilier)).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']);
+    // ventilation par district
+    const bondoukou = s.parDistrict.find((d) => d.district === 'BONDOUKOU');
+    expect(bondoukou?.nbSites).toBe(1);
+    // scores par programme : VIH géré par SITE-1
+    const vih = s.parProgramme.find((p) => p.programmeNom === 'VIH');
+    expect(vih).toBeDefined();
+    expect(vih?.nbSites).toBe(1);
+  });
+
+  it('GET /api/synthese?programmeId= restreint le national et les districts au programme', async () => {
+    const a = await lecteur();
+    const res = await a.get('/api/synthese').query({ programmeId: 'PROG-1' });
+    expect(res.status).toBe(200);
+    const s = syntheseNationaleSchema.parse(res.body);
+    expect(s.programmeId).toBe('PROG-1');
+    expect(s.national.nbSites).toBe(1); // SITE-1 gère PROG-1
+    // la section « par programme » reste tous programmes
+    expect(s.parProgramme.some((p) => p.programmeId === 'PROG-1')).toBe(true);
+  });
+
+  it('GET /api/synthese?region= restreint districts et programmes à la région', async () => {
+    const a = await lecteur();
+    const dedans = await a.get('/api/synthese').query({ region: 'GONTOUGO' });
+    expect(syntheseNationaleSchema.parse(dedans.body).parDistrict.length).toBeGreaterThan(0);
+    const dehors = await a.get('/api/synthese').query({ region: 'INEXISTANTE' });
+    const s = syntheseNationaleSchema.parse(dehors.body);
+    expect(s.parDistrict).toHaveLength(0);
+    expect(s.parProgramme).toHaveLength(0);
   });
 });

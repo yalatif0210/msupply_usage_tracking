@@ -133,6 +133,71 @@ export const detailSiteQuerySchema = z.object({
 });
 export type DetailSiteQuery = z.infer<typeof detailSiteQuerySchema>;
 
+// ─── Synthèse nationale ─────────────────────────────────────────────────────
+
+/**
+ * Répartition des sites du périmètre d'un ensemble entre les trois classes et
+ * l'absence de mesure. `SANS_MESURE` = sites sans score composite pour le mois :
+ * jamais confondu avec NON_CONFORME. La somme des quatre = nombre de sites.
+ */
+export const repartitionClassificationSchema = z.object({
+  CONFORME: z.number().int().nonnegative(),
+  PARTIELLEMENT_CONFORME: z.number().int().nonnegative(),
+  NON_CONFORME: z.number().int().nonnegative(),
+  SANS_MESURE: z.number().int().nonnegative(),
+});
+export type RepartitionClassification = z.infer<typeof repartitionClassificationSchema>;
+
+export const blocSyntheseSchema = z.object({
+  /** Sites du périmètre dans l'ensemble (pour une ligne programme : sites qui le gèrent). */
+  nbSites: z.number().int().nonnegative(),
+  /** Sous-ensemble ayant un score composite pour le mois. */
+  nbMesures: z.number().int().nonnegative(),
+  /** Moyenne des scores composites non nuls, ou `null` si `nbMesures = 0`. */
+  scoreCompositeMoyen: pourcentageSchema.nullable(),
+  repartition: repartitionClassificationSchema,
+});
+export type BlocSynthese = z.infer<typeof blocSyntheseSchema>;
+
+export const ligneDistrictSyntheseSchema = blocSyntheseSchema.extend({
+  district: z.string(),
+});
+export type LigneDistrictSynthese = z.infer<typeof ligneDistrictSyntheseSchema>;
+
+export const ligneProgrammeSyntheseSchema = blocSyntheseSchema.extend({
+  programmeId: z.string(),
+  programmeNom: z.string(),
+});
+export type LigneProgrammeSynthese = z.infer<typeof ligneProgrammeSyntheseSchema>;
+
+export const syntheseNationaleSchema = z.object({
+  /** Mois PAQD affiché, ou `null` si aucun mois n'est encore mesuré. */
+  moisPaqd: moisPaqdSchema.nullable(),
+  moisDisponibles: z.array(moisPaqdSchema),
+  /** Filtre programme appliqué (national + districts), ou `null` pour « tous programmes ». */
+  programmeId: z.string().nullable(),
+  /** Filtre région appliqué (districts + programmes), ou `null` pour « toutes régions ». */
+  region: z.string().nullable(),
+  national: blocSyntheseSchema.extend({
+    /** Moyenne nationale de chaque score de pilier — 6 entrées, ordre P1..P6. */
+    moyennesPiliers: z
+      .array(z.object({ pilier: pilierSchema, moyenne: pourcentageSchema.nullable() }))
+      .length(6),
+  }),
+  /** Ventilation par district, triée du score moyen le plus faible au plus élevé. */
+  parDistrict: z.array(ligneDistrictSyntheseSchema),
+  /** Un item par programme géré par ≥ 1 site du périmètre, trié score croissant. */
+  parProgramme: z.array(ligneProgrammeSyntheseSchema),
+});
+export type SyntheseNationale = z.infer<typeof syntheseNationaleSchema>;
+
+export const syntheseQuerySchema = z.object({
+  mois: moisPaqdSchema.optional(),
+  programmeId: z.string().optional(),
+  region: z.string().optional(),
+});
+export type SyntheseQuery = z.infer<typeof syntheseQuerySchema>;
+
 // ─── Imports ────────────────────────────────────────────────────────────────
 
 export const STATUTS_IMPORT = ['recu', 'en_cours', 'valide', 'rejete'] as const;

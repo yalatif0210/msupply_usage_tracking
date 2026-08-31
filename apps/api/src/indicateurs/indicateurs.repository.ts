@@ -4,16 +4,20 @@ import {
   LIBELLES_PILIER,
   LIBELLES_SOUS_COMPOSANTE,
   POIDS_PILIER,
+  type BlocSynthese,
   type Classification,
   type DetailSite,
   type FiltreSites,
   type MesureSousComposante,
   type Pilier,
   type Programme,
+  type RepartitionClassification,
   type ScorePilier,
   type ScoreSite,
   type Site,
   type SousComposante,
+  type SyntheseNationale,
+  type SyntheseQuery,
 } from '@dqa/contracts';
 import { PG_POOL } from '../database/database.module.js';
 
@@ -59,6 +63,51 @@ const versSite = (r: LigneSite): Site => ({
 
 const nombreOuNull = (v: string | null): number | null => (v === null ? null : Number(v));
 
+// ─── Synthèse nationale ────────────────────────────────────────────────────
+
+/** Une ligne de `mv_synthese_nationale` telle que rendue par `pg` (comptes castés `::int`). */
+interface LigneSynthese {
+  nb_sites: number;
+  nb_mesures: number;
+  score_composite_moyen: string | null;
+  nb_conforme: number;
+  nb_partiellement_conforme: number;
+  nb_non_conforme: number;
+  nb_sans_mesure: number;
+}
+
+interface MoyennesPilierBrutes {
+  moy_p_completude: string | null;
+  moy_p_promptitude: string | null;
+  moy_p_regularite: string | null;
+  moy_p_ecart_sdu: string | null;
+  moy_p_concordance: string | null;
+  moy_p_ajustements: string | null;
+}
+
+const moyennesPiliers = (
+  r: MoyennesPilierBrutes | undefined,
+): SyntheseNationale['national']['moyennesPiliers'] => [
+  { pilier: 'P1', moyenne: nombreOuNull(r?.moy_p_completude ?? null) },
+  { pilier: 'P2', moyenne: nombreOuNull(r?.moy_p_promptitude ?? null) },
+  { pilier: 'P3', moyenne: nombreOuNull(r?.moy_p_regularite ?? null) },
+  { pilier: 'P4', moyenne: nombreOuNull(r?.moy_p_ecart_sdu ?? null) },
+  { pilier: 'P5', moyenne: nombreOuNull(r?.moy_p_concordance ?? null) },
+  { pilier: 'P6', moyenne: nombreOuNull(r?.moy_p_ajustements ?? null) },
+];
+
+const versBloc = (r: LigneSynthese | undefined): BlocSynthese => ({
+  nbSites: r?.nb_sites ?? 0,
+  nbMesures: r?.nb_mesures ?? 0,
+  scoreCompositeMoyen: nombreOuNull(r?.score_composite_moyen ?? null),
+  repartition: {
+    CONFORME: r?.nb_conforme ?? 0,
+    PARTIELLEMENT_CONFORME: r?.nb_partiellement_conforme ?? 0,
+    NON_CONFORME: r?.nb_non_conforme ?? 0,
+    SANS_MESURE: r?.nb_sans_mesure ?? 0,
+  } satisfies RepartitionClassification,
+});
+
 @Injectable()
 export class IndicateursRepository {
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
@@ -80,6 +129,90 @@ export class IndicateursRepository {
        WHERE dans_perimetre_dqa AND district IS NOT NULL ORDER BY district`,
     );
     return rows.map((r) => r.district);
+  }
+
+  async regions(): Promise<string[]> {
+    const { rows } = await this.pool.query<{ region: string }>(
+      `SELECT DISTINCT region FROM dqa.dim_site
+       WHERE dans_perimetre_dqa AND region IS NOT NULL ORDER BY region`,
+    );
+    return rows.map((r) => r.region);
+  }
+
+  async synthese(q: SyntheseQuery): Promise<SyntheseNationale> {
+    const prog = q.programmeId ?? null;
+    const region = q.region ?? null;
+
+    const moisRows = await this.pool.query<{ mois_paqd: string }>(
+      `SELECT DISTINCT mois_paqd FROM dqa.mv_synthese_nationale ORDER BY mois_paqd DESC`,
+    );
+    const moisDisponibles = moisRows.rows.map((r) => r.mois_paqd);
+    const mois = q.mois && moisDisponibles.includes(q.mois) ? q.mois : moisDisponibles[0];
+
+    if (!mois) {
+      return {
+        moisPaqd: null,
+        moisDisponibles: [],
+        programmeId: prog,
+        region,
+        national: { ...versBloc(undefined), moyennesPiliers: moyennesPiliers(undefined) },
+        parDistrict: [],
+        parProgramme: [],
+      };
+    }
+
+    const national = await this.pool.query<LigneSynthese & MoyennesPilierBrutes>(
+      `SELECT nb_sites::int, nb_mesures::int, score_composite_moyen,
+              nb_conforme::int, nb_partiellement_conforme::int,
+              nb_non_conforme::int, nb_sans_mesure::int,
+              moy_p_completude, moy_p_promptitude, moy_p_regularite,
+              moy_p_ecart_sdu, moy_p_concordance, moy_p_ajustements
+       FROM dqa.mv_synthese_nationale
+       WHERE mois_paqd = $1 AND programme_id IS NOT DISTINCT FROM $2
+         AND region IS NOT DISTINCT FROM $3 AND district IS NULL`,
+      [mois, prog, region],
+    );
+    const nat = national.rows[0];
+
+    const parDistrict = await this.pool.query<LigneSynthese & { district: string }>(
+      `SELECT district, nb_sites::int, nb_mesures::int, score_composite_moyen,
+              nb_conforme::int, nb_partiellement_conforme::int,
+              nb_non_conforme::int, nb_sans_mesure::int
+       FROM dqa.mv_synthese_nationale
+       WHERE mois_paqd = $1 AND programme_id IS NOT DISTINCT FROM $2 AND district IS NOT NULL
+         AND ($3::text IS NULL OR region = $3)
+       ORDER BY score_composite_moyen ASC NULLS LAST, district`,
+      [mois, prog, region],
+    );
+
+    const parProgramme = await this.pool.query<
+      LigneSynthese & { programme_id: string; programme_nom: string }
+    >(
+      `SELECT sn.programme_id, p.programme_nom,
+              sn.nb_sites::int, sn.nb_mesures::int, sn.score_composite_moyen,
+              sn.nb_conforme::int, sn.nb_partiellement_conforme::int,
+              sn.nb_non_conforme::int, sn.nb_sans_mesure::int
+       FROM dqa.mv_synthese_nationale sn
+       JOIN dqa.dim_programme p ON p.programme_id = sn.programme_id
+       WHERE sn.mois_paqd = $1 AND sn.programme_id IS NOT NULL AND sn.district IS NULL
+         AND sn.region IS NOT DISTINCT FROM $2
+       ORDER BY sn.score_composite_moyen ASC NULLS LAST, p.programme_nom`,
+      [mois, region],
+    );
+
+    return {
+      moisPaqd: mois,
+      moisDisponibles,
+      programmeId: prog,
+      region,
+      national: { ...versBloc(nat), moyennesPiliers: moyennesPiliers(nat) },
+      parDistrict: parDistrict.rows.map((r) => ({ district: r.district, ...versBloc(r) })),
+      parProgramme: parProgramme.rows.map((r) => ({
+        programmeId: r.programme_id,
+        programmeNom: r.programme_nom,
+        ...versBloc(r),
+      })),
+    };
   }
 
   async listerSites(filtres: FiltreSites): Promise<ScoreSite[]> {

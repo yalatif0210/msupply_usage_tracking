@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { detailSiteSchema, scoreSiteSchema, SOUS_COMPOSANTES_DU_PILIER, type Pilier } from '@dqa/contracts';
+import {
+  detailSiteSchema,
+  scoreSiteSchema,
+  SOUS_COMPOSANTES_DU_PILIER,
+  syntheseNationaleSchema,
+  type Pilier,
+} from '@dqa/contracts';
 import { z } from 'zod';
 import { validerReponse } from './valider-reponse';
 
@@ -76,5 +82,52 @@ describe('validerReponse (couture D)', () => {
     expect(() =>
       validerReponse(detailSiteSchema, detailSixPiliers({ scoreComposite: 80, classification: 'MOYEN' })),
     ).toThrow(/non conforme/i);
+  });
+
+  const repartition = { CONFORME: 1, PARTIELLEMENT_CONFORME: 2, NON_CONFORME: 1, SANS_MESURE: 1 };
+  const synthese = (over: Record<string, unknown> = {}) => ({
+    moisPaqd: '2026-08',
+    moisDisponibles: ['2026-08'],
+    programmeId: null,
+    region: null,
+    national: {
+      nbSites: 5,
+      nbMesures: 4,
+      scoreCompositeMoyen: 72.5,
+      repartition,
+      moyennesPiliers: (['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as Pilier[]).map((pilier) => ({
+        pilier,
+        moyenne: 50,
+      })),
+      ...over,
+    },
+    parDistrict: [{ district: 'D1', nbSites: 2, nbMesures: 2, scoreCompositeMoyen: 80, repartition }],
+    parProgramme: [
+      { programmeId: 'P', programmeNom: 'VIH', nbSites: 3, nbMesures: 2, scoreCompositeMoyen: 60, repartition },
+    ],
+  });
+
+  it('accepte une SyntheseNationale complète', () => {
+    const s = validerReponse(syntheseNationaleSchema, synthese());
+    expect(s.national.moyennesPiliers).toHaveLength(6);
+    expect(s.parProgramme[0]?.programmeNom).toBe('VIH');
+  });
+
+  it('rejette un score composite moyen hors de [0, 100]', () => {
+    expect(() =>
+      validerReponse(syntheseNationaleSchema, synthese({ scoreCompositeMoyen: 130 })),
+    ).toThrow(/non conforme/i);
+  });
+
+  it('rejette moyennesPiliers si le compte n\'est pas 6', () => {
+    expect(() =>
+      validerReponse(syntheseNationaleSchema, synthese({ moyennesPiliers: [{ pilier: 'P1', moyenne: 50 }] })),
+    ).toThrow(/non conforme/i);
+  });
+
+  it('rejette une répartition avec une classe inconnue / manquante', () => {
+    const bancale = synthese();
+    bancale.national.repartition = { CONFORME: 1, PARTIELLEMENT_CONFORME: 2, NON_CONFORME: 1 } as never;
+    expect(() => validerReponse(syntheseNationaleSchema, bancale)).toThrow(/non conforme/i);
   });
 });
