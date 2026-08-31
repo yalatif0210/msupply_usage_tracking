@@ -101,53 +101,53 @@ import { Entete } from '../ui/entete';
               </article>
             }
           </div>
+        }
 
-          @if (historique(); as h) {
-            @if (h.points.length > 1) {
-              <section class="progression">
-                <div class="entete-prog">
-                  <h2>Progression sur le cycle {{ h.cyclePaqd }}</h2>
-                  @if (h.cyclesDisponibles.length > 1) {
-                    <label>
-                      Cycle
-                      <select [(ngModel)]="cycle" (ngModelChange)="recharger()">
-                        @for (c of h.cyclesDisponibles; track c) {
-                          <option [value]="c">{{ c }}</option>
-                        }
-                      </select>
-                    </label>
-                  }
-                </div>
+        @if (historique(); as h) {
+          @if (h.cyclesDisponibles.length > 0 && h.points.length > 1) {
+            <section class="progression">
+              <div class="entete-prog">
+                <h2>Progression sur le cycle {{ h.cyclePaqd }}</h2>
+                @if (h.cyclesDisponibles.length > 1) {
+                  <label>
+                    Cycle
+                    <select [(ngModel)]="cycle" (ngModelChange)="recharger()">
+                      @for (c of h.cyclesDisponibles; track c) {
+                        <option [value]="c">{{ c }}</option>
+                      }
+                    </select>
+                  </label>
+                }
+              </div>
 
-                <dqa-courbe-progression [points]="h.points" />
+              <dqa-courbe-progression [points]="h.points" />
 
-                <p class="delta">
-                  M+{{ h.points[0]?.rang }} → M+{{ h.points[h.points.length - 1]?.rang }} :
-                  <b [class]="'d-' + deltaSigne(h)">{{ deltaTexte(h) }}</b>
-                </p>
+              <p class="delta">
+                M+{{ deltaBornes(h)[0] }} → M+{{ deltaBornes(h)[1] }} :
+                <b [class]="'d-' + deltaSigne(h)">{{ deltaTexte(h) }}</b>
+              </p>
 
-                <table class="par-pilier">
-                  <thead>
+              <table class="par-pilier">
+                <thead>
+                  <tr>
+                    <th>Pilier</th>
+                    @for (p of h.points; track p.rang) {
+                      <th class="num">M+{{ p.rang }}</th>
+                    }
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (pil of piliers; track pil) {
                     <tr>
-                      <th>Pilier</th>
+                      <td>{{ pil }} — {{ libellePilier(pil) }}</td>
                       @for (p of h.points; track p.rang) {
-                        <th class="num">M+{{ p.rang }}</th>
+                        <td class="num">{{ scorePilier(p, pil) }}</td>
                       }
                     </tr>
-                  </thead>
-                  <tbody>
-                    @for (pil of piliers; track pil) {
-                      <tr>
-                        <td>{{ pil }} — {{ libellePilier(pil) }}</td>
-                        @for (p of h.points; track p.rang) {
-                          <td class="num">{{ scorePilier(p, pil) }}</td>
-                        }
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </section>
-            }
+                  }
+                </tbody>
+              </table>
+            </section>
           }
         }
       } @else {
@@ -248,10 +248,21 @@ export class DetailSitePage {
     return s === null ? '—' : String(s);
   }
 
+  private pointsMesures(h: HistoriqueSite): { rang: number; score: number }[] {
+    return h.points
+      .filter((p): p is HistoriqueSite['points'][number] & { scoreComposite: number } => p.scoreComposite !== null)
+      .map((p) => ({ rang: p.rang, score: p.scoreComposite }));
+  }
+
   private deltaValeur(h: HistoriqueSite): number | null {
-    const mesures = h.points.filter((p) => p.scoreComposite !== null);
-    if (mesures.length < 2) return null;
-    return (mesures.at(-1)!.scoreComposite as number) - (mesures[0]!.scoreComposite as number);
+    const m = this.pointsMesures(h);
+    return m.length < 2 ? null : m[m.length - 1]!.score - m[0]!.score;
+  }
+
+  /** Rangs du premier et du dernier point mesuré (pour l'étiquette « M+a → M+b »). */
+  protected deltaBornes(h: HistoriqueSite): [number | string, number | string] {
+    const m = this.pointsMesures(h);
+    return m.length === 0 ? ['—', '—'] : [m[0]!.rang, m[m.length - 1]!.rang];
   }
 
   protected deltaSigne(h: HistoriqueSite): 'hausse' | 'baisse' | 'nul' {
@@ -264,6 +275,8 @@ export class DetailSitePage {
     const v = this.deltaValeur(h);
     if (v === null) return '—';
     const arrondi = Math.round(v * 10) / 10;
-    return `${arrondi > 0 ? '+' : ''}${arrondi} pts`;
+    if (arrondi > 0) return `+${arrondi} pts`;
+    if (arrondi < 0) return `−${Math.abs(arrondi)} pts`;
+    return '0 pt';
   }
 }

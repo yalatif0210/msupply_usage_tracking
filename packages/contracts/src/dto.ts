@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   classificationSchema,
+  cyclePaqdSchema,
   dateIsoSchema,
   moisPaqdSchema,
   pilierSchema,
@@ -8,6 +9,13 @@ import {
   sousComposanteSchema,
   statutSousComposanteSchema,
 } from './paqd.js';
+
+/** Score d'un pilier réduit à l'essentiel : le code du pilier et sa note (ou `null`). */
+export const scorePilierBrefSchema = z.object({
+  pilier: pilierSchema,
+  score: pourcentageSchema.nullable(),
+});
+export type ScorePilierBref = z.infer<typeof scorePilierBrefSchema>;
 
 /**
  * DTO exposés par l'API et consommés par le front.
@@ -114,9 +122,7 @@ export const scoreSiteSchema = z.object({
   piliersCouverts: z.number().int().min(0).max(6),
   scoreComposite: pourcentageSchema.nullable(),
   classification: classificationSchema.nullable(),
-  scoresPiliers: z.array(
-    z.object({ pilier: pilierSchema, score: pourcentageSchema.nullable() }),
-  ),
+  scoresPiliers: z.array(scorePilierBrefSchema),
 });
 export type ScoreSite = z.infer<typeof scoreSiteSchema>;
 
@@ -207,9 +213,7 @@ export const pointProgressionSchema = z.object({
   scoreComposite: pourcentageSchema.nullable(),
   classification: classificationSchema.nullable(),
   piliersCouverts: z.number().int().min(0).max(6),
-  scoresPiliers: z
-    .array(z.object({ pilier: pilierSchema, score: pourcentageSchema.nullable() }))
-    .length(6),
+  scoresPiliers: z.array(scorePilierBrefSchema).length(6),
 });
 export type PointProgression = z.infer<typeof pointProgressionSchema>;
 
@@ -218,15 +222,16 @@ export const historiqueSiteSchema = z.object({
   /** Filtre programme appliqué, ou `null` pour « tous programmes ». */
   programmeId: z.string().nullable(),
   /** Cycle PAQD affiché, ou `null` si le site n'a aucune mesure. */
-  cyclePaqd: z.string().nullable(),
+  cyclePaqd: cyclePaqdSchema.nullable(),
   /** Cycles où le site a ≥ 1 mesure, du plus récent au plus ancien. */
-  cyclesDisponibles: z.array(z.string()),
+  cyclesDisponibles: z.array(cyclePaqdSchema),
   /** Points du cycle affiché, triés par rang croissant ; un mois non mesuré est absent. */
   points: z.array(pointProgressionSchema),
 });
 export type HistoriqueSite = z.infer<typeof historiqueSiteSchema>;
 
 export const historiqueQuerySchema = z.object({
+  /** Non validé au format `AAAA-CN` : un cycle absent de la liste retombe simplement sur le plus récent. */
   cycle: z.string().optional(),
   programmeId: z.string().optional(),
 });

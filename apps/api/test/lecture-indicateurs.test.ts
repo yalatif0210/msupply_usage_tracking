@@ -191,14 +191,21 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(h.cyclesDisponibles).toEqual(['2026-C2']);
     // un seul mois importé (2026-08 = M+4 du cycle C2)
     expect(h.points).toHaveLength(1);
-    expect(h.points[0]?.rang).toBe(4);
-    expect(h.points[0]?.scoresPiliers).toHaveLength(6);
+    const pt = h.points[0]!;
+    expect(pt.rang).toBe(4);
+    expect(pt.moisPaqd).toBe('2026-08');
+    // scoresPiliers ordonné P1..P6, valeurs des p_* gelés (P3 = régularité ALERTE)
+    expect(pt.scoresPiliers.map((s) => s.pilier)).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']);
+    expect(pt.scoresPiliers.find((s) => s.pilier === 'P3')?.score).toBe(0);
+    expect(pt.scoresPiliers.find((s) => s.pilier === 'P1')?.score).toBe(100);
+    expect(pt.piliersCouverts).toBe(6);
   });
 
-  it('GET /api/sites/:id/historique : 404 hors périmètre, cycle inconnu → plus récent', async () => {
+  it('GET /api/sites/:id/historique : 404 hors périmètre, cycle absent → plus récent', async () => {
     const a = await lecteur();
     expect((await a.get('/api/sites/INCONNU/historique')).status).toBe(404);
-    const res = await a.get('/api/sites/SITE-1/historique').query({ cycle: 'BIDON' });
+    // cycle absent de la liste du site → retombe sur le plus récent
+    const res = await a.get('/api/sites/SITE-1/historique').query({ cycle: '2025-C1' });
     expect(historiqueSiteSchema.parse(res.body).cyclePaqd).toBe('2026-C2');
   });
 

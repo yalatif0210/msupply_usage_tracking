@@ -67,7 +67,8 @@ le score du jour dans `hist_score_site`.
 
 ### `IndicateursModule`
 
-Lecture seule. N'interroge que les vues `mv_*` et `hist_score_site`.
+Lecture seule. N'interroge que `hist_score_site`, les vues `mv_*` et les vues
+de reshaping du calendrier (`v_mois_cycle`) — jamais les tables `fact_*`.
 
 Ce module ne recalcule jamais un score. Si un chiffre est faux, la correction
 se fait dans la vue SQL, pas dans le service.

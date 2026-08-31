@@ -148,3 +148,9 @@ export const moisPaqdSchema = z.string().regex(/^\d{4}-\d{2}$/, {
   message: 'Mois PAQD attendu au format AAAA-MM',
 });
 export type MoisPaqd = z.infer<typeof moisPaqdSchema>;
+
+/** Cycle PAQD identifiant `AAAA-CN` (N ∈ 1..3 : quatre mois consécutifs). */
+export const cyclePaqdSchema = z.string().regex(/^\d{4}-C[1-3]$/, {
+  message: 'Cycle PAQD attendu au format AAAA-CN',
+});
+export type CyclePaqd = z.infer<typeof cyclePaqdSchema>;

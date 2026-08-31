@@ -477,6 +477,7 @@ export class IndicateursRepository {
     const cycles = await this.pool.query<{ cycle_paqd: string }>(
       `SELECT DISTINCT vmc.cycle_paqd
        FROM dqa.hist_score_site h
+       JOIN dqa.dim_site s ON s.site_id = h.site_id AND s.dans_perimetre_dqa
        JOIN dqa.v_mois_cycle vmc ON vmc.mois_paqd = h.mois_paqd
        WHERE h.site_id = $1 AND h.programme_id IS NOT DISTINCT FROM $2
        ORDER BY vmc.cycle_paqd DESC`,
@@ -511,6 +512,7 @@ export class IndicateursRepository {
               h.p_completude, h.p_promptitude, h.p_regularite,
               h.p_ecart_sdu, h.p_concordance, h.p_ajustements
        FROM dqa.hist_score_site h
+       JOIN dqa.dim_site s ON s.site_id = h.site_id AND s.dans_perimetre_dqa
        JOIN dqa.v_mois_cycle vmc ON vmc.mois_paqd = h.mois_paqd
        WHERE h.site_id = $1 AND h.programme_id IS NOT DISTINCT FROM $2
          AND vmc.cycle_paqd = $3
