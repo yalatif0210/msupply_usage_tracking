@@ -255,18 +255,26 @@ export const ecartSduProduitSchema = z.object({
 });
 export type EcartSduProduit = z.infer<typeof ecartSduProduitSchema>;
 
-export const ecartConsoProduitSchema = z.object({
-  evaluable: z.boolean(),
-  /** Non nul seulement quand `evaluable` est faux. */
-  raisonExclusion: raisonExclusionConsoSchema.nullable(),
-  stockDebut: z.number().nullable(),
-  stockFin: z.number().nullable(),
-  receptions: z.number().nullable(),
-  declaree: z.number().nullable(),
-  reconstituee: z.number().nullable(),
-  ecartPct: z.number().nullable(),
-  conforme: z.boolean(),
-});
+/**
+ * Union discriminée sur `evaluable` : un produit non évaluable n'a qu'une
+ * raison ; un produit évaluable porte les cinq grandeurs et son statut.
+ */
+export const ecartConsoProduitSchema = z.discriminatedUnion('evaluable', [
+  z.object({
+    evaluable: z.literal(true),
+    stockDebut: z.number(),
+    stockFin: z.number(),
+    receptions: z.number(),
+    declaree: z.number(),
+    reconstituee: z.number().positive(),
+    ecartPct: z.number(),
+    conforme: z.boolean(),
+  }),
+  z.object({
+    evaluable: z.literal(false),
+    raisonExclusion: raisonExclusionConsoSchema,
+  }),
+]);
 export type EcartConsoProduit = z.infer<typeof ecartConsoProduitSchema>;
 
 export const ligneEcartProduitP4Schema = z.object({

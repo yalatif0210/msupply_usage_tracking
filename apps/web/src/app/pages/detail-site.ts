@@ -111,7 +111,7 @@ import { Entete } from '../ui/entete';
             }
           </div>
 
-          @if (p4Produits(); as p4) {
+          @if (p4Mesure(d) && p4Produits(); as p4) {
             @if (p4.produits.length > 0) {
               <details class="drill">
                 <summary>P4 — détail par produit traceur ({{ p4.produits.length }})</summary>
@@ -124,7 +124,10 @@ import { Entete } from '../ui/entete';
                         <th class="num">Compté</th>
                         <th class="num">Écart SDU</th>
                         <th>SDU</th>
-                        <th class="num">Reconstituée</th>
+                        <th class="num">Début</th>
+                        <th class="num">Récept.</th>
+                        <th class="num">Fin</th>
+                        <th class="num">Reconst.</th>
                         <th class="num">Déclarée</th>
                         <th class="num">Écart conso.</th>
                         <th>Conso.</th>
@@ -138,16 +141,19 @@ import { Entete } from '../ui/entete';
                           <td class="num">{{ pr.sdu.comptee === null ? '—' : (pr.sdu.comptee | number: '1.0-0') }}</td>
                           <td class="num">{{ pr.sdu.ecartPct === null ? '∞' : (pr.sdu.ecartPct | number: '1.0-1') + ' %' }}</td>
                           <td><dqa-badge-statut [statut]="pr.sdu.conforme ? 'CONFORME' : 'ALERTE'" /></td>
-                          <td class="num">{{ pr.consommation.reconstituee === null ? '—' : (pr.consommation.reconstituee | number: '1.0-0') }}</td>
-                          <td class="num">{{ pr.consommation.declaree === null ? '—' : (pr.consommation.declaree | number: '1.0-0') }}</td>
-                          <td class="num">{{ pr.consommation.ecartPct === null ? '—' : (pr.consommation.ecartPct | number: '1.0-1') + ' %' }}</td>
-                          <td>
-                            @if (pr.consommation.evaluable) {
-                              <dqa-badge-statut [statut]="pr.consommation.conforme ? 'CONFORME' : 'ALERTE'" />
+                          @if (pr.consommation; as c) {
+                            @if (c.evaluable) {
+                              <td class="num">{{ c.stockDebut | number: '1.0-0' }}</td>
+                              <td class="num">{{ c.receptions | number: '1.0-0' }}</td>
+                              <td class="num">{{ c.stockFin | number: '1.0-0' }}</td>
+                              <td class="num">{{ c.reconstituee | number: '1.0-0' }}</td>
+                              <td class="num">{{ c.declaree | number: '1.0-0' }}</td>
+                              <td class="num">{{ c.ecartPct | number: '1.0-1' }} %</td>
+                              <td><dqa-badge-statut [statut]="c.conforme ? 'CONFORME' : 'ALERTE'" /></td>
                             } @else {
-                              <span class="non-eval">non évaluable — {{ raisonConso(pr.consommation.raisonExclusion) }}</span>
+                              <td class="non-eval" colspan="7">non évaluable — {{ raisonConso(c.raisonExclusion) }}</td>
                             }
-                          </td>
+                          }
                         </tr>
                       }
                     </tbody>
@@ -312,12 +318,18 @@ export class DetailSitePage {
     return LIBELLES_PILIER[pilier];
   }
 
-  protected raisonConso(raison: RaisonExclusionConso | null): string {
-    return raison === 'un_seul_inventaire'
-      ? 'un seul inventaire dans le mois'
-      : raison === 'reconstituee_non_positive'
-        ? 'consommation reconstituée ≤ 0'
-        : '';
+  private readonly RAISONS_CONSO: Record<RaisonExclusionConso, string> = {
+    un_seul_inventaire: 'un seul inventaire dans le mois',
+    reconstituee_non_positive: 'consommation reconstituée ≤ 0',
+  };
+
+  protected raisonConso(raison: RaisonExclusionConso): string {
+    return this.RAISONS_CONSO[raison];
+  }
+
+  /** Le pilier P4 a-t-il une valeur pour le mois affiché ? */
+  protected p4Mesure(d: DetailSite): boolean {
+    return d.piliers.find((p) => p.pilier === 'P4')?.score != null;
   }
 
   protected scorePilier(point: HistoriqueSite['points'][number], pilier: Pilier): string {

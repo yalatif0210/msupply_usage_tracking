@@ -62,26 +62,27 @@ Aucun changement des taux, scores, ni du score composite : `mv_p4_ecart` et
   Grain `(site_id, programme_id nullable, mois_paqd, produit_id)` — une ligne
   par produit traceur inventorié dans un inventaire finalisé du mois. Colonnes :
   `produit_code`, `libelle` (de `dim_produit_traceur`), `theorique`, `comptee`,
-  `ecart_sdu_pct` (numeric(6,1), `NULL` = écart infini quand `comptee = 0` et
-  `theorique > 0`), `sdu_conforme` (boolean), `stock_debut`, `stock_fin`,
-  `receptions`, `declaree`, `reconstituee`, `ecart_conso_pct` (numeric(6,1),
-  nullable), `conso_evaluable` (boolean), `conso_raison_exclusion` (text :
+  `ecart_sdu_pct` (numeric(8,1) — garde-fou d'overflow quand `comptee` est
+  minuscule ; `NULL` = écart infini quand `comptee = 0` et `theorique > 0`),
+  `sdu_conforme` (boolean), `stock_debut`, `stock_fin`, `receptions`,
+  `declaree`, `reconstituee`, `ecart_conso_pct` (numeric(8,1), nullable),
+  `conso_evaluable` (boolean), `conso_raison_exclusion` (text :
   `un_seul_inventaire` | `reconstituee_non_positive` | `NULL`), `conso_conforme`
   (boolean). Index unique sur
   `(site_id, mois_paqd, coalesce(programme_id,''), produit_id)`.
-- **La logique est celle de `mv_p4_ecart`** (`0017`), reprise sans agréger :
-  `sdu_produit` (dernier inventaire du mois) pour la partie SDU, `bornes` +
-  `conso_produit` pour la partie consommation. Le doublon de CTE avec
-  `mv_p4_ecart` est **assumé** : les deux vues sont rafraîchies ensemble et un
-  changement de règle P4 passera par une migration qui touche les deux. On
-  évite ainsi de dropper/recréer `mv_p4_ecart` → `mv_score_pilier` → la
-  procédure pour une vue de lecture seule.
+- **`mv_p4_ecart_produit` devient la source unique de la règle P4** : la
+  logique par produit (CTE `sdu_produit`, `bornes`, `conso_produit` de `0017`)
+  y vit désormais une seule fois, et `mv_p4_ecart` est **reconstruite pour
+  agréger cette vue** (`count(*) FILTER (sdu_conforme)` … → taux, scores,
+  `p_ecart_sdu`). `mv_score_pilier` (qui dépend de `mv_p4_ecart`) est
+  reconstruite à l'identique de `0020`. Le `DROP … CASCADE` était de toute
+  façon nécessaire ; on gagne une source de vérité au lieu de dupliquer.
 - **`rafraichir_et_geler`** : `CREATE OR REPLACE PROCEDURE` avec
-  `REFRESH MATERIALIZED VIEW dqa.mv_p4_ecart_produit` juste après
-  `mv_p4_ecart` (la procédure n'est pas une dépendance de vue : pas de
-  cascade). Rien d'autre ne change.
-- Aucun changement de `mv_p4_ecart`, `mv_score_pilier`, `hist_score_site`, de la
-  grille, des contrats de pilier existants.
+  `REFRESH mv_p4_ecart_produit` **avant** `mv_p4_ecart` (nouvelle dépendance).
+  Rien d'autre ne change.
+- Aucun changement de la valeur des taux, du score de pilier, du score
+  composite, de `hist_score_site`, de la grille, ni des contrats de pilier
+  existants — seul le chemin de calcul de `mv_p4_ecart` change.
 
 ### Contrats (`@dqa/contracts`)
 

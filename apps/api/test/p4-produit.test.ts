@@ -86,16 +86,17 @@ describe('vue mv_p4_ecart_produit', () => {
     return Object.fromEntries(rows.map((r) => [r.produit_code, r]));
   };
 
-  /** Panier de test : 5 traceurs inventoriés + 1 non traceur. */
+  /** Panier de test : 6 traceurs inventoriés + 1 non traceur + 1 site hors périmètre. */
   const socle = async () => {
     await Promise.all([
       produit('I1', 'T1', true), produit('I2', 'T2', true), produit('I4', 'T4', true),
-      produit('I5', 'T5', true), produit('I6', 'T6', true), produit('I3', 'X3', false),
+      produit('I5', 'T5', true), produit('I6', 'T6', true), produit('I7', 'T7', true),
+      produit('I3', 'X3', false),
     ]);
     await db.query(`INSERT INTO dqa.dim_site_programme (site_id, programme_id, actif) VALUES ('S1','P1',true)`);
     await inventaire('A', '2026-08-05');
     await inventaire('B', '2026-08-28');
-    // I1 : SDU conforme (100/100) ; conso évaluable (2 inv, réception + dispensation)
+    // I1 : SDU conforme (100/100) ; conso évaluable, non conforme (25 vs 30)
     await ligne('A', 'I1', 100, 100);
     await ligne('B', 'I1', 100, 100);
     await mouvement('RC1', 'reception', '2026-08-10', 'I1', 30);
@@ -109,16 +110,34 @@ describe('vue mv_p4_ecart_produit', () => {
     // I6 : deux inventaires, reconstituée négative (10 + 0 − 100)
     await ligne('A', 'I6', 10, 10);
     await ligne('B', 'I6', 100, 100);
-    // I3 non traceur, présent en inventaire → doit être ignoré
+    // I7 : deux inventaires, conso évaluable ET conforme
+    // reconstituée = 50 (début) + 20 (réception) − 50 (fin) = 20 ; déclarée = 20
+    await ligne('A', 'I7', 50, 50);
+    await ligne('B', 'I7', 50, 50);
+    await mouvement('RC7', 'reception', '2026-08-10', 'I7', 20);
+    await mouvement('DI7', 'dispensation', '2026-08-15', 'I7', 20);
+    // I3 non traceur → ignoré
     await ligne('B', 'I3', 100, 50);
+    // site hors périmètre avec un traceur inventorié → doit être ignoré
+    await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S9','HORS',false)`);
+    await db.query(
+      `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
+       VALUES ('Z','S9','P1','2026-08-28','fn',1)`,
+    );
+    await db.query(
+      `INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
+       VALUES ('Z','I1','X',100,10,1)`,
+    );
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
   };
 
-  it('une ligne par produit traceur inventorié ; non traceur exclu', async () => {
+  it('une ligne par produit traceur inventorié ; non traceur et hors périmètre exclus', async () => {
     await socle();
     const p = await prod();
-    expect(Object.keys(p).sort()).toEqual(['T1', 'T2', 'T4', 'T5', 'T6']);
+    expect(Object.keys(p).sort()).toEqual(['T1', 'T2', 'T4', 'T5', 'T6', 'T7']);
     expect(p['X3']).toBeUndefined();
+    const { rowCount } = await db.query(`SELECT 1 FROM dqa.mv_p4_ecart_produit WHERE site_id = 'S9'`);
+    expect(rowCount).toBe(0);
   });
 
   it('écart SDU : cas nominal, cas limites compté 0', async () => {
@@ -136,6 +155,10 @@ describe('vue mv_p4_ecart_produit', () => {
     // I1 : reconstituée = 100 + 30 − 100 = 30 ; |25 − 30| / 30 = 16.7 % > 2 %
     expect(p['T1']).toMatchObject({
       conso_evaluable: true, reconstituee: '30.000', ecart_conso_pct: '16.7', conso_conforme: false,
+    });
+    // I7 : reconstituée = 50 + 20 − 50 = 20 ; |20 − 20| / 20 = 0 % → conforme
+    expect(p['T7']).toMatchObject({
+      conso_evaluable: true, reconstituee: '20.000', ecart_conso_pct: '0.0', conso_conforme: true,
     });
     // I2 : un seul inventaire
     expect(p['T2']).toMatchObject({ conso_evaluable: false, conso_raison_exclusion: 'un_seul_inventaire' });

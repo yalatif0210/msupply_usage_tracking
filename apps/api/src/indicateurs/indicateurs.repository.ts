@@ -573,6 +573,8 @@ export class IndicateursRepository {
       };
     }
 
+    // `mv_p4_ecart_produit` restreint déjà aux sites du périmètre et aux
+    // traceurs actifs ; la garde ci-dessus a écarté un site hors périmètre.
     const { rows } = await this.pool.query<{
       produit_code: string;
       libelle: string | null;
@@ -608,17 +610,18 @@ export class IndicateursRepository {
         ecartPct: nombreOuNull(r.ecart_sdu_pct),
         conforme: r.sdu_conforme,
       },
-      consommation: {
-        evaluable: r.conso_evaluable,
-        raisonExclusion: r.conso_raison_exclusion,
-        stockDebut: nombreOuNull(r.stock_debut),
-        stockFin: nombreOuNull(r.stock_fin),
-        receptions: nombreOuNull(r.receptions),
-        declaree: nombreOuNull(r.declaree),
-        reconstituee: nombreOuNull(r.reconstituee),
-        ecartPct: nombreOuNull(r.ecart_conso_pct),
-        conforme: r.conso_conforme,
-      },
+      consommation: r.conso_evaluable
+        ? {
+            evaluable: true,
+            stockDebut: Number(r.stock_debut),
+            stockFin: Number(r.stock_fin),
+            receptions: Number(r.receptions),
+            declaree: Number(r.declaree),
+            reconstituee: Number(r.reconstituee),
+            ecartPct: Number(r.ecart_conso_pct),
+            conforme: r.conso_conforme,
+          }
+        : { evaluable: false, raisonExclusion: r.conso_raison_exclusion ?? 'un_seul_inventaire' },
     }));
 
     return {

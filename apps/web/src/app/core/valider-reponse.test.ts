@@ -170,21 +170,21 @@ describe('validerReponse (couture D)', () => {
     ).toThrow(/non conforme/i);
   });
 
+  const consoEvaluable = {
+    evaluable: true,
+    stockDebut: 100,
+    stockFin: 80,
+    receptions: 10,
+    declaree: 28,
+    reconstituee: 30,
+    ecartPct: 6.7,
+    conforme: false,
+  };
   const ligneP4 = (over: Record<string, unknown> = {}) => ({
     produitCode: 'T1',
     libelle: 'Traceur 1',
     sdu: { theorique: 100, comptee: 95, ecartPct: 5.3, conforme: false },
-    consommation: {
-      evaluable: true,
-      raisonExclusion: null,
-      stockDebut: 100,
-      stockFin: 80,
-      receptions: 10,
-      declaree: 28,
-      reconstituee: 30,
-      ecartPct: 6.7,
-      conforme: false,
-    },
+    consommation: consoEvaluable,
     ...over,
   });
   const detailP4 = (ligneOver: Record<string, unknown> = {}) => ({
@@ -192,18 +192,34 @@ describe('validerReponse (couture D)', () => {
     moisPaqd: '2026-08',
     moisDisponibles: ['2026-08'],
     programmeId: null,
-    produits: [ligneP4(), ligneP4({ produitCode: 'T2', ...ligneOver })],
+    produits: [
+      ligneP4(),
+      ligneP4({
+        produitCode: 'T2',
+        consommation: { evaluable: false, raisonExclusion: 'un_seul_inventaire' },
+        ...ligneOver,
+      }),
+    ],
   });
 
-  it('accepte un DetailP4Produits complet', () => {
+  it('accepte un DetailP4Produits complet (produit évaluable + exclu)', () => {
     const d = validerReponse(detailP4ProduitsSchema, detailP4());
     expect(d.produits).toHaveLength(2);
+    expect(d.produits[1]?.consommation.evaluable).toBe(false);
   });
 
   it('rejette une raison d\'exclusion inconnue', () => {
     expect(() =>
       validerReponse(detailP4ProduitsSchema, detailP4({
-        consommation: { ...ligneP4().consommation, evaluable: false, raisonExclusion: 'autre_chose' },
+        consommation: { evaluable: false, raisonExclusion: 'autre_chose' },
+      })),
+    ).toThrow(/non conforme/i);
+  });
+
+  it('rejette un produit évaluable sans son statut', () => {
+    expect(() =>
+      validerReponse(detailP4ProduitsSchema, detailP4({
+        consommation: { ...consoEvaluable, conforme: undefined },
       })),
     ).toThrow(/non conforme/i);
   });
