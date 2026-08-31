@@ -2,7 +2,16 @@ import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angu
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { LIBELLES_PILIER, PILIERS, type DetailSite, type HistoriqueSite, type Pilier, type Programme } from '@dqa/contracts';
+import {
+  LIBELLES_PILIER,
+  PILIERS,
+  type DetailP4Produits,
+  type DetailSite,
+  type HistoriqueSite,
+  type Pilier,
+  type Programme,
+  type RaisonExclusionConso,
+} from '@dqa/contracts';
 import { SitesService } from '../core/sites.service';
 import { BadgeClassification } from '../ui/badge-classification';
 import { BadgeStatut } from '../ui/badge-statut';
@@ -101,6 +110,52 @@ import { Entete } from '../ui/entete';
               </article>
             }
           </div>
+
+          @if (p4Produits(); as p4) {
+            @if (p4.produits.length > 0) {
+              <details class="drill">
+                <summary>P4 — détail par produit traceur ({{ p4.produits.length }})</summary>
+                <div class="drill-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Produit</th>
+                        <th class="num">Théo.</th>
+                        <th class="num">Compté</th>
+                        <th class="num">Écart SDU</th>
+                        <th>SDU</th>
+                        <th class="num">Reconstituée</th>
+                        <th class="num">Déclarée</th>
+                        <th class="num">Écart conso.</th>
+                        <th>Conso.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (pr of p4.produits; track pr.produitCode) {
+                        <tr>
+                          <td>{{ pr.libelle ?? pr.produitCode }}</td>
+                          <td class="num">{{ pr.sdu.theorique === null ? '—' : (pr.sdu.theorique | number: '1.0-0') }}</td>
+                          <td class="num">{{ pr.sdu.comptee === null ? '—' : (pr.sdu.comptee | number: '1.0-0') }}</td>
+                          <td class="num">{{ pr.sdu.ecartPct === null ? '∞' : (pr.sdu.ecartPct | number: '1.0-1') + ' %' }}</td>
+                          <td><dqa-badge-statut [statut]="pr.sdu.conforme ? 'CONFORME' : 'ALERTE'" /></td>
+                          <td class="num">{{ pr.consommation.reconstituee === null ? '—' : (pr.consommation.reconstituee | number: '1.0-0') }}</td>
+                          <td class="num">{{ pr.consommation.declaree === null ? '—' : (pr.consommation.declaree | number: '1.0-0') }}</td>
+                          <td class="num">{{ pr.consommation.ecartPct === null ? '—' : (pr.consommation.ecartPct | number: '1.0-1') + ' %' }}</td>
+                          <td>
+                            @if (pr.consommation.evaluable) {
+                              <dqa-badge-statut [statut]="pr.consommation.conforme ? 'CONFORME' : 'ALERTE'" />
+                            } @else {
+                              <span class="non-eval">non évaluable — {{ raisonConso(pr.consommation.raisonExclusion) }}</span>
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            }
+          }
         }
 
         @if (historique(); as h) {
@@ -190,6 +245,13 @@ import { Entete } from '../ui/entete';
     .par-pilier { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
     .par-pilier th, .par-pilier td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #d9d9d6; }
     .par-pilier th.num, .par-pilier td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .drill { margin-top: 1.5rem; }
+    .drill summary { cursor: pointer; font-size: 0.9rem; color: #1f3d7a; }
+    .drill-scroll { overflow-x: auto; margin-top: 0.8rem; }
+    .drill table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 44rem; }
+    .drill th, .drill td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #d9d9d6; white-space: nowrap; }
+    .drill th.num, .drill td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .drill .non-eval { color: #5b5b5b; font-size: 0.8rem; white-space: normal; }
   `,
 })
 export class DetailSitePage {
@@ -203,6 +265,7 @@ export class DetailSitePage {
   protected readonly piliers = PILIERS;
   protected readonly detail = signal<DetailSite | null>(null);
   protected readonly historique = signal<HistoriqueSite | null>(null);
+  protected readonly p4Produits = signal<DetailP4Produits | null>(null);
   protected readonly programmes = signal<Programme[]>([]);
   protected readonly chargement = signal(true);
 
@@ -218,7 +281,7 @@ export class DetailSitePage {
   protected async recharger(): Promise<void> {
     this.chargement.set(true);
     try {
-      const [d, h] = await Promise.all([
+      const [d, h, p4] = await Promise.all([
         this.service.detailSite(this.id(), {
           programmeId: this.programmeId || undefined,
           mois: this.mois || undefined,
@@ -227,20 +290,34 @@ export class DetailSitePage {
           programmeId: this.programmeId || undefined,
           cycle: this.cycle || undefined,
         }),
+        this.service.p4Produits(this.id(), {
+          programmeId: this.programmeId || undefined,
+          mois: this.mois || undefined,
+        }),
       ]);
       this.mois = d.moisPaqd ?? '';
       this.cycle = h.cyclePaqd ?? '';
       this.detail.set(d);
       this.historique.set(h);
+      this.p4Produits.set(p4);
     } catch {
       this.detail.set(null);
       this.historique.set(null);
+      this.p4Produits.set(null);
     }
     this.chargement.set(false);
   }
 
   protected libellePilier(pilier: Pilier): string {
     return LIBELLES_PILIER[pilier];
+  }
+
+  protected raisonConso(raison: RaisonExclusionConso | null): string {
+    return raison === 'un_seul_inventaire'
+      ? 'un seul inventaire dans le mois'
+      : raison === 'reconstituee_non_positive'
+        ? 'consommation reconstituée ≤ 0'
+        : '';
   }
 
   protected scorePilier(point: HistoriqueSite['points'][number], pilier: Pilier): string {

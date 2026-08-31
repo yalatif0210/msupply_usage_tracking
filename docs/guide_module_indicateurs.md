@@ -17,6 +17,7 @@ Emplacement : `apps/api/src/indicateurs/` (API) et `apps/web/src/app/pages/`
 | `GET` | `/api/sites` | `ScoreSite[]` | tout authentifié |
 | `GET` | `/api/sites/:id?mois=&programmeId=` | `DetailSite` | tout authentifié |
 | `GET` | `/api/sites/:id/historique?cycle=&programmeId=` | `HistoriqueSite` | tout authentifié |
+| `GET` | `/api/sites/:id/piliers/p4?mois=&programmeId=` | `DetailP4Produits` | tout authentifié |
 | `GET` | `/api/synthese?mois=&programmeId=&region=` | `SyntheseNationale` | tout authentifié |
 | `GET` | `/api/referentiel/programmes` | `Programme[]` | tout authentifié |
 | `GET` | `/api/referentiel/districts` | `string[]` | tout authentifié |
@@ -31,6 +32,7 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 |---|---|
 | `hist_score_site` | six scores de pilier + `score_composite` + `classification` gelés par (site, mois PAQD, programme) |
 | `v_mois_cycle` | rang M+1..M+4 de chaque mois PAQD dans son cycle (depuis `dim_temps`) |
+| `mv_p4_ecart_produit` | détail par produit traceur des écarts SDU / consommation de P4 |
 | `mv_synthese_nationale` | agrégats nationaux / région / district / programme par mois PAQD |
 | `mv_p1_completude` | taux de complétude inventaires / réquisitions / réceptions (%), scores et p_completude |
 | `mv_p2_promptitude` | taux de promptitude inventaires / réquisitions (%), scores et p_promptitude |
@@ -104,6 +106,14 @@ Le score de pilier P4 (`p_ecart_sdu`, hérité du nom historique) est la moyenne
 simple des scores des deux sous-composantes calculables. Tolérance (2 %) et
 seuil de taux (90 %) viennent de `grille_seuil_sous_composante.tolerance` /
 `.seuil` — à confirmer avec la coordination PAQD.
+
+**Drill-down par produit** (`mv_p4_ecart_produit`,
+`GET /api/sites/:id/piliers/p4`) : une ligne par produit traceur inventorié,
+avec ses deux écarts (théorique / compté, stock début-fin / réceptions /
+déclarée / reconstituée), le statut par produit, ou « non évaluable » +
+raison pour l'écart consommation. Même logique que `mv_p4_ecart` sans agréger
+(doublon de CTE assumé, pas de cascade sur `mv_score_pilier`). Rendu dans un
+`<details>` sous les cartes de pilier de la fiche site.
 
 - `piliersCouverts` = nombre de scores de pilier non nuls (2 aujourd'hui) ;
   `piliersTotal = 6`. L'écran affiche « Score calculé sur N piliers sur 6 »

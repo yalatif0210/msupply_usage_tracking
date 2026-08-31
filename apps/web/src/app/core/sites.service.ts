@@ -3,10 +3,12 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { z } from 'zod';
 import {
+  detailP4ProduitsSchema,
   detailSiteSchema,
   historiqueSiteSchema,
   programmeSchema,
   scoreSiteSchema,
+  type DetailP4Produits,
   type DetailSite,
   type HistoriqueSite,
   type Programme,
@@ -62,6 +64,19 @@ export class SitesService {
       this.http.get<unknown>(`/api/sites/${encodeURIComponent(siteId)}/historique`, { params }),
     );
     return validerReponse(historiqueSiteSchema, data);
+  }
+
+  async p4Produits(
+    siteId: string,
+    opts: { mois?: string; programmeId?: string } = {},
+  ): Promise<DetailP4Produits> {
+    let params = new HttpParams();
+    if (opts.mois) params = params.set('mois', opts.mois);
+    if (opts.programmeId) params = params.set('programmeId', opts.programmeId);
+    const data = await firstValueFrom(
+      this.http.get<unknown>(`/api/sites/${encodeURIComponent(siteId)}/piliers/p4`, { params }),
+    );
+    return validerReponse(detailP4ProduitsSchema, data);
   }
 
   async programmes(): Promise<Programme[]> {
