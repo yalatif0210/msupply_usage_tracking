@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  compteAdminSchema,
   detailP4ProduitsSchema,
   detailSiteSchema,
   grilleDetailSchema,
@@ -256,5 +257,16 @@ describe('validerReponse (couture D)', () => {
   it('rejette un poids de pilier hors de [0, 100]', () => {
     const poids = grille().poids.map((p, i) => (i === 0 ? { ...p, poidsPct: 140 } : p));
     expect(() => validerReponse(grilleDetailSchema, grille({ poids }))).toThrow(/non conforme/i);
+  });
+
+  const comptes = (over: Record<string, unknown> = {}) => [
+    { id: 'a', identifiant: 'admin', nom: 'Admin', role: 'admin', actif: true, creeLe: '2026-01-01T00:00:00.000Z', ...over },
+    { id: 'b', identifiant: 'lecteur', nom: 'Lecteur', role: 'lecteur', actif: false, creeLe: '2026-01-01T00:00:00.000Z' },
+  ];
+
+  it('accepte une liste CompteAdmin[] et rejette un rôle inconnu', () => {
+    const liste = z.array(compteAdminSchema);
+    expect(validerReponse(liste, comptes())).toHaveLength(2);
+    expect(() => validerReponse(liste, comptes({ role: 'super-admin' }))).toThrow(/non conforme/i);
   });
 });
