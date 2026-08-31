@@ -73,22 +73,24 @@ describe('import du classeur jusqu\'au staging', () => {
 
     // et l'historique du mois est gelé : le produit de la fixture n'est pas un
     // traceur seedé → P4 et P5 NON_CALCULABLE ; inventaire + réquisition → P1 = 100 ;
+    // inventaire le 29/08 + réquisition le 05/09 (ESPC, limite 5) → P2 = 100 ;
     // 1 dispensation un jour ouvrable → P3 ALERTE (0) ; P6 conforme (100).
-    // Composite renormalisé sur P1 + P3 + P6 :
-    // (100·10 + 0·15 + 100·10) / (10 + 15 + 10) = 2000 / 35 = 57.1, NON_CONFORME.
+    // Composite renormalisé sur P1 + P2 + P3 + P6 :
+    // (100·10 + 100·15 + 0·15 + 100·10) / (10 + 15 + 15 + 10) = 3500 / 50 = 70, NON_CONFORME.
     const hist = await base.pool.query(
-      `SELECT p_completude, p_concordance, p_regularite, p_ecart_sdu, p_ajustements,
+      `SELECT p_completude, p_promptitude, p_concordance, p_regularite, p_ecart_sdu, p_ajustements,
               score_composite, classification, grille_id
        FROM dqa.hist_score_site
        WHERE site_id = 'SITE-1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
     );
     expect(hist.rowCount).toBe(1);
     expect(hist.rows[0].p_completude).toBe('100.0');
+    expect(hist.rows[0].p_promptitude).toBe('100.0');
     expect(hist.rows[0].p_ecart_sdu).toBeNull();
     expect(hist.rows[0].p_concordance).toBeNull();
     expect(hist.rows[0].p_regularite).toBe('0.0');
     expect(hist.rows[0].p_ajustements).toBe('100.0');
-    expect(hist.rows[0].score_composite).toBe('57.1');
+    expect(hist.rows[0].score_composite).toBe('70.0');
     expect(hist.rows[0].classification).toBe('NON_CONFORME');
     expect(hist.rows[0].grille_id).not.toBeNull();
   });

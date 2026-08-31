@@ -4,7 +4,6 @@ import {
   LIBELLES_PILIER,
   LIBELLES_SOUS_COMPOSANTE,
   POIDS_PILIER,
-  SOUS_COMPOSANTES_DU_PILIER,
   type Classification,
   type DetailSite,
   type FiltreSites,
@@ -36,9 +35,6 @@ const COLONNES_PILIER: Record<Pilier, string> = {
   P5: 'p_concordance',
   P6: 'p_ajustements',
 };
-
-/** Raison affichée pour une sous-composante d'un pilier pas encore outillé. */
-const RAISON_PILIER_NON_MESURE = 'Pilier pas encore mesuré sur ce site';
 
 const versSite = (r: LigneSite): Site => ({
   siteId: r.site_id,
@@ -194,6 +190,10 @@ export class IndicateursRepository {
       score_inventaires: string | null;
       score_requisitions: string | null;
       score_receptions: string | null;
+      promptitude_inventaires_pct: string | null;
+      promptitude_requisitions_pct: string | null;
+      p2_score_inventaires: string | null;
+      p2_score_requisitions: string | null;
       taux_regularite_pct: string | null;
       taux_sdu_pct: string | null;
       taux_conso_pct: string | null;
@@ -202,6 +202,7 @@ export class IndicateursRepository {
       taux_concordance_pct: string | null;
       ratio_ajustements_pct: string | null;
       seuil_completude: string | null;
+      seuil_promptitude: string | null;
       seuil_regularite: string | null;
       seuil_ecart_sdu: string | null;
       seuil_ecart_conso: string | null;
@@ -213,10 +214,14 @@ export class IndicateursRepository {
               h.p_ecart_sdu, h.p_concordance, h.p_ajustements,
               p1.completude_inventaires_pct, p1.completude_requisitions_pct, p1.completude_receptions_pct,
               p1.score_inventaires, p1.score_requisitions, p1.score_receptions,
+              p2.promptitude_inventaires_pct, p2.promptitude_requisitions_pct,
+              p2.score_inventaires AS p2_score_inventaires,
+              p2.score_requisitions AS p2_score_requisitions,
               p3.taux_regularite_pct,
               p4.taux_sdu_pct, p4.taux_conso_pct, p4.score_sdu, p4.score_conso,
               p5.taux_concordance_pct, p6.ratio_ajustements_pct,
               sc1.seuil AS seuil_completude,
+              sc2.seuil AS seuil_promptitude,
               sc3.seuil AS seuil_regularite,
               sc4s.seuil AS seuil_ecart_sdu, sc4c.seuil AS seuil_ecart_conso,
               sc5.seuil AS seuil_concordance, sc6.seuil AS seuil_ajustements
@@ -224,6 +229,9 @@ export class IndicateursRepository {
        LEFT JOIN dqa.mv_p1_completude p1
               ON p1.site_id = h.site_id AND p1.mois_paqd = h.mois_paqd
              AND p1.programme_id IS NOT DISTINCT FROM h.programme_id
+       LEFT JOIN dqa.mv_p2_promptitude p2
+              ON p2.site_id = h.site_id AND p2.mois_paqd = h.mois_paqd
+             AND p2.programme_id IS NOT DISTINCT FROM h.programme_id
        LEFT JOIN dqa.mv_p3_regularite p3
               ON p3.site_id = h.site_id AND p3.mois_paqd = h.mois_paqd
              AND p3.programme_id IS NOT DISTINCT FROM h.programme_id
@@ -238,6 +246,8 @@ export class IndicateursRepository {
              AND p6.programme_id IS NOT DISTINCT FROM h.programme_id
        LEFT JOIN dqa.grille_seuil_sous_composante sc1
               ON sc1.grille_id = h.grille_id AND sc1.sous_composante = 'completude_inventaires'
+       LEFT JOIN dqa.grille_seuil_sous_composante sc2
+              ON sc2.grille_id = h.grille_id AND sc2.sous_composante = 'promptitude_inventaires'
        LEFT JOIN dqa.grille_seuil_sous_composante sc3
               ON sc3.grille_id = h.grille_id AND sc3.sous_composante = 'regularite_saisie'
        LEFT JOIN dqa.grille_seuil_sous_composante sc4s
@@ -272,7 +282,13 @@ export class IndicateursRepository {
         recPct: h?.completude_receptions_pct ?? null,
         recScore: h?.score_receptions ?? null,
       }),
-      this.pilierNonMesure('P2'),
+      this.pilierP2(scoresPiliers.P2, {
+        seuil: h?.seuil_promptitude ?? null,
+        invPct: h?.promptitude_inventaires_pct ?? null,
+        invScore: h?.p2_score_inventaires ?? null,
+        reqPct: h?.promptitude_requisitions_pct ?? null,
+        reqScore: h?.p2_score_requisitions ?? null,
+      }),
       this.pilierP3(scoresPiliers.P3, h?.taux_regularite_pct ?? null, h?.seuil_regularite ?? null),
       this.pilierP4(scoresPiliers.P4, {
         tauxSdu: h?.taux_sdu_pct ?? null,
@@ -339,6 +355,21 @@ export class IndicateursRepository {
     return this.envelopper('P1', score, [inv, req, rec]);
   }
 
+  private pilierP2(
+    score: string | null,
+    p2: {
+      seuil: string | null;
+      invPct: string | null; invScore: string | null;
+      reqPct: string | null; reqScore: string | null;
+    },
+  ): ScorePilier {
+    const inv = this.mesure('promptitude_inventaires', p2.invScore, p2.invPct, p2.seuil, 'pct',
+      'Aucun inventaire finalisé ce mois');
+    const req = this.mesure('promptitude_requisitions', p2.reqScore, p2.reqPct, p2.seuil, 'pct',
+      'Aucune réquisition couvrant ce mois');
+    return this.envelopper('P2', score, [inv, req]);
+  }
+
   private pilierP3(score: string | null, taux: string | null, seuil: string | null): ScorePilier {
     const m = this.mesure('regularite_saisie', score, taux, seuil, 'pct',
       'Aucune sortie de stock exploitable sur le mois');
@@ -369,20 +400,6 @@ export class IndicateursRepository {
     const m = this.mesure('ratio_ajustements', score, ratio, seuil, 'pct',
       'Aucun mouvement de stock pour le mois');
     return this.envelopper('P6', score, [m]);
-  }
-
-  /** Pilier dont la vue d'indicateur n'existe pas encore : score null, sous-composantes NON_CALCULABLE. */
-  private pilierNonMesure(pilier: Pilier): ScorePilier {
-    const sousComposantes = SOUS_COMPOSANTES_DU_PILIER[pilier].map((sc): MesureSousComposante => ({
-      sousComposante: sc,
-      libelle: LIBELLES_SOUS_COMPOSANTE[sc],
-      valeur: null,
-      unite: 'pct',
-      seuil: null,
-      statut: 'NON_CALCULABLE',
-      raison: RAISON_PILIER_NON_MESURE,
-    }));
-    return this.envelopper(pilier, null, sousComposantes);
   }
 
   private envelopper(

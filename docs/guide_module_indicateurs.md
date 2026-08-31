@@ -28,6 +28,7 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 |---|---|
 | `hist_score_site` | six scores de pilier + `score_composite` + `classification` gelés par (site, mois PAQD, programme) |
 | `mv_p1_completude` | taux de complétude inventaires / réquisitions / réceptions (%), scores et p_completude |
+| `mv_p2_promptitude` | taux de promptitude inventaires / réquisitions (%), scores et p_promptitude |
 | `mv_p3_regularite` | taux de jours ouvrables avec sortie de stock (%) |
 | `mv_p4_ecart` | taux de conformité écart SDU et écart consommation (%), scores et p_ecart_sdu |
 | `mv_p5_concordance` | valeur mesurée de la concordance (%) |
@@ -41,10 +42,10 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 
 ## Modèle de restitution
 
-`DetailSite` porte **toujours les six `ScorePilier`** (P1..P6). P1, P3, P4, P5
-et P6 ont une vue d'indicateur ; P2 sort avec `score = null` et ses
-sous-composantes en `NON_CALCULABLE` (raison « Pilier pas encore mesuré sur ce
-site ») jusqu'à l'arrivée de sa vue (ticket 06).
+`DetailSite` porte **toujours les six `ScorePilier`** (P1..P6). Les six ont
+désormais une vue d'indicateur ; une sous-composante donnée peut rester
+`NON_CALCULABLE` (raison explicite) faute de données du mois, mais aucun pilier
+n'est plus « pas encore outillé ».
 
 **P1 — complétude des transactions** (`mv_p1_completude`) : trois
 sous-composantes, seuil grille 100 %.
@@ -59,6 +60,18 @@ Une ligne P1 n'existe que pour un mois où le site a une activité (inventaire,
 réquisition, réception ou facture) : un mois vide reste un état vide, pas un
 score de zéro. Score de pilier P1 = moyenne simple des sous-composantes
 calculables.
+
+**P2 — promptitude des transactions** (`mv_p2_promptitude`) : deux
+sous-composantes, seuil grille 65 %.
+- `promptitude_inventaires` : inventaires finalisés du mois datés dans les
+  trois derniers jours du mois ÷ inventaires finalisés du mois.
+- `promptitude_requisitions` : réquisitions couvrant le mois soumises au plus
+  tard le jour limite du mois suivant ÷ réquisitions couvrant le mois. Jour
+  limite = `dim_site.jour_limite_requisition`, à défaut 5 (CSU/CSR/ESPC), 7
+  (HG/CHR), 10 (autres).
+
+Chacune NON_CALCULABLE si aucune transaction de la catégorie ce mois. Score de
+pilier P2 = moyenne simple des sous-composantes calculables.
 
 **P3 — régularité de saisie** (`mv_p3_regularite`) : jours ouvrables du mois
 PAQD avec au moins une sortie de stock (`nature ∈ {dispensation, distribution}`
@@ -128,7 +141,7 @@ mesure (`NULL`) en dernier — les sites en difficulté remontent en tête.
 et `DELETE /api/admin/traceurs/:code` (rôle `coordination`). La liste initiale
 vient de la migration 0013 ; la coordination l'ajuste ensuite via l'écran
 `/admin/traceurs`. Désactiver (`actif = false`) retire le produit des calculs
-P5/P6 au prochain rafraîchissement sans perdre l'historique. `produit_code` doit
+P4 et P5 au prochain rafraîchissement sans perdre l'historique. `produit_code` doit
 correspondre au `produit_code` du fichier d'extraction (= `item.code` mSupply).
 
 ## Pièges connus

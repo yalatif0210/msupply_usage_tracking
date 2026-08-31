@@ -26,20 +26,32 @@ que pour les sites aux données incomplètes.
 
 **Blocked by:** 01, 05
 
-**Status:** ready-for-agent
+**Status:** done (branche piliers-p1-p4-score-composite)
 
-- [ ] Une migration numérotée crée la vue matérialisée de P2 : deux
-      sous-composantes, par site et par programme.
-- [ ] Un inventaire est à l'heure dans les trois derniers jours du mois.
-- [ ] La date limite de réquisition (5 / 7 / 10 du mois suivant) est fonction du
-      type de structure du site.
-- [ ] Le score de pilier P2 est câblé dans la vue de score de pilier et la
-      procédure de rafraîchissement ; le composite se calcule sur six piliers.
-- [ ] `GET /api/sites/:id` renvoie P2 avec ses deux sous-composantes ou
-      NON_CALCULABLE avec raison.
-- [ ] La fiche site affiche la carte P2 avec ses deux sous-composantes.
-- [ ] Couture B : un test par sous-composante et par type de structure —
-      inventaire au 27 / 28 du mois, réquisition au 5 / 6 pour un CS et au 7 / 8
-      pour un HG, catégorie vide → NON_CALCULABLE. Couture A : bout en bout, un
-      site avec données complètes affiche les six piliers et un composite sur
-      six.
+- [x] `db/migrations/0019_vue_p2_promptitude.sql` crée `mv_p2_promptitude` :
+      deux sous-composantes, par site et par programme (+ agrégat tous programmes).
+- [x] Un inventaire est à l'heure s'il est daté dans les trois derniers jours du
+      mois (`date_inventaire >= début(M+1) − 3 jours`).
+- [x] Le jour limite de réquisition vient de `dim_site.jour_limite_requisition`,
+      à défaut 5 (CSU/CSR/ESPC), 7 (HG/CHR), 10 (autres) ; comparé à
+      `date_soumission` contre le jour limite du mois M+1.
+- [x] Score de pilier P2 (moyenne des sous-composantes calculables) câblé dans
+      `mv_score_pilier` et `rafraichir_et_geler` — les six piliers sont mesurés.
+- [x] `GET /api/sites/:id` renvoie P2 avec ses deux sous-composantes ou
+      NON_CALCULABLE avec raison ; `pilierNonMesure` supprimé (plus de pilier
+      non outillé).
+- [x] La fiche site affiche la carte P2 (rendu générique, deux sous-composantes).
+- [x] Couture B (nouveau bloc `vue P2 — promptitude`) : inventaire le 28 vs 30,
+      réquisition le 5 vs 6 pour un ESPC, le 7 vs 8 pour un HG, override
+      `jour_limite_requisition`, catégorie absente → NON_CALCULABLE + moyenne.
+      Couture A : `lecture-indicateurs` — six piliers, composite sur six ;
+      `import` — composite renormalisé bout en bout.
+
+## Comments
+
+- Le seuil de « trois derniers jours » est calculé par mois calendaire
+  (`date_trunc('month', date_inventaire) + 1 mois − 3 jours`), donc robuste aux
+  mois de 28/30/31 jours sans dépendre de `import_lot.mois_fin`.
+- `socle` des tests d'indicateurs pose désormais son inventaire au 30/08 (dans
+  la fenêtre de promptitude) pour ne pas faire chuter P2 dans les tests de
+  composite qui ne s'intéressent pas à P2.
