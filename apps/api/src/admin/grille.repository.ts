@@ -14,6 +14,7 @@ import type {
   SeuilSousComposante,
 } from '@dqa/contracts';
 import { PG_POOL } from '../database/database.module.js';
+import { estDoublon, estReferenceViolee } from '../commun/erreurs-pg.js';
 
 interface LigneGrille {
   id: number;
@@ -45,9 +46,10 @@ const SELECT_GRILLE = `
 
 /** Traduit une erreur pg en exception HTTP parlante. */
 const traduire = (err: unknown): Error => {
-  const code = (err as { code?: string }).code;
-  if (code === '23505') return new ConflictException('Une version a déjà cette date d\'effet');
-  if (code === '23503') return new ConflictException('Version référencée par un score gelé : suppression impossible');
+  if (estDoublon(err)) return new ConflictException('Une version a déjà cette date d\'effet');
+  if (estReferenceViolee(err)) {
+    return new ConflictException('Version référencée par un score gelé : suppression impossible');
+  }
   return err instanceof Error ? err : new Error(String(err));
 };
 
@@ -95,31 +97,22 @@ export class GrilleRepository {
 
   async creer(e: EntreeGrille): Promise<GrilleDetail> {
     await this.exigerDateFuture(e.effetAPartirDe);
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
+    const id = await this.enTransaction(async (client) => {
       const { rows } = await client.query<{ id: string }>(
         `INSERT INTO dqa.grille_parametre (version, effet_a_partir_de) VALUES ($1, $2) RETURNING id`,
         [e.version, e.effetAPartirDe],
       );
-      const id = Number(rows[0]!.id);
-      await this.ecrireDetail(client, id, e);
-      await client.query('COMMIT');
-      return this.detail(id);
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw traduire(err);
-    } finally {
-      client.release();
-    }
+      const nouvelId = Number(rows[0]!.id);
+      await this.ecrireDetail(client, nouvelId, e);
+      return nouvelId;
+    });
+    return this.detail(id);
   }
 
   async modifier(id: number, e: EntreeGrille): Promise<GrilleDetail> {
     await this.exigerPlanifiee(id);
     await this.exigerDateFuture(e.effetAPartirDe);
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
+    await this.enTransaction(async (client) => {
       await client.query(
         `UPDATE dqa.grille_parametre SET version = $1, effet_a_partir_de = $2 WHERE id = $3`,
         [e.version, e.effetAPartirDe, id],
@@ -127,8 +120,17 @@ export class GrilleRepository {
       await client.query(`DELETE FROM dqa.grille_poids_pilier WHERE grille_id = $1`, [id]);
       await client.query(`DELETE FROM dqa.grille_seuil_sous_composante WHERE grille_id = $1`, [id]);
       await this.ecrireDetail(client, id, e);
+    });
+    return this.detail(id);
+  }
+
+  private async enTransaction<T>(travail: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const r = await travail(client);
       await client.query('COMMIT');
-      return this.detail(id);
+      return r;
     } catch (err) {
       await client.query('ROLLBACK');
       throw traduire(err);

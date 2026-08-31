@@ -8,6 +8,7 @@ import {
 import type { Pool } from 'pg';
 import type { CompteAdmin, EntreeCompte, MajCompte } from '@dqa/contracts';
 import { PG_POOL } from '../database/database.module.js';
+import { estDoublon } from '../commun/erreurs-pg.js';
 import { hacherMotDePasse } from '../auth/password.js';
 
 interface LigneCompte {
@@ -51,45 +52,45 @@ export class ComptesRepository {
       );
       return vers(rows[0]!);
     } catch (err) {
-      if ((err as { code?: string }).code === '23505') {
-        throw new ConflictException('Cet identifiant est déjà pris');
-      }
+      if (estDoublon(err)) throw new ConflictException('Cet identifiant est déjà pris');
       throw err;
     }
   }
 
   async modifier(id: string, maj: MajCompte, appelantId: string): Promise<CompteAdmin> {
-    const cible = await this.pool.query<{ role: CompteAdmin['role']; actif: boolean }>(
-      `SELECT role, actif FROM dqa.utilisateur WHERE id = $1`,
-      [id],
-    );
-    if (cible.rowCount === 0) throw new NotFoundException('Compte inconnu');
-    const avant = cible.rows[0]!;
-
     if (id === appelantId && (!maj.actif || maj.role !== 'admin')) {
       throw new BadRequestException(
         'Vous ne pouvez pas vous désactiver ni retirer votre propre rôle administrateur',
       );
     }
 
-    const perdSonRoleAdmin =
-      avant.role === 'admin' && avant.actif && (maj.role !== 'admin' || !maj.actif);
-    if (perdSonRoleAdmin) {
-      const { rows } = await this.pool.query<{ n: number }>(
-        `SELECT count(*)::int AS n FROM dqa.utilisateur
-         WHERE role = 'admin' AND actif = true AND id <> $1`,
-        [id],
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      // sérialise les modifications concurrentes qui touchent des admins actifs
+      await client.query(`SELECT 1 FROM dqa.utilisateur WHERE role = 'admin' AND actif = true FOR UPDATE`);
+
+      const cible = await client.query(`SELECT 1 FROM dqa.utilisateur WHERE id = $1`, [id]);
+      if (cible.rowCount === 0) throw new NotFoundException('Compte inconnu');
+
+      const { rows } = await client.query<LigneCompte>(
+        `UPDATE dqa.utilisateur SET nom = $1, role = $2, actif = $3 WHERE id = $4 RETURNING ${COLONNES}`,
+        [maj.nom, maj.role, maj.actif, id],
       );
-      if (rows[0]!.n === 0) {
+      const restants = await client.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM dqa.utilisateur WHERE role = 'admin' AND actif = true`,
+      );
+      if (restants.rows[0]!.n === 0) {
         throw new BadRequestException('Au moins un administrateur actif doit subsister');
       }
+      await client.query('COMMIT');
+      return vers(rows[0]!);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-
-    const { rows } = await this.pool.query<LigneCompte>(
-      `UPDATE dqa.utilisateur SET nom = $1, role = $2, actif = $3 WHERE id = $4 RETURNING ${COLONNES}`,
-      [maj.nom, maj.role, maj.actif, id],
-    );
-    return vers(rows[0]!);
   }
 
   async reinitialiserMotDePasse(id: string, motDePasse: string): Promise<void> {

@@ -1,27 +1,20 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   LIBELLES_PILIER,
   LIBELLES_SOUS_COMPOSANTE,
+  SOUS_COMPOSANTES_AVEC_TOLERANCE,
   type EntreeGrille,
   type GrilleDetail,
   type GrilleParametre,
+  type SousComposante,
 } from '@dqa/contracts';
 import { AdminGrilleService } from '../core/admin-grille.service';
+import { messageErreurHttp } from '../core/message-erreur';
 import { Entete } from '../ui/entete';
 
-const AVEC_TOLERANCE = new Set(['ecart_sdu', 'ecart_consommation']);
-
-const messageErreur = (err: unknown): string => {
-  if (err instanceof HttpErrorResponse) {
-    const corps = err.error as { message?: string; details?: { message: string }[] } | undefined;
-    if (corps?.details?.length) return corps.details.map((d) => d.message).join(' ; ');
-    if (corps?.message) return corps.message;
-  }
-  return 'Opération impossible.';
-};
+const AVEC_TOLERANCE = new Set<SousComposante>(SOUS_COMPOSANTES_AVEC_TOLERANCE);
 
 @Component({
   selector: 'dqa-admin-grille',
@@ -78,7 +71,8 @@ const messageErreur = (err: unknown): string => {
             @for (p of b.poids; track p.pilier) {
               <label class="ligne">
                 <span>{{ p.pilier }} — {{ libellePilier(p.pilier) }}</span>
-                <input type="number" min="0" max="100" step="0.5" [(ngModel)]="p.poidsPct" [name]="'poids-' + p.pilier" />
+                <input type="number" min="0" max="100" step="0.5" [name]="'poids-' + p.pilier"
+                       [(ngModel)]="p.poidsPct" (ngModelChange)="recalculer()" />
               </label>
             }
 
@@ -149,7 +143,7 @@ const messageErreur = (err: unknown): string => {
     th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #d9d9d6; }
     tbody tr { cursor: pointer; }
     tbody tr:hover, tbody tr.actif { background: #f0f2f6; }
-    .badge { padding: 0.1rem 0.4rem; font-size: 0.75rem; }
+    .badge { padding: 0.1rem 0.4rem; font-size: 0.75rem; border-radius: 4px; }
     .badge.en_vigueur { background: #e3f1e4; color: #1b5e20; }
     .badge.planifiee { background: #fff3d6; color: #7a5200; }
     .badge.passee { background: #ececec; color: #4a4a4a; }
@@ -184,6 +178,12 @@ export class AdminGrillePage {
     return b ? Math.round(b.poids.reduce((t, p) => t + Number(p.poidsPct || 0), 0) * 10) / 10 : 0;
   });
 
+  /** Rejoue le signal après une saisie de poids : le total (computed) se recalcule. */
+  protected recalculer(): void {
+    const b = this.brouillon();
+    if (b) this.brouillon.set({ ...b });
+  }
+
   constructor() {
     void this.charger();
   }
@@ -191,7 +191,7 @@ export class AdminGrillePage {
   protected libellePilier = (p: GrilleDetail['poids'][number]['pilier']) => LIBELLES_PILIER[p];
   protected libelleSousComposante = (s: GrilleDetail['seuils'][number]['sousComposante']) =>
     LIBELLES_SOUS_COMPOSANTE[s];
-  protected avecTolerance = (s: string) => AVEC_TOLERANCE.has(s);
+  protected avecTolerance = (s: SousComposante) => AVEC_TOLERANCE.has(s);
   protected libelleStatut = (s: GrilleParametre['statut']) =>
     ({ planifiee: 'Planifiée', en_vigueur: 'En vigueur', passee: 'Passée' })[s];
 
@@ -253,7 +253,7 @@ export class AdminGrillePage {
       await this.charger();
       this.selection.set(enregistree);
     } catch (err) {
-      this.erreur.set(messageErreur(err));
+      this.erreur.set(messageErreurHttp(err));
     } finally {
       this.enCours.set(false);
     }
@@ -266,7 +266,7 @@ export class AdminGrillePage {
       this.selection.set(null);
       await this.charger();
     } catch (err) {
-      this.erreur.set(messageErreur(err));
+      this.erreur.set(messageErreurHttp(err));
     }
   }
 }

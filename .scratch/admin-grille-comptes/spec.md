@@ -149,10 +149,13 @@ comptes. Validation par `ZodValidationPipe` (modèle traceurs).
 
 ### Front
 
-- **Routes** `/admin/grille` (`gardeRole(['coordination','admin'])`) et
+- **Routes** `/admin/grille` (`gardeRole(['coordination'])`) et
   `/admin/comptes` (`gardeRole(['admin'])`), lazy-loaded, sur le modèle de
-  `/admin/traceurs`. Liens dans `ui/entete` : « Grille » (coordination/admin),
-  « Comptes » (admin).
+  `/admin/traceurs`. Liens dans `ui/entete` : « Grille » (coordination),
+  « Comptes » (admin). Les rôles sont **exclusifs** (non hiérarchiques,
+  cf. `AuthGuard`) : la grille est le domaine de la coordination, les comptes
+  celui de l'admin ; un admin qui doit toucher la grille a aussi un compte
+  coordination.
 - **`pages/admin-grille.ts`** : tableau des versions (statut en badge) ; bouton
   « Nouvelle version » ouvre un formulaire pré-rempli depuis la version en
   vigueur (`GET /:id`) — champs : libellé de version, date d'effet, 6 poids

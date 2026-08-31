@@ -1,20 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpErrorResponse } from '@angular/common/http';
-import { ROLES, type CompteAdmin, type Role } from '@dqa/contracts';
+import { ROLES, type CompteAdmin, type EntreeCompte, type MajCompte } from '@dqa/contracts';
 import { AdminComptesService } from '../core/admin-comptes.service';
 import { AuthService } from '../core/auth.service';
+import { messageErreurHttp } from '../core/message-erreur';
 import { Entete } from '../ui/entete';
-
-const messageErreur = (err: unknown): string => {
-  if (err instanceof HttpErrorResponse) {
-    const corps = err.error as { message?: string; details?: { message: string }[] } | undefined;
-    if (corps?.details?.length) return corps.details.map((d) => d.message).join(' ; ');
-    if (corps?.message) return corps.message;
-  }
-  return 'Opération impossible.';
-};
 
 @Component({
   selector: 'dqa-admin-comptes',
@@ -57,13 +48,13 @@ const messageErreur = (err: unknown): string => {
                 <td>{{ c.identifiant }}</td>
                 <td><input [(ngModel)]="c.nom" [name]="'nom-' + c.id" /></td>
                 <td>
-                  <select [(ngModel)]="c.role" [name]="'role-' + c.id" [disabled]="estMoi(c)">
+                  <select [(ngModel)]="c.role" [name]="'role-' + c.id" [disabled]="verrouille(c)">
                     @for (r of roles; track r) { <option [value]="r">{{ r }}</option> }
                   </select>
                 </td>
                 <td>
                   <label class="switch">
-                    <input type="checkbox" [checked]="c.actif" [disabled]="estMoi(c)" (change)="basculer(c)" />
+                    <input type="checkbox" [checked]="c.actif" [disabled]="verrouille(c)" (change)="basculer(c)" />
                     {{ c.actif ? 'oui' : 'non' }}
                   </label>
                 </td>
@@ -118,12 +109,7 @@ export class AdminComptesPage {
   protected readonly mdpPour = signal<string | null>(null);
   protected mdpValeur = '';
 
-  protected nouveau: { identifiant: string; nom: string; role: Role; motDePasse: string } = {
-    identifiant: '',
-    nom: '',
-    role: 'lecteur',
-    motDePasse: '',
-  };
+  protected nouveau: EntreeCompte = { identifiant: '', nom: '', role: 'lecteur', motDePasse: '' };
 
   constructor() {
     void this.charger();
@@ -138,6 +124,13 @@ export class AdminComptesPage {
     return this.auth.utilisateur()?.id === c.id;
   }
 
+  /** Verrouillé côté client : soi-même, ou le dernier administrateur actif. */
+  protected verrouille(c: CompteAdmin): boolean {
+    if (this.estMoi(c)) return true;
+    const adminsActifs = this.comptes().filter((x) => x.role === 'admin' && x.actif);
+    return c.role === 'admin' && c.actif && adminsActifs.length === 1;
+  }
+
   protected async creer(): Promise<void> {
     this.erreur.set(null);
     this.enCours.set(true);
@@ -146,7 +139,7 @@ export class AdminComptesPage {
       this.nouveau = { identifiant: '', nom: '', role: 'lecteur', motDePasse: '' };
       await this.charger();
     } catch (err) {
-      this.erreur.set(messageErreur(err));
+      this.erreur.set(messageErreurHttp(err));
     } finally {
       this.enCours.set(false);
     }
@@ -160,13 +153,13 @@ export class AdminComptesPage {
     await this.appliquer(c, { nom: c.nom, role: c.role, actif: !c.actif });
   }
 
-  private async appliquer(c: CompteAdmin, maj: { nom: string; role: Role; actif: boolean }): Promise<void> {
+  private async appliquer(c: CompteAdmin, maj: MajCompte): Promise<void> {
     this.erreur.set(null);
     try {
       await this.service.modifier(c.id, maj);
       await this.charger();
     } catch (err) {
-      this.erreur.set(messageErreur(err));
+      this.erreur.set(messageErreurHttp(err));
       await this.charger();
     }
   }
@@ -183,7 +176,7 @@ export class AdminComptesPage {
       this.mdpPour.set(null);
       this.mdpValeur = '';
     } catch (err) {
-      this.erreur.set(messageErreur(err));
+      this.erreur.set(messageErreurHttp(err));
     }
   }
 }

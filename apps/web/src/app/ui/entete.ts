@@ -15,6 +15,8 @@ import { AuthService } from '../core/auth.service';
         @if (auth.utilisateur(); as u) {
           @if (u.role === 'coordination' || u.role === 'admin') {
             <a routerLink="/admin/traceurs">Traceurs</a>
+          }
+          @if (u.role === 'coordination') {
             <a routerLink="/admin/grille">Grille</a>
           }
           @if (u.role === 'admin') {

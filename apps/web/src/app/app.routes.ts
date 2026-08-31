@@ -33,7 +33,7 @@ export const routes: Routes = [
   },
   {
     path: 'admin/grille',
-    canActivate: [gardeAuthentifie, gardeRole(['coordination', 'admin'])],
+    canActivate: [gardeAuthentifie, gardeRole(['coordination'])],
     loadComponent: () => import('./pages/admin-grille').then((m) => m.AdminGrillePage),
   },
   {

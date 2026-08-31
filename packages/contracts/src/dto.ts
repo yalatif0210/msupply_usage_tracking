@@ -6,6 +6,7 @@ import {
   moisPaqdSchema,
   pilierSchema,
   pourcentageSchema,
+  SOUS_COMPOSANTES,
   sousComposanteSchema,
   statutSousComposanteSchema,
   type SousComposante,
@@ -377,7 +378,7 @@ export const sensSeuilSchema = z.enum(SENS_SEUIL);
 export type SensSeuil = z.infer<typeof sensSeuilSchema>;
 
 /** Sous-composantes évaluées par taux de conformité : elles portent une tolérance par produit. */
-const SOUS_COMPOSANTES_AVEC_TOLERANCE: readonly SousComposante[] = ['ecart_sdu', 'ecart_consommation'];
+export const SOUS_COMPOSANTES_AVEC_TOLERANCE: readonly SousComposante[] = ['ecart_sdu', 'ecart_consommation'];
 
 export const STATUTS_GRILLE = ['planifiee', 'en_vigueur', 'passee'] as const;
 export const statutGrilleSchema = z.enum(STATUTS_GRILLE);
@@ -425,14 +426,23 @@ const tolerancesCoherentes = (seuils: SeuilSousComposante[]): boolean =>
       : s.tolerance === null,
   );
 
+const couvreToutesLesSousComposantes = (seuils: SeuilSousComposante[]): boolean => {
+  const vues = new Set(seuils.map((s) => s.sousComposante));
+  return vues.size === seuils.length && SOUS_COMPOSANTES.every((sc) => vues.has(sc));
+};
+
 export const entreeGrilleSchema = z
   .object({
     version: z.string().min(1).max(40),
     effetAPartirDe: dateIsoSchema,
     poids: z.array(poidsPilierSchema).length(6),
-    seuils: z.array(seuilSousComposanteSchema).min(1),
+    seuils: z.array(seuilSousComposanteSchema),
   })
   .refine((g) => sommeCent(g.poids), { message: 'La somme des poids doit faire 100', path: ['poids'] })
+  .refine((g) => couvreToutesLesSousComposantes(g.seuils), {
+    message: 'Un seuil par sous-composante est requis, sans doublon',
+    path: ['seuils'],
+  })
   .refine((g) => tolerancesCoherentes(g.seuils), {
     message: 'Tolérance requise pour écart SDU / consommation, interdite ailleurs',
     path: ['seuils'],

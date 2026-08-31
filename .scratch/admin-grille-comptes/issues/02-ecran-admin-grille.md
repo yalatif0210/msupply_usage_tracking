@@ -8,9 +8,10 @@ sobre (DESIGN_SYSTEM).
 
 **Status:** done (branche `admin-grille-comptes`)
 
-- [x] Route `/admin/grille` (`gardeRole(['coordination', 'admin'])`),
-      lazy-loaded, sur le modèle de `/admin/traceurs`. Lien « Grille » dans
-      `ui/entete`, visible pour `coordination` et `admin`.
+- [x] Route `/admin/grille` (`gardeRole(['coordination'])`), lazy-loaded, sur le
+      modèle de `/admin/traceurs`. Lien « Grille » dans `ui/entete`, visible
+      pour `coordination` (rôles exclusifs : cohérent avec `@Roles(['coordination'])`
+      côté API).
 - [x] `core/admin-grille.service.ts` : `lister()`, `detail(id)`, `creer(entree)`,
       `modifier(id, entree)`, `supprimer(id)` ; `validerReponse` sur les
       lectures.
