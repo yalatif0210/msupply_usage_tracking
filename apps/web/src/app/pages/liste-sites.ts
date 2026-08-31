@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import type { Programme, ScoreSite } from '@dqa/contracts';
 import { SitesService } from '../core/sites.service';
 import { BadgeClassification } from '../ui/badge-classification';
@@ -98,8 +98,9 @@ import { Entete } from '../ui/entete';
 })
 export class ListeSitesPage {
   private readonly service = inject(SitesService);
+  private readonly route = inject(ActivatedRoute);
 
-  protected district = '';
+  protected district = this.route.snapshot.queryParamMap.get('district') ?? '';
   protected programmeId = '';
   protected readonly sites = signal<ScoreSite[]>([]);
   protected readonly districts = signal<string[]>([]);

@@ -12,6 +12,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/liste-sites').then((m) => m.ListeSitesPage),
   },
   {
+    path: 'synthese',
+    canActivate: [gardeAuthentifie],
+    loadComponent: () => import('./pages/synthese').then((m) => m.SynthesePage),
+  },
+  {
     path: 'sites/:id',
     canActivate: [gardeAuthentifie],
     loadComponent: () => import('./pages/detail-site').then((m) => m.DetailSitePage),

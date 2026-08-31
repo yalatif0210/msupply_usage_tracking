@@ -10,6 +10,7 @@ import { AuthService } from '../core/auth.service';
     <header>
       <a routerLink="/" class="titre">Tableau de bord DQA</a>
       <nav>
+        <a routerLink="/synthese">Synthèse nationale</a>
         <a routerLink="/imports">Journal des imports</a>
         @if (auth.utilisateur(); as u) {
           @if (u.role === 'coordination' || u.role === 'admin') {

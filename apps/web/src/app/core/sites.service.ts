@@ -57,4 +57,9 @@ export class SitesService {
     const data = await firstValueFrom(this.http.get<unknown>('/api/referentiel/districts'));
     return validerReponse(districtListe, data);
   }
+
+  async regions(): Promise<string[]> {
+    const data = await firstValueFrom(this.http.get<unknown>('/api/referentiel/regions'));
+    return validerReponse(districtListe, data);
+  }
 }

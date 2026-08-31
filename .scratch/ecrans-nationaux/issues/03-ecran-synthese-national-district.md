@@ -21,21 +21,21 @@ site n'a de score pour le mois.
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done (branche `ecrans-nationaux`)
 
-- [ ] Route `/synthese` (`gardeAuthentifie`), lazy-loaded ; la liste des sites
+- [x] Route `/synthese` (`gardeAuthentifie`), lazy-loaded ; la liste des sites
       reste `/`. Lien « Synthèse nationale » ajouté à `ui/entete`.
-- [ ] `core/synthese.service.ts` : `synthese(opts)` valide la réponse avec
+- [x] `core/synthese.service.ts` : `synthese(opts)` valide la réponse avec
       `syntheseNationaleSchema` (`validerReponse`). `regions()` ajouté
       (à `SitesService` ou un `ReferentielService`).
-- [ ] `pages/synthese.ts` : bloc national (score moyen, « N sites sur M »,
+- [x] `pages/synthese.ts` : bloc national (score moyen, « N sites sur M »,
       barre de répartition), six moyennes de pilier, sélecteurs mois + région.
-- [ ] `ui/repartition-classification.ts` : barre à quatre segments réutilisable
+- [x] `ui/repartition-classification.ts` : barre à quatre segments réutilisable
       (version pleine pour le bloc national, version compacte pour les lignes
       de tableau).
-- [ ] Tableau par district trié comme l'API le renvoie ; ligne cliquable →
+- [x] Tableau par district trié comme l'API le renvoie ; ligne cliquable →
       `/` avec le district présélectionné (query param lu par `ListeSitesPage`).
-- [ ] État vide : `moisPaqd === null` ou `national.nbMesures === 0` → phrase
+- [x] État vide : `moisPaqd === null` ou `national.nbMesures === 0` → phrase
       explicite, pas de zéros muets.
-- [ ] Le `typecheck` et `ng build` passent ; la réponse API est validée par Zod
+- [x] Le `typecheck` et `ng build` passent ; la réponse API est validée par Zod
       (une réponse non conforme lève, cf. couture D du ticket 02).
