@@ -8,6 +8,7 @@ import {
   pourcentageSchema,
   sousComposanteSchema,
   statutSousComposanteSchema,
+  type SousComposante,
 } from './paqd.js';
 
 /** Score d'un pilier réduit à l'essentiel : le code du pilier et sa note (ou `null`). */
@@ -367,6 +368,108 @@ export const utilisateurSchema = z.object({
   role: roleSchema,
 });
 export type Utilisateur = z.infer<typeof utilisateurSchema>;
+
+// ─── Administration : grille de paramètres (ADR 0003) ───────────────────────
+
+/** `sup` : conforme si valeur ≥ seuil. `inf` : conforme si valeur ≤ seuil. */
+export const SENS_SEUIL = ['sup', 'inf'] as const;
+export const sensSeuilSchema = z.enum(SENS_SEUIL);
+export type SensSeuil = z.infer<typeof sensSeuilSchema>;
+
+/** Sous-composantes évaluées par taux de conformité : elles portent une tolérance par produit. */
+const SOUS_COMPOSANTES_AVEC_TOLERANCE: readonly SousComposante[] = ['ecart_sdu', 'ecart_consommation'];
+
+export const STATUTS_GRILLE = ['planifiee', 'en_vigueur', 'passee'] as const;
+export const statutGrilleSchema = z.enum(STATUTS_GRILLE);
+export type StatutGrille = z.infer<typeof statutGrilleSchema>;
+
+export const grilleParametreSchema = z.object({
+  id: z.number().int().positive(),
+  version: z.string(),
+  effetAPartirDe: dateIsoSchema,
+  creeLe: z.string().datetime(),
+  statut: statutGrilleSchema,
+  /** Vrai uniquement pour une version `planifiee` : les autres sont figées (ADR 0003). */
+  modifiable: z.boolean(),
+});
+export type GrilleParametre = z.infer<typeof grilleParametreSchema>;
+
+export const poidsPilierSchema = z.object({
+  pilier: pilierSchema,
+  poidsPct: pourcentageSchema,
+});
+export type PoidsPilier = z.infer<typeof poidsPilierSchema>;
+
+export const seuilSousComposanteSchema = z.object({
+  sousComposante: sousComposanteSchema,
+  seuil: z.number(),
+  sens: sensSeuilSchema,
+  /** Non nul seulement pour `ecart_sdu` / `ecart_consommation`. */
+  tolerance: z.number().nullable(),
+});
+export type SeuilSousComposante = z.infer<typeof seuilSousComposanteSchema>;
+
+export const grilleDetailSchema = grilleParametreSchema.extend({
+  poids: z.array(poidsPilierSchema).length(6),
+  seuils: z.array(seuilSousComposanteSchema),
+});
+export type GrilleDetail = z.infer<typeof grilleDetailSchema>;
+
+const sommeCent = (poids: { poidsPct: number }[]): boolean =>
+  Math.round(poids.reduce((t, p) => t + p.poidsPct, 0) * 100) === 100_00;
+
+const tolerancesCoherentes = (seuils: SeuilSousComposante[]): boolean =>
+  seuils.every((s) =>
+    SOUS_COMPOSANTES_AVEC_TOLERANCE.includes(s.sousComposante)
+      ? s.tolerance !== null
+      : s.tolerance === null,
+  );
+
+export const entreeGrilleSchema = z
+  .object({
+    version: z.string().min(1).max(40),
+    effetAPartirDe: dateIsoSchema,
+    poids: z.array(poidsPilierSchema).length(6),
+    seuils: z.array(seuilSousComposanteSchema).min(1),
+  })
+  .refine((g) => sommeCent(g.poids), { message: 'La somme des poids doit faire 100', path: ['poids'] })
+  .refine((g) => tolerancesCoherentes(g.seuils), {
+    message: 'Tolérance requise pour écart SDU / consommation, interdite ailleurs',
+    path: ['seuils'],
+  });
+export type EntreeGrille = z.infer<typeof entreeGrilleSchema>;
+
+// ─── Administration : comptes ──────────────────────────────────────────────
+
+export const compteAdminSchema = z.object({
+  id: z.string(),
+  identifiant: z.string(),
+  nom: z.string(),
+  role: roleSchema,
+  actif: z.boolean(),
+  creeLe: z.string().datetime(),
+});
+export type CompteAdmin = z.infer<typeof compteAdminSchema>;
+
+export const entreeCompteSchema = z.object({
+  identifiant: z.string().min(1).max(60),
+  nom: z.string().min(1).max(120),
+  role: roleSchema,
+  motDePasse: z.string().min(8).max(200),
+});
+export type EntreeCompte = z.infer<typeof entreeCompteSchema>;
+
+export const majCompteSchema = z.object({
+  nom: z.string().min(1).max(120),
+  role: roleSchema,
+  actif: z.boolean(),
+});
+export type MajCompte = z.infer<typeof majCompteSchema>;
+
+export const motDePasseCompteSchema = z.object({
+  motDePasse: z.string().min(8).max(200),
+});
+export type MotDePasseCompte = z.infer<typeof motDePasseCompteSchema>;
 
 // ─── Dates (référence) ──────────────────────────────────────────────────────
 

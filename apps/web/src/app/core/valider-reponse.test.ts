@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   detailP4ProduitsSchema,
   detailSiteSchema,
+  grilleDetailSchema,
   historiqueSiteSchema,
   scoreSiteSchema,
+  SOUS_COMPOSANTES,
   SOUS_COMPOSANTES_DU_PILIER,
   syntheseNationaleSchema,
   type Pilier,
@@ -228,5 +230,31 @@ describe('validerReponse (couture D)', () => {
     expect(() =>
       validerReponse(detailP4ProduitsSchema, detailP4({ sdu: { theorique: 1, comptee: 1, ecartPct: 0 } })),
     ).toThrow(/non conforme/i);
+  });
+
+  const grille = (over: Record<string, unknown> = {}) => ({
+    id: 1,
+    version: 'v1',
+    effetAPartirDe: '2026-01-01',
+    creeLe: '2026-01-01T00:00:00.000Z',
+    statut: 'en_vigueur',
+    modifiable: false,
+    poids: (['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as Pilier[]).map((pilier) => ({ pilier, poidsPct: 100 / 6 })),
+    seuils: SOUS_COMPOSANTES.map((sc) => ({ sousComposante: sc, seuil: 90, sens: 'sup', tolerance: null })),
+    ...over,
+  });
+
+  it('accepte une GrilleDetail complète', () => {
+    const d = validerReponse(grilleDetailSchema, grille());
+    expect(d.poids).toHaveLength(6);
+  });
+
+  it('rejette un statut de grille inconnu', () => {
+    expect(() => validerReponse(grilleDetailSchema, grille({ statut: 'brouillon' }))).toThrow(/non conforme/i);
+  });
+
+  it('rejette un poids de pilier hors de [0, 100]', () => {
+    const poids = grille().poids.map((p, i) => (i === 0 ? { ...p, poidsPct: 140 } : p));
+    expect(() => validerReponse(grilleDetailSchema, grille({ poids }))).toThrow(/non conforme/i);
   });
 });
