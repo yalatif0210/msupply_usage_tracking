@@ -139,7 +139,10 @@ blocSynthese = {
 }
 
 ligneDistrictSynthese  = blocSynthese & { district: string }
-ligneProgrammeSynthese = blocSynthese & { programmeId: string, programmeNom: string, nbSitesGerant: number }
+ligneProgrammeSynthese = blocSynthese & { programmeId: string, programmeNom: string }
+  // pour une ligne programme, blocSynthese.nbSites = sites qui gèrent le
+  // programme (dénominateur) ; blocSynthese.nbMesures = ceux avec un score.
+  // Pas de champ nbSitesGerant séparé (arbitrage ticket 02).
 
 syntheseNationale = {
   moisPaqd: MoisPaqd | null,
@@ -162,9 +165,8 @@ syntheseNationale = {
 
 - **`GET /api/synthese`** (tout authentifié) — query `mois?`, `programmeId?`,
   `region?` validés par un `syntheseQuerySchema`. Le repository lit
-  `mv_synthese_nationale` (+ `dim_programme` pour les libellés, + un compte
-  `dim_site_programme` pour `nbSitesGerant`). Aucun calcul en TypeScript
-  au-delà du façonnage DTO (CLAUDE.md §3, ARCHITECTURE §2).
+  `mv_synthese_nationale` (+ `dim_programme` pour les libellés). Aucun calcul
+  en TypeScript au-delà du façonnage DTO (CLAUDE.md §3, ARCHITECTURE §2).
   - `mois` : le plus récent de `moisDisponibles` par défaut ; `moisDisponibles`
     = mois distincts de `mv_synthese_nationale`.
   - `national` : ligne `(mois, programmeId|NULL, region|NULL, district=NULL)`.

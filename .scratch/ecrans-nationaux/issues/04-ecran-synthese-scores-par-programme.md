@@ -22,8 +22,10 @@ programme.
 - [x] `pages/synthese.ts` gagne la section « Scores par programme » (tableau
       trié score croissant, `NULL` en dernier), toujours visible, sous le bloc
       national et les moyennes de pilier.
-- [x] Chaque ligne montre `nbSitesGerant`, `nbMesures`, `scoreCompositeMoyen`
-      (`—` si `null`) et la répartition compacte (`ui/repartition-classification`).
+- [x] Chaque ligne montre `nbSites` (= sites gérant le programme), `nbMesures`,
+      `scoreCompositeMoyen` (`—` si `null`) et la répartition compacte
+      (`ui/repartition-classification`). Pas de champ `nbSitesGerant` séparé
+      (arbitrage ticket 02).
 - [x] Sélecteur de programme : recharge avec `programmeId` ; met à jour le bloc
       national, les moyennes de pilier et le tableau par district ; la section
       « par programme » reste inchangée.

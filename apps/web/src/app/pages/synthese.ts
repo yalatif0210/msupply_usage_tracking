@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { LIBELLES_PILIER, type Programme, type SyntheseNationale } from '@dqa/contracts';
+import { LIBELLES_PILIER, type Pilier, type Programme, type SyntheseNationale } from '@dqa/contracts';
 import { SitesService } from '../core/sites.service';
 import { SyntheseService } from '../core/synthese.service';
 import { Entete } from '../ui/entete';
@@ -57,10 +57,15 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
           </p>
         }
 
-        @if (s.moisPaqd === null || s.national.nbMesures === 0) {
+        @if (s.moisPaqd === null) {
           <p class="vide">
-            Aucun site n'a encore de score composite pour ce mois. La synthèse
-            s'alimentera au premier import traité.
+            Aucun mois n'a encore de score. La synthèse s'alimentera au premier
+            import traité.
+          </p>
+        } @else if (s.national.nbMesures === 0) {
+          <p class="vide">
+            Aucun site n'a de score composite pour ce mois
+            {{ s.programmeId || s.region ? 'avec ce filtre' : '' }}.
           </p>
         } @else {
           <section class="national">
@@ -187,9 +192,9 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid #d9d9d6; }
     th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
-    tbody tr { cursor: pointer; }
-    tbody tr:hover { background: #f0f2f6; }
-    .repcell { width: 12rem; }
+    .districts tbody tr { cursor: pointer; }
+    .districts tbody tr:hover { background: #f0f2f6; }
+    .repcell { width: 16rem; }
     .vide { color: #5b5b5b; }
   `,
 })
@@ -233,7 +238,7 @@ export class SynthesePage {
     this.chargement.set(false);
   }
 
-  protected libelle(pilier: SyntheseNationale['national']['moyennesPiliers'][number]['pilier']): string {
+  protected libelle(pilier: Pilier): string {
     return LIBELLES_PILIER[pilier];
   }
 

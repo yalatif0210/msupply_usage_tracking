@@ -14,7 +14,8 @@ import { validerReponse } from './valider-reponse';
 
 const scoreSiteListe = z.array(scoreSiteSchema);
 const programmeListe = z.array(programmeSchema);
-const districtListe = z.array(z.string());
+/** Référentiels servis en simple liste de chaînes (districts, régions). */
+const listeChaines = z.array(z.string());
 
 export interface FiltresSites {
   district?: string;
@@ -55,11 +56,11 @@ export class SitesService {
 
   async districts(): Promise<string[]> {
     const data = await firstValueFrom(this.http.get<unknown>('/api/referentiel/districts'));
-    return validerReponse(districtListe, data);
+    return validerReponse(listeChaines, data);
   }
 
   async regions(): Promise<string[]> {
     const data = await firstValueFrom(this.http.get<unknown>('/api/referentiel/regions'));
-    return validerReponse(districtListe, data);
+    return validerReponse(listeChaines, data);
   }
 }
