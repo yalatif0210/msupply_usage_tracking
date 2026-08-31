@@ -12,34 +12,34 @@ absent des points — jamais un point à zéro.
 
 **Blocked by:** None (branche `master`, tranche synthèse fusionnée)
 
-**Status:** ready-for-agent
+**Status:** done (branche `courbes-progression`)
 
-- [ ] Une migration numérotée crée `CREATE VIEW v_mois_cycle` (non
+- [x] Une migration numérotée crée `CREATE VIEW v_mois_cycle` (non
       matérialisée) : `mois_paqd`, `cycle_paqd`, `rang` (`dense_rank()` sur les
       `mois_paqd` distincts du cycle, `::int`). Aucune table, aucune vue
       matérialisée, pas de changement de `rafraichir_et_geler`.
-- [ ] `@dqa/contracts` : `pointProgressionSchema` (`moisPaqd`, `rang` int 1..4,
+- [x] `@dqa/contracts` : `pointProgressionSchema` (`moisPaqd`, `rang` int 1..4,
       `scoreComposite` nullable, `classification` nullable, `piliersCouverts`
       int 0..6, `scoresPiliers` 6 entrées P1..P6), `historiqueSiteSchema`
       (`site`, `programmeId` nullable, `cyclePaqd` nullable, `cyclesDisponibles`,
       `points`), `historiqueQuerySchema` (`cycle?`, `programmeId?`) ; types par
       `z.infer`. `DetailSite` / `ScoreSite` / `SyntheseNationale` inchangés.
-- [ ] `GET /api/sites/:id/historique` (tout authentifié) : 404 si le site est
+- [x] `GET /api/sites/:id/historique` (tout authentifié) : 404 si le site est
       hors périmètre ou inconnu. `cyclesDisponibles` = cycles du site (via la
       jointure), plus récent d'abord ; `cyclePaqd` = `cycle` de la requête s'il
       est dans la liste, sinon le plus récent, sinon `null`. `points` triés par
       rang, un par mois PAQD mesuré du cycle ; `scoresPiliers` depuis les `p_*`
       gelés ; `piliersCouverts` = compte SQL des `p_*` non nuls (même expression
       que `detailSite`). Filtre `programmeId` via `IS NOT DISTINCT FROM`.
-- [ ] Couture B (`test/historique.test.ts`) : `v_mois_cycle` mappe mai→1 …
+- [x] Couture B (`test/historique.test.ts`) : `v_mois_cycle` mappe mai→1 …
       août→4 pour `2026-C2`, `2026-C1` a ses propres rangs ; lecture : points
       ordonnés par rang, mois sans ligne absent, `scoresPiliers` /
       `piliersCouverts` corrects, `cyclesDisponibles` triés, filtre programme
       isolant.
-- [ ] Couture A (extension `test/lecture-indicateurs.test.ts`) :
+- [x] Couture A (extension `test/lecture-indicateurs.test.ts`) :
       `GET /api/sites/SITE-1/historique` conforme à `historiqueSiteSchema` ;
       404 hors périmètre ; `?cycle=` inconnu → cycle le plus récent ;
       `?programmeId=` restreint.
-- [ ] Couture D (extension `valider-reponse.test.ts`) : `HistoriqueSite`
+- [x] Couture D (extension `valider-reponse.test.ts`) : `HistoriqueSite`
       complet passe ; `rang` hors [1, 4], `scoreComposite` hors [0, 100],
       `scoresPiliers` ≠ 6 → lève.

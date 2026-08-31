@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   detailSiteSchema,
+  historiqueSiteSchema,
   scoreSiteSchema,
   SOUS_COMPOSANTES_DU_PILIER,
   syntheseNationaleSchema,
@@ -129,5 +130,42 @@ describe('validerReponse (couture D)', () => {
     const bancale = synthese();
     bancale.national.repartition = { CONFORME: 1, PARTIELLEMENT_CONFORME: 2, NON_CONFORME: 1 } as never;
     expect(() => validerReponse(syntheseNationaleSchema, bancale)).toThrow(/non conforme/i);
+  });
+
+  const point = (over: Record<string, unknown> = {}) => ({
+    moisPaqd: '2026-08',
+    rang: 4,
+    scoreComposite: 82,
+    classification: 'PARTIELLEMENT_CONFORME',
+    piliersCouverts: 6,
+    scoresPiliers: (['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as Pilier[]).map((pilier) => ({ pilier, score: 100 })),
+    ...over,
+  });
+  const historique = (pointOver: Record<string, unknown> = {}) => ({
+    site,
+    programmeId: null,
+    cyclePaqd: '2026-C2',
+    cyclesDisponibles: ['2026-C2'],
+    points: [point({ rang: 1, scoreComposite: 60 }), point(pointOver)],
+  });
+
+  it('accepte un HistoriqueSite complet', () => {
+    const h = validerReponse(historiqueSiteSchema, historique());
+    expect(h.points).toHaveLength(2);
+    expect(h.points[1]?.scoresPiliers).toHaveLength(6);
+  });
+
+  it('rejette un rang hors de [1, 4]', () => {
+    expect(() => validerReponse(historiqueSiteSchema, historique({ rang: 5 }))).toThrow(/non conforme/i);
+  });
+
+  it('rejette un score composite de point hors de [0, 100]', () => {
+    expect(() => validerReponse(historiqueSiteSchema, historique({ scoreComposite: 120 }))).toThrow(/non conforme/i);
+  });
+
+  it('rejette un point à moins de six scores de pilier', () => {
+    expect(() =>
+      validerReponse(historiqueSiteSchema, historique({ scoresPiliers: [{ pilier: 'P1', score: 100 }] })),
+    ).toThrow(/non conforme/i);
   });
 });

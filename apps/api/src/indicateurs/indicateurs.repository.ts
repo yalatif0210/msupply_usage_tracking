@@ -8,6 +8,8 @@ import {
   type Classification,
   type DetailSite,
   type FiltreSites,
+  type HistoriqueQuery,
+  type HistoriqueSite,
   type MesureSousComposante,
   type Pilier,
   type Programme,
@@ -62,6 +64,25 @@ const versSite = (r: LigneSite): Site => ({
 });
 
 const nombreOuNull = (v: string | null): number | null => (v === null ? null : Number(v));
+
+/** Les six colonnes de score de pilier gelées, telles que rendues par `pg`. */
+interface PiliersBruts {
+  p_completude: string | null;
+  p_promptitude: string | null;
+  p_regularite: string | null;
+  p_ecart_sdu: string | null;
+  p_concordance: string | null;
+  p_ajustements: string | null;
+}
+
+const scoresPiliers = (r: PiliersBruts): { pilier: Pilier; score: number | null }[] => [
+  { pilier: 'P1', score: nombreOuNull(r.p_completude) },
+  { pilier: 'P2', score: nombreOuNull(r.p_promptitude) },
+  { pilier: 'P3', score: nombreOuNull(r.p_regularite) },
+  { pilier: 'P4', score: nombreOuNull(r.p_ecart_sdu) },
+  { pilier: 'P5', score: nombreOuNull(r.p_concordance) },
+  { pilier: 'P6', score: nombreOuNull(r.p_ajustements) },
+];
 
 // ─── Synthèse nationale ────────────────────────────────────────────────────
 
@@ -274,14 +295,7 @@ export class IndicateursRepository {
       piliersCouverts: r.piliers_couverts ?? 0,
       scoreComposite: nombreOuNull(r.score_composite),
       classification: r.classification,
-      scoresPiliers: [
-        { pilier: 'P1', score: nombreOuNull(r.p_completude) },
-        { pilier: 'P2', score: nombreOuNull(r.p_promptitude) },
-        { pilier: 'P3', score: nombreOuNull(r.p_regularite) },
-        { pilier: 'P4', score: nombreOuNull(r.p_ecart_sdu) },
-        { pilier: 'P5', score: nombreOuNull(r.p_concordance) },
-        { pilier: 'P6', score: nombreOuNull(r.p_ajustements) },
-      ],
+      scoresPiliers: scoresPiliers(r),
     }));
   }
 
@@ -447,6 +461,76 @@ export class IndicateursRepository {
       scoreComposite: nombreOuNull(h?.score_composite ?? null),
       classification: h?.classification ?? null,
       piliers,
+    };
+  }
+
+  async historiqueSite(siteId: string, q: HistoriqueQuery): Promise<HistoriqueSite | null> {
+    const site = await this.pool.query<LigneSite>(
+      `SELECT site_id, site_code, site_nom, district, region, type_structure
+       FROM dqa.dim_site WHERE site_id = $1 AND dans_perimetre_dqa`,
+      [siteId],
+    );
+    if (site.rowCount === 0) return null;
+    const siteRow = site.rows[0]!;
+    const prog = q.programmeId ?? null;
+
+    const cycles = await this.pool.query<{ cycle_paqd: string }>(
+      `SELECT DISTINCT vmc.cycle_paqd
+       FROM dqa.hist_score_site h
+       JOIN dqa.v_mois_cycle vmc ON vmc.mois_paqd = h.mois_paqd
+       WHERE h.site_id = $1 AND h.programme_id IS NOT DISTINCT FROM $2
+       ORDER BY vmc.cycle_paqd DESC`,
+      [siteId, prog],
+    );
+    const cyclesDisponibles = cycles.rows.map((r) => r.cycle_paqd);
+    const cycle =
+      q.cycle && cyclesDisponibles.includes(q.cycle) ? q.cycle : cyclesDisponibles[0];
+
+    if (!cycle) {
+      return {
+        site: versSite(siteRow),
+        programmeId: prog,
+        cyclePaqd: null,
+        cyclesDisponibles: [],
+        points: [],
+      };
+    }
+
+    const { rows } = await this.pool.query<
+      PiliersBruts & {
+        mois_paqd: string;
+        rang: number;
+        score_composite: string | null;
+        classification: Classification | null;
+        piliers_couverts: number;
+      }
+    >(
+      `SELECT h.mois_paqd, vmc.rang,
+              h.score_composite, h.classification,
+              ${COMPTE_PILIERS_SQL} AS piliers_couverts,
+              h.p_completude, h.p_promptitude, h.p_regularite,
+              h.p_ecart_sdu, h.p_concordance, h.p_ajustements
+       FROM dqa.hist_score_site h
+       JOIN dqa.v_mois_cycle vmc ON vmc.mois_paqd = h.mois_paqd
+       WHERE h.site_id = $1 AND h.programme_id IS NOT DISTINCT FROM $2
+         AND vmc.cycle_paqd = $3
+       ORDER BY vmc.rang`,
+      [siteId, prog, cycle],
+    );
+
+    return {
+      site: versSite(siteRow),
+      programmeId: prog,
+      cyclePaqd: cycle,
+      cyclesDisponibles,
+      points: rows.map((r) => ({
+        moisPaqd: r.mois_paqd,
+        rang: r.rang,
+        scoreComposite: nombreOuNull(r.score_composite),
+        classification: r.classification,
+        piliersCouverts: r.piliers_couverts,
+        scoresPiliers: scoresPiliers(r),
+      })),
     };
   }
 

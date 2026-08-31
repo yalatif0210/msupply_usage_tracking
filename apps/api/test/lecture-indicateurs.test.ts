@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { detailSiteSchema, syntheseNationaleSchema } from '@dqa/contracts';
+import { detailSiteSchema, historiqueSiteSchema, syntheseNationaleSchema } from '@dqa/contracts';
 import { AppModule } from '../src/app.module.js';
 import { closePool } from '../src/db/pool.js';
 import { construireClasseur, optionsValides } from './helpers/classeur.js';
@@ -180,5 +180,33 @@ describe('API de lecture — sites et détail P5/P6', () => {
     const s = syntheseNationaleSchema.parse(dehors.body);
     expect(s.parDistrict).toHaveLength(0);
     expect(s.parProgramme).toHaveLength(0);
+  });
+
+  it('GET /api/sites/:id/historique rend une progression conforme au contrat', async () => {
+    const a = await lecteur();
+    const res = await a.get('/api/sites/SITE-1/historique');
+    expect(res.status).toBe(200);
+    const h = historiqueSiteSchema.parse(res.body);
+    expect(h.cyclePaqd).toBe('2026-C2');
+    expect(h.cyclesDisponibles).toEqual(['2026-C2']);
+    // un seul mois importé (2026-08 = M+4 du cycle C2)
+    expect(h.points).toHaveLength(1);
+    expect(h.points[0]?.rang).toBe(4);
+    expect(h.points[0]?.scoresPiliers).toHaveLength(6);
+  });
+
+  it('GET /api/sites/:id/historique : 404 hors périmètre, cycle inconnu → plus récent', async () => {
+    const a = await lecteur();
+    expect((await a.get('/api/sites/INCONNU/historique')).status).toBe(404);
+    const res = await a.get('/api/sites/SITE-1/historique').query({ cycle: 'BIDON' });
+    expect(historiqueSiteSchema.parse(res.body).cyclePaqd).toBe('2026-C2');
+  });
+
+  it('GET /api/sites/:id/historique?programmeId= restreint la courbe au programme', async () => {
+    const a = await lecteur();
+    const res = await a.get('/api/sites/SITE-1/historique').query({ programmeId: 'PROG-1' });
+    const h = historiqueSiteSchema.parse(res.body);
+    expect(h.programmeId).toBe('PROG-1');
+    expect(h.points.length).toBeGreaterThan(0);
   });
 });

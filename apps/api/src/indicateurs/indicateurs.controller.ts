@@ -1,6 +1,17 @@
 import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
-import type { DetailSite, Programme, ScoreSite, SyntheseNationale } from '@dqa/contracts';
-import { filtreSitesSchema, moisPaqdSchema, syntheseQuerySchema } from '@dqa/contracts';
+import type {
+  DetailSite,
+  HistoriqueSite,
+  Programme,
+  ScoreSite,
+  SyntheseNationale,
+} from '@dqa/contracts';
+import {
+  filtreSitesSchema,
+  historiqueQuerySchema,
+  moisPaqdSchema,
+  syntheseQuerySchema,
+} from '@dqa/contracts';
 import { IndicateursRepository } from './indicateurs.repository.js';
 
 @Controller()
@@ -23,6 +34,17 @@ export class IndicateursController {
     const detail = await this.repo.detailSite(id, moisValide, programmeId || undefined);
     if (!detail) throw new NotFoundException('Site hors périmètre ou inconnu');
     return detail;
+  }
+
+  @Get('sites/:id/historique')
+  async historiqueSite(
+    @Param('id') id: string,
+    @Query() query: Record<string, string>,
+  ): Promise<HistoriqueSite> {
+    const q = historiqueQuerySchema.parse(query);
+    const h = await this.repo.historiqueSite(id, q);
+    if (!h) throw new NotFoundException('Site hors périmètre ou inconnu');
+    return h;
   }
 
   @Get('synthese')

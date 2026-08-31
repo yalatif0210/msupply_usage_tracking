@@ -198,6 +198,40 @@ export const syntheseQuerySchema = z.object({
 });
 export type SyntheseQuery = z.infer<typeof syntheseQuerySchema>;
 
+// ─── Progression d'un site sur un cycle PAQD ────────────────────────────────
+
+/** Un mois PAQD mesuré d'un cycle, avec son rang M+1..M+4 (issu du calendrier). */
+export const pointProgressionSchema = z.object({
+  moisPaqd: moisPaqdSchema,
+  rang: z.number().int().min(1).max(4),
+  scoreComposite: pourcentageSchema.nullable(),
+  classification: classificationSchema.nullable(),
+  piliersCouverts: z.number().int().min(0).max(6),
+  scoresPiliers: z
+    .array(z.object({ pilier: pilierSchema, score: pourcentageSchema.nullable() }))
+    .length(6),
+});
+export type PointProgression = z.infer<typeof pointProgressionSchema>;
+
+export const historiqueSiteSchema = z.object({
+  site: siteSchema,
+  /** Filtre programme appliqué, ou `null` pour « tous programmes ». */
+  programmeId: z.string().nullable(),
+  /** Cycle PAQD affiché, ou `null` si le site n'a aucune mesure. */
+  cyclePaqd: z.string().nullable(),
+  /** Cycles où le site a ≥ 1 mesure, du plus récent au plus ancien. */
+  cyclesDisponibles: z.array(z.string()),
+  /** Points du cycle affiché, triés par rang croissant ; un mois non mesuré est absent. */
+  points: z.array(pointProgressionSchema),
+});
+export type HistoriqueSite = z.infer<typeof historiqueSiteSchema>;
+
+export const historiqueQuerySchema = z.object({
+  cycle: z.string().optional(),
+  programmeId: z.string().optional(),
+});
+export type HistoriqueQuery = z.infer<typeof historiqueQuerySchema>;
+
 // ─── Imports ────────────────────────────────────────────────────────────────
 
 export const STATUTS_IMPORT = ['recu', 'en_cours', 'valide', 'rejete'] as const;
