@@ -13,23 +13,23 @@ programme de la fiche.
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (branche `courbes-progression`)
 
-- [ ] `SitesService.historique(siteId, opts)` valide la réponse avec
+- [x] `SitesService.historique(siteId, opts)` valide la réponse avec
       `historiqueSiteSchema` (`validerReponse`).
-- [ ] `pages/detail-site.ts` : section « Progression » sous les cartes de
+- [x] `pages/detail-site.ts` : section « Progression » sous les cartes de
       pilier, conditionnée à `points.length > 1`. Sélecteur de cycle si
       `cyclesDisponibles.length > 1`. `recharger()` rappelle `historique` avec
       le `programmeId` courant.
-- [ ] `ui/courbe-progression.ts` : SVG inline, largeur fluide (`viewBox`). X =
+- [x] `ui/courbe-progression.ts` : SVG inline, largeur fluide (`viewBox`). X =
       rang 1..4 étiqueté `M+1`..`M+4`, Y = 0..100. Repères horizontaux à 75 et
       90 (gris, fins, étiquetés). Polyligne du score composite entre points
       mesurés consécutifs ; cercle par point coloré selon la classification ;
       valeur au-dessus de chaque point. Un mois non mesuré = pas de point.
-- [ ] Sous la courbe : « M+1 → M+4 : +N pts » (delta premier→dernier point
+- [x] Sous la courbe : « M+1 → M+4 : +N pts » (delta premier→dernier point
       mesuré, signe + couleur) ; « — » si moins de deux points.
-- [ ] Table compacte : une ligne par pilier P1..P6, une colonne par mois mesuré
+- [x] Table compacte : une ligne par pilier P1..P6, une colonne par mois mesuré
       (`M+n`), cellule = `100` / `0` / `—`.
-- [ ] `typecheck` + `ng build` OK ; réponse validée Zod (couture D au ticket 01).
-- [ ] Mettre à jour `docs/guide_module_indicateurs.md` (section progression) et
+- [x] `typecheck` + `ng build` OK ; réponse validée Zod (couture D au ticket 01).
+- [x] Mettre à jour `docs/guide_module_indicateurs.md` (section progression) et
       `ARCHITECTURE.md` §3/§4 si besoin.

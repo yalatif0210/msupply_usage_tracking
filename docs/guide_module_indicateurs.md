@@ -16,6 +16,7 @@ Emplacement : `apps/api/src/indicateurs/` (API) et `apps/web/src/app/pages/`
 |---|---|---|---|
 | `GET` | `/api/sites` | `ScoreSite[]` | tout authentifié |
 | `GET` | `/api/sites/:id?mois=&programmeId=` | `DetailSite` | tout authentifié |
+| `GET` | `/api/sites/:id/historique?cycle=&programmeId=` | `HistoriqueSite` | tout authentifié |
 | `GET` | `/api/synthese?mois=&programmeId=&region=` | `SyntheseNationale` | tout authentifié |
 | `GET` | `/api/referentiel/programmes` | `Programme[]` | tout authentifié |
 | `GET` | `/api/referentiel/districts` | `string[]` | tout authentifié |
@@ -29,6 +30,7 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 | Source | Usage |
 |---|---|
 | `hist_score_site` | six scores de pilier + `score_composite` + `classification` gelés par (site, mois PAQD, programme) |
+| `v_mois_cycle` | rang M+1..M+4 de chaque mois PAQD dans son cycle (depuis `dim_temps`) |
 | `mv_synthese_nationale` | agrégats nationaux / région / district / programme par mois PAQD |
 | `mv_p1_completude` | taux de complétude inventaires / réquisitions / réceptions (%), scores et p_completude |
 | `mv_p2_promptitude` | taux de promptitude inventaires / réquisitions (%), scores et p_promptitude |
@@ -146,6 +148,21 @@ l'accueil) : bloc national (score moyen en grand, barre de répartition à quatr
 segments `ui/repartition-classification`), six moyennes de pilier, tableau par
 district (ligne cliquable → liste filtrée), section « scores par programme ».
 Sélecteurs mois / programme / région.
+
+## Progression d'un site
+
+`GET /api/sites/:id/historique?cycle=&programmeId=` (`historiqueQuerySchema`)
+lit `hist_score_site` joint à `v_mois_cycle` : les points de score du site sur
+les mois d'un cycle PAQD, triés par rang M+1..M+4. `cyclePaqd` par défaut = le
+plus récent mesuré ; un mois du cycle sans ligne gelée est **absent** de
+`points` (jamais un zéro). `piliersCouverts` et `scoresPiliers` viennent des
+`p_*` gelés — aucun recalcul.
+
+Section « Progression » sur `pages/detail-site.ts` (sous les cartes de pilier,
+visible si `points.length > 1`) : `ui/courbe-progression` trace le score
+composite en SVG inline (repères 75 / 90, points colorés par classification),
+un delta M+1→M+n, et une table score-par-pilier × mois. Suit le filtre
+programme de la fiche.
 
 ## Décisions de conception
 

@@ -4,9 +4,11 @@ import { firstValueFrom } from 'rxjs';
 import { z } from 'zod';
 import {
   detailSiteSchema,
+  historiqueSiteSchema,
   programmeSchema,
   scoreSiteSchema,
   type DetailSite,
+  type HistoriqueSite,
   type Programme,
   type ScoreSite,
 } from '@dqa/contracts';
@@ -47,6 +49,19 @@ export class SitesService {
       this.http.get<unknown>(`/api/sites/${encodeURIComponent(siteId)}`, { params }),
     );
     return validerReponse(detailSiteSchema, data);
+  }
+
+  async historique(
+    siteId: string,
+    opts: { cycle?: string; programmeId?: string } = {},
+  ): Promise<HistoriqueSite> {
+    let params = new HttpParams();
+    if (opts.cycle) params = params.set('cycle', opts.cycle);
+    if (opts.programmeId) params = params.set('programmeId', opts.programmeId);
+    const data = await firstValueFrom(
+      this.http.get<unknown>(`/api/sites/${encodeURIComponent(siteId)}/historique`, { params }),
+    );
+    return validerReponse(historiqueSiteSchema, data);
   }
 
   async programmes(): Promise<Programme[]> {

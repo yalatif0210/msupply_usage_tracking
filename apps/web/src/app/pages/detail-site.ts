@@ -2,16 +2,20 @@ import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angu
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import type { DetailSite, Programme } from '@dqa/contracts';
+import { LIBELLES_PILIER, PILIERS, type DetailSite, type HistoriqueSite, type Pilier, type Programme } from '@dqa/contracts';
 import { SitesService } from '../core/sites.service';
 import { BadgeClassification } from '../ui/badge-classification';
 import { BadgeStatut } from '../ui/badge-statut';
+import { CourbeProgressionComponent } from '../ui/courbe-progression';
 import { Entete } from '../ui/entete';
 
 @Component({
   selector: 'dqa-detail-site',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, Entete, BadgeStatut, BadgeClassification, DecimalPipe],
+  imports: [
+    FormsModule, RouterLink, Entete, BadgeStatut, BadgeClassification,
+    CourbeProgressionComponent, DecimalPipe,
+  ],
   template: `
     <dqa-entete />
     <main>
@@ -97,6 +101,54 @@ import { Entete } from '../ui/entete';
               </article>
             }
           </div>
+
+          @if (historique(); as h) {
+            @if (h.points.length > 1) {
+              <section class="progression">
+                <div class="entete-prog">
+                  <h2>Progression sur le cycle {{ h.cyclePaqd }}</h2>
+                  @if (h.cyclesDisponibles.length > 1) {
+                    <label>
+                      Cycle
+                      <select [(ngModel)]="cycle" (ngModelChange)="recharger()">
+                        @for (c of h.cyclesDisponibles; track c) {
+                          <option [value]="c">{{ c }}</option>
+                        }
+                      </select>
+                    </label>
+                  }
+                </div>
+
+                <dqa-courbe-progression [points]="h.points" />
+
+                <p class="delta">
+                  M+{{ h.points[0]?.rang }} → M+{{ h.points[h.points.length - 1]?.rang }} :
+                  <b [class]="'d-' + deltaSigne(h)">{{ deltaTexte(h) }}</b>
+                </p>
+
+                <table class="par-pilier">
+                  <thead>
+                    <tr>
+                      <th>Pilier</th>
+                      @for (p of h.points; track p.rang) {
+                        <th class="num">M+{{ p.rang }}</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (pil of piliers; track pil) {
+                      <tr>
+                        <td>{{ pil }} — {{ libellePilier(pil) }}</td>
+                        @for (p of h.points; track p.rang) {
+                          <td class="num">{{ scorePilier(p, pil) }}</td>
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </section>
+            }
+          }
         }
       } @else {
         <p class="vide">Site inconnu ou hors périmètre.</p>
@@ -127,6 +179,17 @@ import { Entete } from '../ui/entete';
     .seuil { color: #5b5b5b; font-size: 0.85rem; margin-top: 0.3rem; }
     .raison { color: #8a1c13; font-size: 0.85rem; margin-top: 0.3rem; }
     .vide { color: #5b5b5b; }
+    .progression { margin-top: 2rem; border-top: 1px solid #d9d9d6; padding-top: 1.5rem; }
+    .entete-prog { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .progression h2 { font-size: 1.1rem; margin: 0; }
+    .delta { font-size: 0.9rem; color: #5b5b5b; margin: 0.6rem 0 1rem; }
+    .delta b { font-variant-numeric: tabular-nums; }
+    .delta .d-hausse { color: #1b5e20; }
+    .delta .d-baisse { color: #8a1c13; }
+    .delta .d-nul { color: #5b5b5b; }
+    .par-pilier { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .par-pilier th, .par-pilier td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #d9d9d6; }
+    .par-pilier th.num, .par-pilier td.num { text-align: right; font-variant-numeric: tabular-nums; }
   `,
 })
 export class DetailSitePage {
@@ -136,7 +199,10 @@ export class DetailSitePage {
 
   protected programmeId = '';
   protected mois = '';
+  protected cycle = '';
+  protected readonly piliers = PILIERS;
   protected readonly detail = signal<DetailSite | null>(null);
+  protected readonly historique = signal<HistoriqueSite | null>(null);
   protected readonly programmes = signal<Programme[]>([]);
   protected readonly chargement = signal(true);
 
@@ -152,15 +218,52 @@ export class DetailSitePage {
   protected async recharger(): Promise<void> {
     this.chargement.set(true);
     try {
-      const d = await this.service.detailSite(this.id(), {
-        programmeId: this.programmeId || undefined,
-        mois: this.mois || undefined,
-      });
+      const [d, h] = await Promise.all([
+        this.service.detailSite(this.id(), {
+          programmeId: this.programmeId || undefined,
+          mois: this.mois || undefined,
+        }),
+        this.service.historique(this.id(), {
+          programmeId: this.programmeId || undefined,
+          cycle: this.cycle || undefined,
+        }),
+      ]);
       this.mois = d.moisPaqd ?? '';
+      this.cycle = h.cyclePaqd ?? '';
       this.detail.set(d);
+      this.historique.set(h);
     } catch {
       this.detail.set(null);
+      this.historique.set(null);
     }
     this.chargement.set(false);
+  }
+
+  protected libellePilier(pilier: Pilier): string {
+    return LIBELLES_PILIER[pilier];
+  }
+
+  protected scorePilier(point: HistoriqueSite['points'][number], pilier: Pilier): string {
+    const s = point.scoresPiliers.find((x) => x.pilier === pilier)?.score ?? null;
+    return s === null ? '—' : String(s);
+  }
+
+  private deltaValeur(h: HistoriqueSite): number | null {
+    const mesures = h.points.filter((p) => p.scoreComposite !== null);
+    if (mesures.length < 2) return null;
+    return (mesures.at(-1)!.scoreComposite as number) - (mesures[0]!.scoreComposite as number);
+  }
+
+  protected deltaSigne(h: HistoriqueSite): 'hausse' | 'baisse' | 'nul' {
+    const v = this.deltaValeur(h);
+    if (v === null || v === 0) return 'nul';
+    return v > 0 ? 'hausse' : 'baisse';
+  }
+
+  protected deltaTexte(h: HistoriqueSite): string {
+    const v = this.deltaValeur(h);
+    if (v === null) return '—';
+    const arrondi = Math.round(v * 10) / 10;
+    return `${arrondi > 0 ? '+' : ''}${arrondi} pts`;
   }
 }
