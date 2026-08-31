@@ -1,0 +1,172 @@
+import type { Pool } from 'pg';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { demarrerBaseEphemere, type BaseEphemere } from './helpers/db.js';
+
+/**
+ * Couture B — `mv_p4_ecart_produit` : détail par produit traceur des écarts
+ * SDU / consommation, contre des données de core fabriquées à la main.
+ * Vérifie aussi la cohérence avec les taux agrégés de `mv_p4_ecart`.
+ */
+describe('vue mv_p4_ecart_produit', () => {
+  let base: BaseEphemere;
+  let db: Pool;
+
+  beforeAll(async () => {
+    base = await demarrerBaseEphemere();
+    db = base.pool;
+  }, 120_000);
+
+  afterAll(async () => {
+    await base.stop();
+  });
+
+  beforeEach(async () => {
+    await db.query(`SET search_path TO dqa, public`);
+    await db.query(`TRUNCATE dqa.hist_score_site, dqa.fact_inventaire_ligne, dqa.fact_inventaire,
+      dqa.fact_ligne_transaction, dqa.fact_transaction, dqa.dim_site_programme,
+      dqa.dim_produit_traceur, dqa.dim_produit, dqa.dim_programme, dqa.dim_site,
+      dqa.import_lot RESTART IDENTITY CASCADE`);
+    await db.query(
+      `INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, statut)
+       VALUES ('t.xlsx','2026-C2','2026-08','2026-08-01','2026-08-31','valide')`,
+    );
+    await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S1','CSU',true)`);
+    await db.query(`INSERT INTO dqa.dim_programme (programme_id, programme_nom) VALUES ('P1','VIH')`);
+  });
+
+  const produit = async (id: string, code: string, traceur: boolean) => {
+    await db.query(`INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom) VALUES ($1,$2,$1)`, [id, code]);
+    if (traceur) {
+      await db.query(`INSERT INTO dqa.dim_produit_traceur (produit_code, libelle) VALUES ($1,$2)`, [code, `lib ${code}`]);
+    }
+  };
+  const inventaire = async (id: string, jour: string) =>
+    db.query(
+      `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
+       VALUES ($1,'S1','P1',$2::date,'fn',1)`,
+      [id, jour],
+    );
+  const ligne = async (inv: string, prod: string, theorique: number, comptee: number) =>
+    db.query(
+      `INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
+       VALUES ($1,$2,'X',$3,$4,1)`,
+      [inv, prod, theorique, comptee],
+    );
+  const mouvement = async (id: string, nature: string, jour: string, prod: string, qte: number) => {
+    await db.query(
+      `INSERT INTO dqa.fact_transaction (transaction_id, site_id, nature, programme_id, statut, date_confirmation, lot_id_source)
+       VALUES ($1,'S1',$2,'P1','fn',$3::date,1)`,
+      [id, nature, jour],
+    );
+    await db.query(
+      `INSERT INTO dqa.fact_ligne_transaction (ligne_id, transaction_id, produit_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
+       VALUES ($1,$2,$3,$4,1,false,1)`,
+      [`${id}L`, id, prod, qte],
+    );
+  };
+
+  const prod = async (programme: string | null = null) => {
+    const { rows } = await db.query<{
+      produit_code: string;
+      ecart_sdu_pct: string | null;
+      sdu_conforme: boolean;
+      reconstituee: string | null;
+      ecart_conso_pct: string | null;
+      conso_evaluable: boolean;
+      conso_raison_exclusion: string | null;
+      conso_conforme: boolean;
+    }>(
+      `SELECT produit_code, ecart_sdu_pct, sdu_conforme, reconstituee,
+              ecart_conso_pct, conso_evaluable, conso_raison_exclusion, conso_conforme
+       FROM dqa.mv_p4_ecart_produit
+       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND coalesce(programme_id,'') = $1
+       ORDER BY produit_code`,
+      [programme ?? ''],
+    );
+    return Object.fromEntries(rows.map((r) => [r.produit_code, r]));
+  };
+
+  /** Panier de test : 5 traceurs inventoriés + 1 non traceur. */
+  const socle = async () => {
+    await Promise.all([
+      produit('I1', 'T1', true), produit('I2', 'T2', true), produit('I4', 'T4', true),
+      produit('I5', 'T5', true), produit('I6', 'T6', true), produit('I3', 'X3', false),
+    ]);
+    await db.query(`INSERT INTO dqa.dim_site_programme (site_id, programme_id, actif) VALUES ('S1','P1',true)`);
+    await inventaire('A', '2026-08-05');
+    await inventaire('B', '2026-08-28');
+    // I1 : SDU conforme (100/100) ; conso évaluable (2 inv, réception + dispensation)
+    await ligne('A', 'I1', 100, 100);
+    await ligne('B', 'I1', 100, 100);
+    await mouvement('RC1', 'reception', '2026-08-10', 'I1', 30);
+    await mouvement('DI1', 'dispensation', '2026-08-15', 'I1', 25);
+    // I2 : un seul inventaire, SDU hors tolérance (100 vs 90)
+    await ligne('B', 'I2', 100, 90);
+    // I4 : compté 0 / théorique 0 → conforme
+    await ligne('B', 'I4', 0, 0);
+    // I5 : compté 0 / théorique 5 → écart infini, non conforme
+    await ligne('B', 'I5', 5, 0);
+    // I6 : deux inventaires, reconstituée négative (10 + 0 − 100)
+    await ligne('A', 'I6', 10, 10);
+    await ligne('B', 'I6', 100, 100);
+    // I3 non traceur, présent en inventaire → doit être ignoré
+    await ligne('B', 'I3', 100, 50);
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+  };
+
+  it('une ligne par produit traceur inventorié ; non traceur exclu', async () => {
+    await socle();
+    const p = await prod();
+    expect(Object.keys(p).sort()).toEqual(['T1', 'T2', 'T4', 'T5', 'T6']);
+    expect(p['X3']).toBeUndefined();
+  });
+
+  it('écart SDU : cas nominal, cas limites compté 0', async () => {
+    await socle();
+    const p = await prod();
+    expect(p['T1']).toMatchObject({ ecart_sdu_pct: '0.0', sdu_conforme: true });
+    expect(p['T2']?.sdu_conforme).toBe(false); // 11.1 % > 2 %
+    expect(p['T4']).toMatchObject({ ecart_sdu_pct: '0.0', sdu_conforme: true }); // 0 / 0
+    expect(p['T5']).toMatchObject({ ecart_sdu_pct: null, sdu_conforme: false }); // 0 / >0 → infini
+  });
+
+  it('écart consommation : évaluable, exclusions et reconstituée', async () => {
+    await socle();
+    const p = await prod();
+    // I1 : reconstituée = 100 + 30 − 100 = 30 ; |25 − 30| / 30 = 16.7 % > 2 %
+    expect(p['T1']).toMatchObject({
+      conso_evaluable: true, reconstituee: '30.000', ecart_conso_pct: '16.7', conso_conforme: false,
+    });
+    // I2 : un seul inventaire
+    expect(p['T2']).toMatchObject({ conso_evaluable: false, conso_raison_exclusion: 'un_seul_inventaire' });
+    // I6 : reconstituée = 10 + 0 − 100 = −90 ≤ 0
+    expect(p['T6']).toMatchObject({ conso_evaluable: false, conso_raison_exclusion: 'reconstituee_non_positive' });
+  });
+
+  it('cohérence avec les taux agrégés de mv_p4_ecart', async () => {
+    await socle();
+    const p = await prod();
+    const conformesSdu = Object.values(p).filter((r) => r.sdu_conforme).length;
+    const totalSdu = Object.keys(p).length;
+    const evaluables = Object.values(p).filter((r) => r.conso_evaluable);
+    const conformesConso = evaluables.filter((r) => r.conso_conforme).length;
+
+    const { rows } = await db.query<{ taux_sdu_pct: string; taux_conso_pct: string | null }>(
+      `SELECT taux_sdu_pct, taux_conso_pct FROM dqa.mv_p4_ecart
+       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+    );
+    expect(Number(rows[0]?.taux_sdu_pct)).toBeCloseTo((conformesSdu / totalSdu) * 100, 1);
+    expect(Number(rows[0]?.taux_conso_pct)).toBeCloseTo(
+      (conformesConso / evaluables.length) * 100,
+      1,
+    );
+  });
+
+  it('CALL rafraichir_et_geler rafraîchit la vue', async () => {
+    await socle();
+    await db.query(`UPDATE dqa.fact_inventaire_ligne SET quantite_comptee = 50 WHERE inventaire_id = 'B' AND produit_id = 'I1'`);
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    // |100 − 50| / 50 = 100 % → hors tolérance
+    expect((await prod())['T1']?.sdu_conforme).toBe(false);
+  });
+});
