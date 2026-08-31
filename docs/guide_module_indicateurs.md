@@ -2,13 +2,13 @@
 
 ## Rôle
 
-Expose en lecture seule les scores de qualité des données : liste des sites du
-périmètre et détail par site (piliers, sous-composantes, statuts). Ne calcule
-rien en TypeScript — lit les vues matérialisées et `hist_score_site`
-(CLAUDE.md §3, ARCHITECTURE.md §2).
+Expose en lecture seule les scores de qualité des données : synthèse nationale,
+liste des sites du périmètre, détail par site (piliers, sous-composantes,
+statuts). Ne calcule rien en TypeScript — lit les vues matérialisées et
+`hist_score_site` (CLAUDE.md §3, ARCHITECTURE.md §2).
 
 Emplacement : `apps/api/src/indicateurs/` (API) et `apps/web/src/app/pages/`
-(écrans liste et détail).
+(écrans synthèse, liste, détail).
 
 ## Points d'entrée
 
@@ -16,8 +16,10 @@ Emplacement : `apps/api/src/indicateurs/` (API) et `apps/web/src/app/pages/`
 |---|---|---|---|
 | `GET` | `/api/sites` | `ScoreSite[]` | tout authentifié |
 | `GET` | `/api/sites/:id?mois=&programmeId=` | `DetailSite` | tout authentifié |
+| `GET` | `/api/synthese?mois=&programmeId=&region=` | `SyntheseNationale` | tout authentifié |
 | `GET` | `/api/referentiel/programmes` | `Programme[]` | tout authentifié |
 | `GET` | `/api/referentiel/districts` | `string[]` | tout authentifié |
+| `GET` | `/api/referentiel/regions` | `string[]` | tout authentifié |
 
 Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 `filtreSitesSchema`).
@@ -27,6 +29,7 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 | Source | Usage |
 |---|---|
 | `hist_score_site` | six scores de pilier + `score_composite` + `classification` gelés par (site, mois PAQD, programme) |
+| `mv_synthese_nationale` | agrégats nationaux / région / district / programme par mois PAQD |
 | `mv_p1_completude` | taux de complétude inventaires / réquisitions / réceptions (%), scores et p_completude |
 | `mv_p2_promptitude` | taux de promptitude inventaires / réquisitions (%), scores et p_promptitude |
 | `mv_p3_regularite` | taux de jours ouvrables avec sortie de stock (%) |
@@ -114,6 +117,35 @@ seuil de taux (90 %) viennent de `grille_seuil_sous_composante.tolerance` /
 
 `GET /api/sites` trie les sites par `score_composite` **croissant**, sites sans
 mesure (`NULL`) en dernier — les sites en difficulté remontent en tête.
+
+## Synthèse nationale
+
+`mv_synthese_nationale` agrège `hist_score_site` par mois PAQD à quatre
+niveaux : national, par région, par district, et les mêmes déclinés par
+programme (sur les sites qui **gèrent** le programme). Deux branches
+`UNION ALL` : « tous programmes » (lignes `hist.programme_id IS NULL`) et « par
+programme » (lignes du programme sur `dim_site_programme` actif), chacune en
+GROUPING SETS géographiques.
+
+- `nb_sites` = sites du périmètre de l'ensemble (pour une ligne programme : les
+  sites gérant) ; `nb_mesures` = ceux avec un `score_composite` ; un site sans
+  ligne du mois compte en `nb_sans_mesure`, jamais NON_CONFORME.
+- `score_composite_moyen` et `moy_p_*` = `avg` des valeurs **non nulles**,
+  `NULL` si aucune. Le filtre région donne un national **ré-agrégé** (moyenne
+  par site), pas une moyenne de moyennes de districts — d'où `region` **et**
+  `district` comme dimensions de la vue.
+
+`GET /api/synthese?mois=&programmeId=&region=` (`syntheseQuerySchema`) : `mois`
+par défaut le plus récent ; `programmeId` restreint `national` + `parDistrict` ;
+`region` restreint `parDistrict` + `parProgramme` ; `parProgramme` liste tous
+les programmes gérés, même sans mesure. `mv_synthese_nationale` est rafraîchie
+par `rafraichir_et_geler` **après** le gel de `hist_score_site`.
+
+Écran `pages/synthese.ts` (route `/synthese`, la liste des sites reste
+l'accueil) : bloc national (score moyen en grand, barre de répartition à quatre
+segments `ui/repartition-classification`), six moyennes de pilier, tableau par
+district (ligne cliquable → liste filtrée), section « scores par programme ».
+Sélecteurs mois / programme / région.
 
 ## Décisions de conception
 

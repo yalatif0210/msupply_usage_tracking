@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { LIBELLES_PILIER, type SyntheseNationale } from '@dqa/contracts';
+import { LIBELLES_PILIER, type Programme, type SyntheseNationale } from '@dqa/contracts';
 import { SitesService } from '../core/sites.service';
 import { SyntheseService } from '../core/synthese.service';
 import { Entete } from '../ui/entete';
@@ -32,6 +32,15 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
             <span class="mois">Mois PAQD : {{ s.moisPaqd ?? '—' }}</span>
           }
           <label>
+            Programme
+            <select [(ngModel)]="programmeId" (ngModelChange)="recharger()">
+              <option value="">Tous programmes</option>
+              @for (p of programmes(); track p.programmeId) {
+                <option [value]="p.programmeId">{{ p.programmeNom }}</option>
+              }
+            </select>
+          </label>
+          <label>
             Région
             <select [(ngModel)]="region" (ngModelChange)="recharger()">
               <option value="">Toutes</option>
@@ -41,6 +50,12 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
             </select>
           </label>
         </div>
+
+        @if (s.programmeId) {
+          <p class="filtre-actif">
+            National, piliers et districts filtrés sur le programme sélectionné.
+          </p>
+        }
 
         @if (s.moisPaqd === null || s.national.nbMesures === 0) {
           <p class="vide">
@@ -77,32 +92,70 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
 
           <section class="districts">
             <h2>Par district</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>District</th>
-                  <th class="num">Sites</th>
-                  <th class="num">Mesurés</th>
-                  <th class="num">Score moyen</th>
-                  <th>Répartition</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (d of s.parDistrict; track d.district) {
-                  <tr (click)="ouvrirDistrict(d.district)">
-                    <td>{{ d.district }}</td>
-                    <td class="num">{{ d.nbSites }}</td>
-                    <td class="num">{{ d.nbMesures }}</td>
-                    <td class="num">
-                      {{ d.scoreCompositeMoyen === null ? '—' : (d.scoreCompositeMoyen | number: '1.0-1') }}
-                    </td>
-                    <td class="repcell">
-                      <dqa-repartition-classification [repartition]="d.repartition" [compact]="true" />
-                    </td>
+            @if (s.parDistrict.length === 0) {
+              <p class="vide">Aucun district ne correspond à ce filtre.</p>
+            } @else {
+              <table>
+                <thead>
+                  <tr>
+                    <th>District</th>
+                    <th class="num">Sites</th>
+                    <th class="num">Mesurés</th>
+                    <th class="num">Score moyen</th>
+                    <th>Répartition</th>
                   </tr>
-                }
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  @for (d of s.parDistrict; track d.district) {
+                    <tr (click)="ouvrirDistrict(d.district)">
+                      <td>{{ d.district }}</td>
+                      <td class="num">{{ d.nbSites }}</td>
+                      <td class="num">{{ d.nbMesures }}</td>
+                      <td class="num">
+                        {{ d.scoreCompositeMoyen === null ? '—' : (d.scoreCompositeMoyen | number: '1.0-1') }}
+                      </td>
+                      <td class="repcell">
+                        <dqa-repartition-classification [repartition]="d.repartition" [compact]="true" />
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </section>
+
+          <section class="programmes">
+            <h2>Scores par programme</h2>
+            @if (s.parProgramme.length === 0) {
+              <p class="vide">Aucun programme ne correspond à ce filtre.</p>
+            } @else {
+              <table>
+                <thead>
+                  <tr>
+                    <th>Programme</th>
+                    <th class="num">Sites gérant</th>
+                    <th class="num">Mesurés</th>
+                    <th class="num">Score national</th>
+                    <th>Répartition</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of s.parProgramme; track p.programmeId) {
+                    <tr>
+                      <td>{{ p.programmeNom }}</td>
+                      <td class="num">{{ p.nbSites }}</td>
+                      <td class="num">{{ p.nbMesures }}</td>
+                      <td class="num">
+                        {{ p.scoreCompositeMoyen === null ? '—' : (p.scoreCompositeMoyen | number: '1.0-1') }}
+                      </td>
+                      <td class="repcell">
+                        <dqa-repartition-classification [repartition]="p.repartition" [compact]="true" />
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
           </section>
         }
       } @else if (chargement()) {
@@ -120,6 +173,7 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
     label { display: grid; gap: 0.3rem; font-size: 0.85rem; }
     select { padding: 0.4rem; }
     .mois { color: #5b5b5b; font-size: 0.9rem; }
+    .filtre-actif { color: #5b5b5b; font-size: 0.85rem; margin: -0.5rem 0 1rem; }
     .national { display: flex; gap: 2rem; align-items: center; border: 1px solid #d9d9d6; background: #fff; padding: 1.4rem 1.6rem; flex-wrap: wrap; }
     .national .chiffre { font-size: 4rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
     .national .sur { color: #5b5b5b; margin-top: 0.2rem; }
@@ -146,8 +200,10 @@ export class SynthesePage {
 
   protected mois = '';
   protected region = '';
+  protected programmeId = '';
   protected readonly synthese = signal<SyntheseNationale | null>(null);
   protected readonly regions = signal<string[]>([]);
+  protected readonly programmes = signal<Programme[]>([]);
   protected readonly chargement = signal(true);
 
   constructor() {
@@ -155,7 +211,9 @@ export class SynthesePage {
   }
 
   private async init(): Promise<void> {
-    this.regions.set(await this.sites.regions());
+    const [r, p] = await Promise.all([this.sites.regions(), this.sites.programmes()]);
+    this.regions.set(r);
+    this.programmes.set(p);
     await this.recharger();
   }
 
@@ -165,6 +223,7 @@ export class SynthesePage {
       const s = await this.service.synthese({
         mois: this.mois || undefined,
         region: this.region || undefined,
+        programmeId: this.programmeId || undefined,
       });
       this.mois = s.moisPaqd ?? '';
       this.synthese.set(s);

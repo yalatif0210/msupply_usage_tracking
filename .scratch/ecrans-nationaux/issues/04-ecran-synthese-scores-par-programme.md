@@ -17,18 +17,18 @@ programme.
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** done (branche `ecrans-nationaux`)
 
-- [ ] `pages/synthese.ts` gagne la section « Scores par programme » (tableau
+- [x] `pages/synthese.ts` gagne la section « Scores par programme » (tableau
       trié score croissant, `NULL` en dernier), toujours visible, sous le bloc
       national et les moyennes de pilier.
-- [ ] Chaque ligne montre `nbSitesGerant`, `nbMesures`, `scoreCompositeMoyen`
+- [x] Chaque ligne montre `nbSitesGerant`, `nbMesures`, `scoreCompositeMoyen`
       (`—` si `null`) et la répartition compacte (`ui/repartition-classification`).
-- [ ] Sélecteur de programme : recharge avec `programmeId` ; met à jour le bloc
+- [x] Sélecteur de programme : recharge avec `programmeId` ; met à jour le bloc
       national, les moyennes de pilier et le tableau par district ; la section
       « par programme » reste inchangée.
-- [ ] Un programme géré mais sans aucune mesure du mois apparaît (score `—`,
+- [x] Un programme géré mais sans aucune mesure du mois apparaît (score `—`,
       couverture 0), jamais masqué ni rendu par un zéro.
-- [ ] `typecheck` + `ng build` OK ; réponse validée Zod.
-- [ ] Après ce ticket : mettre à jour `docs/guide_module_indicateurs.md`
+- [x] `typecheck` + `ng build` OK ; réponse validée Zod.
+- [x] Après ce ticket : mettre à jour `docs/guide_module_indicateurs.md`
       (section « Écrans nationaux ») et `ARCHITECTURE.md` §3/§4 si besoin.
