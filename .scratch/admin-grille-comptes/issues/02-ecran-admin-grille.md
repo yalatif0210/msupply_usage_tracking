@@ -1,0 +1,30 @@
+# 02: Écran `/admin/grille`
+
+**What to build:** l'écran de la coordination pour consulter les versions de
+grille et préparer celle du cycle suivant. Registre visuel institutionnel et
+sobre (DESIGN_SYSTEM).
+
+**Blocked by:** 01
+
+**Status:** ready-for-agent
+
+- [ ] Route `/admin/grille` (`gardeRole(['coordination', 'admin'])`),
+      lazy-loaded, sur le modèle de `/admin/traceurs`. Lien « Grille » dans
+      `ui/entete`, visible pour `coordination` et `admin`.
+- [ ] `core/admin-grille.service.ts` : `lister()`, `detail(id)`, `creer(entree)`,
+      `modifier(id, entree)`, `supprimer(id)` ; `validerReponse` sur les
+      lectures.
+- [ ] `pages/admin-grille.ts` : tableau des versions (version, date d'effet,
+      statut en badge) ; sélection d'une ligne → panneau de détail (poids +
+      seuils, en lecture seule si non modifiable).
+- [ ] Bouton « Nouvelle version » : formulaire pré-rempli depuis la version en
+      vigueur (`detail(id)`), champs libellé + date d'effet + 6 poids (total
+      affiché en direct, erreur si ≠ 100) + une ligne par sous-composante
+      (seuil, sens, tolérance si `ecart_sdu` / `ecart_consommation`).
+      « Enregistrer » → `creer`.
+- [ ] Une version **planifiée** est éditable en place (`modifier`) et
+      supprimable (`supprimer`) ; une version en vigueur / passée n'affiche que
+      la lecture.
+- [ ] Les erreurs serveur (date passée, somme, doublon) sont affichées
+      lisiblement, pas avalées.
+- [ ] `typecheck` + `ng build` OK.
