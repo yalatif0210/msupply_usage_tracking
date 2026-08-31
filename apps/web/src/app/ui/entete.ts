@@ -15,6 +15,10 @@ import { AuthService } from '../core/auth.service';
         @if (auth.utilisateur(); as u) {
           @if (u.role === 'coordination' || u.role === 'admin') {
             <a routerLink="/admin/traceurs">Traceurs</a>
+            <a routerLink="/admin/grille">Grille</a>
+          }
+          @if (u.role === 'admin') {
+            <a routerLink="/admin/comptes">Comptes</a>
           }
           <span class="user">{{ u.nom }} · {{ u.role }}</span>
           <button type="button" (click)="deconnexion()">Déconnexion</button>

@@ -31,5 +31,15 @@ export const routes: Routes = [
     canActivate: [gardeAuthentifie, gardeRole(['coordination', 'admin'])],
     loadComponent: () => import('./pages/admin-traceurs').then((m) => m.AdminTraceursPage),
   },
+  {
+    path: 'admin/grille',
+    canActivate: [gardeAuthentifie, gardeRole(['coordination', 'admin'])],
+    loadComponent: () => import('./pages/admin-grille').then((m) => m.AdminGrillePage),
+  },
+  {
+    path: 'admin/comptes',
+    canActivate: [gardeAuthentifie, gardeRole(['admin'])],
+    loadComponent: () => import('./pages/admin-comptes').then((m) => m.AdminComptesPage),
+  },
   { path: '**', redirectTo: '' },
 ];

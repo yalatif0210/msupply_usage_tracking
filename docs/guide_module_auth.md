@@ -25,16 +25,18 @@ Emplacement : `apps/api/src/auth/`.
 - **Mots de passe** : hachés avec `scrypt` (`node:crypto`), format
   `scrypt$<sel>$<hash>`. Comparaison en temps constant (`timingSafeEqual`).
 - **Comptes** : provisionnés par la migration 0010, un par rôle
-  (`lecteur` / `coordination` / `admin`). Pas d'auto-inscription. Pas encore
-  d'écran de gestion des comptes (hors périmètre de la première tranche).
+  (`lecteur` / `coordination` / `admin`). Pas d'auto-inscription. Gestion via
+  `/admin/comptes` (rôle `admin`) : création, renommage, changement de rôle,
+  activation/désactivation, réinitialisation du mot de passe. Voir
+  `docs/guide_module_admin.md`.
 
 ## Rôles
 
 | Rôle | Peut |
 |---|---|
 | `lecteur` | consulter tous les écrans |
-| `coordination` | + déclencher les imports, (à venir) éditer la grille et les traceurs |
-| `admin` | + (à venir) gérer les comptes ; ne touche pas aux données |
+| `coordination` | + déclencher les imports, éditer la grille (`/admin/grille`) et les traceurs (`/admin/traceurs`) |
+| `admin` | + gérer les comptes (`/admin/comptes`) ; ne touche pas aux données |
 
 ## Front
 
