@@ -2,7 +2,12 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { detailSiteSchema, historiqueSiteSchema, syntheseNationaleSchema } from '@dqa/contracts';
+import {
+  detailP4ProduitsSchema,
+  detailSiteSchema,
+  historiqueSiteSchema,
+  syntheseNationaleSchema,
+} from '@dqa/contracts';
 import { AppModule } from '../src/app.module.js';
 import { closePool } from '../src/db/pool.js';
 import { construireClasseur, optionsValides } from './helpers/classeur.js';
@@ -215,5 +220,28 @@ describe('API de lecture — sites et détail P5/P6', () => {
     const h = historiqueSiteSchema.parse(res.body);
     expect(h.programmeId).toBe('PROG-1');
     expect(h.points.length).toBeGreaterThan(0);
+  });
+
+  it('GET /api/sites/:id/piliers/p4 rend le détail par produit conforme au contrat', async () => {
+    const a = await lecteur();
+    const res = await a.get('/api/sites/SITE-1/piliers/p4');
+    expect(res.status).toBe(200);
+    const d = detailP4ProduitsSchema.parse(res.body);
+    expect(d.moisPaqd).toBe('2026-08');
+    // un seul traceur inventorié (ARV001), un seul inventaire → conso non évaluable
+    expect(d.produits).toHaveLength(1);
+    expect(d.produits[0]?.produitCode).toBe('ARV001');
+    expect(d.produits[0]?.sdu.conforme).toBe(true); // 300 = 300
+    expect(d.produits[0]?.consommation.evaluable).toBe(false);
+    expect(d.produits[0]?.consommation.raisonExclusion).toBe('un_seul_inventaire');
+  });
+
+  it('GET /api/sites/:id/piliers/p4 : 404 hors périmètre, filtre programme', async () => {
+    const a = await lecteur();
+    expect((await a.get('/api/sites/INCONNU/piliers/p4')).status).toBe(404);
+    const res = await a.get('/api/sites/SITE-1/piliers/p4').query({ programmeId: 'PROG-1' });
+    const d = detailP4ProduitsSchema.parse(res.body);
+    expect(d.programmeId).toBe('PROG-1');
+    expect(d.produits).toHaveLength(1);
   });
 });

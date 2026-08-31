@@ -237,6 +237,56 @@ export const historiqueQuerySchema = z.object({
 });
 export type HistoriqueQuery = z.infer<typeof historiqueQuerySchema>;
 
+// ─── Drill-down par produit de l'écart SDU / consommation (P4) ───────────────
+
+/** Raison pour laquelle un produit est exclu du calcul de l'écart consommation. */
+export const raisonExclusionConsoSchema = z.enum([
+  'un_seul_inventaire',
+  'reconstituee_non_positive',
+]);
+export type RaisonExclusionConso = z.infer<typeof raisonExclusionConsoSchema>;
+
+/** `ecartPct` nul = écart infini (compté 0, théorique > 0). */
+export const ecartSduProduitSchema = z.object({
+  theorique: z.number().nullable(),
+  comptee: z.number().nullable(),
+  ecartPct: z.number().nullable(),
+  conforme: z.boolean(),
+});
+export type EcartSduProduit = z.infer<typeof ecartSduProduitSchema>;
+
+export const ecartConsoProduitSchema = z.object({
+  evaluable: z.boolean(),
+  /** Non nul seulement quand `evaluable` est faux. */
+  raisonExclusion: raisonExclusionConsoSchema.nullable(),
+  stockDebut: z.number().nullable(),
+  stockFin: z.number().nullable(),
+  receptions: z.number().nullable(),
+  declaree: z.number().nullable(),
+  reconstituee: z.number().nullable(),
+  ecartPct: z.number().nullable(),
+  conforme: z.boolean(),
+});
+export type EcartConsoProduit = z.infer<typeof ecartConsoProduitSchema>;
+
+export const ligneEcartProduitP4Schema = z.object({
+  produitCode: z.string(),
+  libelle: z.string().nullable(),
+  sdu: ecartSduProduitSchema,
+  consommation: ecartConsoProduitSchema,
+});
+export type LigneEcartProduitP4 = z.infer<typeof ligneEcartProduitP4Schema>;
+
+export const detailP4ProduitsSchema = z.object({
+  site: siteSchema,
+  moisPaqd: moisPaqdSchema.nullable(),
+  moisDisponibles: z.array(moisPaqdSchema),
+  programmeId: z.string().nullable(),
+  /** Un item par produit traceur inventorié ; SDU hors tolérance d'abord. */
+  produits: z.array(ligneEcartProduitP4Schema),
+});
+export type DetailP4Produits = z.infer<typeof detailP4ProduitsSchema>;
+
 // ─── Imports ────────────────────────────────────────────────────────────────
 
 export const STATUTS_IMPORT = ['recu', 'en_cours', 'valide', 'rejete'] as const;

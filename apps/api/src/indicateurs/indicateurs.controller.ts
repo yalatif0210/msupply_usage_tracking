@@ -1,5 +1,6 @@
 import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
 import type {
+  DetailP4Produits,
   DetailSite,
   HistoriqueSite,
   Programme,
@@ -7,6 +8,7 @@ import type {
   SyntheseNationale,
 } from '@dqa/contracts';
 import {
+  detailSiteQuerySchema,
   filtreSitesSchema,
   historiqueQuerySchema,
   moisPaqdSchema,
@@ -45,6 +47,17 @@ export class IndicateursController {
     const h = await this.repo.historiqueSite(id, q);
     if (!h) throw new NotFoundException('Site hors périmètre ou inconnu');
     return h;
+  }
+
+  @Get('sites/:id/piliers/p4')
+  async detailP4Produits(
+    @Param('id') id: string,
+    @Query() query: Record<string, string>,
+  ): Promise<DetailP4Produits> {
+    const q = detailSiteQuerySchema.parse(query);
+    const detail = await this.repo.detailP4Produits(id, q.mois, q.programmeId);
+    if (!detail) throw new NotFoundException('Site hors périmètre ou inconnu');
+    return detail;
   }
 
   @Get('synthese')

@@ -6,11 +6,14 @@ import {
   POIDS_PILIER,
   type BlocSynthese,
   type Classification,
+  type DetailP4Produits,
   type DetailSite,
   type FiltreSites,
   type HistoriqueQuery,
   type HistoriqueSite,
+  type LigneEcartProduitP4,
   type MesureSousComposante,
+  type RaisonExclusionConso,
   type Pilier,
   type Programme,
   type RepartitionClassification,
@@ -533,6 +536,97 @@ export class IndicateursRepository {
         piliersCouverts: r.piliers_couverts,
         scoresPiliers: scoresPiliers(r),
       })),
+    };
+  }
+
+  async detailP4Produits(
+    siteId: string,
+    moisDemande: string | undefined,
+    programmeId: string | undefined,
+  ): Promise<DetailP4Produits | null> {
+    const site = await this.pool.query<LigneSite>(
+      `SELECT site_id, site_code, site_nom, district, region, type_structure
+       FROM dqa.dim_site WHERE site_id = $1 AND dans_perimetre_dqa`,
+      [siteId],
+    );
+    if (site.rowCount === 0) return null;
+    const siteRow = site.rows[0]!;
+    const prog = programmeId ?? null;
+
+    const moisRows = await this.pool.query<{ mois_paqd: string }>(
+      `SELECT DISTINCT mois_paqd FROM dqa.mv_p4_ecart_produit
+       WHERE site_id = $1 AND programme_id IS NOT DISTINCT FROM $2
+       ORDER BY mois_paqd DESC`,
+      [siteId, prog],
+    );
+    const moisDisponibles = moisRows.rows.map((r) => r.mois_paqd);
+    const mois =
+      moisDemande && moisDisponibles.includes(moisDemande) ? moisDemande : moisDisponibles[0];
+
+    if (!mois) {
+      return {
+        site: versSite(siteRow),
+        moisPaqd: null,
+        moisDisponibles: [],
+        programmeId: prog,
+        produits: [],
+      };
+    }
+
+    const { rows } = await this.pool.query<{
+      produit_code: string;
+      libelle: string | null;
+      theorique: string | null;
+      comptee: string | null;
+      ecart_sdu_pct: string | null;
+      sdu_conforme: boolean;
+      stock_debut: string | null;
+      stock_fin: string | null;
+      receptions: string | null;
+      declaree: string | null;
+      reconstituee: string | null;
+      conso_evaluable: boolean;
+      conso_raison_exclusion: RaisonExclusionConso | null;
+      ecart_conso_pct: string | null;
+      conso_conforme: boolean;
+    }>(
+      `SELECT produit_code, libelle, theorique, comptee, ecart_sdu_pct, sdu_conforme,
+              stock_debut, stock_fin, receptions, declaree, reconstituee,
+              conso_evaluable, conso_raison_exclusion, ecart_conso_pct, conso_conforme
+       FROM dqa.mv_p4_ecart_produit
+       WHERE site_id = $1 AND mois_paqd = $2 AND programme_id IS NOT DISTINCT FROM $3
+       ORDER BY sdu_conforme, produit_code`,
+      [siteId, mois, prog],
+    );
+
+    const produits: LigneEcartProduitP4[] = rows.map((r) => ({
+      produitCode: r.produit_code,
+      libelle: r.libelle,
+      sdu: {
+        theorique: nombreOuNull(r.theorique),
+        comptee: nombreOuNull(r.comptee),
+        ecartPct: nombreOuNull(r.ecart_sdu_pct),
+        conforme: r.sdu_conforme,
+      },
+      consommation: {
+        evaluable: r.conso_evaluable,
+        raisonExclusion: r.conso_raison_exclusion,
+        stockDebut: nombreOuNull(r.stock_debut),
+        stockFin: nombreOuNull(r.stock_fin),
+        receptions: nombreOuNull(r.receptions),
+        declaree: nombreOuNull(r.declaree),
+        reconstituee: nombreOuNull(r.reconstituee),
+        ecartPct: nombreOuNull(r.ecart_conso_pct),
+        conforme: r.conso_conforme,
+      },
+    }));
+
+    return {
+      site: versSite(siteRow),
+      moisPaqd: mois,
+      moisDisponibles,
+      programmeId: prog,
+      produits,
     };
   }
 
