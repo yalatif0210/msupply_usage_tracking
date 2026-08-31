@@ -139,8 +139,14 @@ la variante « tous programmes » retire le filtre programme.
 | **P1** | complétude inventaires | programmes gérés avec ≥ 1 `stock_take` finalisé dans le mois / nombre de programmes gérés (`dim_site_programme` actif) | = 100, sup |
 | | complétude réquisitions | programmes gérés avec ≥ 1 réquisition `mois_couvert = mois PAQD` / programmes gérés | = 100, sup |
 | | complétude réceptions | transactions `nature = reception` finalisées dans le mois / transactions `nature = facture_fournisseur` du mois ; **NON_CALCULABLE si dénominateur = 0** | = 100, sup |
-| **P2** | promptitude inventaires | programmes gérés avec un `stock_take` finalisé daté dans **`[mois_fin − 2, mois_fin]`** / programmes gérés | ≥ 65, sup |
-| | promptitude réquisitions | réquisitions du mois soumises (`date_soumission`) ≤ `jour_limite_requisition` du mois M+1 / réquisitions attendues (= programmes gérés) | ≥ 65, sup |
+| **P2** | promptitude inventaires | programmes gérés avec un `stock_take` finalisé daté dans **`[mois_fin − 2, mois_fin]`** / programmes gérés | = 100, sup |
+| | promptitude réquisitions | programmes gérés avec une réquisition du mois soumise (`date_soumission`) ≤ `jour_limite_requisition` du mois M+1 / programmes gérés | = 100, sup |
+
+> **Arbitrage 2026-08-31 (coordination) :** la contradiction entre cette table
+> (« ÷ programmes gérés ») et le paragraphe *Solution* / ticket 06 (« ÷ ce qui
+> a été saisi ») est tranchée en faveur de **÷ programmes gérés**, avec seuil
+> **100 %** : un programme géré sans inventaire (ou sans réquisition) du mois
+> compte 0, jamais NON_CALCULABLE. Migration `0020_p2_denominateur_programmes_geres.sql`.
 | **P3** | régularité de saisie | jours ouvrables du mois (`dim_temps` `est_ouvrable`) avec ≥ 1 `fact_transaction` `nature ∈ {dispensation, distribution}` confirmée ce jour / jours ouvrables du mois | ≥ 65, sup |
 | **P4** | écart SDU | **taux de conformité** : `nb produits traceurs avec \|théorique − compté\| / compté ≤ tolérance` / `nb produits traceurs inventoriés dans le mois` (× 100), au **dernier** inventaire finalisé du mois par produit. Le **compté** (réalité) au dénominateur, produit par produit. **NON_CALCULABLE si aucun produit traceur inventorié.** | taux ≥ `seuil` (90 par défaut), sup ; `tolerance` (2 par défaut) |
 | | écart consommation | **taux de conformité** : `nb produits avec \|déclarée − reconstituée\| / reconstituée ≤ tolérance` / `nb produits évaluables` (× 100). Par produit : `reconstituee = stock_debut + receptions − stock_fin` entre le **premier** et le **dernier** inventaire finalisé du mois ; `declaree = Σ quantite_unitaire` des lignes `nature = dispensation` sur l'intervalle ; `receptions` idem `nature = reception`. Un produit sans deux inventaires bornants ou dont `reconstituee ≤ 0` est **exclu** (non évaluable). **NON_CALCULABLE si aucun produit évaluable.** | taux ≥ `seuil` (90 par défaut), sup ; `tolerance` (2 par défaut) |

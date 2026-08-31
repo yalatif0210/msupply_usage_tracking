@@ -52,6 +52,10 @@ que pour les sites aux données incomplètes.
 - Le seuil de « trois derniers jours » est calculé par mois calendaire
   (`date_trunc('month', date_inventaire) + 1 mois − 3 jours`), donc robuste aux
   mois de 28/30/31 jours sans dépendre de `import_lot.mois_fin`.
-- `socle` des tests d'indicateurs pose désormais son inventaire au 30/08 (dans
-  la fenêtre de promptitude) pour ne pas faire chuter P2 dans les tests de
-  composite qui ne s'intéressent pas à P2.
+- **Suivi 2026-08-31 (migration 0020)** : arbitrage de la coordination sur la
+  contradiction de la spec — dénominateur des deux sous-composantes = **programmes
+  gérés** (pas « ÷ ce qui a été saisi »), seuil **100 %**. `mv_p2_promptitude`
+  et `mv_score_pilier` réécrites ; grille mise à jour ; `CLAUDE.md` §5,
+  `spec.md` et le guide indicateurs alignés. Un programme géré sans transaction
+  du mois compte 0 (P2 pénalise la non-soumission), NON_CALCULABLE seulement si
+  aucun programme géré déclaré.

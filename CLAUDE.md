@@ -101,7 +101,7 @@ SQL inline dans le code.
 | Code | Indicateur                          | Poids | Seuil conforme |
 |------|-------------------------------------|-------|----------------|
 | P1   | Complétude des transactions (Inventaire - requisition - reception)        | 10 %  | 100 %          |
-| P2   | Promptitude des transactions (Inventaire - requisition) | 15 %  | ≥ 65 %         |
+| P2   | Promptitude des transactions (Inventaire - requisition) | 15 %  | = 100 %        |
 | P3   | Régularité de saisie (dispensation)  | 15 %  | ≥ 65 %         |
 | P4   | Écart SDU produits traceurs         | 25 %  | ≤ 2 %          |
 | P5   | Concordance physique / théorique    | 25 %  | = 100 %         |

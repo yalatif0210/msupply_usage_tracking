@@ -62,16 +62,19 @@ score de zéro. Score de pilier P1 = moyenne simple des sous-composantes
 calculables.
 
 **P2 — promptitude des transactions** (`mv_p2_promptitude`) : deux
-sous-composantes, seuil grille 65 %.
-- `promptitude_inventaires` : inventaires finalisés du mois datés dans les
-  trois derniers jours du mois ÷ inventaires finalisés du mois.
-- `promptitude_requisitions` : réquisitions couvrant le mois soumises au plus
-  tard le jour limite du mois suivant ÷ réquisitions couvrant le mois. Jour
-  limite = `dim_site.jour_limite_requisition`, à défaut 5 (CSU/CSR/ESPC), 7
-  (HG/CHR), 10 (autres).
+sous-composantes, **seuil grille 100 %**, dénominateur = **programmes gérés**
+(comme P1 — arbitrage coordination du 2026-08-31, migration 0020).
+- `promptitude_inventaires` : programmes gérés avec ≥ 1 inventaire finalisé
+  daté dans les trois derniers jours du mois ÷ programmes gérés.
+- `promptitude_requisitions` : programmes gérés avec ≥ 1 réquisition couvrant
+  le mois soumise au plus tard le jour limite du mois suivant ÷ programmes
+  gérés. Jour limite = `dim_site.jour_limite_requisition`, à défaut 5
+  (CSU/CSR/ESPC), 7 (HG/CHR), 10 (autres).
 
-Chacune NON_CALCULABLE si aucune transaction de la catégorie ce mois. Score de
-pilier P2 = moyenne simple des sous-composantes calculables.
+Un programme géré sans inventaire (ou sans réquisition) du mois compte **0**,
+jamais NON_CALCULABLE : ne rien soumettre pénalise P2. NON_CALCULABLE seulement
+si le site n'a aucun programme géré déclaré. Score de pilier P2 = moyenne
+simple des deux sous-composantes.
 
 **P3 — régularité de saisie** (`mv_p3_regularite`) : jours ouvrables du mois
 PAQD avec au moins une sortie de stock (`nature ∈ {dispensation, distribution}`

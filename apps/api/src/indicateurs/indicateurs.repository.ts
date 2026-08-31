@@ -355,9 +355,10 @@ export class IndicateursRepository {
     seuil: string | null,
     m: { inv: MesureBrute; req: MesureBrute },
   ): ScorePilier {
+    const raisonProg = 'Aucun programme géré déclaré pour ce site';
     return this.envelopper('P2', score, [
-      this.mesure('promptitude_inventaires', m.inv, seuil, 'Aucun inventaire finalisé ce mois'),
-      this.mesure('promptitude_requisitions', m.req, seuil, 'Aucune réquisition couvrant ce mois'),
+      this.mesure('promptitude_inventaires', m.inv, seuil, raisonProg),
+      this.mesure('promptitude_requisitions', m.req, seuil, raisonProg),
     ]);
   }
 

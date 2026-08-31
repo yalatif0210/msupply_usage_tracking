@@ -78,11 +78,11 @@ describe('vues d\'indicateurs, composite et gel', () => {
       );
     }
     if (avecInventaire) {
-      // 2026-08-30 : dans les trois derniers jours du mois → P2 promptitude
-      // inventaires « à l'heure » par défaut.
+      // socle ne déclare pas de dim_site_programme → P1 et P2 restent
+      // NON_CALCULABLE ici ; la date d'inventaire n'influe que sur P4/P5.
       await db.query(
         `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
-         VALUES ('INV1','S1','P1','2026-08-30','fn',1)`,
+         VALUES ('INV1','S1','P1','2026-08-28','fn',1)`,
       );
       await db.query(
         `INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
@@ -218,15 +218,15 @@ describe('vues d\'indicateurs, composite et gel', () => {
   });
 
   it('le composite intègre P3 dans la renormalisation', async () => {
-    // P2 (100, 15), P3 ALERTE (0, 15), P4 (100, 25), P5 (100, 25), P6 (100, 10)
-    // → (100·15 + 0·15 + 100·25 + 100·25 + 100·10) / 90 = 7500 / 90 = 83.3
+    // P3 ALERTE (0, 15), P4 (100, 25), P5 (100, 25), P6 (100, 10) — P1/P2 absents
+    // → (0·15 + 100·25 + 100·25 + 100·10) / (15 + 25 + 25 + 10) = 6000 / 75 = 80.0
     await socle({
       comptee: 100, theorique: 100, nbMouvements: 0,
       sorties: joursOuvrablesAout.slice(0, 4).map((j) => ({ jour: j })),
     });
     const sp = await scorePilier(null);
     expect(sp?.p_regularite).toBe('0.0');
-    expect(sp?.score_composite).toBe('83.3');
+    expect(sp?.score_composite).toBe('80.0');
     expect(sp?.classification).toBe('PARTIELLEMENT_CONFORME');
   });
 
@@ -383,10 +383,10 @@ describe('vues d\'indicateurs, composite et gel', () => {
        FROM dqa.hist_score_site WHERE site_id = 'S1' AND programme_id IS NULL`,
     );
     expect(rows[0].mois_paqd).toBe('2026-08');
-    // P1 sans programme géré → NULL ; P3 sans sortie → NULL ;
-    // P2 (inventaire à l'heure), P4, P5, P6 gelés
+    // P1 et P2 sans programme géré déclaré → NULL ; P3 sans sortie → NULL ;
+    // P4, P5, P6 gelés
     expect(rows[0].p_completude).toBeNull();
-    expect(rows[0].p_promptitude).toBe('100.0');
+    expect(rows[0].p_promptitude).toBeNull();
     expect(rows[0].p_regularite).toBeNull();
     expect(rows[0].p_ecart_sdu).toBe('100.0');
     expect(rows[0].p_concordance).toBe('100.0');
@@ -396,22 +396,22 @@ describe('vues d\'indicateurs, composite et gel', () => {
   });
 
   it('renormalise le composite sur les seuls piliers calculables', async () => {
-    // P1 et P3 absents → leurs poids (10 + 15) sortent du dénominateur.
-    // P2 à l'heure (100), P4 hors tolérance (0), P5 sous le seuil (0), P6 conforme (100).
-    // Composite = (100·15 + 0·25 + 0·25 + 100·10) / (15 + 25 + 25 + 10) = 2500 / 75 = 33.3
+    // socle : P1, P2, P3 absents → leurs poids (10 + 15 + 15) sortent du dénominateur.
+    // P4 hors tolérance (0), P5 sous le seuil (0), P6 conforme (100).
+    // Composite = (0·25 + 0·25 + 100·10) / (25 + 25 + 10) = 1000 / 60 = 16.7
     await socle({ comptee: 70, theorique: 100, nbMouvements: 10, nbAjustements: 0 });
     const tous = await scorePilier(null);
     expect(tous?.p_completude).toBeNull();
+    expect(tous?.p_promptitude).toBeNull();
     expect(tous?.p_regularite).toBeNull();
-    expect(tous?.p_promptitude).toBe('100.0');
     expect(tous?.p_ecart_sdu).toBe('0.0');
     expect(tous?.p_concordance).toBe('0.0');
     expect(tous?.p_ajustements).toBe('100.0');
-    expect(tous?.score_composite).toBe('33.3');
+    expect(tous?.score_composite).toBe('16.7');
     expect(tous?.classification).toBe('NON_CONFORME');
   });
 
-  it('composite = 100 et CONFORME quand P2, P4, P5 et P6 sont tous conformes', async () => {
+  it('composite = 100 et CONFORME quand P4, P5 et P6 sont tous conformes', async () => {
     await socle({ comptee: 100, theorique: 100, nbMouvements: 10, nbAjustements: 0 });
     const tous = await scorePilier(null);
     expect(tous?.score_composite).toBe('100.0');
@@ -621,27 +621,29 @@ describe('vue P2 — promptitude des transactions', () => {
     );
   });
 
-  const site = async (typeStructure: string, jourLimite: number | null = null) => {
+  const site = async (typeStructure: string, jourLimite: number | null = null, programmes = ['VIH']) => {
     await db.query(
       `INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa, type_structure, jour_limite_requisition)
        VALUES ('S1','CSU',true,$1,$2)`,
       [typeStructure, jourLimite],
     );
-    await db.query(`INSERT INTO dqa.dim_programme (programme_id, programme_nom) VALUES ('VIH','VIH')`);
-    await db.query(`INSERT INTO dqa.dim_site_programme (site_id, programme_id, actif) VALUES ('S1','VIH',true)`);
+    for (const p of programmes) {
+      await db.query(`INSERT INTO dqa.dim_programme (programme_id, programme_nom) VALUES ($1,$1)`, [p]);
+      await db.query(`INSERT INTO dqa.dim_site_programme (site_id, programme_id, actif) VALUES ('S1',$1,true)`, [p]);
+    }
   };
-  const inventaire = async (id: string, jour: string) => {
+  const inventaire = async (id: string, jour: string, programme = 'VIH') => {
     await db.query(
       `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
-       VALUES ($1,'S1','VIH',$2::date,'fn',1)`,
-      [id, jour],
+       VALUES ($1,'S1',$2,$3::date,'fn',1)`,
+      [id, programme, jour],
     );
   };
-  const requisition = async (id: string, dateSoumission: string | null) => {
+  const requisition = async (id: string, dateSoumission: string | null, programme = 'VIH') => {
     await db.query(
       `INSERT INTO dqa.fact_requisition (requisition_id, site_id, programme_id, mois_couvert, date_soumission, lot_id_source)
-       VALUES ($1,'S1','VIH','2026-08',$2::date,1)`,
-      [id, dateSoumission],
+       VALUES ($1,'S1',$2,'2026-08',$3::date,1)`,
+      [id, programme, dateSoumission],
     );
   };
   const p2 = async () => {
@@ -691,11 +693,12 @@ describe('vue P2 — promptitude des transactions', () => {
   });
 
   it('promptitude réquisitions : jour limite 7 pour un hôpital général', async () => {
-    await site('HG'); // limite = 7
-    await requisition('R1', '2026-09-07');
-    await requisition('R2', '2026-09-08'); // en retard
+    // dénominateur = programmes gérés : VIH servi à l'heure, TB non → 1 / 2
+    await site('HG', null, ['VIH', 'TB']); // limite = 7
+    await requisition('R1', '2026-09-07', 'VIH');
+    await requisition('R2', '2026-09-08', 'TB'); // en retard
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
-    expect((await p2())?.promptitude_requisitions_pct).toBe('50.0'); // 1 / 2
+    expect((await p2())?.promptitude_requisitions_pct).toBe('50.0');
   });
 
   it('promptitude réquisitions : dim_site.jour_limite_requisition prime sur le type', async () => {
@@ -705,18 +708,34 @@ describe('vue P2 — promptitude des transactions', () => {
     expect((await p2())?.promptitude_requisitions_pct).toBe('100.0');
   });
 
-  it('P2 NON_CALCULABLE par catégorie absente ; score = moyenne des calculables', async () => {
+  it('un programme géré sans réquisition compte 0 (pas NON_CALCULABLE)', async () => {
+    // dénominateur = programmes gérés : ne rien soumettre pénalise P2.
     await site('ESPC');
-    await inventaire('INV1', '2026-08-30'); // inventaires 100
-    // aucune réquisition → promptitude_requisitions NON_CALCULABLE
+    await inventaire('INV1', '2026-08-30'); // inventaires : VIH à l'heure → 100
+    // aucune réquisition pour VIH → promptitude_requisitions = 0 (pas NULL)
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     const v = await p2();
-    expect(v?.promptitude_requisitions_pct).toBeNull();
-    expect(v?.score_requisitions).toBeNull();
-    expect(v?.p_promptitude).toBe('100.0'); // moyenne de (100)
+    expect(v?.promptitude_requisitions_pct).toBe('0.0');
+    expect(v?.score_requisitions).toBe('0.0');
+    expect(v?.p_promptitude).toBe('50.0'); // moyenne de (100, 0)
     const { rows } = await db.query<{ p_promptitude: string | null }>(
       `SELECT p_promptitude FROM dqa.mv_score_pilier WHERE site_id = 'S1' AND programme_id IS NULL`,
     );
-    expect(rows[0]?.p_promptitude).toBe('100.0');
+    expect(rows[0]?.p_promptitude).toBe('50.0');
+  });
+
+  it('P2 NON_CALCULABLE seulement sans aucun programme géré déclaré', async () => {
+    await db.query(
+      `INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa, type_structure)
+       VALUES ('S1','CSU',true,'ESPC')`,
+    );
+    await db.query(`INSERT INTO dqa.dim_programme (programme_id, programme_nom) VALUES ('VIH','VIH')`);
+    await db.query(
+      `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
+       VALUES ('INV1','S1','VIH','2026-08-30','fn',1)`,
+    );
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    const { rowCount } = await db.query(`SELECT 1 FROM dqa.mv_p2_promptitude WHERE site_id = 'S1'`);
+    expect(rowCount).toBe(0);
   });
 });
