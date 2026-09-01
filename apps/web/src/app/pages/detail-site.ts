@@ -29,7 +29,7 @@ import { Coquille } from '../ui/coquille';
   template: `
     <dqa-coquille />
     <main>
-      <a routerLink="/" class="retour">← Tous les sites</a>
+      <a routerLink="/sites" class="retour">← Tous les sites</a>
 
       @if (chargement()) {
         <p>Chargement…</p>

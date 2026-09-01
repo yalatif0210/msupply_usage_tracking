@@ -348,6 +348,6 @@ export class SynthesePage {
   }
 
   protected ouvrirDistrict(district: string): void {
-    void this.router.navigate(['/'], { queryParams: { district } });
+    void this.router.navigate(['/sites'], { queryParams: { district } });
   }
 }

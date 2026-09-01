@@ -9,6 +9,11 @@ export const routes: Routes = [
   {
     path: '',
     canActivate: [gardeAuthentifie],
+    loadComponent: () => import('./pages/tableau-de-bord').then((m) => m.TableauDeBordPage),
+  },
+  {
+    path: 'sites',
+    canActivate: [gardeAuthentifie],
     loadComponent: () => import('./pages/liste-sites').then((m) => m.ListeSitesPage),
   },
   {

@@ -1,7 +1,12 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { syntheseNationaleSchema, type SyntheseNationale } from '@dqa/contracts';
+import {
+  syntheseNationaleSchema,
+  tableauDeBordSchema,
+  type SyntheseNationale,
+  type TableauDeBord,
+} from '@dqa/contracts';
 import { validerReponse } from './valider-reponse';
 
 export interface OptionsSynthese {
@@ -21,5 +26,10 @@ export class SyntheseService {
     }
     const data = await firstValueFrom(this.http.get<unknown>('/api/synthese', { params }));
     return validerReponse(syntheseNationaleSchema, data);
+  }
+
+  async tableauDeBord(): Promise<TableauDeBord> {
+    const data = await firstValueFrom(this.http.get<unknown>('/api/tableau-de-bord'));
+    return validerReponse(tableauDeBordSchema, data);
   }
 }

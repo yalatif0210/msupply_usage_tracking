@@ -25,7 +25,8 @@ import { AuthService } from '../core/auth.service';
 
     @if (auth.utilisateur(); as u) {
       <nav class="barre2" aria-label="Sections">
-        <a routerLink="/" routerLinkActive="actif" [routerLinkActiveOptions]="{ exact: true }">Sites</a>
+        <a routerLink="/" routerLinkActive="actif" [routerLinkActiveOptions]="{ exact: true }">Tableau de bord</a>
+        <a routerLink="/sites" routerLinkActive="actif">Sites</a>
         <a routerLink="/synthese" routerLinkActive="actif">Synthèse</a>
         <a routerLink="/imports" routerLinkActive="actif">Imports</a>
         @if (u.role === 'coordination' || u.role === 'admin') {
