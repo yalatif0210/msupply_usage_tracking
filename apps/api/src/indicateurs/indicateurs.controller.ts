@@ -6,6 +6,7 @@ import type {
   Programme,
   ScoreSite,
   SyntheseNationale,
+  TableauDeBord,
 } from '@dqa/contracts';
 import {
   detailSiteQuerySchema,
@@ -64,6 +65,11 @@ export class IndicateursController {
   synthese(@Query() query: Record<string, string>): Promise<SyntheseNationale> {
     const q = syntheseQuerySchema.parse(query);
     return this.repo.synthese(q);
+  }
+
+  @Get('tableau-de-bord')
+  tableauDeBord(): Promise<TableauDeBord> {
+    return this.repo.tableauDeBord();
   }
 
   @Get('referentiel/programmes')

@@ -223,6 +223,32 @@ export const syntheseQuerySchema = z.object({
 });
 export type SyntheseQuery = z.infer<typeof syntheseQuerySchema>;
 
+// ─── Tableau de bord national (page d'accueil) ──────────────────────────────
+
+/** Nombre de sous-composantes « en difficulté » affichées sur la page d'accueil. */
+export const TOP_SOUS_COMPOSANTES_DIFFICULTE = 5;
+
+/** Score composite moyen national d'un mois PAQD, pour la mini-courbe d'accueil. */
+export const pointProgressionNationaleSchema = z.object({
+  moisPaqd: moisPaqdSchema,
+  scoreCompositeMoyen: pourcentageSchema.nullable(),
+});
+export type PointProgressionNationale = z.infer<typeof pointProgressionNationaleSchema>;
+
+export const tableauDeBordSchema = z.object({
+  /** Mois PAQD le plus récent présent dans l'historique gelé, ou `null` si aucun. */
+  moisPaqd: moisPaqdSchema.nullable(),
+  /** État national du mois : `nbSites` = périmètre, `repartition.SANS_MESURE` = sites sans score. */
+  national: blocSyntheseSchema,
+  /** Score composite moyen national par mois PAQD, du plus ancien au plus récent. */
+  progression: z.array(pointProgressionNationaleSchema),
+  /** Les sous-composantes qui mettent le plus de sites en ALERTE ce mois, triées ALERTE décroissant. */
+  sousComposantesEnDifficulte: z
+    .array(ligneSousComposanteSyntheseSchema)
+    .max(TOP_SOUS_COMPOSANTES_DIFFICULTE),
+});
+export type TableauDeBord = z.infer<typeof tableauDeBordSchema>;
+
 // ─── Progression d'un site sur un cycle PAQD ────────────────────────────────
 
 /**

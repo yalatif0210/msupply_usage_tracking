@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { IndicateursRepository } from '../src/indicateurs/indicateurs.repository.js';
 import { demarrerBaseEphemere, type BaseEphemere } from './helpers/db.js';
 
 /**
@@ -321,5 +322,53 @@ describe('vue mv_synthese_nationale', () => {
     await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_sous_composante`);
     expect((await parSc('regularite_saisie', null, 'NORD', 'D1'))?.nb_conforme).toBe(1);
     expect((await parSc('regularite_saisie', null, 'NORD', 'D2'))?.nb_alerte).toBe(1);
+  });
+
+  // ── agrégat tableau de bord ─────────────────────────────────────────────
+  const histTdb = async (
+    siteId: string, mois: string, composite: number | null, classif: string | null,
+    reg: number | null, ratio: number | null,
+  ) =>
+    db.query(
+      `INSERT INTO dqa.hist_score_site
+         (site_id, mois_paqd, programme_id, grille_id, score_composite, classification,
+          sc_regularite_saisie, sc_ratio_ajustements)
+       VALUES ($1,$2,NULL,$3,$4,$5,$6,$7)`,
+      [siteId, mois, gid, composite, classif, reg, ratio],
+    );
+
+  it('tableau de bord : état national du dernier mois, progression ordonnée, top 5 en difficulté', async () => {
+    await site('S1', 'NORD', 'D1');
+    await site('S2', 'NORD', 'D1');
+    await site('S3', 'SUD', 'D3'); // périmètre, aucune ligne → sans mesure
+    await histTdb('S1', '2026-07', 60, 'NON_CONFORME', 65, 0);
+    await histTdb('S1', '2026-08', 80, 'PARTIELLEMENT_CONFORME', 40, 10); // reg ALERTE, ratio ALERTE
+    await histTdb('S2', '2026-08', 90, 'CONFORME', 40, 0); // reg ALERTE, ratio CONFORME
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_nationale`);
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_sous_composante`);
+
+    const t = await new IndicateursRepository(db).tableauDeBord();
+    expect(t.moisPaqd).toBe('2026-08');
+    expect(t.national.nbSites).toBe(3);
+    expect(t.national.nbMesures).toBe(2); // S1, S2 en août
+    expect(t.national.scoreCompositeMoyen).toBe(85); // avg(80, 90)
+    expect(t.national.repartition.SANS_MESURE).toBe(1); // S3
+    expect(t.progression.map((p) => p.moisPaqd)).toEqual(['2026-07', '2026-08']);
+    expect(t.progression[0]?.scoreCompositeMoyen).toBe(60);
+    expect(t.sousComposantesEnDifficulte).toHaveLength(5);
+    // regularite_saisie (2 alertes) devant ratio_ajustements (1 alerte)
+    expect(t.sousComposantesEnDifficulte[0]?.sousComposante).toBe('regularite_saisie');
+    expect(t.sousComposantesEnDifficulte[0]?.nbAlerte).toBe(2);
+    expect(t.sousComposantesEnDifficulte[1]?.nbAlerte).toBe(1);
+  });
+
+  it('tableau de bord : aucun mois mesuré', async () => {
+    // le beforeEach vide les tables mais pas les vues matérialisées
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_nationale`);
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_sous_composante`);
+    const t = await new IndicateursRepository(db).tableauDeBord();
+    expect(t.moisPaqd).toBeNull();
+    expect(t.progression).toEqual([]);
+    expect(t.sousComposantesEnDifficulte).toEqual([]);
   });
 });

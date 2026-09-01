@@ -19,6 +19,7 @@ Emplacement : `apps/api/src/indicateurs/` (API) et `apps/web/src/app/pages/`
 | `GET` | `/api/sites/:id/historique?cycle=&programmeId=` | `HistoriqueSite` | tout authentifié |
 | `GET` | `/api/sites/:id/piliers/p4?mois=&programmeId=` | `DetailP4Produits` | tout authentifié |
 | `GET` | `/api/synthese?mois=&programmeId=&region=` | `SyntheseNationale` | tout authentifié |
+| `GET` | `/api/tableau-de-bord` | `TableauDeBord` | tout authentifié |
 | `GET` | `/api/referentiel/programmes` | `Programme[]` | tout authentifié |
 | `GET` | `/api/referentiel/districts` | `string[]` | tout authentifié |
 | `GET` | `/api/referentiel/regions` | `string[]` | tout authentifié |
@@ -168,11 +169,23 @@ en attendant `v_sous_composante_atteinte`). Servi dans `SyntheseNationale.parSou
 l'onglet « Sous-composantes » de `/synthese`. Rafraîchie avec
 `mv_synthese_nationale`.
 
-Écran `pages/synthese.ts` (route `/synthese`, la liste des sites reste
-l'accueil) : bloc national (score moyen en grand, barre de répartition à quatre
-segments `ui/repartition-classification`), six moyennes de pilier, tableau par
-district (ligne cliquable → liste filtrée), section « scores par programme ».
-Sélecteurs mois / programme / région.
+**Tableau de bord national.** `GET /api/tableau-de-bord` (`TableauDeBord`,
+sans paramètre) sert la page d'accueil `/` : `national` (bloc du mois le plus
+récent, lu sur `mv_synthese_nationale` au grain tous nuls), `progression`
+(score composite moyen national par mois PAQD, ordonné), et
+`sousComposantesEnDifficulte` (les `TOP_SOUS_COMPOSANTES_DIFFICULTE` = 5
+sous-composantes avec le plus de sites en ALERTE, depuis
+`mv_synthese_sous_composante`). Endpoint dédié plutôt qu'une extension de
+`/synthese` : la mini-série de progression n'a de sens que sur l'accueil.
+
+Écran `pages/synthese.ts` (route `/synthese`) : deux onglets. « Par pilier » :
+bloc national (score moyen en grand, barre de répartition à quatre segments
+`ui/repartition-classification`), six moyennes de pilier, tableau par district
+(ligne cliquable → `/sites` filtré), section « scores par programme ».
+« Sous-composantes » : tableau des dix sous-composantes, triable. Sélecteurs
+mois / programme / région. Écran `pages/tableau-de-bord.ts` (route `/`) :
+tuiles, `ui/mini-courbe`, top 5 en difficulté ; la liste des sites est sur
+`/sites` (`pages/liste-sites.ts`).
 
 ## Progression d'un site
 

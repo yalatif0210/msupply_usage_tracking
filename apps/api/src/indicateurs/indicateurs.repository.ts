@@ -26,8 +26,10 @@ import {
   type SousComposante,
   type SousComposanteBref,
   type StatutSousComposante,
+  TOP_SOUS_COMPOSANTES_DIFFICULTE,
   type SyntheseNationale,
   type SyntheseQuery,
+  type TableauDeBord,
 } from '@dqa/contracts';
 import { PG_POOL } from '../database/database.module.js';
 
@@ -173,6 +175,15 @@ interface LigneSousComposanteSyntheseBrute {
   nb_non_calculable: number;
 }
 
+const versLigneSousComposante = (r: LigneSousComposanteSyntheseBrute) => ({
+  sousComposante: r.sous_composante,
+  pilier: PILIER_DE_SOUS_COMPOSANTE[r.sous_composante],
+  tauxAtteinteMoyen: nombreOuNull(r.taux_atteinte_moyen),
+  nbConforme: r.nb_conforme,
+  nbAlerte: r.nb_alerte,
+  nbNonCalculable: r.nb_non_calculable,
+});
+
 const versBloc = (r: LigneSynthese | undefined): BlocSynthese => ({
   nbSites: r?.nb_sites ?? 0,
   nbMesures: r?.nb_mesures ?? 0,
@@ -300,14 +311,56 @@ export class IndicateursRepository {
         programmeNom: r.programme_nom,
         ...versBloc(r),
       })),
-      parSousComposante: parSousComposante.rows.map((r) => ({
-        sousComposante: r.sous_composante,
-        pilier: PILIER_DE_SOUS_COMPOSANTE[r.sous_composante],
-        tauxAtteinteMoyen: nombreOuNull(r.taux_atteinte_moyen),
-        nbConforme: r.nb_conforme,
-        nbAlerte: r.nb_alerte,
-        nbNonCalculable: r.nb_non_calculable,
-      })),
+      parSousComposante: parSousComposante.rows.map(versLigneSousComposante),
+    };
+  }
+
+  /** Agrégat de la page d'accueil : état national du dernier mois, courbe et sous-composantes en difficulté. */
+  async tableauDeBord(): Promise<TableauDeBord> {
+    // Les deux vues n'agrègent que les sites `dans_perimetre_dqa` (cf. 0021, 0026) ;
+    // le grain national = programme / région / district tous nuls.
+    const NATIONAL = `programme_id IS NULL AND region IS NULL AND district IS NULL`;
+
+    const progression = await this.pool.query<{ mois_paqd: string; score_composite_moyen: string | null }>(
+      `SELECT mois_paqd, score_composite_moyen
+       FROM dqa.mv_synthese_nationale
+       WHERE ${NATIONAL}
+       ORDER BY mois_paqd`,
+    );
+    const points = progression.rows.map((r) => ({
+      moisPaqd: r.mois_paqd,
+      scoreCompositeMoyen: nombreOuNull(r.score_composite_moyen),
+    }));
+    const mois = points.at(-1)?.moisPaqd ?? null;
+
+    if (mois === null) {
+      return { moisPaqd: null, national: versBloc(undefined), progression: [], sousComposantesEnDifficulte: [] };
+    }
+
+    const national = await this.pool.query<LigneSynthese>(
+      `SELECT nb_sites::int, nb_mesures::int, score_composite_moyen,
+              nb_conforme::int, nb_partiellement_conforme::int,
+              nb_non_conforme::int, nb_sans_mesure::int
+       FROM dqa.mv_synthese_nationale
+       WHERE mois_paqd = $1 AND ${NATIONAL}`,
+      [mois],
+    );
+
+    const difficulte = await this.pool.query<LigneSousComposanteSyntheseBrute>(
+      `SELECT sous_composante, taux_atteinte_moyen,
+              nb_conforme::int, nb_alerte::int, nb_non_calculable::int
+       FROM dqa.mv_synthese_sous_composante
+       WHERE mois_paqd = $1 AND ${NATIONAL}
+       ORDER BY nb_alerte DESC, sous_composante
+       LIMIT ${TOP_SOUS_COMPOSANTES_DIFFICULTE}`,
+      [mois],
+    );
+
+    return {
+      moisPaqd: mois,
+      national: versBloc(national.rows[0]),
+      progression: points,
+      sousComposantesEnDifficulte: difficulte.rows.map(versLigneSousComposante),
     };
   }
 

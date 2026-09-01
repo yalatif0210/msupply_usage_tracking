@@ -10,6 +10,7 @@ import {
   SOUS_COMPOSANTES,
   SOUS_COMPOSANTES_DU_PILIER,
   syntheseNationaleSchema,
+  tableauDeBordSchema,
   type Pilier,
 } from '@dqa/contracts';
 import { z } from 'zod';
@@ -155,6 +156,47 @@ describe('validerReponse (couture D)', () => {
     const bancale = synthese();
     bancale.national.repartition = { CONFORME: 1, PARTIELLEMENT_CONFORME: 2, NON_CONFORME: 1 } as never;
     expect(() => validerReponse(syntheseNationaleSchema, bancale)).toThrow(/non conforme/i);
+  });
+
+  const tableauDeBord = (over: Record<string, unknown> = {}) => ({
+    moisPaqd: '2026-08',
+    national: { nbSites: 40, nbMesures: 38, scoreCompositeMoyen: 71.4, repartition },
+    progression: [
+      { moisPaqd: '2026-07', scoreCompositeMoyen: 68 },
+      { moisPaqd: '2026-08', scoreCompositeMoyen: 71.4 },
+    ],
+    sousComposantesEnDifficulte: SOUS_COMPOSANTES.slice(0, 5).map((sousComposante) => ({
+      sousComposante,
+      pilier: PILIER_DE_SOUS_COMPOSANTE[sousComposante],
+      tauxAtteinteMoyen: 60,
+      nbConforme: 20,
+      nbAlerte: 18,
+      nbNonCalculable: 2,
+    })),
+    ...over,
+  });
+
+  it('accepte un TableauDeBord complet', () => {
+    const t = validerReponse(tableauDeBordSchema, tableauDeBord());
+    expect(t.sousComposantesEnDifficulte).toHaveLength(5);
+  });
+
+  it('rejette un TableauDeBord à plus de cinq sous-composantes en difficulté', () => {
+    expect(() =>
+      validerReponse(
+        tableauDeBordSchema,
+        tableauDeBord({
+          sousComposantesEnDifficulte: SOUS_COMPOSANTES.map((sousComposante) => ({
+            sousComposante,
+            pilier: PILIER_DE_SOUS_COMPOSANTE[sousComposante],
+            tauxAtteinteMoyen: 60,
+            nbConforme: 1,
+            nbAlerte: 1,
+            nbNonCalculable: 1,
+          })),
+        }),
+      ),
+    ).toThrow(/non conforme/i);
   });
 
   const point = (over: Record<string, unknown> = {}) => ({
