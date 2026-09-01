@@ -216,7 +216,7 @@ Une réquisition compte pour son **mois couvert M** (P1b). Elle est à l'heure
 | **P2a** promptitude inventaires | programmes gérés ayant un `stock_take` `fn` daté dans les **3 derniers jours** du mois | programmes gérés |
 | **P2b** promptitude réquisitions | réquisitions soumises ≤ `jour_limite_requisition` du mois suivant | réquisitions attendues (= programmes gérés) |
 | **P3** régularité | jours du mois avec ≥ 1 sortie de stock (`nature ∈ {dispensation, distribution}`) | jours calendaires du mois (7 j/7, ni week-ends ni fériés retranchés) |
-| **P4** écart SDU | \|conso `nature = dispensation` − conso reconstituée (2 inventaires)\| / conso reconstituée | — |
+| **P4** taux de conformité | part des produits traceurs dans la tolérance de la grille (écart SDU au dernier inventaire ; écart consommation déclarée / reconstituée) | produits traceurs inventoriés / évaluables |
 | **P5** concordance | Σ `stock_take_qty` du dernier inventaire | Σ `snapshot_qty` du dernier inventaire |
 | **P6** ratio d'ajustements | lignes `trans_line.is_from_inventory_adjustment` (ou transactions INVAD) | mouvements de stock totaux (`type_ligne ∈ {stock_in, stock_out}`) |
 

@@ -27,7 +27,7 @@ const AVEC_TOLERANCE = new Set<SousComposante>(SOUS_COMPOSANTES_AVEC_TOLERANCE);
       <p class="intro">
         Poids des piliers et seuils des sous-composantes. Une modification crée
         une <b>nouvelle version</b> qui ne prend effet qu'à une date future :
-        les scores déjà calculés ne changent jamais (ADR 0003).
+        les scores déjà calculés ne changent jamais.
       </p>
 
       @if (erreur()) {

@@ -21,7 +21,7 @@ export const LIBELLES_PILIER: Record<Pilier, string> = {
   P1: 'Complétude des transactions',
   P2: 'Promptitude des transactions',
   P3: 'Régularité de saisie (dispensation)',
-  P4: 'Écart SDU produits traceurs',
+  P4: 'Taux de conformité',
   P5: 'Concordance physique / théorique',
   P6: "Ratio d'ajustements",
 };

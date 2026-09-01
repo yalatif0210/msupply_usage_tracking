@@ -91,9 +91,10 @@ coordination du 2026-08-31, migration 0024). Sous-composante unique
 `regularite_saisie`, seuil grille 65 %. NON_CALCULABLE si le site n'a aucune
 sortie exploitable → pas de ligne dans la vue.
 
-**P4 — écart SDU et écart consommation** (`mv_p4_ecart`) : deux sous-composantes
-en **taux de conformité** (part des produits traceurs dans la tolérance de la
-grille, pas une amplitude — spec §« P4 en taux de conformité »).
+**P4 · Taux de conformité** (`mv_p4_ecart`) : libellé de pilier « Taux de
+conformité » ; deux sous-composantes (`ecart_sdu`, `ecart_consommation`) en
+**taux de conformité** (part des produits traceurs dans la tolérance de la
+grille, pas une amplitude d'écart).
 - `ecart_sdu` : `|théorique − compté| / compté ≤ tolérance` au dernier
   inventaire finalisé du mois par produit ; compté (réalité) au dénominateur.
   Cas limites : compté 0 / théorique 0 → conforme ; compté 0 / théorique > 0 →

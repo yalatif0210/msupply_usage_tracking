@@ -89,6 +89,12 @@ concordance (P5). La liste est administrée dans la console web par la
 coordination, pas dérivée de mSupply.
 _Éviter_ : produit suivi, produit critique
 
+**Taux de conformité (P4)** :
+Libellé du pilier P4 sur les écrans et dans `CLAUDE.md` §5 : ses deux
+sous-composantes (écart SDU, écart consommation) sont des taux de conformité,
+pas des amplitudes d'écart. Les termes internes `ecart_sdu` / `ecart_consommation`
+(enum, contrats, base) restent inchangés.
+
 **Écart SDU (P4)** :
 Part des produits traceurs dont le stock physiquement compté au dernier
 inventaire du mois est **dans la tolérance** de la quantité théorique mSupply :
@@ -148,6 +154,6 @@ aux données.
 | P1 | Complétude des transactions | 10 % | complétude des inventaires, des réquisitions, des réceptions |
 | P2 | Promptitude des transactions | 15 % | promptitude des inventaires, des réquisitions |
 | P3 | Régularité de saisie (dispensation) | 15 % | régularité de saisie |
-| P4 | Écart SDU produits traceurs | 25 % | écart SDU, écart consommation |
+| P4 | Taux de conformité | 25 % | écart SDU, écart consommation |
 | P5 | Concordance physique / théorique | 25 % | concordance |
 | P6 | Ratio d'ajustements | 10 % | ratio d'ajustements |

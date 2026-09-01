@@ -3,6 +3,7 @@ import {
   classifier,
   CLASSIFICATIONS,
   dateIsoSchema,
+  LIBELLES_PILIER,
   PILIER_DE_SOUS_COMPOSANTE,
   PILIERS,
   POIDS_PILIER,
@@ -11,6 +12,12 @@ import {
   SOUS_COMPOSANTES_DU_PILIER,
   statutSousComposanteSchema,
 } from './index.js';
+
+describe('libellés de pilier', () => {
+  it('P4 est « Taux de conformité » (et non « Écart SDU »)', () => {
+    expect(LIBELLES_PILIER.P4).toBe('Taux de conformité');
+  });
+});
 
 describe('poids des piliers', () => {
   it('somme à 1', () => {

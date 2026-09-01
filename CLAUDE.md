@@ -103,7 +103,7 @@ SQL inline dans le code.
 | P1   | Complétude des transactions (Inventaire - requisition - reception)        | 10 %  | 100 %          |
 | P2   | Promptitude des transactions (Inventaire - requisition) | 15 %  | = 100 %        |
 | P3   | Régularité de saisie (dispensation)  | 15 %  | ≥ 65 %         |
-| P4   | Écart SDU produits traceurs         | 25 %  | ≤ 2 %          |
+| P4   | Taux de conformité (produits traceurs) | 25 % | ≥ 90 % (tolérance produit 2 %) |
 | P5   | Concordance physique / théorique    | 25 %  | = 100 %         |
 | P6   | Ratio d'ajustements                 | 10 %  | ≤ 5 %          |
 
