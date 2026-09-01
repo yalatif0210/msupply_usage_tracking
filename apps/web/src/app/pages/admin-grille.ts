@@ -10,6 +10,7 @@ import {
   type GrilleParametre,
   type SousComposante,
 } from '@dqa/contracts';
+import { SANS_OBJET } from '../core/affichage';
 import { AdminGrilleService } from '../core/admin-grille.service';
 import { messageErreurHttp } from '../core/message-erreur';
 import { Entete } from '../ui/entete';
@@ -89,7 +90,7 @@ const AVEC_TOLERANCE = new Set<SousComposante>(SOUS_COMPOSANTES_AVEC_TOLERANCE);
                   <input type="number" min="0" step="0.5" [(ngModel)]="s.tolerance" [name]="'tol-' + s.sousComposante"
                          placeholder="tolérance %" />
                 } @else {
-                  <span class="sans-tol">s/o</span>
+                  <span class="sans-tol">{{ sansObjet }}</span>
                 }
               </div>
             }
@@ -164,6 +165,7 @@ const AVEC_TOLERANCE = new Set<SousComposante>(SOUS_COMPOSANTES_AVEC_TOLERANCE);
   `,
 })
 export class AdminGrillePage {
+  protected readonly sansObjet = SANS_OBJET;
   private readonly service = inject(AdminGrilleService);
 
   protected readonly versions = signal<GrilleParametre[]>([]);

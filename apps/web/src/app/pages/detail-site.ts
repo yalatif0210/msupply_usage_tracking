@@ -12,6 +12,7 @@ import {
   type Programme,
   type RaisonExclusionConso,
 } from '@dqa/contracts';
+import { VALEUR_ABSENTE } from '../core/affichage';
 import { SitesService } from '../core/sites.service';
 import { BadgeClassification } from '../ui/badge-classification';
 import { BadgeStatut } from '../ui/badge-statut';
@@ -35,8 +36,8 @@ import { Entete } from '../ui/entete';
       } @else if (detail(); as d) {
         <h1>{{ d.site.siteNom }}</h1>
         <p class="meta">
-          {{ d.site.district ?? 'n/d' }} · {{ d.site.region ?? 'n/d' }} ·
-          {{ d.site.typeStructure ?? 'n/d' }}
+          {{ d.site.district ?? absent }} · {{ d.site.region ?? absent }} ·
+          {{ d.site.typeStructure ?? absent }}
         </p>
 
         <div class="controles">
@@ -59,7 +60,7 @@ import { Entete } from '../ui/entete';
               </select>
             </label>
           } @else {
-            <span class="mois">Mois PAQD : {{ d.moisPaqd ?? 'n/d' }}</span>
+            <span class="mois">Mois PAQD : {{ d.moisPaqd ?? absent }}</span>
           }
         </div>
 
@@ -71,7 +72,7 @@ import { Entete } from '../ui/entete';
           <div class="composite">
             <div class="score">
               <div class="chiffre">
-                {{ d.scoreComposite === null ? 'n/d' : (d.scoreComposite | number: '1.0-1') }}
+                {{ d.scoreComposite === null ? absent : (d.scoreComposite | number: '1.0-1') }}
               </div>
               <div class="sur">/ 100</div>
             </div>
@@ -95,11 +96,11 @@ import { Entete } from '../ui/entete';
                     <dqa-badge-statut [statut]="sc.statut" />
                     <div>
                       <div class="valeur">
-                        {{ sc.valeur === null ? 'n/d' : (sc.valeur | number: '1.0-1') }}
+                        {{ sc.valeur === null ? absent : (sc.valeur | number: '1.0-1') }}
                         <span class="unite">%</span>
                       </div>
                       <div class="seuil">
-                        seuil {{ sc.seuil === null ? 'n/d' : (sc.seuil | number: '1.0-1') }} %
+                        seuil {{ sc.seuil === null ? absent : (sc.seuil | number: '1.0-1') }} %
                       </div>
                       @if (sc.raison) {
                         <div class="raison">{{ sc.raison }}</div>
@@ -137,8 +138,8 @@ import { Entete } from '../ui/entete';
                       @for (pr of p4.produits; track pr.produitCode) {
                         <tr>
                           <td>{{ pr.libelle ?? pr.produitCode }}</td>
-                          <td class="num">{{ pr.sdu.theorique === null ? 'n/d' : (pr.sdu.theorique | number: '1.0-0') }}</td>
-                          <td class="num">{{ pr.sdu.comptee === null ? 'n/d' : (pr.sdu.comptee | number: '1.0-0') }}</td>
+                          <td class="num">{{ pr.sdu.theorique === null ? absent : (pr.sdu.theorique | number: '1.0-0') }}</td>
+                          <td class="num">{{ pr.sdu.comptee === null ? absent : (pr.sdu.comptee | number: '1.0-0') }}</td>
                           <td class="num">{{ pr.sdu.ecartPct === null ? '∞' : (pr.sdu.ecartPct | number: '1.0-1') + ' %' }}</td>
                           <td><dqa-badge-statut [statut]="pr.sdu.conforme ? 'CONFORME' : 'ALERTE'" /></td>
                           @if (pr.consommation; as c) {
@@ -262,6 +263,7 @@ import { Entete } from '../ui/entete';
 })
 export class DetailSitePage {
   readonly id = input.required<string>();
+  protected readonly absent = VALEUR_ABSENTE;
 
   private readonly service = inject(SitesService);
 
@@ -334,7 +336,7 @@ export class DetailSitePage {
 
   protected scorePilier(point: HistoriqueSite['points'][number], pilier: Pilier): string {
     const s = point.scoresPiliers.find((x) => x.pilier === pilier)?.score ?? null;
-    return s === null ? 'n/d' : String(s);
+    return s === null ? VALEUR_ABSENTE : String(s);
   }
 
   private pointsMesures(h: HistoriqueSite): { rang: number; score: number }[] {
@@ -351,7 +353,7 @@ export class DetailSitePage {
   /** Rangs du premier et du dernier point mesuré (pour l'étiquette « M+a → M+b »). */
   protected deltaBornes(h: HistoriqueSite): [number | string, number | string] {
     const m = this.pointsMesures(h);
-    return m.length === 0 ? ['n/d', 'n/d'] : [m[0]!.rang, m[m.length - 1]!.rang];
+    return m.length === 0 ? [VALEUR_ABSENTE, VALEUR_ABSENTE] : [m[0]!.rang, m[m.length - 1]!.rang];
   }
 
   protected deltaSigne(h: HistoriqueSite): 'hausse' | 'baisse' | 'nul' {
@@ -362,7 +364,7 @@ export class DetailSitePage {
 
   protected deltaTexte(h: HistoriqueSite): string {
     const v = this.deltaValeur(h);
-    if (v === null) return 'n/d';
+    if (v === null) return VALEUR_ABSENTE;
     const arrondi = Math.round(v * 10) / 10;
     if (arrondi > 0) return `+${arrondi} pts`;
     if (arrondi < 0) return `-${Math.abs(arrondi)} pts`;

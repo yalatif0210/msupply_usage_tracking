@@ -3,6 +3,7 @@ import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { LIBELLES_PILIER, type Pilier, type Programme, type SyntheseNationale } from '@dqa/contracts';
+import { VALEUR_ABSENTE } from '../core/affichage';
 import { SitesService } from '../core/sites.service';
 import { SyntheseService } from '../core/synthese.service';
 import { Entete } from '../ui/entete';
@@ -29,7 +30,7 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
               </select>
             </label>
           } @else {
-            <span class="mois">Mois PAQD : {{ s.moisPaqd ?? 'n/d' }}</span>
+            <span class="mois">Mois PAQD : {{ s.moisPaqd ?? absent }}</span>
           }
           <label>
             Programme
@@ -90,7 +91,7 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
                 <div class="jauge">
                   <span class="rempli" [style.width.%]="mp.moyenne ?? 0"></span>
                 </div>
-                <div class="val">{{ mp.moyenne === null ? 'n/d' : (mp.moyenne | number: '1.0-1') }}</div>
+                <div class="val">{{ mp.moyenne === null ? absent : (mp.moyenne | number: '1.0-1') }}</div>
               </div>
             }
           </section>
@@ -117,7 +118,7 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
                       <td class="num">{{ d.nbSites }}</td>
                       <td class="num">{{ d.nbMesures }}</td>
                       <td class="num">
-                        {{ d.scoreCompositeMoyen === null ? 'n/d' : (d.scoreCompositeMoyen | number: '1.0-1') }}
+                        {{ d.scoreCompositeMoyen === null ? absent : (d.scoreCompositeMoyen | number: '1.0-1') }}
                       </td>
                       <td class="repcell">
                         <dqa-repartition-classification [repartition]="d.repartition" [compact]="true" />
@@ -151,7 +152,7 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
                       <td class="num">{{ p.nbSites }}</td>
                       <td class="num">{{ p.nbMesures }}</td>
                       <td class="num">
-                        {{ p.scoreCompositeMoyen === null ? 'n/d' : (p.scoreCompositeMoyen | number: '1.0-1') }}
+                        {{ p.scoreCompositeMoyen === null ? absent : (p.scoreCompositeMoyen | number: '1.0-1') }}
                       </td>
                       <td class="repcell">
                         <dqa-repartition-classification [repartition]="p.repartition" [compact]="true" />
@@ -199,6 +200,7 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
   `,
 })
 export class SynthesePage {
+  protected readonly absent = VALEUR_ABSENTE;
   private readonly service = inject(SyntheseService);
   private readonly sites = inject(SitesService);
   private readonly router = inject(Router);

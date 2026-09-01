@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import type { AnomalieImport, LotImport } from '@dqa/contracts';
+import { VALEUR_ABSENTE } from '../core/affichage';
 import { ImportService } from '../core/import.service';
 
 @Component({
@@ -35,7 +36,7 @@ import { ImportService } from '../core/import.service';
             <tr [class.rejete]="lot.statut === 'rejete'">
               <td>{{ lot.recuLe | date: 'dd/MM/yyyy HH:mm' }}</td>
               <td>{{ lot.nomFichier }}</td>
-              <td>{{ lot.moisPaqd ?? 'n/d' }}</td>
+              <td>{{ lot.moisPaqd ?? absent }}</td>
               <td>
                 <span class="badge {{ lot.statut }}">{{ libelleStatut(lot.statut) }}</span>
                 @if (lot.motifRejet) {
@@ -97,6 +98,7 @@ import { ImportService } from '../core/import.service';
   `,
 })
 export class JournalImportsPage {
+  protected readonly absent = VALEUR_ABSENTE;
   private readonly service = inject(ImportService);
 
   protected readonly lots = signal<LotImport[]>([]);

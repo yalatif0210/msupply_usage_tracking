@@ -3,6 +3,7 @@ import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import type { Programme, ScoreSite } from '@dqa/contracts';
+import { VALEUR_ABSENTE } from '../core/affichage';
 import { SitesService } from '../core/sites.service';
 import { BadgeClassification } from '../ui/badge-classification';
 import { Entete } from '../ui/entete';
@@ -56,10 +57,10 @@ import { Entete } from '../ui/entete';
             @for (s of sites(); track s.site.siteId) {
               <tr>
                 <td><a [routerLink]="['/sites', s.site.siteId]">{{ s.site.siteNom }}</a></td>
-                <td>{{ s.site.district ?? 'n/d' }}</td>
-                <td>{{ s.moisPaqd ?? 'n/d' }}</td>
+                <td>{{ s.site.district ?? absent }}</td>
+                <td>{{ s.moisPaqd ?? absent }}</td>
                 <td class="num">
-                  {{ s.scoreComposite === null ? 'n/d' : (s.scoreComposite | number: '1.0-1') }}
+                  {{ s.scoreComposite === null ? absent : (s.scoreComposite | number: '1.0-1') }}
                 </td>
                 <td>
                   @if (s.moisPaqd) {
@@ -97,6 +98,7 @@ import { Entete } from '../ui/entete';
   `,
 })
 export class ListeSitesPage {
+  protected readonly absent = VALEUR_ABSENTE;
   private readonly service = inject(SitesService);
   private readonly route = inject(ActivatedRoute);
 

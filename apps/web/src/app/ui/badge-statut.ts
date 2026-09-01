@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import type { StatutSousComposante } from '@dqa/contracts';
+import { VALEUR_ABSENTE } from '../core/affichage';
 
 @Component({
   selector: 'dqa-badge-statut',
@@ -21,7 +22,7 @@ export class BadgeStatut {
         CONFORME: 'Conforme',
         ALERTE: 'Alerte',
         NON_CALCULABLE: 'Non calculable',
-      }[this.statut() ?? 'NON_CALCULABLE'] ?? 'n/d'
+      }[this.statut() ?? 'NON_CALCULABLE'] ?? VALEUR_ABSENTE
     );
   }
 }

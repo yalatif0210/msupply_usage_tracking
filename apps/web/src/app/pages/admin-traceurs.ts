@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import type { ProduitTraceur } from '@dqa/contracts';
+import { VALEUR_ABSENTE } from '../core/affichage';
 import { TraceursService } from '../core/traceurs.service';
 import { Entete } from '../ui/entete';
 
@@ -39,7 +40,7 @@ import { Entete } from '../ui/entete';
             @for (t of traceurs(); track t.produitCode) {
               <tr [class.inactif]="!t.actif">
                 <td><code>{{ t.produitCode }}</code></td>
-                <td>{{ t.libelle ?? 'n/d' }}</td>
+                <td>{{ t.libelle ?? absent }}</td>
                 <td>
                   <label class="switch">
                     <input type="checkbox" [checked]="t.actif" (change)="basculer(t)" />
@@ -72,6 +73,7 @@ import { Entete } from '../ui/entete';
   `,
 })
 export class AdminTraceursPage {
+  protected readonly absent = VALEUR_ABSENTE;
   private readonly service = inject(TraceursService);
 
   protected code = '';
