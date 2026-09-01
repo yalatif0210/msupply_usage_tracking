@@ -5,15 +5,15 @@ des cartes de pilier (pas à leur place).
 
 **Blocked by:** 11, 12, 06
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
 
-- [ ] `pages/detail-site` : sous les cartes de pilier, un `<details>`
+- [x] `pages/detail-site` : sous les cartes de pilier, un `<details>`
       repliable (même motif que le drill-down P4) « Sous-composantes ».
-- [ ] Tableau : pilier, sous-composante, valeur, seuil, écart au seuil, taux
+- [x] Tableau : pilier, sous-composante, valeur, seuil, écart au seuil, taux
       d'atteinte, statut. Triable par colonne ; par défaut taux d'atteinte
       croissant.
-- [ ] Les cartes de pilier restent inchangées (vue de lecture / projection).
-- [ ] Valeur absente → `n/d` (règle du ticket 01).
-- [ ] Suit le mois affiché (et le sélecteur de plage du ticket 15 : montre le
+- [x] Les cartes de pilier restent inchangées (vue de lecture / projection).
+- [x] Valeur absente → `n/d` (règle du ticket 01).
+- [x] Suit le mois affiché (et le sélecteur de plage du ticket 15 : montre le
       dernier mois de la plage).
-- [ ] `ng build` + capture.
+- [x] `ng build` + capture.
