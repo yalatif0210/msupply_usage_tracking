@@ -51,11 +51,11 @@ import { AuthService } from '../core/auth.service';
     .compte { display: flex; align-items: center; gap: 1rem; font-size: 0.85rem; }
     .qui { opacity: 0.9; }
     .compte button {
-      background: rgba(255, 255, 255, 0.15); color: inherit;
-      border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 4px;
+      background: var(--sur-accent-faible); color: inherit;
+      border: 1px solid var(--sur-accent-bordure); border-radius: 4px;
       padding: 0.3rem 0.7rem; cursor: pointer; font-size: 0.85rem;
     }
-    .compte button:hover { background: rgba(255, 255, 255, 0.25); }
+    .compte button:hover { background: var(--sur-accent-fort); }
 
     .barre2 {
       display: flex; gap: 0.25rem; flex-wrap: wrap;

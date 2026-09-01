@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import type { AnomalieImport, LotImport } from '@dqa/contracts';
 import { VALEUR_ABSENTE } from '../core/affichage';
 import { ImportService } from '../core/import.service';
@@ -9,17 +8,13 @@ import { Coquille } from '../ui/coquille';
 @Component({
   selector: 'dqa-journal-imports',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, RouterLink, Coquille],
+  imports: [DatePipe, Coquille],
   template: `
     <dqa-coquille />
     <main>
-    <header>
-      <a routerLink="/">Tableau de bord</a>
       <h1>Journal des imports</h1>
-    </header>
-    <!-- corps -->
 
-    @if (chargement()) {
+      @if (chargement()) {
       <p>Chargement…</p>
     } @else if (lots().length === 0) {
       <p class="vide">Aucun import n'a encore été traité.</p>
@@ -86,12 +81,11 @@ import { Coquille } from '../ui/coquille';
   `,
   styles: `
     main { display: block; max-width: 72rem; margin: 2rem auto; padding: 0 1rem; }
-    header a { color: var(--accent); font-size: 0.9rem; }
     h1 { font-size: 1.6rem; }
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid var(--bordure); vertical-align: top; }
     tr.rejete td { background: var(--alerte-fond); }
-    tr.detail td { background: var(--fond); }
+    tr.detail td { background: var(--surface-alt); }
     .compteurs { font-variant-numeric: tabular-nums; font-size: 0.85rem; color: var(--texte-doux); }
     .motif { display: block; font-size: 0.8rem; color: var(--alerte-texte); }
     .badge { display: inline-block; padding: 0.1rem 0.4rem; font-size: 0.75rem; }
