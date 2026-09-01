@@ -5,7 +5,7 @@ déplacer la liste des sites sur `/sites`.
 
 **Blocked by:** 06, 07
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
 
 - [ ] `app.routes.ts` : `/` charge un nouveau `TableauDeBordPage` ; `/sites`
       charge l'actuel `ListeSitesPage`. Redirection `**` vers `/`.
@@ -22,3 +22,12 @@ déplacer la liste des sites sur `/sites`.
 - [ ] `retour` de `detail-site` (« Tous les sites ») → `/sites`.
 - [ ] État vide explicite si aucun mois mesuré.
 - [ ] `ng build` + captures `/` et `/sites`.
+
+## Comments
+
+- Mini-courbe extraite en `ui/mini-courbe` (primitive SVG réutilisable :
+  série datée, ne relie que les points consécutifs mesurés, repères
+  étiquetés). `ui/courbe-progression` (cycle M+1..M+4, points colorés par
+  classification) reste distinct ; la tranche 6 (ticket 15) consolidera.
+- Redirection `**` : `redirectTo: ''` inchangée, `''` résout maintenant vers
+  `TableauDeBordPage`.
