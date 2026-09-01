@@ -5,7 +5,17 @@ tokens CSS maison, et réécrire le design system.
 
 **Blocked by:** —
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
+
+## Comments
+
+- Palette relevée de `template/demo_1/src/assets/styles/_variables.scss` du
+  dépôt public : primaire bleu (`#00aeef` / gradient `#128bfc`), fond `#F3F3F3`,
+  bordure `#cdd6dc`. Retranscrite en jetons maison (`--accent` `#1f6fd6` etc.).
+  Aucun fichier SCSS / police / icône / illustration importé.
+- Les couleurs de statut restent celles calibrées pour la projection.
+- Revue : jetons `--sur-accent-*` ajoutés (fin du `rgba()` en dur dans la
+  coquille) ; `--accent-fonce` retiré (inutilisé) ; NC utilise `--nc-fond`.
 
 - [ ] Relever la palette de StarAdmin depuis son dépôt public et la
       transcrire en variables CSS maison (`styles.css` ou fichier de tokens
