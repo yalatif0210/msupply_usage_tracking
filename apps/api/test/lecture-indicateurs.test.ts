@@ -204,6 +204,18 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(pt.scoresPiliers.find((s) => s.pilier === 'P3')?.score).toBe(0);
     expect(pt.scoresPiliers.find((s) => s.pilier === 'P1')?.score).toBe(100);
     expect(pt.piliersCouverts).toBe(6);
+    // les dix valeurs de sous-composante gelées, ordre du contrat, statut déduit du seuil
+    expect(pt.sousComposantes.map((s) => s.sousComposante)).toEqual([
+      'completude_inventaires', 'completude_requisitions', 'completude_receptions',
+      'promptitude_inventaires', 'promptitude_requisitions', 'regularite_saisie',
+      'ecart_sdu', 'ecart_consommation', 'concordance', 'ratio_ajustements',
+    ]);
+    const reg = pt.sousComposantes.find((s) => s.sousComposante === 'regularite_saisie')!;
+    expect(reg.seuil).toBe(65);
+    expect(reg.statut).toBe('ALERTE'); // 1 jour / 31 sous le seuil
+    expect(typeof reg.valeur).toBe('number');
+    const inv = pt.sousComposantes.find((s) => s.sousComposante === 'completude_inventaires')!;
+    expect(inv.statut).toBe('CONFORME'); // 100 % >= 100
   });
 
   it('GET /api/sites/:id/historique : 404 hors périmètre, cycle absent → plus récent', async () => {

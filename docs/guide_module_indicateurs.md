@@ -171,6 +171,20 @@ plus récent mesuré ; un mois du cycle sans ligne gelée est **absent** de
 `points` (jamais un zéro). `piliersCouverts` et `scoresPiliers` viennent des
 `p_*` gelés — aucun recalcul.
 
+Chaque point porte aussi `sousComposantes` : les dix valeurs `sc_*` gelées
+(ADR 0007), avec le seuil de la grille du mois (agrégé depuis
+`grille_seuil_sous_composante` via `h.grille_id`) et le statut qui s'en déduit
+(`valeur >= seuil` pour un sens `sup`, `<=` pour `inf` ; `valeur` ou `seuil`
+nul → NON_CALCULABLE). C'est l'historique qui fait autorité pour les valeurs de
+sous-composante dans le temps.
+
+**Fiche site vs historique.** La fiche (`GET /api/sites/:id`) montre encore les
+valeurs de sous-composante **recalculées à la volée** depuis `mv_p1..mv_p6`
+(pour le rendu riche : sous-scores, `nb_produits`…). Elles coïncident avec les
+valeurs gelées pour le mois courant (fraîchement rafraîchi) ; pour un mois
+antérieur, l'historique est la source fiable. L'unification éventuelle de la
+fiche sur `sc_*` est reportée à la tranche « fiche site analytique ».
+
 Section « Progression » sur `pages/detail-site.ts` (sous les cartes de pilier,
 visible si `points.length > 1`) : `ui/courbe-progression` trace le score
 composite en SVG inline (repères 75 / 90, points colorés par classification),

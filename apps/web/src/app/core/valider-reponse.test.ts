@@ -143,6 +143,12 @@ describe('validerReponse (couture D)', () => {
     classification: 'PARTIELLEMENT_CONFORME',
     piliersCouverts: 6,
     scoresPiliers: (['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as Pilier[]).map((pilier) => ({ pilier, score: 100 })),
+    sousComposantes: SOUS_COMPOSANTES.map((sousComposante) => ({
+      sousComposante,
+      valeur: 100,
+      seuil: 100,
+      statut: 'CONFORME' as const,
+    })),
     ...over,
   });
   const historique = (pointOver: Record<string, unknown> = {}) => ({
@@ -170,6 +176,15 @@ describe('validerReponse (couture D)', () => {
   it('rejette un point à moins de six scores de pilier', () => {
     expect(() =>
       validerReponse(historiqueSiteSchema, historique({ scoresPiliers: [{ pilier: 'P1', score: 100 }] })),
+    ).toThrow(/non conforme/i);
+  });
+
+  it('rejette un point qui ne porte pas les dix valeurs de sous-composante', () => {
+    expect(() =>
+      validerReponse(
+        historiqueSiteSchema,
+        historique({ sousComposantes: [{ sousComposante: 'regularite_saisie', valeur: 71, seuil: 65, statut: 'CONFORME' }] }),
+      ),
     ).toThrow(/non conforme/i);
   });
 

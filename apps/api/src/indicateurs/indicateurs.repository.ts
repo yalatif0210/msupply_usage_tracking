@@ -4,6 +4,7 @@ import {
   LIBELLES_PILIER,
   LIBELLES_SOUS_COMPOSANTE,
   POIDS_PILIER,
+  SOUS_COMPOSANTES,
   type BlocSynthese,
   type Classification,
   type DetailP4Produits,
@@ -21,6 +22,8 @@ import {
   type ScoreSite,
   type Site,
   type SousComposante,
+  type SousComposanteBref,
+  type StatutSousComposante,
   type SyntheseNationale,
   type SyntheseQuery,
 } from '@dqa/contracts';
@@ -86,6 +89,40 @@ const scoresPiliers = (r: PiliersBruts): { pilier: Pilier; score: number | null 
   { pilier: 'P5', score: nombreOuNull(r.p_concordance) },
   { pilier: 'P6', score: nombreOuNull(r.p_ajustements) },
 ];
+
+/** Colonnes `sc_<nom>` de `hist_score_site` : les dix valeurs gelées d'une ligne. */
+type ValeursGelees = { [K in SousComposante as `sc_${K}`]: string | null };
+
+/** Seuil et sens de comparaison d'une sous-composante pour un mois donné (jsonb agrégé). */
+type SeuilsGrille = Partial<Record<SousComposante, { seuil: number; sens: 'sup' | 'inf' }>>;
+
+const COLONNES_SC_SQL = SOUS_COMPOSANTES.map((sc) => `h.sc_${sc}`).join(', ');
+
+/** Sous-requête agrégeant les seuils de la grille d'une ligne `h` en un objet jsonb. */
+const SEUILS_GRILLE_SQL = `
+  LEFT JOIN LATERAL (
+    SELECT jsonb_object_agg(
+             gs.sous_composante,
+             jsonb_build_object('seuil', gs.seuil, 'sens', gs.sens)
+           ) AS seuils
+    FROM dqa.grille_seuil_sous_composante gs
+    WHERE gs.grille_id = h.grille_id
+  ) sg ON true`;
+
+/** Reconstruit les dix `SousComposanteBref` d'un point : valeur gelée + seuil du mois + statut déduit. */
+const sousComposantesGelees = (r: ValeursGelees, seuils: SeuilsGrille | null): SousComposanteBref[] =>
+  SOUS_COMPOSANTES.map((sc) => {
+    const valeur = nombreOuNull(r[`sc_${sc}`]);
+    const s = seuils?.[sc] ?? null;
+    const seuil = s?.seuil ?? null;
+    const statut: StatutSousComposante =
+      valeur === null || s === null
+        ? 'NON_CALCULABLE'
+        : (s.sens === 'inf' ? valeur <= s.seuil : valeur >= s.seuil)
+          ? 'CONFORME'
+          : 'ALERTE';
+    return { sousComposante: sc, valeur, seuil, statut };
+  });
 
 // ─── Synthèse nationale ────────────────────────────────────────────────────
 
@@ -501,22 +538,27 @@ export class IndicateursRepository {
     }
 
     const { rows } = await this.pool.query<
-      PiliersBruts & {
-        mois_paqd: string;
-        rang: number;
-        score_composite: string | null;
-        classification: Classification | null;
-        piliers_couverts: number;
-      }
+      PiliersBruts &
+        ValeursGelees & {
+          mois_paqd: string;
+          rang: number;
+          score_composite: string | null;
+          classification: Classification | null;
+          piliers_couverts: number;
+          seuils: SeuilsGrille | null;
+        }
     >(
       `SELECT h.mois_paqd, vmc.rang,
               h.score_composite, h.classification,
               ${COMPTE_PILIERS_SQL} AS piliers_couverts,
               h.p_completude, h.p_promptitude, h.p_regularite,
-              h.p_ecart_sdu, h.p_concordance, h.p_ajustements
+              h.p_ecart_sdu, h.p_concordance, h.p_ajustements,
+              ${COLONNES_SC_SQL},
+              sg.seuils
        FROM dqa.hist_score_site h
        JOIN dqa.dim_site s ON s.site_id = h.site_id AND s.dans_perimetre_dqa
        JOIN dqa.v_mois_cycle vmc ON vmc.mois_paqd = h.mois_paqd
+       ${SEUILS_GRILLE_SQL}
        WHERE h.site_id = $1 AND h.programme_id IS NOT DISTINCT FROM $2
          AND vmc.cycle_paqd = $3
        ORDER BY vmc.rang`,
@@ -535,6 +577,7 @@ export class IndicateursRepository {
         classification: r.classification,
         piliersCouverts: r.piliers_couverts,
         scoresPiliers: scoresPiliers(r),
+        sousComposantes: sousComposantesGelees(r, r.seuils),
       })),
     };
   }

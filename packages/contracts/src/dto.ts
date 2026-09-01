@@ -208,6 +208,19 @@ export type SyntheseQuery = z.infer<typeof syntheseQuerySchema>;
 
 // ─── Progression d'un site sur un cycle PAQD ────────────────────────────────
 
+/**
+ * Valeur gelée d'une sous-composante à un mois PAQD : la valeur mesurée, le
+ * seuil de la grille du mois, et le statut qui s'en déduit (`valeur` ou
+ * `seuil` nul → NON_CALCULABLE).
+ */
+export const sousComposanteBrefSchema = z.object({
+  sousComposante: sousComposanteSchema,
+  valeur: z.number().nullable(),
+  seuil: z.number().nullable(),
+  statut: statutSousComposanteSchema,
+});
+export type SousComposanteBref = z.infer<typeof sousComposanteBrefSchema>;
+
 /** Un mois PAQD mesuré d'un cycle, avec son rang M+1..M+4 (issu du calendrier). */
 export const pointProgressionSchema = z.object({
   moisPaqd: moisPaqdSchema,
@@ -216,6 +229,8 @@ export const pointProgressionSchema = z.object({
   classification: classificationSchema.nullable(),
   piliersCouverts: z.number().int().min(0).max(6),
   scoresPiliers: z.array(scorePilierBrefSchema).length(6),
+  /** Les dix valeurs de sous-composante gelées pour ce mois, ordre `SOUS_COMPOSANTES`. */
+  sousComposantes: z.array(sousComposanteBrefSchema).length(10),
 });
 export type PointProgression = z.infer<typeof pointProgressionSchema>;
 
