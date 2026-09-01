@@ -43,14 +43,23 @@ async function loadMigrations(): Promise<Migration[]> {
   return out;
 }
 
+/**
+ * Le registre est explicitement dans `public` : au tout premier `up` le schéma
+ * `dqa` n'existe pas encore (c'est `0001` qui le crée), donc un nom non
+ * qualifié tomberait dans `public` ; aux `up` suivants `dqa` existe et
+ * `CREATE TABLE IF NOT EXISTS` (qui ne teste que le schéma cible, pas le
+ * search_path) recréerait un registre vide dans `dqa` et rejouerait tout.
+ */
 async function appliedVersions(client: Client): Promise<Set<string>> {
   await client.query(`
-    CREATE TABLE IF NOT EXISTS schema_migrations (
+    CREATE TABLE IF NOT EXISTS public.schema_migrations (
       version    text PRIMARY KEY,
       applied_at timestamptz NOT NULL DEFAULT now()
     )
   `);
-  const { rows } = await client.query<{ version: string }>('SELECT version FROM schema_migrations');
+  const { rows } = await client.query<{ version: string }>(
+    'SELECT version FROM public.schema_migrations',
+  );
   return new Set(rows.map((r) => r.version));
 }
 
@@ -68,7 +77,9 @@ async function up(): Promise<void> {
       await client.query('BEGIN');
       try {
         await client.query(m.sql);
-        await client.query('INSERT INTO schema_migrations (version) VALUES ($1)', [m.version]);
+        await client.query('INSERT INTO public.schema_migrations (version) VALUES ($1)', [
+          m.version,
+        ]);
         await client.query('COMMIT');
         console.log(`appliquée  ${m.version}`);
       } catch (err) {
