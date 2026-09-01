@@ -6,7 +6,15 @@ et un test qui empêche leur réapparition.
 
 **Blocked by:** —
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
+
+## Comments
+
+- Remplacement de valeur absente extrait dans `core/affichage.ts`
+  (`VALEUR_ABSENTE = 'n/d'`, `SANS_OBJET = 's/o'`) après revue — plus de
+  littéral répété. La cellule « tolérance » de la grille utilise `s/o`
+  (sans objet), distinct de `n/d` (non disponible).
+- `typographie.test.ts` : regex par points de code, liste d'exceptions (vide).
 
 - [ ] Valeur absente (`{{ x ?? '—' }}` : district, région, type de structure,
       score, seuil, mois…) → `n/d`.

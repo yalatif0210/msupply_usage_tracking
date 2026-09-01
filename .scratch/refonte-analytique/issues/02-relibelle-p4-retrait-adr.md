@@ -5,7 +5,15 @@ références à des numéros d'ADR des textes d'écran.
 
 **Blocked by:** —
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
+
+## Comments
+
+- `CLAUDE.md` §5 : libellé « Taux de conformité » (sans parenthèse) ; colonne
+  seuil = « tolérance produit 2 % » — on n'avance pas le seuil de 90 % qui
+  reste à confirmer avec la coordination PAQD (`guide_module_indicateurs.md`).
+- `CONTEXT.md` : nouvelle entrée « Taux de conformité (P4) » à côté de l'entrée
+  « Écart SDU (P4) » (conservée pour la sous-composante).
 
 - [ ] `LIBELLES_PILIER.P4` dans `@dqa/contracts` → « Taux de conformité ».
       Le code de pilier reste `P4`. Aucun changement de l'enum
