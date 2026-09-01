@@ -5,7 +5,17 @@ mois dans `hist_score_site`, comme les scores de pilier (ADR 0003).
 
 **Blocked by:** —
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
+
+## Comments
+
+- Migration 0025. `mv_score_pilier` recréée pour exposer les dix valeurs
+  brutes (copie de 0024 + 10 colonnes — prix du découpage).
+- Rattrapage : `UPDATE hist_score_site FROM mv_score_pilier` filtré
+  `dans_perimetre_dqa`. Vérifié en local (`sc_regularite_saisie = 71.0` sur les
+  lignes SITE-1 préexistantes).
+- Test immuabilité : sentinelle sur 2026-08 + `rafraichir_et_geler` pour un
+  lot 2026-07 → 2026-08 intact (`WHERE mois_paqd = v_mois`).
 
 - [ ] Migration numérotée : dix colonnes `numeric` sur `hist_score_site`,
       préfixe `sc_`, une par sous-composante (`sc_completude_inventaires`,
