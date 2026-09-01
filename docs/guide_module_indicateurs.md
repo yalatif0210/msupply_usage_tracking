@@ -16,7 +16,7 @@ Emplacement : `apps/api/src/indicateurs/` (API) et `apps/web/src/app/pages/`
 |---|---|---|---|
 | `GET` | `/api/sites` | `ScoreSite[]` | tout authentifié |
 | `GET` | `/api/sites/:id?mois=&programmeId=` | `DetailSite` | tout authentifié |
-| `GET` | `/api/sites/:id/historique?cycle=&programmeId=` | `HistoriqueSite` | tout authentifié |
+| `GET` | `/api/sites/:id/historique?cycle=&de=&a=&programmeId=` | `HistoriqueSite` | tout authentifié |
 | `GET` | `/api/sites/:id/piliers/p4?mois=&programmeId=` | `DetailP4Produits` | tout authentifié |
 | `GET` | `/api/synthese?mois=&programmeId=&region=` | `SyntheseNationale` | tout authentifié |
 | `GET` | `/api/tableau-de-bord` | `TableauDeBord` | tout authentifié |
@@ -33,6 +33,7 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 |---|---|
 | `hist_score_site` | six scores de pilier + `score_composite` + `classification` gelés par (site, mois PAQD, programme) |
 | `v_mois_cycle` | rang M+1..M+4 de chaque mois PAQD dans son cycle (depuis `dim_temps`) |
+| `v_sous_composante_atteinte` | taux d'atteinte du seuil + statut par (site, mois, programme, sous-composante), depuis `hist_score_site.sc_*` |
 | `mv_p4_ecart_produit` | détail par produit traceur des écarts SDU / consommation de P4 |
 | `mv_synthese_nationale` | agrégats nationaux / région / district / programme par mois PAQD |
 | `mv_synthese_sous_composante` | mêmes grains, par sous-composante : comptes de statut + taux d'atteinte moyen |
@@ -163,8 +164,8 @@ les dix valeurs gelées `hist_score_site.sc_*` au même grain, plus une dimensio
 `sous_composante` : `nb_conforme` / `nb_alerte` / `nb_non_calculable` (statut
 re-déduit de la valeur vs le seuil de la grille du mois, selon le sens ;
 NON_CALCULABLE si la valeur ou le seuil manque) et `taux_atteinte_moyen`
-(moyenne du taux d'atteinte du seuil, défini inline — voir l'en-tête de 0026 —
-en attendant `v_sous_composante_atteinte`). Servi dans `SyntheseNationale.parSousComposante`
+(moyenne du taux d'atteinte du seuil, lu sur `v_sous_composante_atteinte`).
+Servi dans `SyntheseNationale.parSousComposante`
 (dix lignes, au grain `district IS NULL`, tri taux d'atteinte croissant), pour
 l'onglet « Sous-composantes » de `/synthese`. Rafraîchie avec
 `mv_synthese_nationale`.
@@ -189,32 +190,44 @@ tuiles, `ui/mini-courbe`, top 5 en difficulté ; la liste des sites est sur
 
 ## Progression d'un site
 
-`GET /api/sites/:id/historique?cycle=&programmeId=` (`historiqueQuerySchema`)
-lit `hist_score_site` joint à `v_mois_cycle` : les points de score du site sur
-les mois d'un cycle PAQD, triés par rang M+1..M+4. `cyclePaqd` par défaut = le
-plus récent mesuré ; un mois du cycle sans ligne gelée est **absent** de
-`points` (jamais un zéro). `piliersCouverts` et `scoresPiliers` viennent des
+`GET /api/sites/:id/historique?cycle=&de=&a=&programmeId=` (`historiqueQuerySchema`)
+lit `hist_score_site` joint à `v_mois_cycle`. **Fenêtre** : `de`+`a` (plage de
+mois libre, bornes incluses) prime sur `cycle` ; sans paramètre, le cycle le
+plus récent mesuré. Les points sont triés par **mois PAQD** ; un mois sans
+ligne gelée est absent (jamais un zéro). `cyclePaqd` = le cycle affiché, ou
+`null` pour une plage libre. `moisDisponibles` liste tous les mois mesurés du
+site (sélecteur de plage). `piliersCouverts` et `scoresPiliers` viennent des
 `p_*` gelés — aucun recalcul.
 
-Chaque point porte aussi `sousComposantes` : les dix valeurs `sc_*` gelées
-(ADR 0007), avec le seuil de la grille du mois (agrégé depuis
-`grille_seuil_sous_composante` via `h.grille_id`) et le statut qui s'en déduit
-(`valeur >= seuil` pour un sens `sup`, `<=` pour `inf` ; `valeur` ou `seuil`
-nul → NON_CALCULABLE). C'est l'historique qui fait autorité pour les valeurs de
-sous-composante dans le temps.
+Chaque point porte `sousComposantes` : les dix `SousComposanteBref` du mois
+(valeur, seuil, statut, `tauxAtteinte`) lues sur `v_sous_composante_atteinte`
+et agrégées en jsonb par un `LEFT JOIN LATERAL`. C'est l'historique qui fait
+autorité pour les valeurs de sous-composante dans le temps.
 
-**Fiche site vs historique.** La fiche (`GET /api/sites/:id`) montre encore les
-valeurs de sous-composante **recalculées à la volée** depuis `mv_p1..mv_p6`
-(pour le rendu riche : sous-scores, `nb_produits`…). Elles coïncident avec les
-valeurs gelées pour le mois courant (fraîchement rafraîchi) ; pour un mois
-antérieur, l'historique est la source fiable. L'unification éventuelle de la
-fiche sur `sc_*` est reportée à la tranche « fiche site analytique ».
+**Fiche site.** `GET /api/sites/:id` porte désormais `sousComposantes` : les
+dix `SousComposanteBref` gelées du mois affiché (mêmes valeurs que
+l'historique), pour le tableau à plat et le radar. Les **cartes de pilier**
+(`piliers[].sousComposantes`) restent servies par les vues `mv_p1..mv_p6`
+(rendu riche : sous-scores, `nb_produits`) ; elles coïncident avec les valeurs
+gelées pour le mois courant.
 
-Section « Progression » sur `pages/detail-site.ts` (sous les cartes de pilier,
-visible si `points.length > 1`) : `ui/courbe-progression` trace le score
-composite en SVG inline (repères 75 / 90, points colorés par classification),
-un delta M+1→M+n, et une table score-par-pilier × mois. Suit le filtre
-programme de la fiche.
+Section « Analyse fine » sur `pages/detail-site.ts` (sous les cartes de
+pilier), pilotée par un **sélecteur de plage de mois** (`de`/`a` +
+préréglages « cycle courant », « 12 derniers mois », « tout ») posé dans
+l'écran :
+
+- **Tableau à plat** des dix sous-composantes du dernier mois de la plage
+  (valeur, seuil, écart au seuil, taux d'atteinte, statut ; triable).
+- **Radar** (`ui/radar`, SVG inline) : bascule 6 piliers ↔ 10
+  sous-composantes, rayon = taux d'atteinte, étiquette d'axe colorée par le
+  statut ; plus une liste « forces / faiblesses » (3 + 3, par taux d'atteinte).
+- **Courbes** (`ui/courbe-series`, SVG inline multi-séries) : granularité
+  composite / par pilier / par sous-composante d'un pilier choisi, axe Y
+  0..100 (taux d'atteinte pour les sous-composantes), repères 65 / 75 / 90.
+
+Le mois affiché par les cartes de pilier et la fiche = borne haute de la
+plage. `ui/mini-courbe` (page d'accueil) reste une primitive séparée
+(mono-série).
 
 ## Décisions de conception
 

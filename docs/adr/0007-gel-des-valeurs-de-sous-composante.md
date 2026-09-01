@@ -21,7 +21,7 @@ statut). `rafraichir_et_geler` les fige en même temps que les scores de
 pilier. Le seuil et le statut restent déductibles : le seuil vient de
 `grille_seuil_sous_composante` via `hist_score_site.grille_id`, le statut se
 recalcule de `valeur` vs `seuil` selon le sens. Tout indicateur dérivé de ces
-valeurs (p. ex. le futur « taux d'atteinte du seuil ») se calcule à la lecture,
+valeurs (le « taux d'atteinte du seuil », `v_sous_composante_atteinte`) se calcule à la lecture,
 il n'est pas gelé.
 
 Rattrapage : la migration d'introduction recalcule et gèle les mois déjà clos

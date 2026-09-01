@@ -1,5 +1,7 @@
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { SOUS_COMPOSANTES } from '@dqa/contracts';
+import { IndicateursRepository } from '../src/indicateurs/indicateurs.repository.js';
 import { demarrerBaseEphemere, type BaseEphemere } from './helpers/db.js';
 
 /**
@@ -109,5 +111,98 @@ describe('v_mois_cycle et lecture de progression', () => {
     const vih = await points('S1', '2026-C2', 'VIH');
     expect(vih).toHaveLength(1);
     expect(Number(vih[0]?.score_composite)).toBe(55);
+  });
+
+  // ── v_sous_composante_atteinte ──────────────────────────────────────────
+  const histAtteinte = async (nom: string, valeur: number | null) => {
+    await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S1','CSU',true)`);
+    await db.query(
+      `INSERT INTO dqa.hist_score_site (site_id, mois_paqd, programme_id, grille_id, ${'sc_' + nom})
+       VALUES ('S1','2026-08',NULL,$1,$2)`,
+      [gid, valeur],
+    );
+  };
+  const atteinte = async (nom: string) => {
+    const { rows } = await db.query<{ taux_atteinte: string | null; statut: string }>(
+      `SELECT round(taux_atteinte, 1)::text AS taux_atteinte, statut
+       FROM dqa.v_sous_composante_atteinte
+       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL AND sous_composante = $1`,
+      [nom],
+    );
+    return rows[0]!;
+  };
+
+  it('taux d\'atteinte — seuil plancher (P3, seuil 65)', async () => {
+    await histAtteinte('regularite_saisie', 52); // 52 / 65 = 0.8
+    expect(await atteinte('regularite_saisie')).toEqual({ taux_atteinte: '80.0', statut: 'ALERTE' });
+  });
+
+  it('taux d\'atteinte — plancher borné à 100 au-dessus du seuil', async () => {
+    await histAtteinte('regularite_saisie', 71);
+    expect(await atteinte('regularite_saisie')).toEqual({ taux_atteinte: '100.0', statut: 'CONFORME' });
+  });
+
+  it('taux d\'atteinte — seuil plafond (P6, seuil 5)', async () => {
+    await histAtteinte('ratio_ajustements', 8); // 5 / 8 = 0.625
+    expect(await atteinte('ratio_ajustements')).toEqual({ taux_atteinte: '62.5', statut: 'ALERTE' });
+  });
+
+  it('taux d\'atteinte — plafond : sous le seuil (non nul) borné à 100', async () => {
+    await histAtteinte('ratio_ajustements', 3); // 5 / 3 = 1.67 → borné à 1
+    expect(await atteinte('ratio_ajustements')).toEqual({ taux_atteinte: '100.0', statut: 'CONFORME' });
+  });
+
+  it('taux d\'atteinte — plafond : 0 ajustement atteint le seuil au mieux', async () => {
+    await histAtteinte('ratio_ajustements', 0);
+    expect(await atteinte('ratio_ajustements')).toEqual({ taux_atteinte: '100.0', statut: 'CONFORME' });
+  });
+
+  it('taux d\'atteinte — P4 : la valeur gelée est reprise telle quelle', async () => {
+    await histAtteinte('ecart_sdu', 95); // seuil 90, mais pas normalisé
+    expect(await atteinte('ecart_sdu')).toEqual({ taux_atteinte: '95.0', statut: 'CONFORME' });
+  });
+
+  it('taux d\'atteinte — valeur absente → NULL / NON_CALCULABLE', async () => {
+    await histAtteinte('concordance', null);
+    expect(await atteinte('concordance')).toEqual({ taux_atteinte: null, statut: 'NON_CALCULABLE' });
+  });
+
+  // ── historiqueSite : plage de mois + sous-composantes par point ─────────
+  const histPoint = async (mois: string, composite: number, reg: number) =>
+    db.query(
+      `INSERT INTO dqa.hist_score_site
+         (site_id, mois_paqd, programme_id, grille_id, score_composite, classification,
+          p_regularite, sc_regularite_saisie)
+       VALUES ('S1',$1,NULL,$2,$3,'NON_CONFORME',0,$4)`,
+      [mois, gid, composite, reg],
+    );
+
+  it('historiqueSite : une plage de/à traverse les cycles, points triés par mois', async () => {
+    await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S1','CSU',true)`);
+    await histPoint('2026-04', 40, 30); // cycle 2026-C1
+    await histPoint('2026-05', 55, 45); // cycle 2026-C2
+    await histPoint('2026-08', 70, 71); // cycle 2026-C2
+
+    const h = await new IndicateursRepository(db).historiqueSite('S1', { de: '2026-04', a: '2026-08' });
+    expect(h?.cyclePaqd).toBeNull(); // plage libre, pas un cycle
+    expect(h?.moisDisponibles).toEqual(['2026-08', '2026-05', '2026-04']);
+    expect(h?.cyclesDisponibles).toEqual(['2026-C2', '2026-C1']);
+    expect(h?.points.map((p) => p.moisPaqd)).toEqual(['2026-04', '2026-05', '2026-08']);
+
+    const dernier = h!.points.at(-1)!;
+    expect(dernier.sousComposantes.map((s) => s.sousComposante)).toEqual([...SOUS_COMPOSANTES]);
+    const reg = dernier.sousComposantes.find((s) => s.sousComposante === 'regularite_saisie')!;
+    expect(reg.valeur).toBe(71);
+    expect(reg.tauxAtteinte).toBe(100); // 71 / 65 borné
+    expect(reg.statut).toBe('CONFORME');
+  });
+
+  it('historiqueSite : sans de/à, retombe sur le cycle le plus récent', async () => {
+    await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S1','CSU',true)`);
+    await histPoint('2026-04', 40, 30);
+    await histPoint('2026-08', 70, 71);
+    const h = await new IndicateursRepository(db).historiqueSite('S1', {});
+    expect(h?.cyclePaqd).toBe('2026-C2');
+    expect(h?.points.map((p) => p.moisPaqd)).toEqual(['2026-08']);
   });
 });

@@ -25,6 +25,17 @@ La valeur mesurée d'une sous-composante, figée mois par mois dans
 évolue ensuite. Le seuil et le statut ne sont pas figés : ils se déduisent de
 la valeur et de la grille du mois.
 
+**Taux d'atteinte du seuil** :
+Note sur 100 qui dit à quel point une sous-composante approche (ou dépasse) son
+seuil, sur une échelle commune aux dix. Sens-conscient : pour un seuil
+plancher, `valeur / seuil` borné à 100 ; pour un seuil plafond (ratio
+d'ajustements), `seuil / valeur` borné à 100 ; pour les deux sous-composantes
+de P4, la valeur gelée est déjà un taux de conformité, reprise telle quelle.
+`null` si la valeur ou le seuil manque. Non figé : déduit d'une valeur gelée
+et d'un seuil retrouvable, servi par la vue `v_sous_composante_atteinte`.
+Sert d'axe commun aux radars et aux courbes fines de la fiche site.
+_Éviter_ : score de sous-composante (binaire, réservé au calcul du pilier)
+
 **Score de pilier** :
 Note sur 100 d'un site pour un pilier, égale à la moyenne simple des scores de
 ses sous-composantes calculables (CONFORME = 100, ALERTE = 0 ; une sous-composante
@@ -50,9 +61,11 @@ détermine le nombre d'inventaires et de réquisitions attendus de lui chaque mo
 _Éviter_ : programme, volet, activité
 
 **Cycle PAQD** :
-Une période de quatre mois consécutifs sur laquelle la progression d'un site est
-suivie. Trois cycles par an, calés sur l'année civile (C1 : janvier–avril, C2 :
-mai–août, C3 : septembre–décembre).
+Une période de quatre mois consécutifs. Trois cycles par an, calés sur l'année
+civile (C1 : janvier–avril, C2 : mai–août, C3 : septembre–décembre). C'est le
+préréglage par défaut pour suivre la progression d'un site, mais plus la seule
+fenêtre : la fiche site accepte une plage de mois libre (`de`/`a`), qui peut
+traverser plusieurs cycles.
 
 **Grille de paramètres** :
 Le jeu daté des poids de piliers, des seuils de sous-composantes et — pour les

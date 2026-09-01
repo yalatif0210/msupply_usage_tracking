@@ -314,6 +314,29 @@ describe('vue mv_synthese_nationale', () => {
     expect((await parSc('regularite_saisie', null, null, null, '2026-07'))?.nb_alerte).toBe(1);
   });
 
+  it('sous-composante : un site du périmètre sans ligne du mois pèse dix cellules NON_CALCULABLE', async () => {
+    await site('S1', 'NORD', 'D1');
+    await site('S2', 'NORD', 'D1'); // périmètre, aucune ligne hist
+    await histSc('S1', null, '2026-08', { sc_regularite_saisie: 65 });
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_sous_composante`);
+
+    const noms = (
+      await db.query<{ sous_composante: string }>(
+        `SELECT DISTINCT sous_composante FROM dqa.grille_seuil_sous_composante WHERE grille_id = $1`,
+        [gid],
+      )
+    ).rows.map((r) => r.sous_composante);
+    expect(noms).toHaveLength(10);
+
+    for (const nom of noms) {
+      const ligne = await parSc(nom, null, null);
+      expect(ligne, nom).toBeDefined();
+      // S1 + S2 comptés partout ; S2 toujours NON_CALCULABLE, S1 aussi sauf regularite_saisie
+      expect(ligne!.nb_conforme + ligne!.nb_alerte + ligne!.nb_non_calculable).toBe(2);
+      expect(ligne!.nb_non_calculable).toBe(nom === 'regularite_saisie' ? 1 : 2);
+    }
+  });
+
   it('sous-composante : le grain district est disponible', async () => {
     await site('S1', 'NORD', 'D1');
     await site('S2', 'NORD', 'D2');
