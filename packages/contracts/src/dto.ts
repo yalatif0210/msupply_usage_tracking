@@ -95,6 +95,26 @@ export const scorePilierSchema = z.object({
 });
 export type ScorePilier = z.infer<typeof scorePilierSchema>;
 
+/**
+ * Valeur gelée d'une sous-composante à un mois PAQD : la valeur mesurée, le
+ * seuil de la grille du mois, le statut qui s'en déduit (`valeur` ou `seuil`
+ * nul → NON_CALCULABLE), et le taux d'atteinte du seuil (0..100, échelle
+ * commune aux dix ; `v_sous_composante_atteinte`). Champs de mesure dérivés de
+ * `mesureSousComposanteSchema`.
+ */
+export const sousComposanteBrefSchema = mesureSousComposanteSchema
+  .pick({ sousComposante: true, valeur: true, seuil: true, statut: true })
+  .extend({ tauxAtteinte: pourcentageSchema.nullable() });
+export type SousComposanteBref = z.infer<typeof sousComposanteBrefSchema>;
+
+/** Les dix sous-composantes gelées d'un mois, dans l'ordre canonique `SOUS_COMPOSANTES`. */
+export const dixSousComposantesSchema = z
+  .array(sousComposanteBrefSchema)
+  .length(10)
+  .refine((scs) => scs.every((s, i) => s.sousComposante === SOUS_COMPOSANTES[i]), {
+    message: 'les dix sous-composantes doivent suivre l’ordre de SOUS_COMPOSANTES',
+  });
+
 export const detailSiteSchema = z.object({
   site: siteSchema,
   /** Mois PAQD affiché, ou `null` si le site n'a encore aucune mesure. */
@@ -112,6 +132,13 @@ export const detailSiteSchema = z.object({
   scoreComposite: pourcentageSchema.nullable(),
   classification: classificationSchema.nullable(),
   piliers: z.array(scorePilierSchema),
+  /**
+   * Les dix sous-composantes du mois affiché (ordre canonique), valeurs gelées
+   * + taux d'atteinte (`v_sous_composante_atteinte`) ; toutes NON_CALCULABLE si
+   * le site n'a aucune mesure. Sert le tableau à plat et le radar ; distinct de
+   * `piliers[].sousComposantes` (rendu live des cartes).
+   */
+  sousComposantes: dixSousComposantesSchema,
 });
 export type DetailSite = z.infer<typeof detailSiteSchema>;
 
@@ -251,27 +278,6 @@ export type TableauDeBord = z.infer<typeof tableauDeBordSchema>;
 
 // ─── Progression d'un site sur un cycle PAQD ────────────────────────────────
 
-/**
- * Valeur gelée d'une sous-composante à un mois PAQD : la valeur mesurée, le
- * seuil de la grille du mois, et le statut qui s'en déduit (`valeur` ou
- * `seuil` nul → NON_CALCULABLE). Dérivé de `mesureSousComposanteSchema`.
- */
-export const sousComposanteBrefSchema = mesureSousComposanteSchema.pick({
-  sousComposante: true,
-  valeur: true,
-  seuil: true,
-  statut: true,
-});
-export type SousComposanteBref = z.infer<typeof sousComposanteBrefSchema>;
-
-/** Les dix sous-composantes gelées d'un mois, dans l'ordre canonique `SOUS_COMPOSANTES`. */
-export const dixSousComposantesSchema = z
-  .array(sousComposanteBrefSchema)
-  .length(10)
-  .refine((scs) => scs.every((s, i) => s.sousComposante === SOUS_COMPOSANTES[i]), {
-    message: 'les dix sous-composantes doivent suivre l’ordre de SOUS_COMPOSANTES',
-  });
-
 /** Un mois PAQD mesuré d'un cycle, avec son rang M+1..M+4 (issu du calendrier). */
 export const pointProgressionSchema = z.object({
   moisPaqd: moisPaqdSchema,
@@ -288,18 +294,26 @@ export const historiqueSiteSchema = z.object({
   site: siteSchema,
   /** Filtre programme appliqué, ou `null` pour « tous programmes ». */
   programmeId: z.string().nullable(),
-  /** Cycle PAQD affiché, ou `null` si le site n'a aucune mesure. */
+  /**
+   * Cycle PAQD affiché quand la fenêtre est un cycle ; `null` si le site n'a
+   * aucune mesure, ou si la fenêtre est une plage `de`/`a` libre.
+   */
   cyclePaqd: cyclePaqdSchema.nullable(),
   /** Cycles où le site a ≥ 1 mesure, du plus récent au plus ancien. */
   cyclesDisponibles: z.array(cyclePaqdSchema),
-  /** Points du cycle affiché, triés par rang croissant ; un mois non mesuré est absent. */
+  /** Tous les mois PAQD où le site a une mesure, du plus récent au plus ancien (sélecteur de plage). */
+  moisDisponibles: z.array(moisPaqdSchema),
+  /** Points de la fenêtre, triés par mois PAQD croissant ; un mois non mesuré est absent. */
   points: z.array(pointProgressionSchema),
 });
 export type HistoriqueSite = z.infer<typeof historiqueSiteSchema>;
 
 export const historiqueQuerySchema = z.object({
-  /** Non validé au format `AAAA-CN` : un cycle absent de la liste retombe simplement sur le plus récent. */
+  /** Non validés : une fenêtre inconnue (cycle ou plage) retombe simplement sur le cycle le plus récent. */
   cycle: z.string().optional(),
+  /** Plage de mois PAQD (bornes incluses). `de` + `a`, tous deux mesurés, priment sur `cycle`. */
+  de: z.string().optional(),
+  a: z.string().optional(),
   programmeId: z.string().optional(),
 });
 export type HistoriqueQuery = z.infer<typeof historiqueQuerySchema>;

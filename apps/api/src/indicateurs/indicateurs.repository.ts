@@ -94,43 +94,42 @@ const scoresPiliers = (r: PiliersBruts): { pilier: Pilier; score: number | null 
   { pilier: 'P6', score: nombreOuNull(r.p_ajustements) },
 ];
 
-/** Colonnes `sc_<nom>` de `hist_score_site` : les dix valeurs gelées d'une ligne. */
-type ValeursGelees = { [K in SousComposante as `sc_${K}`]: string | null };
-
-/** Seuil et sens de comparaison par sous-composante pour un mois (jsonb agrégé côté SQL). */
-type SeuilsGrille = Partial<Record<SousComposante, Pick<SeuilSousComposante, 'seuil' | 'sens'>>>;
-
-const COLONNES_SC_SQL = SOUS_COMPOSANTES.map((sc) => `h.sc_${sc}`).join(', ');
-
-/** Sous-requête agrégeant les seuils de la grille d'une ligne `h` en un objet jsonb. */
-const SEUILS_GRILLE_SQL = `
-  LEFT JOIN LATERAL (
-    SELECT jsonb_object_agg(
-             gs.sous_composante,
-             jsonb_build_object('seuil', gs.seuil, 'sens', gs.sens)
-           ) AS seuils
-    FROM dqa.grille_seuil_sous_composante gs
-    WHERE gs.grille_id = h.grille_id
-  ) sg ON true`;
+/** Une sous-composante lue sur `v_sous_composante_atteinte` (jsonb, nombres déjà parsés). */
+interface AtteinteBrute {
+  valeur: number | null;
+  seuil: number | null;
+  tauxAtteinte: number | null;
+  statut: StatutSousComposante;
+}
+type AtteintesParSc = Partial<Record<SousComposante, AtteinteBrute>>;
 
 /**
- * Reconstruit les dix `SousComposanteBref` d'un point : valeur gelée + seuil du
- * mois + statut déduit. Contrairement à `mesure()` (qui lit un sous-score déjà
- * calculé), l'historique ne fige que la valeur brute : le statut se re-déduit
- * ici de `valeur` vs `seuil` selon le `sens` de la grille.
+ * Sous-requête agrégeant `v_sous_composante_atteinte` d'une ligne `h`
+ * (site, mois, programme) en un objet jsonb `sc[sous_composante] = { ... }`.
  */
-const sousComposantesGelees = (r: ValeursGelees, seuils: SeuilsGrille | null): SousComposanteBref[] =>
+const ATTEINTE_JSONB_SQL = `
+  LEFT JOIN LATERAL (
+    SELECT jsonb_object_agg(
+             va.sous_composante,
+             jsonb_build_object('valeur', va.valeur, 'seuil', va.seuil,
+                                'tauxAtteinte', va.taux_atteinte, 'statut', va.statut)
+           ) AS sc
+    FROM dqa.v_sous_composante_atteinte va
+    WHERE va.site_id = h.site_id AND va.mois_paqd = h.mois_paqd
+      AND va.programme_id IS NOT DISTINCT FROM h.programme_id
+  ) vsc ON true`;
+
+/** Les dix `SousComposanteBref` d'un mois, ordre canonique, depuis l'agrégat jsonb. */
+const dixSousComposantes = (m: AtteintesParSc | null): SousComposanteBref[] =>
   SOUS_COMPOSANTES.map((sc) => {
-    const valeur = nombreOuNull(r[`sc_${sc}`]);
-    const s = seuils?.[sc] ?? null;
-    const seuil = s?.seuil ?? null;
-    const statut: StatutSousComposante =
-      valeur === null || s === null
-        ? 'NON_CALCULABLE'
-        : (s.sens === 'inf' ? valeur <= s.seuil : valeur >= s.seuil)
-          ? 'CONFORME'
-          : 'ALERTE';
-    return { sousComposante: sc, valeur, seuil, statut };
+    const a = m?.[sc];
+    return {
+      sousComposante: sc,
+      valeur: a?.valeur ?? null,
+      seuil: a?.seuil ?? null,
+      tauxAtteinte: a?.tauxAtteinte ?? null,
+      statut: a?.statut ?? 'NON_CALCULABLE',
+    };
   });
 
 // ─── Synthèse nationale ────────────────────────────────────────────────────
@@ -462,10 +461,12 @@ export class IndicateursRepository {
         scoreComposite: null,
         classification: null,
         piliers: [],
+        sousComposantes: dixSousComposantes(null),
       };
     }
 
     const { rows } = await this.pool.query<{
+      sc: AtteintesParSc | null;
       score_composite: string | null;
       classification: Classification | null;
       piliers_couverts: number | null;
@@ -500,7 +501,7 @@ export class IndicateursRepository {
       seuil_concordance: string | null;
       seuil_ajustements: string | null;
     }>(
-      `SELECT h.score_composite, h.classification,
+      `SELECT h.score_composite, h.classification, vsc.sc,
               ${COMPTE_PILIERS_SQL} AS piliers_couverts,
               h.p_completude, h.p_promptitude, h.p_regularite,
               h.p_ecart_sdu, h.p_concordance, h.p_ajustements,
@@ -550,6 +551,7 @@ export class IndicateursRepository {
               ON sc5.grille_id = h.grille_id AND sc5.sous_composante = 'concordance'
        LEFT JOIN dqa.grille_seuil_sous_composante sc6
               ON sc6.grille_id = h.grille_id AND sc6.sous_composante = 'ratio_ajustements'
+       ${ATTEINTE_JSONB_SQL}
        WHERE h.site_id = $1 AND h.mois_paqd = $2 AND h.programme_id IS NOT DISTINCT FROM $3`,
       [siteId, mois, prog],
     );
@@ -589,6 +591,7 @@ export class IndicateursRepository {
       scoreComposite: nombreOuNull(h?.score_composite ?? null),
       classification: h?.classification ?? null,
       piliers,
+      sousComposantes: dixSousComposantes(h?.sc ?? null),
     };
   }
 
@@ -602,62 +605,75 @@ export class IndicateursRepository {
     const siteRow = site.rows[0]!;
     const prog = q.programmeId ?? null;
 
-    const cycles = await this.pool.query<{ cycle_paqd: string }>(
-      `SELECT DISTINCT vmc.cycle_paqd
+    const fenetres = await this.pool.query<{ mois_paqd: string; cycle_paqd: string }>(
+      `SELECT h.mois_paqd, vmc.cycle_paqd
        FROM dqa.hist_score_site h
        JOIN dqa.dim_site s ON s.site_id = h.site_id AND s.dans_perimetre_dqa
        JOIN dqa.v_mois_cycle vmc ON vmc.mois_paqd = h.mois_paqd
        WHERE h.site_id = $1 AND h.programme_id IS NOT DISTINCT FROM $2
-       ORDER BY vmc.cycle_paqd DESC`,
+       ORDER BY h.mois_paqd DESC`,
       [siteId, prog],
     );
-    const cyclesDisponibles = cycles.rows.map((r) => r.cycle_paqd);
-    const cycle =
-      q.cycle && cyclesDisponibles.includes(q.cycle) ? q.cycle : cyclesDisponibles[0];
+    const moisDisponibles = fenetres.rows.map((r) => r.mois_paqd);
+    const cyclesDisponibles = [...new Set(fenetres.rows.map((r) => r.cycle_paqd))];
 
-    if (!cycle) {
-      return {
-        site: versSite(siteRow),
-        programmeId: prog,
-        cyclePaqd: null,
-        cyclesDisponibles: [],
-        points: [],
-      };
+    const base = {
+      site: versSite(siteRow),
+      programmeId: prog,
+      cyclesDisponibles,
+      moisDisponibles,
+    };
+
+    if (moisDisponibles.length === 0) {
+      return { ...base, cyclePaqd: null, points: [] };
     }
 
+    // Plage `de`/`a` libre si les deux bornes ont le format AAAA-MM (pas besoin
+    // qu'elles soient mesurées : un préréglage « 12 mois » peut viser plus large
+    // que l'historique). Sinon la fenêtre est un cycle.
+    const estMois = (m: string | undefined): m is string => /^\d{4}-\d{2}$/.test(m ?? '');
+    const plage =
+      estMois(q.de) && estMois(q.a)
+        ? { de: q.de <= q.a ? q.de : q.a, a: q.de <= q.a ? q.a : q.de }
+        : null;
+    const cycle = plage
+      ? null
+      : q.cycle && cyclesDisponibles.includes(q.cycle)
+        ? q.cycle
+        : cyclesDisponibles[0]!;
+
+    const { filtre, params } = plage
+      ? { filtre: 'h.mois_paqd BETWEEN $3 AND $4', params: [siteId, prog, plage.de, plage.a] }
+      : { filtre: 'vmc.cycle_paqd = $3', params: [siteId, prog, cycle] };
+
     const { rows } = await this.pool.query<
-      PiliersBruts &
-        ValeursGelees & {
-          mois_paqd: string;
-          rang: number;
-          score_composite: string | null;
-          classification: Classification | null;
-          piliers_couverts: number;
-          seuils: SeuilsGrille | null;
-        }
+      PiliersBruts & {
+        mois_paqd: string;
+        rang: number;
+        score_composite: string | null;
+        classification: Classification | null;
+        piliers_couverts: number;
+        sc: AtteintesParSc | null;
+      }
     >(
       `SELECT h.mois_paqd, vmc.rang,
               h.score_composite, h.classification,
               ${COMPTE_PILIERS_SQL} AS piliers_couverts,
               h.p_completude, h.p_promptitude, h.p_regularite,
               h.p_ecart_sdu, h.p_concordance, h.p_ajustements,
-              ${COLONNES_SC_SQL},
-              sg.seuils
+              vsc.sc
        FROM dqa.hist_score_site h
        JOIN dqa.dim_site s ON s.site_id = h.site_id AND s.dans_perimetre_dqa
        JOIN dqa.v_mois_cycle vmc ON vmc.mois_paqd = h.mois_paqd
-       ${SEUILS_GRILLE_SQL}
-       WHERE h.site_id = $1 AND h.programme_id IS NOT DISTINCT FROM $2
-         AND vmc.cycle_paqd = $3
-       ORDER BY vmc.rang`,
-      [siteId, prog, cycle],
+       ${ATTEINTE_JSONB_SQL}
+       WHERE h.site_id = $1 AND h.programme_id IS NOT DISTINCT FROM $2 AND ${filtre}
+       ORDER BY h.mois_paqd`,
+      params,
     );
 
     return {
-      site: versSite(siteRow),
-      programmeId: prog,
+      ...base,
       cyclePaqd: cycle,
-      cyclesDisponibles,
       points: rows.map((r) => ({
         moisPaqd: r.mois_paqd,
         rang: r.rang,
@@ -665,7 +681,7 @@ export class IndicateursRepository {
         classification: r.classification,
         piliersCouverts: r.piliers_couverts,
         scoresPiliers: scoresPiliers(r),
-        sousComposantes: sousComposantesGelees(r, r.seuils),
+        sousComposantes: dixSousComposantes(r.sc),
       })),
     };
   }

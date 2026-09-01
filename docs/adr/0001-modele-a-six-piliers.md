@@ -18,3 +18,11 @@ NON_CALCULABLE.
 cadrage PAQD ; le conserver aurait figé des poids et un périmètre de piliers
 faux. Le coût de la réécriture est réel mais localisé à la couche SQL, qui
 n'est pas encore en production.
+
+**Amendement (2026-09, tranche « fiche site analytique »).** Le cycle PAQD de
+quatre mois reste l'unité de reporting et le préréglage par défaut du suivi de
+progression, mais ce n'est plus la seule fenêtre : la fiche site accepte une
+plage de mois libre (`de`/`a`) pouvant traverser plusieurs cycles. `v_mois_cycle`
+continue de fournir le rang M+1..M+4 de chaque point ; l'axe temporel bascule
+sur le mois calendaire quand la plage sort d'un cycle. Aucun impact sur le
+calcul des scores.

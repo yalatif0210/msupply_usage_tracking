@@ -34,6 +34,16 @@ const pilier = (code: Pilier, score: number | null) => ({
   })),
 });
 
+/** Les dix sous-composantes brèves dans l'ordre canonique. */
+const sc10 = () =>
+  SOUS_COMPOSANTES.map((sousComposante) => ({
+    sousComposante,
+    valeur: 100,
+    seuil: 100,
+    statut: 'CONFORME' as const,
+    tauxAtteinte: 100,
+  }));
+
 const detailSixPiliers = (opts: { scoreComposite: unknown; classification: unknown }) => ({
   site,
   moisPaqd: '2026-08',
@@ -46,6 +56,7 @@ const detailSixPiliers = (opts: { scoreComposite: unknown; classification: unkno
   piliers: (['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as Pilier[]).map((c) =>
     pilier(c, c === 'P5' || c === 'P6' ? 100 : null),
   ),
+  sousComposantes: sc10(),
 });
 
 describe('validerReponse (couture D)', () => {
@@ -206,12 +217,7 @@ describe('validerReponse (couture D)', () => {
     classification: 'PARTIELLEMENT_CONFORME',
     piliersCouverts: 6,
     scoresPiliers: (['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as Pilier[]).map((pilier) => ({ pilier, score: 100 })),
-    sousComposantes: SOUS_COMPOSANTES.map((sousComposante) => ({
-      sousComposante,
-      valeur: 100,
-      seuil: 100,
-      statut: 'CONFORME' as const,
-    })),
+    sousComposantes: sc10(),
     ...over,
   });
   const historique = (pointOver: Record<string, unknown> = {}) => ({
@@ -219,6 +225,7 @@ describe('validerReponse (couture D)', () => {
     programmeId: null,
     cyclePaqd: '2026-C2',
     cyclesDisponibles: ['2026-C2'],
+    moisDisponibles: ['2026-08', '2026-05'],
     points: [point({ rang: 1, scoreComposite: 60 }), point(pointOver)],
   });
 
@@ -252,12 +259,7 @@ describe('validerReponse (couture D)', () => {
   });
 
   it('rejette dix sous-composantes dans le désordre', () => {
-    const desordre = [...SOUS_COMPOSANTES].reverse().map((sousComposante) => ({
-      sousComposante,
-      valeur: 100,
-      seuil: 100,
-      statut: 'CONFORME' as const,
-    }));
+    const desordre = sc10().reverse();
     expect(() => validerReponse(historiqueSiteSchema, historique({ sousComposantes: desordre }))).toThrow(
       /non conforme/i,
     );
