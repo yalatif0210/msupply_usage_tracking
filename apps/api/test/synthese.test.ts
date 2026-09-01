@@ -210,4 +210,82 @@ describe('vue mv_synthese_nationale', () => {
     // national : avg(95, 75, 88) = 86.0
     expect((await syn(null, null, null))?.score_composite_moyen).toBe('86.0');
   });
+
+  // ── mv_synthese_sous_composante ─────────────────────────────────────────
+  /** Ligne d'historique avec seulement les sc_* utiles renseignés. */
+  const histSc = async (
+    siteId: string,
+    prog: string | null,
+    mois: string,
+    sc: Partial<Record<'sc_regularite_saisie' | 'sc_ratio_ajustements' | 'sc_ecart_sdu', number>>,
+  ) =>
+    db.query(
+      `INSERT INTO dqa.hist_score_site
+         (site_id, mois_paqd, programme_id, grille_id, sc_regularite_saisie, sc_ratio_ajustements, sc_ecart_sdu)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [siteId, mois, prog, gid, sc.sc_regularite_saisie ?? null, sc.sc_ratio_ajustements ?? null, sc.sc_ecart_sdu ?? null],
+    );
+
+  const parSc = async (nom: string, prog: string | null, region: string | null) => {
+    const { rows } = await db.query<{
+      nb_conforme: number; nb_alerte: number; nb_non_calculable: number;
+      taux_atteinte_moyen: string | null;
+    }>(
+      `SELECT nb_conforme::int, nb_alerte::int, nb_non_calculable::int, taux_atteinte_moyen
+       FROM dqa.mv_synthese_sous_composante
+       WHERE mois_paqd = '2026-08' AND sous_composante = $1
+         AND coalesce(programme_id,'') = $2 AND coalesce(region,'') = $3 AND district IS NULL`,
+      [nom, prog ?? '', region ?? ''],
+    );
+    return rows[0];
+  };
+
+  it('sous-composante : compte CONFORME / ALERTE / NON_CALCULABLE et moyenne le taux d\'atteinte', async () => {
+    await site('S1', 'NORD', 'D1');
+    await site('S2', 'NORD', 'D1');
+    await site('S3', 'SUD', 'D3');
+    await site('S9', 'NORD', 'D1', false); // hors périmètre
+    await histSc('S1', null, '2026-08', { sc_regularite_saisie: 65, sc_ratio_ajustements: 0 }); // seuil 65 → 100 ; ratio 0 → 100
+    await histSc('S2', null, '2026-08', { sc_regularite_saisie: 52, sc_ratio_ajustements: 10 }); // 52/65 → 80 ALERTE ; 5/10 → 50 ALERTE
+    await histSc('S3', null, '2026-08', { sc_ecart_sdu: 95 }); // regularite NULL ici
+    await histSc('S9', null, '2026-08', { sc_regularite_saisie: 100 }); // hors périmètre : ignoré
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_sous_composante`);
+
+    const reg = await parSc('regularite_saisie', null, null);
+    expect(reg?.nb_conforme).toBe(1); // S1
+    expect(reg?.nb_alerte).toBe(1); // S2
+    expect(reg?.nb_non_calculable).toBe(1); // S3
+    expect(reg?.taux_atteinte_moyen).toBe('90.0'); // avg(100, 80)
+
+    const ratio = await parSc('ratio_ajustements', null, null);
+    expect(ratio?.taux_atteinte_moyen).toBe('75.0'); // avg(100, 50)
+
+    const sdu = await parSc('ecart_sdu', null, null);
+    expect(sdu?.nb_conforme).toBe(1); // S3 : 95 >= 90, valeur reprise telle quelle
+    expect(sdu?.taux_atteinte_moyen).toBe('95.0');
+  });
+
+  it('sous-composante : respecte le filtre région', async () => {
+    await site('S1', 'NORD', 'D1');
+    await site('S2', 'SUD', 'D3');
+    await histSc('S1', null, '2026-08', { sc_regularite_saisie: 65 });
+    await histSc('S2', null, '2026-08', { sc_regularite_saisie: 52 });
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_sous_composante`);
+    expect((await parSc('regularite_saisie', null, 'NORD'))?.nb_conforme).toBe(1);
+    expect((await parSc('regularite_saisie', null, 'NORD'))?.nb_alerte).toBe(0);
+    expect((await parSc('regularite_saisie', null, 'SUD'))?.nb_alerte).toBe(1);
+  });
+
+  it('sous-composante : la variante par programme ne voit que les sites gérant', async () => {
+    await Promise.all([programme('VIH')]);
+    await site('S1', 'NORD', 'D1');
+    await site('S2', 'NORD', 'D1');
+    await Promise.all([gere('S1', 'VIH'), gere('S2', 'VIH')]);
+    await histSc('S1', 'VIH', '2026-08', { sc_regularite_saisie: 65 });
+    // S2 gère VIH mais aucune ligne VIH → NON_CALCULABLE
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_sous_composante`);
+    const reg = await parSc('regularite_saisie', 'VIH', null);
+    expect(reg?.nb_conforme).toBe(1);
+    expect(reg?.nb_non_calculable).toBe(1);
+  });
 });

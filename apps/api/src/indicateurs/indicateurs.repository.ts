@@ -3,6 +3,7 @@ import type { Pool } from 'pg';
 import {
   LIBELLES_PILIER,
   LIBELLES_SOUS_COMPOSANTE,
+  PILIER_DE_SOUS_COMPOSANTE,
   POIDS_PILIER,
   SOUS_COMPOSANTES,
   type BlocSynthese,
@@ -163,6 +164,15 @@ const moyennesPiliers = (
   { pilier: 'P6', moyenne: nombreOuNull(r?.moy_p_ajustements ?? null) },
 ];
 
+/** Une ligne de `mv_synthese_sous_composante` (comptes castés `::int`). */
+interface LigneSousComposanteSynthese {
+  sous_composante: SousComposante;
+  taux_atteinte_moyen: string | null;
+  nb_conforme: number;
+  nb_alerte: number;
+  nb_non_calculable: number;
+}
+
 const versBloc = (r: LigneSynthese | undefined): BlocSynthese => ({
   nbSites: r?.nb_sites ?? 0,
   nbMesures: r?.nb_mesures ?? 0,
@@ -225,6 +235,7 @@ export class IndicateursRepository {
         national: { ...versBloc(undefined), moyennesPiliers: moyennesPiliers(undefined) },
         parDistrict: [],
         parProgramme: [],
+        parSousComposante: [],
       };
     }
 
@@ -267,6 +278,16 @@ export class IndicateursRepository {
       [mois, region],
     );
 
+    const parSousComposante = await this.pool.query<LigneSousComposanteSynthese>(
+      `SELECT sous_composante, taux_atteinte_moyen,
+              nb_conforme::int, nb_alerte::int, nb_non_calculable::int
+       FROM dqa.mv_synthese_sous_composante
+       WHERE mois_paqd = $1 AND programme_id IS NOT DISTINCT FROM $2
+         AND region IS NOT DISTINCT FROM $3 AND district IS NULL
+       ORDER BY taux_atteinte_moyen ASC NULLS LAST, sous_composante`,
+      [mois, prog, region],
+    );
+
     return {
       moisPaqd: mois,
       moisDisponibles,
@@ -278,6 +299,14 @@ export class IndicateursRepository {
         programmeId: r.programme_id,
         programmeNom: r.programme_nom,
         ...versBloc(r),
+      })),
+      parSousComposante: parSousComposante.rows.map((r) => ({
+        sousComposante: r.sous_composante,
+        pilier: PILIER_DE_SOUS_COMPOSANTE[r.sous_composante],
+        tauxAtteinteMoyen: nombreOuNull(r.taux_atteinte_moyen),
+        nbConforme: r.nb_conforme,
+        nbAlerte: r.nb_alerte,
+        nbNonCalculable: r.nb_non_calculable,
       })),
     };
   }

@@ -5,6 +5,7 @@ import {
   detailSiteSchema,
   grilleDetailSchema,
   historiqueSiteSchema,
+  PILIER_DE_SOUS_COMPOSANTE,
   scoreSiteSchema,
   SOUS_COMPOSANTES,
   SOUS_COMPOSANTES_DU_PILIER,
@@ -110,6 +111,14 @@ describe('validerReponse (couture D)', () => {
     parProgramme: [
       { programmeId: 'P', programmeNom: 'VIH', nbSites: 3, nbMesures: 2, scoreCompositeMoyen: 60, repartition },
     ],
+    parSousComposante: SOUS_COMPOSANTES.map((sousComposante) => ({
+      sousComposante,
+      pilier: PILIER_DE_SOUS_COMPOSANTE[sousComposante],
+      tauxAtteinteMoyen: 80,
+      nbConforme: 3,
+      nbAlerte: 1,
+      nbNonCalculable: 1,
+    })),
   });
 
   it('accepte une SyntheseNationale complète', () => {
@@ -128,6 +137,12 @@ describe('validerReponse (couture D)', () => {
     expect(() =>
       validerReponse(syntheseNationaleSchema, synthese({ moyennesPiliers: [{ pilier: 'P1', moyenne: 50 }] })),
     ).toThrow(/non conforme/i);
+  });
+
+  it('rejette une ligne parSousComposante à comptes négatifs', () => {
+    const s = synthese() as { parSousComposante: { nbConforme: number }[] };
+    s.parSousComposante[0]!.nbConforme = -1;
+    expect(() => validerReponse(syntheseNationaleSchema, s)).toThrow(/non conforme/i);
   });
 
   it('rejette une répartition avec une classe inconnue / manquante', () => {

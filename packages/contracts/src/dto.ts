@@ -178,6 +178,21 @@ export const ligneProgrammeSyntheseSchema = blocSyntheseSchema.extend({
 });
 export type LigneProgrammeSynthese = z.infer<typeof ligneProgrammeSyntheseSchema>;
 
+/**
+ * Une sous-composante vue au niveau national (pour le filtre mois / programme /
+ * région appliqué) : combien de sites CONFORME / ALERTE / NON_CALCULABLE, et la
+ * moyenne du taux d'atteinte du seuil (0..100, `null` si aucun site calculable).
+ */
+export const ligneSousComposanteSyntheseSchema = z.object({
+  sousComposante: sousComposanteSchema,
+  pilier: pilierSchema,
+  tauxAtteinteMoyen: pourcentageSchema.nullable(),
+  nbConforme: z.number().int().nonnegative(),
+  nbAlerte: z.number().int().nonnegative(),
+  nbNonCalculable: z.number().int().nonnegative(),
+});
+export type LigneSousComposanteSynthese = z.infer<typeof ligneSousComposanteSyntheseSchema>;
+
 export const syntheseNationaleSchema = z.object({
   /** Mois PAQD affiché, ou `null` si aucun mois n'est encore mesuré. */
   moisPaqd: moisPaqdSchema.nullable(),
@@ -196,6 +211,8 @@ export const syntheseNationaleSchema = z.object({
   parDistrict: z.array(ligneDistrictSyntheseSchema),
   /** Un item par programme géré par ≥ 1 site du périmètre, trié score croissant. */
   parProgramme: z.array(ligneProgrammeSyntheseSchema),
+  /** Les dix sous-composantes au niveau du filtre, triées taux d'atteinte croissant. */
+  parSousComposante: z.array(ligneSousComposanteSyntheseSchema),
 });
 export type SyntheseNationale = z.infer<typeof syntheseNationaleSchema>;
 

@@ -2,7 +2,15 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { LIBELLES_PILIER, type Pilier, type Programme, type SyntheseNationale } from '@dqa/contracts';
+import {
+  LIBELLES_PILIER,
+  LIBELLES_SOUS_COMPOSANTE,
+  type LigneSousComposanteSynthese,
+  type Pilier,
+  type Programme,
+  type SousComposante,
+  type SyntheseNationale,
+} from '@dqa/contracts';
 import { VALEUR_ABSENTE } from '../core/affichage';
 import { SitesService } from '../core/sites.service';
 import { SyntheseService } from '../core/synthese.service';
@@ -69,6 +77,43 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
             {{ s.programmeId || s.region ? 'avec ce filtre' : '' }}.
           </p>
         } @else {
+          <nav class="onglets" aria-label="Vue de la synthèse">
+            <button type="button" [class.actif]="onglet() === 'pilier'" (click)="onglet.set('pilier')">
+              Par pilier
+            </button>
+            <button type="button" [class.actif]="onglet() === 'sousComposante'" (click)="onglet.set('sousComposante')">
+              Sous-composantes
+            </button>
+          </nav>
+
+          @if (onglet() === 'sousComposante') {
+            <table class="sous-composantes">
+              <thead>
+                <tr>
+                  <th (click)="trier('libelle')">Sous-composante</th>
+                  <th (click)="trier('pilier')">Pilier</th>
+                  <th class="num" (click)="trier('tauxAtteinteMoyen')">Taux d'atteinte moyen</th>
+                  <th class="num" (click)="trier('nbConforme')">Conformes</th>
+                  <th class="num" (click)="trier('nbAlerte')">Alertes</th>
+                  <th class="num" (click)="trier('nbNonCalculable')">Non calculables</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (sc of sousComposantesTriees(s); track sc.sousComposante) {
+                  <tr>
+                    <td>{{ libelleSc(sc.sousComposante) }}</td>
+                    <td>{{ sc.pilier }}</td>
+                    <td class="num">
+                      {{ sc.tauxAtteinteMoyen === null ? absent : (sc.tauxAtteinteMoyen | number: '1.0-1') }}
+                    </td>
+                    <td class="num">{{ sc.nbConforme }}</td>
+                    <td class="num">{{ sc.nbAlerte }}</td>
+                    <td class="num">{{ sc.nbNonCalculable }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
           <section class="national">
             <div class="score">
               <div class="chiffre">{{ s.national.scoreCompositeMoyen | number: '1.0-1' }}</div>
@@ -163,6 +208,7 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
               </table>
             }
           </section>
+          }
         }
       } @else if (chargement()) {
         <p>Chargement…</p>
@@ -197,6 +243,11 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
     .districts tbody tr:hover { background: var(--accent-doux); }
     .repcell { width: 16rem; }
     .vide { color: var(--texte-doux); }
+    .onglets { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--bordure); margin: 0.5rem 0 1.5rem; }
+    .onglets button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 0.6rem 0.9rem; font-size: 0.95rem; color: var(--texte-doux); cursor: pointer; }
+    .onglets button.actif { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .sous-composantes thead th { cursor: pointer; white-space: nowrap; }
+    .sous-composantes thead th:hover { color: var(--accent); }
   `,
 })
 export class SynthesePage {
@@ -212,6 +263,11 @@ export class SynthesePage {
   protected readonly regions = signal<string[]>([]);
   protected readonly programmes = signal<Programme[]>([]);
   protected readonly chargement = signal(true);
+  protected readonly onglet = signal<'pilier' | 'sousComposante'>('pilier');
+  protected readonly tri = signal<{ colonne: TriColonne; sens: 1 | -1 }>({
+    colonne: 'tauxAtteinteMoyen',
+    sens: 1,
+  });
 
   constructor() {
     void this.init();
@@ -244,7 +300,29 @@ export class SynthesePage {
     return LIBELLES_PILIER[pilier];
   }
 
+  protected libelleSc(sc: SousComposante): string {
+    return LIBELLES_SOUS_COMPOSANTE[sc];
+  }
+
+  protected trier(colonne: TriColonne): void {
+    const t = this.tri();
+    this.tri.set({ colonne, sens: t.colonne === colonne ? ((t.sens * -1) as 1 | -1) : 1 });
+  }
+
+  /** Les dix lignes triées selon l'en-tête cliqué ; `null` en dernier. */
+  protected sousComposantesTriees(s: SyntheseNationale): LigneSousComposanteSynthese[] {
+    const { colonne, sens } = this.tri();
+    const cle = (l: LigneSousComposanteSynthese): string | number =>
+      colonne === 'libelle' ? this.libelleSc(l.sousComposante) : (l[colonne] ?? Number.POSITIVE_INFINITY);
+    return [...s.parSousComposante].sort((a, b) => {
+      const [x, y] = [cle(a), cle(b)];
+      return (x < y ? -1 : x > y ? 1 : 0) * sens;
+    });
+  }
+
   protected ouvrirDistrict(district: string): void {
     void this.router.navigate(['/'], { queryParams: { district } });
   }
 }
+
+type TriColonne = 'libelle' | 'pilier' | 'tauxAtteinteMoyen' | 'nbConforme' | 'nbAlerte' | 'nbNonCalculable';
