@@ -39,26 +39,26 @@ import type { RepartitionClassification } from '@dqa/contracts';
   `,
   styles: `
     .bloc.compact { display: flex; align-items: center; gap: 0.6rem; }
-    .barre { display: flex; height: 1.4rem; border: 1px solid #d9d9d6; background: #ececec; overflow: hidden; }
+    .barre { display: flex; height: 1.4rem; border: 1px solid var(--bordure); background: var(--neutre); overflow: hidden; }
     .compact .barre { height: 0.7rem; flex: 0 0 6rem; }
     .seg { display: block; }
-    .seg.CONFORME { background: #1b5e20; }
-    .seg.PARTIELLEMENT_CONFORME { background: #7a5200; }
-    .seg.NON_CONFORME { background: #8a1c13; }
-    .seg.SANS_MESURE { background: #b9b9b6; }
+    .seg.CONFORME { background: var(--conforme-texte); }
+    .seg.PARTIELLEMENT_CONFORME { background: var(--partiel-texte); }
+    .seg.NON_CONFORME { background: var(--alerte-texte); }
+    .seg.SANS_MESURE { background: var(--texte-tres-doux); }
     .comptes { margin: 0; display: flex; flex-wrap: wrap; gap: 0.15rem 0.7rem; font-size: 0.8rem; }
     .compte { font-variant-numeric: tabular-nums; }
-    .compte.CONFORME { color: #1b5e20; }
-    .compte.PARTIELLEMENT_CONFORME { color: #7a5200; }
-    .compte.NON_CONFORME { color: #8a1c13; }
-    .compte.SANS_MESURE { color: #5b5b5b; }
+    .compte.CONFORME { color: var(--conforme-texte); }
+    .compte.PARTIELLEMENT_CONFORME { color: var(--partiel-texte); }
+    .compte.NON_CONFORME { color: var(--alerte-texte); }
+    .compte.SANS_MESURE { color: var(--texte-doux); }
     .legende { list-style: none; display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin: 0.4rem 0 0; padding: 0; font-size: 0.85rem; }
     .legende b { font-variant-numeric: tabular-nums; }
     .pastille { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; vertical-align: middle; }
-    .pastille.CONFORME { background: #1b5e20; }
-    .pastille.PARTIELLEMENT_CONFORME { background: #7a5200; }
-    .pastille.NON_CONFORME { background: #8a1c13; }
-    .pastille.SANS_MESURE { background: #b9b9b6; }
+    .pastille.CONFORME { background: var(--conforme-texte); }
+    .pastille.PARTIELLEMENT_CONFORME { background: var(--partiel-texte); }
+    .pastille.NON_CONFORME { background: var(--alerte-texte); }
+    .pastille.SANS_MESURE { background: var(--texte-tres-doux); }
   `,
 })
 export class RepartitionClassificationComponent {

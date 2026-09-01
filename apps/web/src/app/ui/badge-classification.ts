@@ -12,10 +12,10 @@ import type { Classification } from '@dqa/contracts';
   template: `<span class="badge {{ classification() ?? 'AUCUNE' }}">{{ libelle() }}</span>`,
   styles: `
     .badge { display: inline-block; padding: 0.15rem 0.6rem; font-size: 0.85rem; font-weight: 700; border-radius: 4px; }
-    .CONFORME { background: #e3f1e4; color: #1b5e20; }
-    .PARTIELLEMENT_CONFORME { background: #fff3d6; color: #7a5200; }
-    .NON_CONFORME { background: #fde3e1; color: #8a1c13; }
-    .AUCUNE { background: #ececec; color: #4a4a4a; }
+    .CONFORME { background: var(--conforme-fond); color: var(--conforme-texte); }
+    .PARTIELLEMENT_CONFORME { background: var(--partiel-fond); color: var(--partiel-texte); }
+    .NON_CONFORME { background: var(--alerte-fond); color: var(--alerte-texte); }
+    .AUCUNE { background: var(--nc-fond); color: var(--nc-texte); }
   `,
 })
 export class BadgeClassification {

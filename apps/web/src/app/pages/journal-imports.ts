@@ -4,16 +4,20 @@ import { RouterLink } from '@angular/router';
 import type { AnomalieImport, LotImport } from '@dqa/contracts';
 import { VALEUR_ABSENTE } from '../core/affichage';
 import { ImportService } from '../core/import.service';
+import { Coquille } from '../ui/coquille';
 
 @Component({
   selector: 'dqa-journal-imports',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, RouterLink],
+  imports: [DatePipe, RouterLink, Coquille],
   template: `
+    <dqa-coquille />
+    <main>
     <header>
-      <a routerLink="/">← Tableau de bord</a>
+      <a routerLink="/">Tableau de bord</a>
       <h1>Journal des imports</h1>
     </header>
+    <!-- corps -->
 
     @if (chargement()) {
       <p>Chargement…</p>
@@ -78,21 +82,22 @@ import { ImportService } from '../core/import.service';
         </tbody>
       </table>
     }
+    </main>
   `,
   styles: `
-    :host { display: block; max-width: 72rem; margin: 2rem auto; padding: 0 1rem; }
-    header a { color: #1f3d7a; font-size: 0.9rem; }
+    main { display: block; max-width: 72rem; margin: 2rem auto; padding: 0 1rem; }
+    header a { color: var(--accent); font-size: 0.9rem; }
     h1 { font-size: 1.6rem; }
     table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid #d9d9d6; vertical-align: top; }
-    tr.rejete td { background: #fdf3f2; }
-    tr.detail td { background: #f7f7f5; }
-    .compteurs { font-variant-numeric: tabular-nums; font-size: 0.85rem; color: #5b5b5b; }
-    .motif { display: block; font-size: 0.8rem; color: #8a1c13; }
+    th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid var(--bordure); vertical-align: top; }
+    tr.rejete td { background: var(--alerte-fond); }
+    tr.detail td { background: var(--fond); }
+    .compteurs { font-variant-numeric: tabular-nums; font-size: 0.85rem; color: var(--texte-doux); }
+    .motif { display: block; font-size: 0.8rem; color: var(--alerte-texte); }
     .badge { display: inline-block; padding: 0.1rem 0.4rem; font-size: 0.75rem; }
-    .badge.valide { background: #e3f1e4; color: #1b5e20; }
-    .badge.rejete, .badge.erreur { background: #fde3e1; color: #8a1c13; }
-    .badge.avertissement { background: #fff3d6; color: #7a5200; }
+    .badge.valide { background: var(--conforme-fond); color: var(--conforme-texte); }
+    .badge.rejete, .badge.erreur { background: var(--alerte-fond); color: var(--alerte-texte); }
+    .badge.avertissement { background: var(--partiel-fond); color: var(--partiel-texte); }
     ul { margin: 0; padding-left: 1rem; }
     li { line-height: 1.8; }
   `,

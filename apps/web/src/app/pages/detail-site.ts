@@ -17,17 +17,17 @@ import { SitesService } from '../core/sites.service';
 import { BadgeClassification } from '../ui/badge-classification';
 import { BadgeStatut } from '../ui/badge-statut';
 import { CourbeProgressionComponent } from '../ui/courbe-progression';
-import { Entete } from '../ui/entete';
+import { Coquille } from '../ui/coquille';
 
 @Component({
   selector: 'dqa-detail-site',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    FormsModule, RouterLink, Entete, BadgeStatut, BadgeClassification,
+    FormsModule, RouterLink, Coquille, BadgeStatut, BadgeClassification,
     CourbeProgressionComponent, DecimalPipe,
   ],
   template: `
-    <dqa-entete />
+    <dqa-coquille />
     <main>
       <a routerLink="/" class="retour">← Tous les sites</a>
 
@@ -219,46 +219,46 @@ import { Entete } from '../ui/entete';
   `,
   styles: `
     main { max-width: 60rem; margin: 0 auto; padding: 0 1rem; }
-    .retour { color: #1f3d7a; font-size: 0.9rem; }
+    .retour { color: var(--accent); font-size: 0.9rem; }
     h1 { font-size: 1.8rem; margin: 0.5rem 0 0; }
-    .meta { color: #5b5b5b; margin-top: 0.25rem; }
+    .meta { color: var(--texte-doux); margin-top: 0.25rem; }
     .controles { display: flex; gap: 1.5rem; align-items: center; margin: 1.5rem 0; flex-wrap: wrap; }
     label { display: grid; gap: 0.3rem; font-size: 0.85rem; }
     select { padding: 0.4rem; }
-    .mois { color: #5b5b5b; font-size: 0.9rem; }
-    .composite { display: flex; align-items: center; gap: 1.5rem; border: 1px solid #d9d9d6; background: #fff; padding: 1.2rem 1.5rem; margin-bottom: 1.5rem; }
+    .mois { color: var(--texte-doux); font-size: 0.9rem; }
+    .composite { display: flex; align-items: center; gap: 1.5rem; border: 1px solid var(--bordure); background: var(--surface); padding: 1.2rem 1.5rem; margin-bottom: 1.5rem; }
     .composite .score { display: flex; align-items: baseline; gap: 0.5rem; }
     .composite .chiffre { font-size: 3.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
-    .composite .sur { font-size: 1.1rem; color: #5b5b5b; }
+    .composite .sur { font-size: 1.1rem; color: var(--texte-doux); }
     .composite .rang { display: grid; gap: 0.4rem; }
-    .composite .partiel { color: #5b5b5b; font-size: 0.85rem; }
+    .composite .partiel { color: var(--texte-doux); font-size: 0.85rem; }
     .cartes { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
-    .carte { border: 1px solid #d9d9d6; background: #fff; padding: 1.2rem; }
+    .carte { border: 1px solid var(--bordure); background: var(--surface); padding: 1.2rem; }
     .carte h2 { font-size: 1rem; margin: 0 0 1rem; }
     .mesure { display: flex; gap: 1rem; align-items: flex-start; }
     .valeur { font-size: 2.4rem; font-variant-numeric: tabular-nums; line-height: 1; }
-    .unite { font-size: 1rem; color: #5b5b5b; }
-    .seuil { color: #5b5b5b; font-size: 0.85rem; margin-top: 0.3rem; }
-    .raison { color: #8a1c13; font-size: 0.85rem; margin-top: 0.3rem; }
-    .vide { color: #5b5b5b; }
-    .progression { margin-top: 2rem; border-top: 1px solid #d9d9d6; padding-top: 1.5rem; }
+    .unite { font-size: 1rem; color: var(--texte-doux); }
+    .seuil { color: var(--texte-doux); font-size: 0.85rem; margin-top: 0.3rem; }
+    .raison { color: var(--alerte-texte); font-size: 0.85rem; margin-top: 0.3rem; }
+    .vide { color: var(--texte-doux); }
+    .progression { margin-top: 2rem; border-top: 1px solid var(--bordure); padding-top: 1.5rem; }
     .entete-prog { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
     .progression h2 { font-size: 1.1rem; margin: 0; }
-    .delta { font-size: 0.9rem; color: #5b5b5b; margin: 0.6rem 0 1rem; }
+    .delta { font-size: 0.9rem; color: var(--texte-doux); margin: 0.6rem 0 1rem; }
     .delta b { font-variant-numeric: tabular-nums; }
-    .delta .d-hausse { color: #1b5e20; }
-    .delta .d-baisse { color: #8a1c13; }
-    .delta .d-nul { color: #5b5b5b; }
+    .delta .d-hausse { color: var(--conforme-texte); }
+    .delta .d-baisse { color: var(--alerte-texte); }
+    .delta .d-nul { color: var(--texte-doux); }
     .par-pilier { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    .par-pilier th, .par-pilier td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #d9d9d6; }
+    .par-pilier th, .par-pilier td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--bordure); }
     .par-pilier th.num, .par-pilier td.num { text-align: right; font-variant-numeric: tabular-nums; }
     .drill { margin-top: 1.5rem; }
-    .drill summary { cursor: pointer; font-size: 0.9rem; color: #1f3d7a; }
+    .drill summary { cursor: pointer; font-size: 0.9rem; color: var(--accent); }
     .drill-scroll { overflow-x: auto; margin-top: 0.8rem; }
     .drill table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 44rem; }
-    .drill th, .drill td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #d9d9d6; white-space: nowrap; }
+    .drill th, .drill td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--bordure); white-space: nowrap; }
     .drill th.num, .drill td.num { text-align: right; font-variant-numeric: tabular-nums; }
-    .drill .non-eval { color: #5b5b5b; font-size: 0.8rem; white-space: normal; }
+    .drill .non-eval { color: var(--texte-doux); font-size: 0.8rem; white-space: normal; }
   `,
 })
 export class DetailSitePage {

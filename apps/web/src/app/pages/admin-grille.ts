@@ -13,16 +13,16 @@ import {
 import { SANS_OBJET } from '../core/affichage';
 import { AdminGrilleService } from '../core/admin-grille.service';
 import { messageErreurHttp } from '../core/message-erreur';
-import { Entete } from '../ui/entete';
+import { Coquille } from '../ui/coquille';
 
 const AVEC_TOLERANCE = new Set<SousComposante>(SOUS_COMPOSANTES_AVEC_TOLERANCE);
 
 @Component({
   selector: 'dqa-admin-grille',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, DatePipe, Entete],
+  imports: [FormsModule, DatePipe, Coquille],
   template: `
-    <dqa-entete />
+    <dqa-coquille />
     <main>
       <h1>Grille de paramètres</h1>
       <p class="intro">
@@ -137,31 +137,31 @@ const AVEC_TOLERANCE = new Set<SousComposante>(SOUS_COMPOSANTES_AVEC_TOLERANCE);
     h1 { font-size: 1.6rem; }
     h2 { font-size: 1.1rem; }
     h3 { font-size: 0.95rem; margin: 1.2rem 0 0.5rem; }
-    .intro { color: #5b5b5b; font-size: 0.9rem; }
+    .intro { color: var(--texte-doux); font-size: 0.9rem; }
     .colonnes { display: grid; grid-template-columns: minmax(16rem, 22rem) 1fr; gap: 2rem; align-items: start; }
     .titre-liste { display: flex; justify-content: space-between; align-items: baseline; }
     table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #d9d9d6; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--bordure); }
     tbody tr { cursor: pointer; }
-    tbody tr:hover, tbody tr.actif { background: #f0f2f6; }
+    tbody tr:hover, tbody tr.actif { background: var(--accent-doux); }
     .badge { padding: 0.1rem 0.4rem; font-size: 0.75rem; border-radius: 4px; }
-    .badge.en_vigueur { background: #e3f1e4; color: #1b5e20; }
-    .badge.planifiee { background: #fff3d6; color: #7a5200; }
-    .badge.passee { background: #ececec; color: #4a4a4a; }
+    .badge.en_vigueur { background: var(--conforme-fond); color: var(--conforme-texte); }
+    .badge.planifiee { background: var(--partiel-fond); color: var(--partiel-texte); }
+    .badge.passee { background: var(--neutre); color: var(--nc-texte); }
     label { display: grid; gap: 0.3rem; font-size: 0.85rem; margin: 0.6rem 0; }
-    input, select { padding: 0.45rem; border: 1px solid #d9d9d6; }
+    input, select { padding: 0.45rem; border: 1px solid var(--bordure); }
     .ligne { grid-template-columns: 1fr 6rem; align-items: center; }
     .ligne-seuil { display: grid; grid-template-columns: 1fr 6rem 7rem 7rem; gap: 0.5rem; align-items: center; margin: 0.4rem 0; font-size: 0.85rem; }
-    .sans-tol { color: #b9b9b6; text-align: center; }
+    .sans-tol { color: var(--texte-tres-doux); text-align: center; }
     .actions { display: flex; gap: 1rem; margin: 1rem 0; }
-    button { padding: 0.5rem 0.9rem; background: #1f3d7a; color: #fff; border: 0; cursor: pointer; }
+    button { padding: 0.5rem 0.9rem; background: var(--accent); color: var(--surface); border: 0; cursor: pointer; }
     button[disabled] { opacity: 0.5; cursor: default; }
-    .lien { background: none; color: #1f3d7a; padding: 0; text-decoration: underline; }
-    .lien.danger { color: #8a1c13; }
-    .erreur, .alerte { color: #8a1c13; font-size: 0.9rem; }
+    .lien { background: none; color: var(--accent); padding: 0; text-decoration: underline; }
+    .lien.danger { color: var(--alerte-texte); }
+    .erreur, .alerte { color: var(--alerte-texte); font-size: 0.9rem; }
     .valeurs { list-style: none; padding: 0; font-size: 0.9rem; }
     .valeurs li { padding: 0.2rem 0; }
-    .valeurs span { color: #5b5b5b; }
+    .valeurs span { color: var(--texte-doux); }
   `,
 })
 export class AdminGrillePage {

@@ -5,14 +5,14 @@ import { ROLES, type CompteAdmin, type EntreeCompte, type MajCompte } from '@dqa
 import { AdminComptesService } from '../core/admin-comptes.service';
 import { AuthService } from '../core/auth.service';
 import { messageErreurHttp } from '../core/message-erreur';
-import { Entete } from '../ui/entete';
+import { Coquille } from '../ui/coquille';
 
 @Component({
   selector: 'dqa-admin-comptes',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, DatePipe, Entete],
+  imports: [FormsModule, DatePipe, Coquille],
   template: `
-    <dqa-entete />
+    <dqa-coquille />
     <main>
       <h1>Comptes</h1>
       <p class="intro">
@@ -82,19 +82,19 @@ import { Entete } from '../ui/entete';
   styles: `
     main { max-width: 62rem; margin: 0 auto; padding: 0 1rem; }
     h1 { font-size: 1.6rem; }
-    .intro { color: #5b5b5b; font-size: 0.9rem; }
+    .intro { color: var(--texte-doux); font-size: 0.9rem; }
     form { display: flex; gap: 0.6rem; margin: 1rem 0; flex-wrap: wrap; }
-    input, select { padding: 0.45rem; border: 1px solid #d9d9d6; }
+    input, select { padding: 0.45rem; border: 1px solid var(--bordure); }
     table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #d9d9d6; vertical-align: middle; }
-    tr.inactif { color: #999; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--bordure); vertical-align: middle; }
+    tr.inactif { color: var(--texte-doux); }
     .actions { display: flex; gap: 0.8rem; }
     .ligne-mdp td { display: flex; gap: 0.6rem; align-items: center; }
-    button { padding: 0.45rem 0.8rem; background: #1f3d7a; color: #fff; border: 0; cursor: pointer; }
+    button { padding: 0.45rem 0.8rem; background: var(--accent); color: var(--surface); border: 0; cursor: pointer; }
     button[disabled] { opacity: 0.5; cursor: default; }
-    .lien { background: none; color: #1f3d7a; padding: 0; text-decoration: underline; }
+    .lien { background: none; color: var(--accent); padding: 0; text-decoration: underline; }
     .switch { display: inline-flex; gap: 0.4rem; align-items: center; font-size: 0.85rem; }
-    .erreur { color: #8a1c13; }
+    .erreur { color: var(--alerte-texte); }
   `,
 })
 export class AdminComptesPage {

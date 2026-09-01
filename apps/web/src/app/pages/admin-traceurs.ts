@@ -4,14 +4,14 @@ import { FormsModule } from '@angular/forms';
 import type { ProduitTraceur } from '@dqa/contracts';
 import { VALEUR_ABSENTE } from '../core/affichage';
 import { TraceursService } from '../core/traceurs.service';
-import { Entete } from '../ui/entete';
+import { Coquille } from '../ui/coquille';
 
 @Component({
   selector: 'dqa-admin-traceurs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, DatePipe, Entete],
+  imports: [FormsModule, DatePipe, Coquille],
   template: `
-    <dqa-entete />
+    <dqa-coquille />
     <main>
       <h1>Produits traceurs</h1>
       <p class="intro">
@@ -59,16 +59,16 @@ import { Entete } from '../ui/entete';
   styles: `
     main { max-width: 60rem; margin: 0 auto; padding: 0 1rem; }
     h1 { font-size: 1.6rem; }
-    .intro { color: #5b5b5b; font-size: 0.9rem; }
+    .intro { color: var(--texte-doux); font-size: 0.9rem; }
     form { display: flex; gap: 0.75rem; margin: 1rem 0; flex-wrap: wrap; }
-    input { padding: 0.5rem; border: 1px solid #d9d9d6; }
-    button { padding: 0.5rem 0.9rem; background: #1f3d7a; color: #fff; border: 0; cursor: pointer; }
+    input { padding: 0.5rem; border: 1px solid var(--bordure); }
+    button { padding: 0.5rem 0.9rem; background: var(--accent); color: var(--surface); border: 0; cursor: pointer; }
     button[disabled] { opacity: 0.5; cursor: default; }
-    .lien { background: none; color: #8a1c13; padding: 0; text-decoration: underline; }
+    .lien { background: none; color: var(--alerte-texte); padding: 0; text-decoration: underline; }
     table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid #d9d9d6; }
-    tr.inactif { color: #999; }
-    .erreur { color: #8a1c13; }
+    th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid var(--bordure); }
+    tr.inactif { color: var(--texte-doux); }
+    .erreur { color: var(--alerte-texte); }
     .switch { display: inline-flex; gap: 0.4rem; align-items: center; font-size: 0.85rem; }
   `,
 })

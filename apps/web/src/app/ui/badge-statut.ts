@@ -8,9 +8,9 @@ import { VALEUR_ABSENTE } from '../core/affichage';
   template: `<span class="badge {{ statut() }}">{{ libelle() }}</span>`,
   styles: `
     .badge { display: inline-block; padding: 0.15rem 0.5rem; font-size: 0.8rem; font-weight: 600; border-radius: 4px; }
-    .CONFORME { background: #e3f1e4; color: #1b5e20; }
-    .ALERTE { background: #fde3e1; color: #8a1c13; }
-    .NON_CALCULABLE { background: #ececec; color: #4a4a4a; }
+    .CONFORME { background: var(--conforme-fond); color: var(--conforme-texte); }
+    .ALERTE { background: var(--alerte-fond); color: var(--alerte-texte); }
+    .NON_CALCULABLE { background: var(--nc-fond); color: var(--nc-texte); }
   `,
 })
 export class BadgeStatut {

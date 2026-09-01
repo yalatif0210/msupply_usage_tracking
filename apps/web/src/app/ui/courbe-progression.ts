@@ -2,16 +2,16 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { CLASSIFICATIONS, type Classification, type PointProgression } from '@dqa/contracts';
 
 const COULEUR_CLASSE: Record<Classification, string> = {
-  CONFORME: '#1b5e20',
-  PARTIELLEMENT_CONFORME: '#7a5200',
-  NON_CONFORME: '#8a1c13',
+  CONFORME: 'var(--conforme-texte)',
+  PARTIELLEMENT_CONFORME: 'var(--partiel-texte)',
+  NON_CONFORME: 'var(--alerte-texte)',
 };
 const LIBELLE_CLASSE: Record<Classification, string> = {
   CONFORME: 'Conforme',
   PARTIELLEMENT_CONFORME: 'Partiellement conforme',
   NON_CONFORME: 'Non conforme',
 };
-const COULEUR_SANS = '#5b5b5b';
+const COULEUR_SANS = 'var(--texte-doux)';
 
 /** Géométrie du tracé, en unités du `viewBox` (400 × 200). */
 const X0 = 44;
@@ -61,7 +61,7 @@ const estMesure = (p: PointProgression): p is PointProgression & { scoreComposit
       }
 
       @for (p of pointsTraces(); track p.rang) {
-        <circle [attr.cx]="p.x" [attr.cy]="p.y" r="4" [attr.fill]="p.couleur" />
+        <circle [attr.cx]="p.x" [attr.cy]="p.y" r="4" [style.fill]="p.couleur" />
         <text [attr.x]="p.x" [attr.y]="p.y - 9" class="valeur" text-anchor="middle">{{ p.score }}</text>
       }
     </svg>
@@ -74,12 +74,12 @@ const estMesure = (p: PointProgression): p is PointProgression & { scoreComposit
   `,
   styles: `
     .courbe { width: 100%; max-width: 42rem; height: auto; display: block; }
-    .axe { stroke: #1a1a1a; stroke-width: 1; }
-    .seuil { stroke: #b9b9b6; stroke-width: 1; stroke-dasharray: 3 3; }
-    .trace { stroke: #1f3d7a; stroke-width: 2; }
-    .graduation { fill: #5b5b5b; font-size: 10px; }
-    .valeur { fill: #1a1a1a; font-size: 10px; font-weight: 600; }
-    .legende { list-style: none; display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin: 0.4rem 0 0; padding: 0; font-size: 0.8rem; color: #5b5b5b; }
+    .axe { stroke: var(--texte); stroke-width: 1; }
+    .seuil { stroke: var(--texte-tres-doux); stroke-width: 1; stroke-dasharray: 3 3; }
+    .trace { stroke: var(--accent); stroke-width: 2; }
+    .graduation { fill: var(--texte-doux); font-size: 10px; }
+    .valeur { fill: var(--texte); font-size: 10px; font-weight: 600; }
+    .legende { list-style: none; display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin: 0.4rem 0 0; padding: 0; font-size: 0.8rem; color: var(--texte-doux); }
     .pastille { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; vertical-align: middle; }
   `,
 })

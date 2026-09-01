@@ -6,14 +6,14 @@ import type { Programme, ScoreSite } from '@dqa/contracts';
 import { VALEUR_ABSENTE } from '../core/affichage';
 import { SitesService } from '../core/sites.service';
 import { BadgeClassification } from '../ui/badge-classification';
-import { Entete } from '../ui/entete';
+import { Coquille } from '../ui/coquille';
 
 @Component({
   selector: 'dqa-liste-sites',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, Entete, BadgeClassification, DecimalPipe],
+  imports: [FormsModule, RouterLink, Coquille, BadgeClassification, DecimalPipe],
   template: `
-    <dqa-entete />
+    <dqa-coquille />
     <main>
       <h1>Sites du périmètre DQA</h1>
 
@@ -89,12 +89,12 @@ import { Entete } from '../ui/entete';
     label { display: grid; gap: 0.3rem; font-size: 0.85rem; }
     select { padding: 0.4rem; }
     table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid #d9d9d6; }
+    th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid var(--bordure); }
     th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
     td.num { font-size: 1.1rem; font-weight: 600; }
-    .note { color: #5b5b5b; font-size: 0.85rem; }
-    .vide { color: #5b5b5b; }
-    .couverture { display: inline-block; margin-left: 0.5rem; padding: 0.1rem 0.4rem; background: #edf0f5; color: #4a4a4a; font-size: 0.75rem; }
+    .note { color: var(--texte-doux); font-size: 0.85rem; }
+    .vide { color: var(--texte-doux); }
+    .couverture { display: inline-block; margin-left: 0.5rem; padding: 0.1rem 0.4rem; background: var(--neutre); color: var(--nc-texte); font-size: 0.75rem; }
   `,
 })
 export class ListeSitesPage {

@@ -40,17 +40,17 @@ import { AuthService } from '../core/auth.service';
       max-width: 22rem;
       margin: 6rem auto;
       padding: 2rem;
-      background: #fff;
-      border: 1px solid #d9d9d6;
+      background: var(--surface);
+      border: 1px solid var(--bordure);
     }
     h1 { font-size: 1.4rem; margin: 0; }
-    .sous-titre { color: #5b5b5b; margin-top: 0.25rem; }
+    .sous-titre { color: var(--texte-doux); margin-top: 0.25rem; }
     form { display: grid; gap: 1rem; margin-top: 1.5rem; }
     label { display: grid; gap: 0.3rem; font-size: 0.9rem; }
-    input { padding: 0.5rem; border: 1px solid #d9d9d6; font-size: 1rem; }
-    button { padding: 0.6rem; background: #1f3d7a; color: #fff; border: 0; font-size: 1rem; cursor: pointer; }
+    input { padding: 0.5rem; border: 1px solid var(--bordure); font-size: 1rem; }
+    button { padding: 0.6rem; background: var(--accent); color: var(--surface); border: 0; font-size: 1rem; cursor: pointer; }
     button[disabled] { opacity: 0.6; cursor: default; }
-    .erreur { color: #8a1c13; margin: 0; font-size: 0.9rem; }
+    .erreur { color: var(--alerte-texte); margin: 0; font-size: 0.9rem; }
   `,
 })
 export class ConnexionPage {

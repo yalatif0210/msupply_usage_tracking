@@ -6,15 +6,15 @@ import { LIBELLES_PILIER, type Pilier, type Programme, type SyntheseNationale } 
 import { VALEUR_ABSENTE } from '../core/affichage';
 import { SitesService } from '../core/sites.service';
 import { SyntheseService } from '../core/synthese.service';
-import { Entete } from '../ui/entete';
+import { Coquille } from '../ui/coquille';
 import { RepartitionClassificationComponent } from '../ui/repartition-classification';
 
 @Component({
   selector: 'dqa-synthese',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, DecimalPipe, Entete, RepartitionClassificationComponent],
+  imports: [FormsModule, DecimalPipe, Coquille, RepartitionClassificationComponent],
   template: `
-    <dqa-entete />
+    <dqa-coquille />
     <main>
       <h1>Synthèse nationale</h1>
 
@@ -178,25 +178,25 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
     .controles { display: flex; gap: 1.5rem; align-items: center; margin: 1rem 0 1.5rem; flex-wrap: wrap; }
     label { display: grid; gap: 0.3rem; font-size: 0.85rem; }
     select { padding: 0.4rem; }
-    .mois { color: #5b5b5b; font-size: 0.9rem; }
-    .filtre-actif { color: #5b5b5b; font-size: 0.85rem; margin: -0.5rem 0 1rem; }
-    .national { display: flex; gap: 2rem; align-items: center; border: 1px solid #d9d9d6; background: #fff; padding: 1.4rem 1.6rem; flex-wrap: wrap; }
+    .mois { color: var(--texte-doux); font-size: 0.9rem; }
+    .filtre-actif { color: var(--texte-doux); font-size: 0.85rem; margin: -0.5rem 0 1rem; }
+    .national { display: flex; gap: 2rem; align-items: center; border: 1px solid var(--bordure); background: var(--surface); padding: 1.4rem 1.6rem; flex-wrap: wrap; }
     .national .chiffre { font-size: 4rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
-    .national .sur { color: #5b5b5b; margin-top: 0.2rem; }
-    .national .couverture { color: #5b5b5b; font-size: 0.85rem; margin-top: 0.3rem; }
+    .national .sur { color: var(--texte-doux); margin-top: 0.2rem; }
+    .national .couverture { color: var(--texte-doux); font-size: 0.85rem; margin-top: 0.3rem; }
     .national .rep { flex: 1; min-width: 16rem; }
     .pilier { display: grid; grid-template-columns: 18rem 1fr 3rem; gap: 0.8rem; align-items: center; padding: 0.3rem 0; }
     .pilier .lib { font-size: 0.9rem; }
-    .pilier .jauge { height: 0.8rem; background: #ececec; border: 1px solid #d9d9d6; }
-    .pilier .rempli { display: block; height: 100%; background: #1f3d7a; }
+    .pilier .jauge { height: 0.8rem; background: var(--neutre); border: 1px solid var(--bordure); }
+    .pilier .rempli { display: block; height: 100%; background: var(--accent); }
     .pilier .val { text-align: right; font-variant-numeric: tabular-nums; }
     table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid #d9d9d6; }
+    th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid var(--bordure); }
     th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
     .districts tbody tr { cursor: pointer; }
-    .districts tbody tr:hover { background: #f0f2f6; }
+    .districts tbody tr:hover { background: var(--accent-doux); }
     .repcell { width: 16rem; }
-    .vide { color: #5b5b5b; }
+    .vide { color: var(--texte-doux); }
   `,
 })
 export class SynthesePage {
