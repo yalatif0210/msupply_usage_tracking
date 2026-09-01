@@ -233,12 +233,17 @@ describe('vues d\'indicateurs, composite et gel', () => {
   });
 
   // ── Gel des valeurs de sous-composante (sc_*) ────────────────────────────
-  const histSousComposantes = async () => {
+  const COLONNES_SC = [
+    'sc_completude_inventaires', 'sc_completude_requisitions', 'sc_completude_receptions',
+    'sc_promptitude_inventaires', 'sc_promptitude_requisitions', 'sc_regularite_saisie',
+    'sc_ecart_sdu', 'sc_ecart_consommation', 'sc_concordance', 'sc_ratio_ajustements',
+  ];
+  const histSousComposantes = async (mois = '2026-08') => {
     const { rows } = await db.query<Record<string, string | null>>(
-      `SELECT sc_completude_inventaires, sc_regularite_saisie, sc_ecart_sdu,
-              sc_ecart_consommation, sc_concordance, sc_ratio_ajustements
+      `SELECT ${COLONNES_SC.join(', ')}
        FROM dqa.hist_score_site
-       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+       WHERE site_id = 'S1' AND mois_paqd = $1 AND programme_id IS NULL`,
+      [mois],
     );
     return rows[0];
   };
@@ -257,37 +262,38 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect(sc?.sc_ecart_consommation).toBeNull(); // un seul inventaire dans le mois
   });
 
-  it('le rattrapage repeuple des sc_* remis à NULL avec les mêmes valeurs', async () => {
+  it('le rattrapage repeuple les dix sc_* remis à NULL avec les mêmes valeurs', async () => {
     await socle({
       comptee: 100, theorique: 100, nbMouvements: 10,
       sorties: joursAout.slice(0, 21).map((j) => ({ jour: j })),
     });
     const avant = await histSousComposantes();
-    await db.query(
-      `UPDATE dqa.hist_score_site
-         SET sc_regularite_saisie = NULL, sc_ratio_ajustements = NULL, sc_concordance = NULL`,
-    );
-    // la requête de rattrapage de la migration 0025
+    await db.query(`UPDATE dqa.hist_score_site SET ${COLONNES_SC.map((c) => `${c} = NULL`).join(', ')}`);
+    // miroir exact du rattrapage one-shot de la migration 0025 — garder synchronisé
     await db.query(
       `UPDATE dqa.hist_score_site h SET
-         sc_regularite_saisie  = sp.sc_regularite_saisie,
-         sc_ratio_ajustements  = sp.sc_ratio_ajustements,
-         sc_concordance        = sp.sc_concordance
+         ${COLONNES_SC.map((c) => `${c} = sp.${c}`).join(',\n         ')}
        FROM dqa.mv_score_pilier sp
+       JOIN dqa.dim_site s ON s.site_id = sp.site_id AND s.dans_perimetre_dqa
        WHERE sp.site_id = h.site_id AND sp.mois_paqd = h.mois_paqd
          AND coalesce(sp.programme_id, '') = coalesce(h.programme_id, '')`,
     );
     expect(await histSousComposantes()).toEqual(avant);
   });
 
-  it('un nouveau rafraîchissement ne modifie pas les sc_* déjà gelés', async () => {
+  it('un rafraîchissement pour un autre mois laisse les sc_* déjà gelés intacts', async () => {
     await socle({
       comptee: 100, theorique: 100, nbMouvements: 10,
       sorties: joursAout.slice(0, 21).map((j) => ({ jour: j })),
     });
-    const avant = await histSousComposantes();
-    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
-    expect(await histSousComposantes()).toEqual(avant);
+    // valeur sentinelle : si le gel de 2026-08 était rejoué, elle serait écrasée
+    await db.query(`UPDATE dqa.hist_score_site SET sc_regularite_saisie = 42.0 WHERE mois_paqd = '2026-08'`);
+    await db.query(
+      `INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, statut)
+       VALUES ('juillet.xlsx','2026-C2','2026-07','2026-07-01','2026-07-31','valide')`,
+    );
+    await db.query(`CALL dqa.rafraichir_et_geler(2)`); // lot 2 = 2026-07
+    expect((await histSousComposantes('2026-08'))?.sc_regularite_saisie).toBe('42.0');
   });
 
   // ── P4 — écart SDU et écart consommation ─────────────────────────────────

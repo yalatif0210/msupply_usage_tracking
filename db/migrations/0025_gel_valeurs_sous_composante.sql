@@ -251,6 +251,7 @@ UPDATE dqa.hist_score_site h SET
     sc_concordance              = sp.sc_concordance,
     sc_ratio_ajustements        = sp.sc_ratio_ajustements
 FROM dqa.mv_score_pilier sp
+JOIN dqa.dim_site s ON s.site_id = sp.site_id AND s.dans_perimetre_dqa
 WHERE sp.site_id = h.site_id
   AND sp.mois_paqd = h.mois_paqd
   AND coalesce(sp.programme_id, '') = coalesce(h.programme_id, '');

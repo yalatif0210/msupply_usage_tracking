@@ -188,6 +188,18 @@ describe('validerReponse (couture D)', () => {
     ).toThrow(/non conforme/i);
   });
 
+  it('rejette dix sous-composantes dans le désordre', () => {
+    const desordre = [...SOUS_COMPOSANTES].reverse().map((sousComposante) => ({
+      sousComposante,
+      valeur: 100,
+      seuil: 100,
+      statut: 'CONFORME' as const,
+    }));
+    expect(() => validerReponse(historiqueSiteSchema, historique({ sousComposantes: desordre }))).toThrow(
+      /non conforme/i,
+    );
+  });
+
   const consoEvaluable = {
     evaluable: true,
     stockDebut: 100,

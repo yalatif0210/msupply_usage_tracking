@@ -20,6 +20,7 @@ import {
   type RepartitionClassification,
   type ScorePilier,
   type ScoreSite,
+  type SeuilSousComposante,
   type Site,
   type SousComposante,
   type SousComposanteBref,
@@ -93,8 +94,8 @@ const scoresPiliers = (r: PiliersBruts): { pilier: Pilier; score: number | null 
 /** Colonnes `sc_<nom>` de `hist_score_site` : les dix valeurs gelées d'une ligne. */
 type ValeursGelees = { [K in SousComposante as `sc_${K}`]: string | null };
 
-/** Seuil et sens de comparaison d'une sous-composante pour un mois donné (jsonb agrégé). */
-type SeuilsGrille = Partial<Record<SousComposante, { seuil: number; sens: 'sup' | 'inf' }>>;
+/** Seuil et sens de comparaison par sous-composante pour un mois (jsonb agrégé côté SQL). */
+type SeuilsGrille = Partial<Record<SousComposante, Pick<SeuilSousComposante, 'seuil' | 'sens'>>>;
 
 const COLONNES_SC_SQL = SOUS_COMPOSANTES.map((sc) => `h.sc_${sc}`).join(', ');
 
@@ -109,7 +110,12 @@ const SEUILS_GRILLE_SQL = `
     WHERE gs.grille_id = h.grille_id
   ) sg ON true`;
 
-/** Reconstruit les dix `SousComposanteBref` d'un point : valeur gelée + seuil du mois + statut déduit. */
+/**
+ * Reconstruit les dix `SousComposanteBref` d'un point : valeur gelée + seuil du
+ * mois + statut déduit. Contrairement à `mesure()` (qui lit un sous-score déjà
+ * calculé), l'historique ne fige que la valeur brute : le statut se re-déduit
+ * ici de `valeur` vs `seuil` selon le `sens` de la grille.
+ */
 const sousComposantesGelees = (r: ValeursGelees, seuils: SeuilsGrille | null): SousComposanteBref[] =>
   SOUS_COMPOSANTES.map((sc) => {
     const valeur = nombreOuNull(r[`sc_${sc}`]);

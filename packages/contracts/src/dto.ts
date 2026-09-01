@@ -211,15 +211,23 @@ export type SyntheseQuery = z.infer<typeof syntheseQuerySchema>;
 /**
  * Valeur gelée d'une sous-composante à un mois PAQD : la valeur mesurée, le
  * seuil de la grille du mois, et le statut qui s'en déduit (`valeur` ou
- * `seuil` nul → NON_CALCULABLE).
+ * `seuil` nul → NON_CALCULABLE). Dérivé de `mesureSousComposanteSchema`.
  */
-export const sousComposanteBrefSchema = z.object({
-  sousComposante: sousComposanteSchema,
-  valeur: z.number().nullable(),
-  seuil: z.number().nullable(),
-  statut: statutSousComposanteSchema,
+export const sousComposanteBrefSchema = mesureSousComposanteSchema.pick({
+  sousComposante: true,
+  valeur: true,
+  seuil: true,
+  statut: true,
 });
 export type SousComposanteBref = z.infer<typeof sousComposanteBrefSchema>;
+
+/** Les dix sous-composantes gelées d'un mois, dans l'ordre canonique `SOUS_COMPOSANTES`. */
+export const dixSousComposantesSchema = z
+  .array(sousComposanteBrefSchema)
+  .length(10)
+  .refine((scs) => scs.every((s, i) => s.sousComposante === SOUS_COMPOSANTES[i]), {
+    message: 'les dix sous-composantes doivent suivre l’ordre de SOUS_COMPOSANTES',
+  });
 
 /** Un mois PAQD mesuré d'un cycle, avec son rang M+1..M+4 (issu du calendrier). */
 export const pointProgressionSchema = z.object({
@@ -229,8 +237,7 @@ export const pointProgressionSchema = z.object({
   classification: classificationSchema.nullable(),
   piliersCouverts: z.number().int().min(0).max(6),
   scoresPiliers: z.array(scorePilierBrefSchema).length(6),
-  /** Les dix valeurs de sous-composante gelées pour ce mois, ordre `SOUS_COMPOSANTES`. */
-  sousComposantes: z.array(sousComposanteBrefSchema).length(10),
+  sousComposantes: dixSousComposantesSchema,
 });
 export type PointProgression = z.infer<typeof pointProgressionSchema>;
 

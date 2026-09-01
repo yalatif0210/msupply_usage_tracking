@@ -17,10 +17,12 @@ chaque évolution de règle et un radar historique mentirait.
 
 **Décision.** `hist_score_site` gagne dix colonnes `sc_*`, une par
 sous-composante, portant la **valeur brute mesurée** (pas le seuil ni le
-statut, déductibles via `grille_id`). `rafraichir_et_geler` les fige en même
-temps que les scores de pilier. Le taux d'atteinte du seuil, lui, n'est pas
-gelé : il se déduit d'une valeur gelée et d'un seuil retrouvable (vue de
-reshaping `v_sous_composante_atteinte`).
+statut). `rafraichir_et_geler` les fige en même temps que les scores de
+pilier. Le seuil et le statut restent déductibles : le seuil vient de
+`grille_seuil_sous_composante` via `hist_score_site.grille_id`, le statut se
+recalcule de `valeur` vs `seuil` selon le sens. Tout indicateur dérivé de ces
+valeurs (p. ex. le futur « taux d'atteinte du seuil ») se calcule à la lecture,
+il n'est pas gelé.
 
 Rattrapage : la migration d'introduction recalcule et gèle les mois déjà clos
 depuis les vues courantes — donc P3 en jours calendaires même pour les mois
@@ -36,6 +38,8 @@ exactement ceux de `hist_score_site`, une table de plus n'apporterait que des
 jointures.
 
 **Conséquence.** `mv_score_pilier` expose désormais les dix valeurs brutes
-(elle jointait déjà `mv_p1..mv_p6`). L'API lit les `sc_*` gelés pour
-l'historique d'un site ; la fiche du mois courant peut continuer de lire les
-vues live ou basculer sur `hist_score_site` pour cohérence.
+(elle jointait déjà `mv_p1..mv_p6`). L'historique d'un site lit les `sc_*`
+gelés et agrège les seuils de la grille du mois en ligne. La fiche du mois
+courant continue de lire les vues live (valeurs recalculées, identiques au
+mois courant) ; son éventuelle bascule sur `hist_score_site` est reportée à la
+tranche « fiche site analytique ».
