@@ -11,3 +11,8 @@ Re_ SQL.zip
 .angular/
 tmp/
 *.tsbuildinfo
+
+# Artefacts locaux de test / captures
+.playwright-mcp/
+/*.png
+.mcp.json

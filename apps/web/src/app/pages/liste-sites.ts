@@ -56,10 +56,10 @@ import { Entete } from '../ui/entete';
             @for (s of sites(); track s.site.siteId) {
               <tr>
                 <td><a [routerLink]="['/sites', s.site.siteId]">{{ s.site.siteNom }}</a></td>
-                <td>{{ s.site.district ?? '—' }}</td>
-                <td>{{ s.moisPaqd ?? '—' }}</td>
+                <td>{{ s.site.district ?? 'n/d' }}</td>
+                <td>{{ s.moisPaqd ?? 'n/d' }}</td>
                 <td class="num">
-                  {{ s.scoreComposite === null ? '—' : (s.scoreComposite | number: '1.0-1') }}
+                  {{ s.scoreComposite === null ? 'n/d' : (s.scoreComposite | number: '1.0-1') }}
                 </td>
                 <td>
                   @if (s.moisPaqd) {

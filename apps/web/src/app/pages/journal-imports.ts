@@ -35,7 +35,7 @@ import { ImportService } from '../core/import.service';
             <tr [class.rejete]="lot.statut === 'rejete'">
               <td>{{ lot.recuLe | date: 'dd/MM/yyyy HH:mm' }}</td>
               <td>{{ lot.nomFichier }}</td>
-              <td>{{ lot.moisPaqd ?? '—' }}</td>
+              <td>{{ lot.moisPaqd ?? 'n/d' }}</td>
               <td>
                 <span class="badge {{ lot.statut }}">{{ libelleStatut(lot.statut) }}</span>
                 @if (lot.motifRejet) {
@@ -65,7 +65,7 @@ import { ImportService } from '../core/import.service';
                           @if (a.ligneSource) {
                             <span>ligne {{ a.ligneSource }}</span>
                           }
-                          — {{ a.message }}
+                          : {{ a.message }}
                         </li>
                       }
                     </ul>

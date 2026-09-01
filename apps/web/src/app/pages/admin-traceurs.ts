@@ -39,7 +39,7 @@ import { Entete } from '../ui/entete';
             @for (t of traceurs(); track t.produitCode) {
               <tr [class.inactif]="!t.actif">
                 <td><code>{{ t.produitCode }}</code></td>
-                <td>{{ t.libelle ?? '—' }}</td>
+                <td>{{ t.libelle ?? 'n/d' }}</td>
                 <td>
                   <label class="switch">
                     <input type="checkbox" [checked]="t.actif" (change)="basculer(t)" />

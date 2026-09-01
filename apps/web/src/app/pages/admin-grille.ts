@@ -64,13 +64,13 @@ const AVEC_TOLERANCE = new Set<SousComposante>(SOUS_COMPOSANTES_AVEC_TOLERANCE);
               <input type="date" name="effet" [(ngModel)]="b.effetAPartirDe" required />
             </label>
 
-            <h3>Poids des piliers — total {{ totalPoids() }} %</h3>
+            <h3>Poids des piliers · total {{ totalPoids() }} %</h3>
             @if (totalPoids() !== 100) {
               <p class="alerte">La somme des poids doit faire exactement 100.</p>
             }
             @for (p of b.poids; track p.pilier) {
               <label class="ligne">
-                <span>{{ p.pilier }} — {{ libellePilier(p.pilier) }}</span>
+                <span>{{ p.pilier }} · {{ libellePilier(p.pilier) }}</span>
                 <input type="number" min="0" max="100" step="0.5" [name]="'poids-' + p.pilier"
                        [(ngModel)]="p.poidsPct" (ngModelChange)="recalculer()" />
               </label>
@@ -89,7 +89,7 @@ const AVEC_TOLERANCE = new Set<SousComposante>(SOUS_COMPOSANTES_AVEC_TOLERANCE);
                   <input type="number" min="0" step="0.5" [(ngModel)]="s.tolerance" [name]="'tol-' + s.sousComposante"
                          placeholder="tolérance %" />
                 } @else {
-                  <span class="sans-tol">—</span>
+                  <span class="sans-tol">s/o</span>
                 }
               </div>
             }
@@ -99,7 +99,7 @@ const AVEC_TOLERANCE = new Set<SousComposante>(SOUS_COMPOSANTES_AVEC_TOLERANCE);
               <button type="button" class="lien" (click)="annuler()">Annuler</button>
             </div>
           } @else if (selection(); as s) {
-            <h2>{{ s.version }} — {{ libelleStatut(s.statut) }}</h2>
+            <h2>{{ s.version }} · {{ libelleStatut(s.statut) }}</h2>
             @if (s.modifiable) {
               <div class="actions">
                 <button type="button" (click)="editer()">Modifier</button>
@@ -111,7 +111,7 @@ const AVEC_TOLERANCE = new Set<SousComposante>(SOUS_COMPOSANTES_AVEC_TOLERANCE);
             <h3>Poids</h3>
             <ul class="valeurs">
               @for (p of s.poids; track p.pilier) {
-                <li>{{ p.pilier }} — {{ libellePilier(p.pilier) }} : <b>{{ p.poidsPct }} %</b></li>
+                <li>{{ p.pilier }} · {{ libellePilier(p.pilier) }} : <b>{{ p.poidsPct }} %</b></li>
               }
             </ul>
             <h3>Seuils</h3>

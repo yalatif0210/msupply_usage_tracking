@@ -29,7 +29,7 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
               </select>
             </label>
           } @else {
-            <span class="mois">Mois PAQD : {{ s.moisPaqd ?? '—' }}</span>
+            <span class="mois">Mois PAQD : {{ s.moisPaqd ?? 'n/d' }}</span>
           }
           <label>
             Programme
@@ -71,7 +71,7 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
           <section class="national">
             <div class="score">
               <div class="chiffre">{{ s.national.scoreCompositeMoyen | number: '1.0-1' }}</div>
-              <div class="sur">/ 100 — score composite moyen</div>
+              <div class="sur">/ 100 · score composite moyen</div>
               <div class="couverture">
                 calculé sur {{ s.national.nbMesures }} site{{ s.national.nbMesures > 1 ? 's' : '' }}
                 sur {{ s.national.nbSites }}
@@ -86,11 +86,11 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
             <h2>Moyenne nationale par pilier</h2>
             @for (mp of s.national.moyennesPiliers; track mp.pilier) {
               <div class="pilier">
-                <div class="lib">{{ mp.pilier }} — {{ libelle(mp.pilier) }}</div>
+                <div class="lib">{{ mp.pilier }} · {{ libelle(mp.pilier) }}</div>
                 <div class="jauge">
                   <span class="rempli" [style.width.%]="mp.moyenne ?? 0"></span>
                 </div>
-                <div class="val">{{ mp.moyenne === null ? '—' : (mp.moyenne | number: '1.0-1') }}</div>
+                <div class="val">{{ mp.moyenne === null ? 'n/d' : (mp.moyenne | number: '1.0-1') }}</div>
               </div>
             }
           </section>
@@ -117,7 +117,7 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
                       <td class="num">{{ d.nbSites }}</td>
                       <td class="num">{{ d.nbMesures }}</td>
                       <td class="num">
-                        {{ d.scoreCompositeMoyen === null ? '—' : (d.scoreCompositeMoyen | number: '1.0-1') }}
+                        {{ d.scoreCompositeMoyen === null ? 'n/d' : (d.scoreCompositeMoyen | number: '1.0-1') }}
                       </td>
                       <td class="repcell">
                         <dqa-repartition-classification [repartition]="d.repartition" [compact]="true" />
@@ -151,7 +151,7 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
                       <td class="num">{{ p.nbSites }}</td>
                       <td class="num">{{ p.nbMesures }}</td>
                       <td class="num">
-                        {{ p.scoreCompositeMoyen === null ? '—' : (p.scoreCompositeMoyen | number: '1.0-1') }}
+                        {{ p.scoreCompositeMoyen === null ? 'n/d' : (p.scoreCompositeMoyen | number: '1.0-1') }}
                       </td>
                       <td class="repcell">
                         <dqa-repartition-classification [repartition]="p.repartition" [compact]="true" />

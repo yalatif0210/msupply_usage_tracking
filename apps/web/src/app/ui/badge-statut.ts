@@ -21,7 +21,7 @@ export class BadgeStatut {
         CONFORME: 'Conforme',
         ALERTE: 'Alerte',
         NON_CALCULABLE: 'Non calculable',
-      }[this.statut() ?? 'NON_CALCULABLE'] ?? '—'
+      }[this.statut() ?? 'NON_CALCULABLE'] ?? 'n/d'
     );
   }
 }

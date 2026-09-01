@@ -35,8 +35,8 @@ import { Entete } from '../ui/entete';
       } @else if (detail(); as d) {
         <h1>{{ d.site.siteNom }}</h1>
         <p class="meta">
-          {{ d.site.district ?? '—' }} · {{ d.site.region ?? '—' }} ·
-          {{ d.site.typeStructure ?? '—' }}
+          {{ d.site.district ?? 'n/d' }} · {{ d.site.region ?? 'n/d' }} ·
+          {{ d.site.typeStructure ?? 'n/d' }}
         </p>
 
         <div class="controles">
@@ -59,7 +59,7 @@ import { Entete } from '../ui/entete';
               </select>
             </label>
           } @else {
-            <span class="mois">Mois PAQD : {{ d.moisPaqd ?? '—' }}</span>
+            <span class="mois">Mois PAQD : {{ d.moisPaqd ?? 'n/d' }}</span>
           }
         </div>
 
@@ -71,7 +71,7 @@ import { Entete } from '../ui/entete';
           <div class="composite">
             <div class="score">
               <div class="chiffre">
-                {{ d.scoreComposite === null ? '—' : (d.scoreComposite | number: '1.0-1') }}
+                {{ d.scoreComposite === null ? 'n/d' : (d.scoreComposite | number: '1.0-1') }}
               </div>
               <div class="sur">/ 100</div>
             </div>
@@ -89,17 +89,17 @@ import { Entete } from '../ui/entete';
           <div class="cartes">
             @for (pil of d.piliers; track pil.pilier) {
               <article class="carte">
-                <h2>{{ pil.pilier }} — {{ pil.libelle }}</h2>
+                <h2>{{ pil.pilier }} · {{ pil.libelle }}</h2>
                 @for (sc of pil.sousComposantes; track sc.sousComposante) {
                   <div class="mesure">
                     <dqa-badge-statut [statut]="sc.statut" />
                     <div>
                       <div class="valeur">
-                        {{ sc.valeur === null ? '—' : (sc.valeur | number: '1.0-1') }}
+                        {{ sc.valeur === null ? 'n/d' : (sc.valeur | number: '1.0-1') }}
                         <span class="unite">%</span>
                       </div>
                       <div class="seuil">
-                        seuil {{ sc.seuil === null ? '—' : (sc.seuil | number: '1.0-1') }} %
+                        seuil {{ sc.seuil === null ? 'n/d' : (sc.seuil | number: '1.0-1') }} %
                       </div>
                       @if (sc.raison) {
                         <div class="raison">{{ sc.raison }}</div>
@@ -114,7 +114,7 @@ import { Entete } from '../ui/entete';
           @if (p4Mesure(d) && p4Produits(); as p4) {
             @if (p4.produits.length > 0) {
               <details class="drill">
-                <summary>P4 — détail par produit traceur ({{ p4.produits.length }})</summary>
+                <summary>P4 · détail par produit traceur ({{ p4.produits.length }})</summary>
                 <div class="drill-scroll">
                   <table>
                     <thead>
@@ -137,8 +137,8 @@ import { Entete } from '../ui/entete';
                       @for (pr of p4.produits; track pr.produitCode) {
                         <tr>
                           <td>{{ pr.libelle ?? pr.produitCode }}</td>
-                          <td class="num">{{ pr.sdu.theorique === null ? '—' : (pr.sdu.theorique | number: '1.0-0') }}</td>
-                          <td class="num">{{ pr.sdu.comptee === null ? '—' : (pr.sdu.comptee | number: '1.0-0') }}</td>
+                          <td class="num">{{ pr.sdu.theorique === null ? 'n/d' : (pr.sdu.theorique | number: '1.0-0') }}</td>
+                          <td class="num">{{ pr.sdu.comptee === null ? 'n/d' : (pr.sdu.comptee | number: '1.0-0') }}</td>
                           <td class="num">{{ pr.sdu.ecartPct === null ? '∞' : (pr.sdu.ecartPct | number: '1.0-1') + ' %' }}</td>
                           <td><dqa-badge-statut [statut]="pr.sdu.conforme ? 'CONFORME' : 'ALERTE'" /></td>
                           @if (pr.consommation; as c) {
@@ -151,7 +151,7 @@ import { Entete } from '../ui/entete';
                               <td class="num">{{ c.ecartPct | number: '1.0-1' }} %</td>
                               <td><dqa-badge-statut [statut]="c.conforme ? 'CONFORME' : 'ALERTE'" /></td>
                             } @else {
-                              <td class="non-eval" colspan="7">non évaluable — {{ raisonConso(c.raisonExclusion) }}</td>
+                              <td class="non-eval" colspan="7">non évaluable : {{ raisonConso(c.raisonExclusion) }}</td>
                             }
                           }
                         </tr>
@@ -200,7 +200,7 @@ import { Entete } from '../ui/entete';
                 <tbody>
                   @for (pil of piliers; track pil) {
                     <tr>
-                      <td>{{ pil }} — {{ libellePilier(pil) }}</td>
+                      <td>{{ pil }} · {{ libellePilier(pil) }}</td>
                       @for (p of h.points; track p.rang) {
                         <td class="num">{{ scorePilier(p, pil) }}</td>
                       }
@@ -334,7 +334,7 @@ export class DetailSitePage {
 
   protected scorePilier(point: HistoriqueSite['points'][number], pilier: Pilier): string {
     const s = point.scoresPiliers.find((x) => x.pilier === pilier)?.score ?? null;
-    return s === null ? '—' : String(s);
+    return s === null ? 'n/d' : String(s);
   }
 
   private pointsMesures(h: HistoriqueSite): { rang: number; score: number }[] {
@@ -351,7 +351,7 @@ export class DetailSitePage {
   /** Rangs du premier et du dernier point mesuré (pour l'étiquette « M+a → M+b »). */
   protected deltaBornes(h: HistoriqueSite): [number | string, number | string] {
     const m = this.pointsMesures(h);
-    return m.length === 0 ? ['—', '—'] : [m[0]!.rang, m[m.length - 1]!.rang];
+    return m.length === 0 ? ['n/d', 'n/d'] : [m[0]!.rang, m[m.length - 1]!.rang];
   }
 
   protected deltaSigne(h: HistoriqueSite): 'hausse' | 'baisse' | 'nul' {
@@ -362,10 +362,10 @@ export class DetailSitePage {
 
   protected deltaTexte(h: HistoriqueSite): string {
     const v = this.deltaValeur(h);
-    if (v === null) return '—';
+    if (v === null) return 'n/d';
     const arrondi = Math.round(v * 10) / 10;
     if (arrondi > 0) return `+${arrondi} pts`;
-    if (arrondi < 0) return `−${Math.abs(arrondi)} pts`;
+    if (arrondi < 0) return `-${Math.abs(arrondi)} pts`;
     return '0 pt';
   }
 }

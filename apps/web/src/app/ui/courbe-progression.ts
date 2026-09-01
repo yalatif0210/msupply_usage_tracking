@@ -33,7 +33,7 @@ const estMesure = (p: PointProgression): p is PointProgression & { scoreComposit
 
 /**
  * Courbe du score composite sur les quatre mois d'un cycle PAQD (M+1..M+4).
- * SVG inline — pas de librairie de graphes (DESIGN_SYSTEM.md §5). Repères
+ * SVG inline, sans librairie de graphes (DESIGN_SYSTEM.md §5). Repères
  * horizontaux aux seuils de classification (75, 90). Un mois non mesuré (ou
  * sans score composite) est un trou : la ligne ne relie que des mois
  * consécutifs. La couleur des points est doublée par la légende sous le

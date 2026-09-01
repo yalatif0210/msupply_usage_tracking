@@ -3,7 +3,7 @@ import type { RepartitionClassification } from '@dqa/contracts';
 
 /**
  * Barre à quatre segments (CONFORME vert / PARTIELLEMENT CONFORME ambre /
- * NON CONFORME rouge / SANS MESURE gris) — DESIGN_SYSTEM.md §1. La couleur
+ * NON CONFORME rouge / SANS MESURE gris), cf. DESIGN_SYSTEM.md §1. La couleur
  * n'est jamais seule : le mode plein porte une légende sous la barre, le mode
  * `compact` (cellule de tableau) porte les comptes non nuls en texte à droite.
  */
