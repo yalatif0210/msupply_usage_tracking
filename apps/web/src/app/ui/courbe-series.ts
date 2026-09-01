@@ -41,7 +41,7 @@ const COULEURS = [
         <text [attr.x]="x0 - 4" [attr.y]="s.y + 3" class="graduation" text-anchor="end">{{ s.valeur }}</text>
       }
       @for (t of ticksX(); track t.i) {
-        <text [attr.x]="t.x" [attr.y]="y0 + 14" class="graduation" text-anchor="middle">{{ t.etiquette }}</text>
+        <text [attr.x]="t.x" [attr.y]="y0 + 14" class="graduation" [attr.text-anchor]="t.ancre">{{ t.etiquette }}</text>
       }
       @for (tr of traces(); track tr.nom) {
         @for (seg of tr.segments; track seg.cle) {
@@ -93,9 +93,16 @@ export class CourbeSeries {
 
   protected readonly repere = computed(() => this.seuils().map((valeur) => ({ valeur, y: this.y(valeur) })));
 
-  protected readonly ticksX = computed(() =>
-    this.etiquettes().map((etiquette, i) => ({ i, etiquette, x: this.x(i) })),
-  );
+  protected readonly ticksX = computed(() => {
+    const n = this.etiquettes().length;
+    return this.etiquettes().map((etiquette, i) => ({
+      i,
+      etiquette,
+      x: this.x(i),
+      // les libellés de bord débordent du viewBox s'ils restent centrés
+      ancre: n > 1 && i === 0 ? 'start' : n > 1 && i === n - 1 ? 'end' : 'middle',
+    }));
+  });
 
   protected readonly traces = computed(() =>
     this.series().map((s, si) => {
