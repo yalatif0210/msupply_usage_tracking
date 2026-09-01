@@ -212,30 +212,41 @@ describe('vue mv_synthese_nationale', () => {
   });
 
   // ── mv_synthese_sous_composante ─────────────────────────────────────────
+  type ColSc =
+    | 'sc_regularite_saisie' | 'sc_ratio_ajustements' | 'sc_ecart_sdu' | 'sc_ecart_consommation';
   /** Ligne d'historique avec seulement les sc_* utiles renseignés. */
   const histSc = async (
     siteId: string,
     prog: string | null,
     mois: string,
-    sc: Partial<Record<'sc_regularite_saisie' | 'sc_ratio_ajustements' | 'sc_ecart_sdu', number>>,
+    sc: Partial<Record<ColSc, number>>,
   ) =>
     db.query(
       `INSERT INTO dqa.hist_score_site
-         (site_id, mois_paqd, programme_id, grille_id, sc_regularite_saisie, sc_ratio_ajustements, sc_ecart_sdu)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [siteId, mois, prog, gid, sc.sc_regularite_saisie ?? null, sc.sc_ratio_ajustements ?? null, sc.sc_ecart_sdu ?? null],
+         (site_id, mois_paqd, programme_id, grille_id,
+          sc_regularite_saisie, sc_ratio_ajustements, sc_ecart_sdu, sc_ecart_consommation)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [
+        siteId, mois, prog, gid,
+        sc.sc_regularite_saisie ?? null, sc.sc_ratio_ajustements ?? null,
+        sc.sc_ecart_sdu ?? null, sc.sc_ecart_consommation ?? null,
+      ],
     );
 
-  const parSc = async (nom: string, prog: string | null, region: string | null) => {
+  const parSc = async (
+    nom: string, prog: string | null, region: string | null,
+    district: string | null = null, mois = '2026-08',
+  ) => {
     const { rows } = await db.query<{
       nb_conforme: number; nb_alerte: number; nb_non_calculable: number;
       taux_atteinte_moyen: string | null;
     }>(
       `SELECT nb_conforme::int, nb_alerte::int, nb_non_calculable::int, taux_atteinte_moyen
        FROM dqa.mv_synthese_sous_composante
-       WHERE mois_paqd = '2026-08' AND sous_composante = $1
-         AND coalesce(programme_id,'') = $2 AND coalesce(region,'') = $3 AND district IS NULL`,
-      [nom, prog ?? '', region ?? ''],
+       WHERE mois_paqd = $5 AND sous_composante = $1
+         AND coalesce(programme_id,'') = $2 AND coalesce(region,'') = $3
+         AND coalesce(district,'') = $4`,
+      [nom, prog ?? '', region ?? '', district ?? '', mois],
     );
     return rows[0];
   };
@@ -245,9 +256,9 @@ describe('vue mv_synthese_nationale', () => {
     await site('S2', 'NORD', 'D1');
     await site('S3', 'SUD', 'D3');
     await site('S9', 'NORD', 'D1', false); // hors périmètre
-    await histSc('S1', null, '2026-08', { sc_regularite_saisie: 65, sc_ratio_ajustements: 0 }); // seuil 65 → 100 ; ratio 0 → 100
+    await histSc('S1', null, '2026-08', { sc_regularite_saisie: 130, sc_ratio_ajustements: 0 }); // 130/65 borné à 1 → 100 ; ratio 0 → 100
     await histSc('S2', null, '2026-08', { sc_regularite_saisie: 52, sc_ratio_ajustements: 10 }); // 52/65 → 80 ALERTE ; 5/10 → 50 ALERTE
-    await histSc('S3', null, '2026-08', { sc_ecart_sdu: 95 }); // regularite NULL ici
+    await histSc('S3', null, '2026-08', { sc_ecart_sdu: 95, sc_ecart_consommation: 110 }); // regularite NULL ici
     await histSc('S9', null, '2026-08', { sc_regularite_saisie: 100 }); // hors périmètre : ignoré
     await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_sous_composante`);
 
@@ -255,7 +266,7 @@ describe('vue mv_synthese_nationale', () => {
     expect(reg?.nb_conforme).toBe(1); // S1
     expect(reg?.nb_alerte).toBe(1); // S2
     expect(reg?.nb_non_calculable).toBe(1); // S3
-    expect(reg?.taux_atteinte_moyen).toBe('90.0'); // avg(100, 80)
+    expect(reg?.taux_atteinte_moyen).toBe('90.0'); // avg(100 borné, 80)
 
     const ratio = await parSc('ratio_ajustements', null, null);
     expect(ratio?.taux_atteinte_moyen).toBe('75.0'); // avg(100, 50)
@@ -263,6 +274,10 @@ describe('vue mv_synthese_nationale', () => {
     const sdu = await parSc('ecart_sdu', null, null);
     expect(sdu?.nb_conforme).toBe(1); // S3 : 95 >= 90, valeur reprise telle quelle
     expect(sdu?.taux_atteinte_moyen).toBe('95.0');
+
+    const conso = await parSc('ecart_consommation', null, null);
+    expect(conso?.nb_conforme).toBe(1); // S3 : 110 >= 90
+    expect(conso?.taux_atteinte_moyen).toBe('100.0'); // 110 borné à 100
   });
 
   it('sous-composante : respecte le filtre région', async () => {
@@ -287,5 +302,24 @@ describe('vue mv_synthese_nationale', () => {
     const reg = await parSc('regularite_saisie', 'VIH', null);
     expect(reg?.nb_conforme).toBe(1);
     expect(reg?.nb_non_calculable).toBe(1);
+  });
+
+  it('sous-composante : deux mois sont indépendants', async () => {
+    await site('S1', 'NORD', 'D1');
+    await histSc('S1', null, '2026-08', { sc_regularite_saisie: 65 });
+    await histSc('S1', null, '2026-07', { sc_regularite_saisie: 40 });
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_sous_composante`);
+    expect((await parSc('regularite_saisie', null, null, null, '2026-08'))?.nb_conforme).toBe(1);
+    expect((await parSc('regularite_saisie', null, null, null, '2026-07'))?.nb_alerte).toBe(1);
+  });
+
+  it('sous-composante : le grain district est disponible', async () => {
+    await site('S1', 'NORD', 'D1');
+    await site('S2', 'NORD', 'D2');
+    await histSc('S1', null, '2026-08', { sc_regularite_saisie: 65 });
+    await histSc('S2', null, '2026-08', { sc_regularite_saisie: 40 });
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_sous_composante`);
+    expect((await parSc('regularite_saisie', null, 'NORD', 'D1'))?.nb_conforme).toBe(1);
+    expect((await parSc('regularite_saisie', null, 'NORD', 'D2'))?.nb_alerte).toBe(1);
   });
 });

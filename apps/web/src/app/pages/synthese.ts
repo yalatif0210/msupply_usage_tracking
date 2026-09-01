@@ -17,6 +17,17 @@ import { SyntheseService } from '../core/synthese.service';
 import { Coquille } from '../ui/coquille';
 import { RepartitionClassificationComponent } from '../ui/repartition-classification';
 
+type TriColonne = 'libelle' | 'pilier' | 'tauxAtteinteMoyen' | 'nbConforme' | 'nbAlerte' | 'nbNonCalculable';
+
+const COLONNES: readonly { cle: TriColonne; libelle: string; num: boolean }[] = [
+  { cle: 'libelle', libelle: 'Sous-composante', num: false },
+  { cle: 'pilier', libelle: 'Pilier', num: false },
+  { cle: 'tauxAtteinteMoyen', libelle: "Taux d'atteinte moyen", num: true },
+  { cle: 'nbConforme', libelle: 'Conformes', num: true },
+  { cle: 'nbAlerte', libelle: 'Alertes', num: true },
+  { cle: 'nbNonCalculable', libelle: 'Non calculables', num: true },
+];
+
 @Component({
   selector: 'dqa-synthese',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -87,32 +98,35 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
           </nav>
 
           @if (onglet() === 'sousComposante') {
-            <table class="sous-composantes">
-              <thead>
-                <tr>
-                  <th (click)="trier('libelle')">Sous-composante</th>
-                  <th (click)="trier('pilier')">Pilier</th>
-                  <th class="num" (click)="trier('tauxAtteinteMoyen')">Taux d'atteinte moyen</th>
-                  <th class="num" (click)="trier('nbConforme')">Conformes</th>
-                  <th class="num" (click)="trier('nbAlerte')">Alertes</th>
-                  <th class="num" (click)="trier('nbNonCalculable')">Non calculables</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (sc of sousComposantesTriees(s); track sc.sousComposante) {
+            @if (s.parSousComposante.length === 0) {
+              <p class="vide">Aucune sous-composante mesurée pour ce filtre.</p>
+            } @else {
+              <table class="sous-composantes">
+                <thead>
                   <tr>
-                    <td>{{ libelleSc(sc.sousComposante) }}</td>
-                    <td>{{ sc.pilier }}</td>
-                    <td class="num">
-                      {{ sc.tauxAtteinteMoyen === null ? absent : (sc.tauxAtteinteMoyen | number: '1.0-1') }}
-                    </td>
-                    <td class="num">{{ sc.nbConforme }}</td>
-                    <td class="num">{{ sc.nbAlerte }}</td>
-                    <td class="num">{{ sc.nbNonCalculable }}</td>
+                    @for (c of colonnes; track c.cle) {
+                      <th [class.num]="c.num" [attr.aria-sort]="ariaSort(c.cle)" (click)="trier(c.cle)">
+                        {{ c.libelle }}
+                      </th>
+                    }
                   </tr>
-                }
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  @for (sc of sousComposantesTriees(s); track sc.sousComposante) {
+                    <tr>
+                      <td>{{ libelleSc(sc.sousComposante) }}</td>
+                      <td>{{ sc.pilier }}</td>
+                      <td class="num">
+                        {{ sc.tauxAtteinteMoyen === null ? absent : (sc.tauxAtteinteMoyen | number: '1.0-1') }}
+                      </td>
+                      <td class="num">{{ sc.nbConforme }}</td>
+                      <td class="num">{{ sc.nbAlerte }}</td>
+                      <td class="num">{{ sc.nbNonCalculable }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
           } @else {
           <section class="national">
             <div class="score">
@@ -248,10 +262,15 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
     .onglets button.actif { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
     .sous-composantes thead th { cursor: pointer; white-space: nowrap; }
     .sous-composantes thead th:hover { color: var(--accent); }
+    .sous-composantes thead th[aria-sort='ascending'],
+    .sous-composantes thead th[aria-sort='descending'] { color: var(--accent); border-bottom-width: 2px; }
+    .sous-composantes thead th[aria-sort='ascending']::after { content: ' \\2191'; }
+    .sous-composantes thead th[aria-sort='descending']::after { content: ' \\2193'; }
   `,
 })
 export class SynthesePage {
   protected readonly absent = VALEUR_ABSENTE;
+  protected readonly colonnes = COLONNES;
   private readonly service = inject(SyntheseService);
   private readonly sites = inject(SitesService);
   private readonly router = inject(Router);
@@ -309,14 +328,22 @@ export class SynthesePage {
     this.tri.set({ colonne, sens: t.colonne === colonne ? ((t.sens * -1) as 1 | -1) : 1 });
   }
 
-  /** Les dix lignes triées selon l'en-tête cliqué ; `null` en dernier. */
+  protected ariaSort(colonne: TriColonne): 'ascending' | 'descending' | 'none' {
+    const t = this.tri();
+    return t.colonne !== colonne ? 'none' : t.sens === 1 ? 'ascending' : 'descending';
+  }
+
+  /** Les dix lignes triées selon l'en-tête cliqué ; une valeur `null` reste en dernier. */
   protected sousComposantesTriees(s: SyntheseNationale): LigneSousComposanteSynthese[] {
     const { colonne, sens } = this.tri();
-    const cle = (l: LigneSousComposanteSynthese): string | number =>
-      colonne === 'libelle' ? this.libelleSc(l.sousComposante) : (l[colonne] ?? Number.POSITIVE_INFINITY);
+    const cle = (l: LigneSousComposanteSynthese): string | number | null =>
+      colonne === 'libelle' ? this.libelleSc(l.sousComposante) : l[colonne];
     return [...s.parSousComposante].sort((a, b) => {
       const [x, y] = [cle(a), cle(b)];
-      return (x < y ? -1 : x > y ? 1 : 0) * sens;
+      if (x === y) return 0;
+      if (x === null) return 1;
+      if (y === null) return -1;
+      return (x < y ? -1 : 1) * sens;
     });
   }
 
@@ -324,5 +351,3 @@ export class SynthesePage {
     void this.router.navigate(['/'], { queryParams: { district } });
   }
 }
-
-type TriColonne = 'libelle' | 'pilier' | 'tauxAtteinteMoyen' | 'nbConforme' | 'nbAlerte' | 'nbNonCalculable';

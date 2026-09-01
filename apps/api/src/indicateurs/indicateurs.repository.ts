@@ -164,8 +164,8 @@ const moyennesPiliers = (
   { pilier: 'P6', moyenne: nombreOuNull(r?.moy_p_ajustements ?? null) },
 ];
 
-/** Une ligne de `mv_synthese_sous_composante` (comptes castés `::int`). */
-interface LigneSousComposanteSynthese {
+/** Une ligne de `mv_synthese_sous_composante` telle que rendue par `pg` (comptes castés `::int`). */
+interface LigneSousComposanteSyntheseBrute {
   sous_composante: SousComposante;
   taux_atteinte_moyen: string | null;
   nb_conforme: number;
@@ -278,7 +278,7 @@ export class IndicateursRepository {
       [mois, region],
     );
 
-    const parSousComposante = await this.pool.query<LigneSousComposanteSynthese>(
+    const parSousComposante = await this.pool.query<LigneSousComposanteSyntheseBrute>(
       `SELECT sous_composante, taux_atteinte_moyen,
               nb_conforme::int, nb_alerte::int, nb_non_calculable::int
        FROM dqa.mv_synthese_sous_composante

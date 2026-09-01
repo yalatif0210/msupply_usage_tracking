@@ -145,6 +145,12 @@ describe('validerReponse (couture D)', () => {
     expect(() => validerReponse(syntheseNationaleSchema, s)).toThrow(/non conforme/i);
   });
 
+  it('rejette un taux d\'atteinte parSousComposante hors de [0, 100]', () => {
+    const s = synthese() as { parSousComposante: { tauxAtteinteMoyen: number }[] };
+    s.parSousComposante[0]!.tauxAtteinteMoyen = 130;
+    expect(() => validerReponse(syntheseNationaleSchema, s)).toThrow(/non conforme/i);
+  });
+
   it('rejette une répartition avec une classe inconnue / manquante', () => {
     const bancale = synthese();
     bancale.national.repartition = { CONFORME: 1, PARTIELLEMENT_CONFORME: 2, NON_CONFORME: 1 } as never;

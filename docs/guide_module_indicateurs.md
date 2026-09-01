@@ -34,6 +34,7 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 | `v_mois_cycle` | rang M+1..M+4 de chaque mois PAQD dans son cycle (depuis `dim_temps`) |
 | `mv_p4_ecart_produit` | détail par produit traceur des écarts SDU / consommation de P4 |
 | `mv_synthese_nationale` | agrégats nationaux / région / district / programme par mois PAQD |
+| `mv_synthese_sous_composante` | mêmes grains, par sous-composante : comptes de statut + taux d'atteinte moyen |
 | `mv_p1_completude` | taux de complétude inventaires / réquisitions / réceptions (%), scores et p_completude |
 | `mv_p2_promptitude` | taux de promptitude inventaires / réquisitions (%), scores et p_promptitude |
 | `mv_p3_regularite` | taux de jours du mois avec sortie de stock (%) |
@@ -155,6 +156,17 @@ par défaut le plus récent ; `programmeId` restreint `national` + `parDistrict`
 `region` restreint `parDistrict` + `parProgramme` ; `parProgramme` liste tous
 les programmes gérés, même sans mesure. `mv_synthese_nationale` est rafraîchie
 par `rafraichir_et_geler` **après** le gel de `hist_score_site`.
+
+**Par sous-composante.** `mv_synthese_sous_composante` (migration 0026) agrège
+les dix valeurs gelées `hist_score_site.sc_*` au même grain, plus une dimension
+`sous_composante` : `nb_conforme` / `nb_alerte` / `nb_non_calculable` (statut
+re-déduit de la valeur vs le seuil de la grille du mois, selon le sens ;
+NON_CALCULABLE si la valeur ou le seuil manque) et `taux_atteinte_moyen`
+(moyenne du taux d'atteinte du seuil, défini inline — voir l'en-tête de 0026 —
+en attendant `v_sous_composante_atteinte`). Servi dans `SyntheseNationale.parSousComposante`
+(dix lignes, au grain `district IS NULL`, tri taux d'atteinte croissant), pour
+l'onglet « Sous-composantes » de `/synthese`. Rafraîchie avec
+`mv_synthese_nationale`.
 
 Écran `pages/synthese.ts` (route `/synthese`, la liste des sites reste
 l'accueil) : bloc national (score moyen en grand, barre de répartition à quatre

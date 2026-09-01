@@ -3,17 +3,25 @@
 --
 --  `mv_synthese_nationale` ne descend qu'au pilier. Pour répondre à « quelle
 --  sous-composante fait décrocher le plus de sites », on agrège les dix
---  valeurs gelées `hist_score_site.sc_*` au même grain (mois PAQD, +
---  région / district, + variante par programme) et par sous-composante :
+--  valeurs gelées `hist_score_site.sc_*` au même grain que `mv_synthese_nationale`
+--  (mois PAQD, + région / district, + variante par programme) et par
+--  sous-composante :
 --    - nb de sites CONFORME / ALERTE / NON_CALCULABLE (statut re-déduit de la
---      valeur gelée vs le seuil de la grille du mois, selon le sens) ;
+--      valeur gelée vs le seuil de la grille du mois, selon le sens ;
+--      NON_CALCULABLE si la valeur ou le seuil manque) ;
 --    - moyenne du **taux d'atteinte du seuil** (0..100), défini inline ici :
 --        * `ecart_sdu` / `ecart_consommation` : la valeur gelée est déjà un
 --          taux de conformité, reprise telle quelle (bornée à 100) ;
 --        * sens plafond (`ratio_ajustements`) : seuil / valeur, borné à 1 ;
 --        * sens plancher (P1, P2, P3, P5) : valeur / seuil, borné à 1.
---      À refactorer sur `v_sous_composante_atteinte` quand la tranche « fiche
---      site analytique » l'aura introduite (spec .scratch/refonte-analytique).
+--      `least(x, 1)` ignore les NULL : un ratio d'ajustements à 0 donne donc
+--      un taux d'atteinte de 100 (objectif « rester sous le plafond » atteint
+--      au mieux). À refactorer sur `v_sous_composante_atteinte` quand la
+--      tranche « fiche site analytique » l'aura introduite.
+--
+--  Grains région / district calculés pour rester cohérent avec
+--  `mv_synthese_nationale` ; seuls mois / région / programme sont lus
+--  aujourd'hui (l'onglet synthèse filtre `district IS NULL`).
 --
 --  Lecture seule pour l'API. Rafraîchie par `rafraichir_et_geler` après le gel
 --  de `hist_score_site` et `mv_synthese_nationale`.
@@ -37,7 +45,7 @@ gerant AS (
 ),
 -- (mois, site) « tous programmes » : grille + les dix valeurs gelées
 tous AS (
-    SELECT m.mois_paqd, s.region, s.district, h.grille_id,
+    SELECT m.mois_paqd, NULL::text AS programme_id, s.region, s.district, h.grille_id,
            h.sc_completude_inventaires, h.sc_completude_requisitions, h.sc_completude_receptions,
            h.sc_promptitude_inventaires, h.sc_promptitude_requisitions, h.sc_regularite_saisie,
            h.sc_ecart_sdu, h.sc_ecart_consommation, h.sc_concordance, h.sc_ratio_ajustements
@@ -57,66 +65,41 @@ parprog AS (
     LEFT JOIN dqa.hist_score_site h
            ON h.site_id = g.site_id AND h.mois_paqd = m.mois_paqd AND h.programme_id = g.programme_id
 ),
--- dépliage en (grain, sous-composante) avec seuil / sens de la grille du mois
-detail_tous AS (
-    SELECT
-        t.mois_paqd, t.region, t.district, sc.sous_composante,
-        CASE
-            WHEN sc.valeur IS NULL THEN NULL
-            WHEN sc.sous_composante IN ('ecart_sdu', 'ecart_consommation') THEN least(sc.valeur, 100)
-            WHEN gs.sens = 'inf' THEN least(gs.seuil / nullif(sc.valeur, 0), 1) * 100
-            ELSE least(sc.valeur / nullif(gs.seuil, 0), 1) * 100
-        END::numeric(5, 1)                                               AS taux_atteinte,
-        CASE
-            WHEN sc.valeur IS NULL THEN 'NON_CALCULABLE'
-            WHEN gs.sens = 'inf' THEN CASE WHEN sc.valeur <= gs.seuil THEN 'CONFORME' ELSE 'ALERTE' END
-            ELSE CASE WHEN sc.valeur >= gs.seuil THEN 'CONFORME' ELSE 'ALERTE' END
-        END                                                             AS statut
-    FROM tous t
-    CROSS JOIN LATERAL (VALUES
-        ('completude_inventaires',   t.sc_completude_inventaires),
-        ('completude_requisitions',  t.sc_completude_requisitions),
-        ('completude_receptions',    t.sc_completude_receptions),
-        ('promptitude_inventaires',  t.sc_promptitude_inventaires),
-        ('promptitude_requisitions', t.sc_promptitude_requisitions),
-        ('regularite_saisie',        t.sc_regularite_saisie),
-        ('ecart_sdu',                t.sc_ecart_sdu),
-        ('ecart_consommation',       t.sc_ecart_consommation),
-        ('concordance',              t.sc_concordance),
-        ('ratio_ajustements',        t.sc_ratio_ajustements)
-    ) AS sc(sous_composante, valeur)
-    LEFT JOIN dqa.grille_seuil_sous_composante gs
-           ON gs.grille_id = t.grille_id AND gs.sous_composante = sc.sous_composante
+lignes AS (
+    SELECT *, false AS est_prog FROM tous
+    UNION ALL
+    SELECT *, true AS est_prog FROM parprog
 ),
-detail_prog AS (
+-- dépliage en (grain, sous-composante) : une seule fois pour les deux branches
+detail AS (
     SELECT
-        p.mois_paqd, p.programme_id, p.region, p.district, sc.sous_composante,
+        l.mois_paqd, l.programme_id, l.region, l.district, l.est_prog, sc.sous_composante,
         CASE
             WHEN sc.valeur IS NULL THEN NULL
             WHEN sc.sous_composante IN ('ecart_sdu', 'ecart_consommation') THEN least(sc.valeur, 100)
             WHEN gs.sens = 'inf' THEN least(gs.seuil / nullif(sc.valeur, 0), 1) * 100
             ELSE least(sc.valeur / nullif(gs.seuil, 0), 1) * 100
-        END::numeric(5, 1)                                               AS taux_atteinte,
+        END                                                             AS taux_atteinte,
         CASE
-            WHEN sc.valeur IS NULL THEN 'NON_CALCULABLE'
+            WHEN sc.valeur IS NULL OR gs.seuil IS NULL THEN 'NON_CALCULABLE'
             WHEN gs.sens = 'inf' THEN CASE WHEN sc.valeur <= gs.seuil THEN 'CONFORME' ELSE 'ALERTE' END
             ELSE CASE WHEN sc.valeur >= gs.seuil THEN 'CONFORME' ELSE 'ALERTE' END
         END                                                             AS statut
-    FROM parprog p
+    FROM lignes l
     CROSS JOIN LATERAL (VALUES
-        ('completude_inventaires',   p.sc_completude_inventaires),
-        ('completude_requisitions',  p.sc_completude_requisitions),
-        ('completude_receptions',    p.sc_completude_receptions),
-        ('promptitude_inventaires',  p.sc_promptitude_inventaires),
-        ('promptitude_requisitions', p.sc_promptitude_requisitions),
-        ('regularite_saisie',        p.sc_regularite_saisie),
-        ('ecart_sdu',                p.sc_ecart_sdu),
-        ('ecart_consommation',       p.sc_ecart_consommation),
-        ('concordance',              p.sc_concordance),
-        ('ratio_ajustements',        p.sc_ratio_ajustements)
+        ('completude_inventaires',   l.sc_completude_inventaires),
+        ('completude_requisitions',  l.sc_completude_requisitions),
+        ('completude_receptions',    l.sc_completude_receptions),
+        ('promptitude_inventaires',  l.sc_promptitude_inventaires),
+        ('promptitude_requisitions', l.sc_promptitude_requisitions),
+        ('regularite_saisie',        l.sc_regularite_saisie),
+        ('ecart_sdu',                l.sc_ecart_sdu),
+        ('ecart_consommation',       l.sc_ecart_consommation),
+        ('concordance',              l.sc_concordance),
+        ('ratio_ajustements',        l.sc_ratio_ajustements)
     ) AS sc(sous_composante, valeur)
     LEFT JOIN dqa.grille_seuil_sous_composante gs
-           ON gs.grille_id = p.grille_id AND gs.sous_composante = sc.sous_composante
+           ON gs.grille_id = l.grille_id AND gs.sous_composante = sc.sous_composante
 )
 SELECT
     mois_paqd,
@@ -129,7 +112,8 @@ SELECT
     count(*) FILTER (WHERE statut = 'ALERTE')                           AS nb_alerte,
     count(*) FILTER (WHERE statut = 'NON_CALCULABLE')                   AS nb_non_calculable,
     round(avg(taux_atteinte), 1)::numeric(5, 1)                         AS taux_atteinte_moyen
-FROM detail_tous
+FROM detail
+WHERE NOT est_prog
 GROUP BY GROUPING SETS (
     (mois_paqd, sous_composante),
     (mois_paqd, region, sous_composante),
@@ -151,7 +135,8 @@ SELECT
     count(*) FILTER (WHERE statut = 'ALERTE'),
     count(*) FILTER (WHERE statut = 'NON_CALCULABLE'),
     round(avg(taux_atteinte), 1)::numeric(5, 1)
-FROM detail_prog
+FROM detail
+WHERE est_prog
 GROUP BY GROUPING SETS (
     (mois_paqd, programme_id, sous_composante),
     (mois_paqd, programme_id, region, sous_composante),
