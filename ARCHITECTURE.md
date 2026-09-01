@@ -63,7 +63,9 @@ La promotion vers le core est une transaction unique. Soit tout le lot entre,
 soit rien.
 
 Le rafraîchissement des vues intervient en dernier, hors transaction, et fige
-le score du jour dans `hist_score_site`.
+dans `hist_score_site` le score du jour : scores de pilier, score composite,
+classification, et les dix valeurs mesurées de sous-composante (`sc_*`,
+ADR 0007).
 
 ### `IndicateursModule`
 

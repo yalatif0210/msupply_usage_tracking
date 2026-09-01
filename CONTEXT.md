@@ -18,6 +18,13 @@ sous-composantes (P1 en a trois, P2 et P4 en ont deux, P3/P5/P6 une seule).
 Chaque sous-composante a une valeur, un seuil et un statut.
 _Éviter_ : indicateur, composante, métrique
 
+**Valeur de sous-composante gelée** :
+La valeur mesurée d'une sous-composante, figée mois par mois dans
+`hist_score_site` (colonnes `sc_*`), au même titre que les scores de pilier
+(ADR 0007). Une valeur gelée ne change jamais, même si la règle de calcul
+évolue ensuite. Le seuil et le statut ne sont pas figés : ils se déduisent de
+la valeur et de la grille du mois.
+
 **Score de pilier** :
 Note sur 100 d'un site pour un pilier, égale à la moyenne simple des scores de
 ses sous-composantes calculables (CONFORME = 100, ALERTE = 0 ; une sous-composante

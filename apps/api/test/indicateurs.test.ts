@@ -232,6 +232,64 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect(sp?.classification).toBe('PARTIELLEMENT_CONFORME');
   });
 
+  // ── Gel des valeurs de sous-composante (sc_*) ────────────────────────────
+  const histSousComposantes = async () => {
+    const { rows } = await db.query<Record<string, string | null>>(
+      `SELECT sc_completude_inventaires, sc_regularite_saisie, sc_ecart_sdu,
+              sc_ecart_consommation, sc_concordance, sc_ratio_ajustements
+       FROM dqa.hist_score_site
+       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+    );
+    return rows[0];
+  };
+
+  it('gèle les valeurs de sous-composante mesurées, NULL pour les non calculables', async () => {
+    await socle({
+      comptee: 100, theorique: 100, nbMouvements: 10, nbAjustements: 0,
+      sorties: joursAout.slice(0, 21).map((j) => ({ jour: j })),
+    });
+    const sc = await histSousComposantes();
+    expect(sc?.sc_regularite_saisie).toBe('67.7'); // 21 / 31
+    expect(sc?.sc_ecart_sdu).toBe('100.0'); // 1 produit traceur dans la tolérance
+    expect(sc?.sc_concordance).toBe('100.0'); // compté = théorique
+    expect(sc?.sc_ratio_ajustements).toBe('0.0'); // 0 ajustement sur 10 mouvements
+    expect(sc?.sc_completude_inventaires).toBeNull(); // P1 non calculable (aucun programme géré)
+    expect(sc?.sc_ecart_consommation).toBeNull(); // un seul inventaire dans le mois
+  });
+
+  it('le rattrapage repeuple des sc_* remis à NULL avec les mêmes valeurs', async () => {
+    await socle({
+      comptee: 100, theorique: 100, nbMouvements: 10,
+      sorties: joursAout.slice(0, 21).map((j) => ({ jour: j })),
+    });
+    const avant = await histSousComposantes();
+    await db.query(
+      `UPDATE dqa.hist_score_site
+         SET sc_regularite_saisie = NULL, sc_ratio_ajustements = NULL, sc_concordance = NULL`,
+    );
+    // la requête de rattrapage de la migration 0025
+    await db.query(
+      `UPDATE dqa.hist_score_site h SET
+         sc_regularite_saisie  = sp.sc_regularite_saisie,
+         sc_ratio_ajustements  = sp.sc_ratio_ajustements,
+         sc_concordance        = sp.sc_concordance
+       FROM dqa.mv_score_pilier sp
+       WHERE sp.site_id = h.site_id AND sp.mois_paqd = h.mois_paqd
+         AND coalesce(sp.programme_id, '') = coalesce(h.programme_id, '')`,
+    );
+    expect(await histSousComposantes()).toEqual(avant);
+  });
+
+  it('un nouveau rafraîchissement ne modifie pas les sc_* déjà gelés', async () => {
+    await socle({
+      comptee: 100, theorique: 100, nbMouvements: 10,
+      sorties: joursAout.slice(0, 21).map((j) => ({ jour: j })),
+    });
+    const avant = await histSousComposantes();
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    expect(await histSousComposantes()).toEqual(avant);
+  });
+
   // ── P4 — écart SDU et écart consommation ─────────────────────────────────
   const p4 = async (programme: string | null = null) => {
     const { rows } = await db.query<{
