@@ -5,7 +5,7 @@ synthèse (pas de route séparée).
 
 **Blocked by:** 09
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
 
 - [ ] `pages/synthese` : deux onglets — « Par pilier » (l'existant) et
       « Sous-composantes » (nouveau). L'onglet actif peut être mémorisé en
@@ -18,3 +18,9 @@ synthèse (pas de route séparée).
       page.
 - [ ] État vide explicite (aucun mois mesuré / aucun site avec ce filtre).
 - [ ] `ng build` + capture de l'onglet.
+
+## Comments
+
+- Deux onglets « Par pilier » / « Sous-composantes » ; état signal (pas de
+  queryParam). Tableau triable par en-tête (aria-sort + marqueur), défaut
+  taux d'atteinte croissant. État vide propre.

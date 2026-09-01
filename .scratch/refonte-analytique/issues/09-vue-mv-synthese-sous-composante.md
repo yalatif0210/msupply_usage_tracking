@@ -4,7 +4,7 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
 
 - [ ] Migration : vue matérialisée `mv_synthese_sous_composante`, même grain
       que `mv_synthese_nationale` (mois PAQD, + région / programme selon ce
@@ -22,3 +22,12 @@
 - [ ] Couture D.
 - [ ] Tests intégration API (prior art `synthese.test.ts`) : comptes et
       moyenne sur ≥ 2 sites ; respect des filtres ; exclusion hors périmètre.
+
+## Comments
+
+- Vue `mv_synthese_sous_composante` (migration 0026). CTE `detail` unique
+  (branches tous / par programme dépliées ensemble) après revue.
+- Taux d'atteinte défini inline (identique à la spec du ticket 11) ; à
+  refactorer sur `v_sous_composante_atteinte` en tranche 6.
+- Grains région / district calculés pour rester au grain de
+  `mv_synthese_nationale` ; seuls mois / région / programme sont lus.
