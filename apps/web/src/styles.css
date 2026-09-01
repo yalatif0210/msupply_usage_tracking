@@ -39,6 +39,18 @@
   --barre2-fond: var(--surface);
   --barre2-texte: var(--texte);
 
+  /*
+   * Palette de tracé multi-séries, cyclée. Teintes distinctes et sans
+   * signification de statut (une courbe « par pilier » n'est ni conforme ni en
+   * alerte) : bleu, sarcelle, violet, ambre, corail, ardoise, façon StarAdmin.
+   */
+  --serie-1: #1f6fd6;
+  --serie-2: #1b978a;
+  --serie-3: #8659c4;
+  --serie-4: #c07c00;
+  --serie-5: #cc4b63;
+  --serie-6: #56657a;
+
   font-family:
     system-ui,
     -apple-system,

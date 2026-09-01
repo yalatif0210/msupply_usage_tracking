@@ -55,10 +55,12 @@ export class SitesService {
 
   async historique(
     siteId: string,
-    opts: { cycle?: string; programmeId?: string } = {},
+    opts: { cycle?: string; de?: string; a?: string; programmeId?: string } = {},
   ): Promise<HistoriqueSite> {
     let params = new HttpParams();
     if (opts.cycle) params = params.set('cycle', opts.cycle);
+    if (opts.de) params = params.set('de', opts.de);
+    if (opts.a) params = params.set('a', opts.a);
     if (opts.programmeId) params = params.set('programmeId', opts.programmeId);
     const data = await firstValueFrom(
       this.http.get<unknown>(`/api/sites/${encodeURIComponent(siteId)}/historique`, { params }),
