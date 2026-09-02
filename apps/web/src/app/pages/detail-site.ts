@@ -275,7 +275,7 @@ function reculerMois(mois: string, n: number): string {
   `,
   styles: `
     main { max-width: 60rem; margin: 0 auto; padding: 0 1rem; }
-    .retour { color: var(--accent); font-size: 0.9rem; }
+    .retour { color: var(--marque); font-size: 0.9rem; }
     h1 { font-size: 1.8rem; margin: 0.5rem 0 0; }
     .meta { color: var(--texte-doux); margin-top: 0.25rem; }
     .controles { display: flex; gap: 1.5rem; align-items: center; margin: 1.5rem 0; flex-wrap: wrap; }
@@ -303,8 +303,8 @@ function reculerMois(mois: string, n: number): string {
     .entete-analyse, .entete-bloc { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
     .plage { display: flex; gap: 0.6rem; align-items: end; flex-wrap: wrap; }
     .plage label { flex-direction: row; align-items: center; gap: 0.3rem; }
-    button { padding: 0.4rem 0.7rem; background: none; border: 1px solid var(--bordure); color: var(--accent); cursor: pointer; font-size: 0.8rem; }
-    button:hover { border-color: var(--accent); }
+    button { padding: 0.4rem 0.7rem; background: none; border: 1px solid var(--bordure); color: var(--marque); cursor: pointer; font-size: 0.8rem; }
+    button:hover { border-color: var(--marque); }
     .bascule { display: flex; gap: 0.8rem; align-items: center; font-size: 0.85rem; }
     .bascule label { flex-direction: row; align-items: center; gap: 0.3rem; }
     .radar-bloc, .courbe-bloc { margin-top: 1.5rem; }
@@ -318,9 +318,9 @@ function reculerMois(mois: string, n: number): string {
     .a-plat th, .a-plat td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--bordure); }
     .a-plat th.num, .a-plat td.num { text-align: right; font-variant-numeric: tabular-nums; }
     .a-plat thead th { cursor: pointer; white-space: nowrap; }
-    .a-plat thead th:hover { color: var(--accent); }
+    .a-plat thead th:hover { color: var(--marque); }
     .drill { margin-top: 1.5rem; }
-    .drill summary { cursor: pointer; font-size: 0.9rem; color: var(--accent); }
+    .drill summary { cursor: pointer; font-size: 0.9rem; color: var(--marque); }
     .drill-scroll { overflow-x: auto; margin-top: 0.8rem; }
     .drill table { border-collapse: collapse; font-size: 0.85rem; }
     .drill th, .drill td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--bordure); white-space: nowrap; }

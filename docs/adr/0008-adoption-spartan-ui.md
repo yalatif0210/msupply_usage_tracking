@@ -41,6 +41,15 @@ quel (React, TanStack Router, Clerk) aurait imposé une réécriture complète d
 front pour un gain nul par rapport à spartan/ui. Rester sur l'ADR 0006 aurait
 figé la lenteur d'implémentation et les graphes illisibles.
 
+**Prérequis technique.** spartan/ui 1.x exige **Angular ≥ 21**
+(`@spartan-ng/brain` : `@angular/core >=21 <23`, `@angular/cdk >=21`).
+`apps/web` était sur Angular 20 : la première tranche monte `apps/web` en
+Angular 21 (plancher spartan ; `lucide-angular@1.0.0` plafonne aussi à 21),
+avec un bump TypeScript `~5.8` → `~5.9` sur tout le dépôt. NestJS n'est pas
+concerné. Le CLI spartan étant un générateur nx et DQA étant en npm
+workspaces, les composants Helm sont copiés à la main depuis le dépôt spartan
+(MIT).
+
 **Conséquence.** `CLAUDE.md` (§2, §3, §8) et `DESIGN_SYSTEM.md` sont mis à jour
 dans la même passe que cet ADR ; l'implémentation suit en tranches (`/to-spec`,
 une par écran). L'ADR 0006 reçoit un bandeau « Remplacé par l'ADR 0008 » ; sa

@@ -43,8 +43,8 @@ const R = 120; // rayon max (valeur 100)
     svg { width: 100%; max-width: 22rem; height: auto; display: block; margin: 0 auto; }
     .grille { fill: none; stroke: var(--bordure); stroke-width: 1; }
     .axe { stroke: var(--bordure); stroke-width: 1; }
-    .forme { fill: var(--accent); fill-opacity: 0.2; stroke: var(--accent); stroke-width: 2; }
-    .point { fill: var(--accent); }
+    .forme { fill: var(--marque); fill-opacity: 0.2; stroke: var(--marque); stroke-width: 2; }
+    .point { fill: var(--marque); }
     .lib { font-size: 9px; fill: var(--texte-doux); }
     .lib.CONFORME { fill: var(--conforme-texte); }
     .lib.ALERTE { fill: var(--alerte-texte); }

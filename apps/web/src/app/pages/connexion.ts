@@ -48,7 +48,7 @@ import { AuthService } from '../core/auth.service';
     form { display: grid; gap: 1rem; margin-top: 1.5rem; }
     label { display: grid; gap: 0.3rem; font-size: 0.9rem; }
     input { padding: 0.5rem; border: 1px solid var(--bordure); font-size: 1rem; }
-    button { padding: 0.6rem; background: var(--accent); color: var(--surface); border: 0; font-size: 1rem; cursor: pointer; }
+    button { padding: 0.6rem; background: var(--marque); color: var(--surface); border: 0; font-size: 1rem; cursor: pointer; }
     button[disabled] { opacity: 0.6; cursor: default; }
     .erreur { color: var(--alerte-texte); margin: 0; font-size: 0.9rem; }
   `,

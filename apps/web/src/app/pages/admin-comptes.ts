@@ -90,9 +90,9 @@ import { Coquille } from '../ui/coquille';
     tr.inactif { color: var(--texte-doux); }
     .actions { display: flex; gap: 0.8rem; }
     .ligne-mdp td { display: flex; gap: 0.6rem; align-items: center; }
-    button { padding: 0.45rem 0.8rem; background: var(--accent); color: var(--surface); border: 0; cursor: pointer; }
+    button { padding: 0.45rem 0.8rem; background: var(--marque); color: var(--surface); border: 0; cursor: pointer; }
     button[disabled] { opacity: 0.5; cursor: default; }
-    .lien { background: none; color: var(--accent); padding: 0; text-decoration: underline; }
+    .lien { background: none; color: var(--marque); padding: 0; text-decoration: underline; }
     .switch { display: inline-flex; gap: 0.4rem; align-items: center; font-size: 0.85rem; }
     .erreur { color: var(--alerte-texte); }
   `,

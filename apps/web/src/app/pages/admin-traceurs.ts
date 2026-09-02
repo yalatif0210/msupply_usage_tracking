@@ -62,7 +62,7 @@ import { Coquille } from '../ui/coquille';
     .intro { color: var(--texte-doux); font-size: 0.9rem; }
     form { display: flex; gap: 0.75rem; margin: 1rem 0; flex-wrap: wrap; }
     input { padding: 0.5rem; border: 1px solid var(--bordure); }
-    button { padding: 0.5rem 0.9rem; background: var(--accent); color: var(--surface); border: 0; cursor: pointer; }
+    button { padding: 0.5rem 0.9rem; background: var(--marque); color: var(--surface); border: 0; cursor: pointer; }
     button[disabled] { opacity: 0.5; cursor: default; }
     .lien { background: none; color: var(--alerte-texte); padding: 0; text-decoration: underline; }
     table { width: 100%; border-collapse: collapse; }

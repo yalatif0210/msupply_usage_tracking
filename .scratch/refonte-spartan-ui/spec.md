@@ -327,9 +327,17 @@ leurs bloqueurs sont fusionnés. 12 ferme la marche.
 
 ## Further Notes
 
-- spartan/ui 1.0 (stable, 55+ composants, Brain sur Angular CDK). La compat
-  zoneless Angular 20 est à confirmer au T1 (spartan suit Angular récent) ;
-  si un composant Brain pose problème, le signaler dans le ticket T1.
+- **spartan/ui 1.x exige Angular ≥ 21** (`@spartan-ng/brain` :
+  `@angular/core >=21 <23`, `@angular/cdk >=21`). `apps/web` était sur Angular
+  20 : le ticket 01 monte d'abord `apps/web` en **Angular 21** (plancher
+  spartan, et `lucide-angular@1.0.0` plafonne à 21), avec un bump TypeScript
+  `~5.8` → `~5.9` sur tout le dépôt. NestJS n'est pas touché.
+- Le CLI spartan est un générateur **nx** ; DQA est en npm workspaces. Les
+  composants Helm sont donc **copiés à la main** depuis le dépôt spartan (MIT),
+  ce qui reste le modèle « tu les possèdes ».
+- spartan/ui 1.x (stable, 55+ composants, Brain sur Angular CDK). Compat
+  zoneless à confirmer au ticket 01 ; tout composant Brain problématique est
+  signalé dans le ticket.
 - `ng-apexcharts` revendique la compat zoneless et est testé sous
   `provideZonelessChangeDetection()` ; rendu SVG (net en projection).
 - Cette migration **refait une grande partie** du travail visuel des tranches

@@ -70,7 +70,7 @@ import { AuthService } from '../core/auth.service';
       border-bottom: 2px solid transparent;
     }
     .barre2 a:hover { color: var(--texte); }
-    .barre2 a.actif { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .barre2 a.actif { color: var(--marque); border-bottom-color: var(--marque); font-weight: 600; }
   `,
 })
 export class Coquille {

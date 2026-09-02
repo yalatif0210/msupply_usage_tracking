@@ -248,7 +248,7 @@ const COLONNES: readonly { cle: TriColonne; libelle: string; num: boolean }[] = 
     .pilier { display: grid; grid-template-columns: 18rem 1fr 3rem; gap: 0.8rem; align-items: center; padding: 0.3rem 0; }
     .pilier .lib { font-size: 0.9rem; }
     .pilier .jauge { height: 0.8rem; background: var(--neutre); border: 1px solid var(--bordure); }
-    .pilier .rempli { display: block; height: 100%; background: var(--accent); }
+    .pilier .rempli { display: block; height: 100%; background: var(--marque); }
     .pilier .val { text-align: right; font-variant-numeric: tabular-nums; }
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid var(--bordure); }
@@ -259,11 +259,11 @@ const COLONNES: readonly { cle: TriColonne; libelle: string; num: boolean }[] = 
     .vide { color: var(--texte-doux); }
     .onglets { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--bordure); margin: 0.5rem 0 1.5rem; }
     .onglets button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 0.6rem 0.9rem; font-size: 0.95rem; color: var(--texte-doux); cursor: pointer; }
-    .onglets button.actif { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .onglets button.actif { color: var(--marque); border-bottom-color: var(--marque); font-weight: 600; }
     .sous-composantes thead th { cursor: pointer; white-space: nowrap; }
-    .sous-composantes thead th:hover { color: var(--accent); }
+    .sous-composantes thead th:hover { color: var(--marque); }
     .sous-composantes thead th[aria-sort='ascending'],
-    .sous-composantes thead th[aria-sort='descending'] { color: var(--accent); border-bottom-width: 2px; }
+    .sous-composantes thead th[aria-sort='descending'] { color: var(--marque); border-bottom-width: 2px; }
     .sous-composantes thead th[aria-sort='ascending']::after { content: ' \\2191'; }
     .sous-composantes thead th[aria-sort='descending']::after { content: ' \\2193'; }
   `,

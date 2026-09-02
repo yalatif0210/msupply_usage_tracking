@@ -19,7 +19,7 @@
     "migrate:status": "npm run migrate:status -w @dqa/api"
   },
   "devDependencies": {
-    "typescript": "~5.8.3",
-    "vitest": "^3.2.4"
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.11"
   }
 }

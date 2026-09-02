@@ -95,7 +95,7 @@ import { RepartitionClassificationComponent } from '../ui/repartition-classifica
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid var(--bordure); }
     th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
-    a { color: var(--accent); }
+    a { color: var(--marque); }
     .vide { color: var(--texte-doux); }
   `,
 })

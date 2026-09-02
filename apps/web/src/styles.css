@@ -1,14 +1,120 @@
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
+@import 'tailwindcss/utilities.css';
+@import '@spartan-ng/brain/hlm-tailwind-preset.css';
+
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
 /*
- * Jetons visuels de la console DQA.
- *
- * Registre d'un outil d'administration institutionnel, projeté en réunion :
- * schéma chromatique de la famille StarAdmin (bleu franc, fond clair froid,
- * surfaces blanches), contrastes marqués, aucun tiret long (cf. DESIGN_SYSTEM.md).
- * Les couleurs de statut restent calibrées pour la lecture à distance.
+ * Jetons de thème shadcn/ui (base « slate »), posés par `spartan/cli:init`.
+ * `--primary` est forcé au bleu de marque DQA (#1f6fd6, lisible en projection)
+ * au lieu du quasi-noir de shadcn. `--font-sans` pointe sur Inter (auto-hébergée).
+ * Mode clair uniquement : le bloc `.dark` reste mais aucun sélecteur de thème
+ * n'est exposé. Voir DESIGN_SYSTEM.md et docs/adr/0008.
  */
 :root {
   color-scheme: light;
 
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.129 0.042 264.695);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.129 0.042 264.695);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.129 0.042 264.695);
+  --primary: oklch(0.577 0.166 256.5); /* #1f6fd6 : bleu de marque, pas le slate quasi-noir */
+  --primary-foreground: oklch(0.984 0.003 247.858);
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: oklch(0.208 0.042 265.755);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417);
+  --accent: oklch(0.968 0.007 247.896);
+  --accent-foreground: oklch(0.208 0.042 265.755);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.929 0.013 255.508);
+  --input: oklch(0.929 0.013 255.508);
+  --ring: oklch(0.704 0.04 256.788);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.704 0.04 256.788);
+}
+
+:root.dark {
+  color-scheme: dark;
+
+  --background: oklch(0.129 0.042 264.695);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.208 0.042 265.755);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: oklch(0.577 0.166 256.5);
+  --primary-foreground: oklch(0.984 0.003 247.858);
+  --secondary: oklch(0.279 0.041 260.031);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788);
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.984 0.003 247.858);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.551 0.027 264.364);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.208 0.042 265.755);
+  --sidebar-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-primary: oklch(0.984 0.003 247.858);
+  --sidebar-primary-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-accent: oklch(0.279 0.041 260.031);
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.551 0.027 264.364);
+}
+
+@theme inline {
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/*
+ * Jetons hérités de la période StarAdmin (ADR 0006). Encore référencés par les
+ * écrans non migrés ; retirés au ticket 12 une fois tous les écrans passés sur
+ * spartan/ui. Ne PAS en ajouter.
+ */
+:root {
   --fond: #f1f4f9;
   --surface: #ffffff;
   --surface-alt: #f7f9fc;
@@ -16,11 +122,10 @@
   --texte-doux: #5b6b7f;
   --texte-tres-doux: #a8b0bd;
   --bordure: #d7dee7;
-  --accent: #1f6fd6;
+  --marque: #1f6fd6;
   --accent-doux: #e8f1fc;
   --neutre: #eceff3;
 
-  /* Éléments interactifs posés sur la barre 1 (fond accent). */
   --sur-accent-faible: rgba(255, 255, 255, 0.15);
   --sur-accent-fort: rgba(255, 255, 255, 0.25);
   --sur-accent-bordure: rgba(255, 255, 255, 0.4);
@@ -34,33 +139,22 @@
   --partiel-fond: #fff3d6;
   --partiel-texte: #7a5200;
 
-  --barre1-fond: var(--accent);
+  --barre1-fond: var(--marque);
   --barre1-texte: #ffffff;
   --barre2-fond: var(--surface);
   --barre2-texte: var(--texte);
 
-  /*
-   * Palette de tracé multi-séries, cyclée. Teintes distinctes et sans
-   * signification de statut (une courbe « par pilier » n'est ni conforme ni en
-   * alerte) : bleu, sarcelle, violet, ambre, corail, ardoise, façon StarAdmin.
-   */
   --serie-1: #1f6fd6;
   --serie-2: #1b978a;
   --serie-3: #8659c4;
   --serie-4: #c07c00;
   --serie-5: #cc4b63;
   --serie-6: #56657a;
-
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
 }
 
 body {
   margin: 0;
   background: var(--fond);
   color: var(--texte);
+  font-family: var(--font-sans);
 }

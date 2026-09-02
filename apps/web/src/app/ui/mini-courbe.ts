@@ -44,8 +44,8 @@ const Y1 = 6;
     svg { width: 100%; max-width: 40rem; height: auto; display: block; border: 1px solid var(--bordure); background: var(--surface); }
     .seuil { stroke: var(--texte-tres-doux); stroke-width: 1; stroke-dasharray: 3 3; }
     .graduation { fill: var(--texte-doux); font-size: 9px; }
-    .trace { stroke: var(--accent); stroke-width: 2; }
-    .point { fill: var(--accent); }
+    .trace { stroke: var(--marque); stroke-width: 2; }
+    .point { fill: var(--marque); }
     .axe { list-style: none; display: flex; justify-content: space-between; max-width: 40rem; margin: 0.3rem 0 0; padding: 0 0 0 1.3rem; font-size: 0.75rem; color: var(--texte-doux); }
   `,
 })

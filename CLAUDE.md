@@ -25,7 +25,7 @@ fait : import par lot, validation défensive, historisation explicite.
 | Couche    | Techno                                    |
 |-----------|-------------------------------------------|
 | API       | NestJS 10, TypeScript strict              |
-| Front     | Angular 20+ zoneless, standalone components, signals |
+| Front     | Angular 21 zoneless, standalone components, signals |
 | UI front  | spartan/ui (Tailwind v4 + Angular CDK), ApexCharts, lucide, Inter |
 | Base      | PostgreSQL 16                             |
 | Contrats  | Package TS partagé `@dqa/contracts`       |

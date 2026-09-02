@@ -154,9 +154,9 @@ const AVEC_TOLERANCE = new Set<SousComposante>(SOUS_COMPOSANTES_AVEC_TOLERANCE);
     .ligne-seuil { display: grid; grid-template-columns: 1fr 6rem 7rem 7rem; gap: 0.5rem; align-items: center; margin: 0.4rem 0; font-size: 0.85rem; }
     .sans-tol { color: var(--texte-tres-doux); text-align: center; }
     .actions { display: flex; gap: 1rem; margin: 1rem 0; }
-    button { padding: 0.5rem 0.9rem; background: var(--accent); color: var(--surface); border: 0; cursor: pointer; }
+    button { padding: 0.5rem 0.9rem; background: var(--marque); color: var(--surface); border: 0; cursor: pointer; }
     button[disabled] { opacity: 0.5; cursor: default; }
-    .lien { background: none; color: var(--accent); padding: 0; text-decoration: underline; }
+    .lien { background: none; color: var(--marque); padding: 0; text-decoration: underline; }
     .lien.danger { color: var(--alerte-texte); }
     .erreur, .alerte { color: var(--alerte-texte); font-size: 0.9rem; }
     .valeurs { list-style: none; padding: 0; font-size: 0.9rem; }
