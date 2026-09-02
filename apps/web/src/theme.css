@@ -90,6 +90,16 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
+  /* Statuts exposés en utilitaires : `bg-conforme-fond`, `text-alerte-texte`… */
+  --color-conforme-fond: var(--conforme-fond);
+  --color-conforme-texte: var(--conforme-texte);
+  --color-alerte-fond: var(--alerte-fond);
+  --color-alerte-texte: var(--alerte-texte);
+  --color-nc-fond: var(--nc-fond);
+  --color-nc-texte: var(--nc-texte);
+  --color-partiel-fond: var(--partiel-fond);
+  --color-partiel-texte: var(--partiel-texte);
 }
 
 /*

@@ -1,28 +1,36 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { StatutSousComposante } from '@dqa/contracts';
-import { VALEUR_ABSENTE } from '../core/affichage';
 
+/**
+ * Badge de statut d'une sous-composante. Forme shadcn (coins `md`, `text-xs`),
+ * couleurs de statut calibrées pour la projection (DESIGN_SYSTEM §2) : la
+ * couleur n'est jamais seule, le libellé la double toujours.
+ */
 @Component({
   selector: 'dqa-badge-statut',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<span class="badge {{ statut() }}">{{ libelle() }}</span>`,
-  styles: `
-    .badge { display: inline-block; padding: 0.15rem 0.5rem; font-size: 0.8rem; font-weight: 600; border-radius: 4px; }
-    .CONFORME { background: var(--conforme-fond); color: var(--conforme-texte); }
-    .ALERTE { background: var(--alerte-fond); color: var(--alerte-texte); }
-    .NON_CALCULABLE { background: var(--nc-fond); color: var(--nc-texte); }
-  `,
+  template: `<span
+    class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold"
+    [class]="couleurs()"
+    >{{ libelle() }}</span
+  >`,
 })
 export class BadgeStatut {
   readonly statut = input.required<StatutSousComposante | null>();
 
-  protected libelle(): string {
-    return (
-      {
-        CONFORME: 'Conforme',
-        ALERTE: 'Alerte',
-        NON_CALCULABLE: 'Non calculable',
-      }[this.statut() ?? 'NON_CALCULABLE'] ?? VALEUR_ABSENTE
-    );
-  }
+  private readonly cle = computed<StatutSousComposante>(() => this.statut() ?? 'NON_CALCULABLE');
+
+  protected readonly libelle = computed(
+    () =>
+      ({ CONFORME: 'Conforme', ALERTE: 'Alerte', NON_CALCULABLE: 'Non calculable' })[this.cle()],
+  );
+
+  protected readonly couleurs = computed(
+    () =>
+      ({
+        CONFORME: 'bg-conforme-fond text-conforme-texte',
+        ALERTE: 'bg-alerte-fond text-alerte-texte',
+        NON_CALCULABLE: 'bg-nc-fond text-nc-texte',
+      })[this.cle()],
+  );
 }

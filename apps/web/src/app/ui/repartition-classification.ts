@@ -1,78 +1,73 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { RepartitionClassification } from '@dqa/contracts';
 
+interface SegmentRepartition {
+  readonly classe: 'CONFORME' | 'PARTIELLEMENT_CONFORME' | 'NON_CONFORME' | 'SANS_MESURE';
+  readonly libelle: string;
+  readonly libelleCourt: string;
+  readonly n: number;
+  readonly fond: string;
+  readonly texte: string;
+}
+
 /**
- * Barre à quatre segments (CONFORME vert / PARTIELLEMENT CONFORME ambre /
- * NON CONFORME rouge / SANS MESURE gris), cf. DESIGN_SYSTEM.md §1. La couleur
- * n'est jamais seule : le mode plein porte une légende sous la barre, le mode
- * `compact` (cellule de tableau) porte les comptes non nuls en texte à droite.
+ * Barre à quatre segments (CONFORME vert / PARTIELLEMENT CONFORME ambre / NON
+ * CONFORME rouge / SANS MESURE gris), DESIGN_SYSTEM §2. La couleur n'est jamais
+ * seule : le mode plein porte une légende sous la barre, le mode `compact`
+ * (cellule de tableau) porte les comptes non nuls en texte à droite. `<div>`
+ * flex segmenté, pas un graphe.
  */
 @Component({
   selector: 'dqa-repartition-classification',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="bloc" [class.compact]="compact()">
-      <div class="barre" role="img" [attr.aria-label]="resume()">
+    <div [class]="compact() ? 'flex items-center gap-2.5' : ''">
+      <div
+        class="flex overflow-hidden rounded-sm border border-border bg-muted"
+        [class]="compact() ? 'h-2.5 w-24 shrink-0' : 'h-6'"
+        role="img"
+        [attr.aria-label]="resume()"
+      >
         @for (s of segments(); track s.classe) {
           @if (s.n > 0) {
-            <span class="seg {{ s.classe }}" [style.flexGrow]="s.n"></span>
+            <span class="block" [class]="s.fond" [style.flexGrow]="s.n"></span>
           }
         }
       </div>
 
       @if (compact()) {
-        <p class="comptes">
+        <p class="m-0 flex flex-wrap gap-x-3 gap-y-0.5 text-xs tabular-nums">
           @for (s of segments(); track s.classe) {
             @if (s.n > 0) {
-              <span class="compte {{ s.classe }}">{{ s.n }}&nbsp;{{ s.libelleCourt }}</span>
+              <span [class]="s.texte">{{ s.n }}&nbsp;{{ s.libelleCourt }}</span>
             }
           }
         </p>
       } @else {
-        <ul class="legende">
+        <ul class="mt-1.5 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 text-sm">
           @for (s of segments(); track s.classe) {
-            <li><span class="pastille {{ s.classe }}"></span>{{ s.libelle }} <b>{{ s.n }}</b></li>
+            <li class="flex items-center gap-1.5">
+              <span class="inline-block size-2.5" [class]="s.fond"></span>
+              {{ s.libelle }} <b class="tabular-nums">{{ s.n }}</b>
+            </li>
           }
         </ul>
       }
     </div>
-  `,
-  styles: `
-    .bloc.compact { display: flex; align-items: center; gap: 0.6rem; }
-    .barre { display: flex; height: 1.4rem; border: 1px solid var(--bordure); background: var(--neutre); overflow: hidden; }
-    .compact .barre { height: 0.7rem; flex: 0 0 6rem; }
-    .seg { display: block; }
-    .seg.CONFORME { background: var(--conforme-texte); }
-    .seg.PARTIELLEMENT_CONFORME { background: var(--partiel-texte); }
-    .seg.NON_CONFORME { background: var(--alerte-texte); }
-    .seg.SANS_MESURE { background: var(--texte-tres-doux); }
-    .comptes { margin: 0; display: flex; flex-wrap: wrap; gap: 0.15rem 0.7rem; font-size: 0.8rem; }
-    .compte { font-variant-numeric: tabular-nums; }
-    .compte.CONFORME { color: var(--conforme-texte); }
-    .compte.PARTIELLEMENT_CONFORME { color: var(--partiel-texte); }
-    .compte.NON_CONFORME { color: var(--alerte-texte); }
-    .compte.SANS_MESURE { color: var(--texte-doux); }
-    .legende { list-style: none; display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin: 0.4rem 0 0; padding: 0; font-size: 0.85rem; }
-    .legende b { font-variant-numeric: tabular-nums; }
-    .pastille { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; vertical-align: middle; }
-    .pastille.CONFORME { background: var(--conforme-texte); }
-    .pastille.PARTIELLEMENT_CONFORME { background: var(--partiel-texte); }
-    .pastille.NON_CONFORME { background: var(--alerte-texte); }
-    .pastille.SANS_MESURE { background: var(--texte-tres-doux); }
   `,
 })
 export class RepartitionClassificationComponent {
   readonly repartition = input.required<RepartitionClassification>();
   readonly compact = input(false);
 
-  protected readonly segments = computed(() => {
+  protected readonly segments = computed<readonly SegmentRepartition[]>(() => {
     const r = this.repartition();
     return [
-      { classe: 'CONFORME', libelle: 'Conforme', libelleCourt: 'conformes', n: r.CONFORME },
-      { classe: 'PARTIELLEMENT_CONFORME', libelle: 'Partiellement conforme', libelleCourt: 'partiels', n: r.PARTIELLEMENT_CONFORME },
-      { classe: 'NON_CONFORME', libelle: 'Non conforme', libelleCourt: 'non conformes', n: r.NON_CONFORME },
-      { classe: 'SANS_MESURE', libelle: 'Sans mesure', libelleCourt: 'sans mesure', n: r.SANS_MESURE },
-    ] as const;
+      { classe: 'CONFORME', libelle: 'Conforme', libelleCourt: 'conformes', n: r.CONFORME, fond: 'bg-conforme-texte', texte: 'text-conforme-texte' },
+      { classe: 'PARTIELLEMENT_CONFORME', libelle: 'Partiellement conforme', libelleCourt: 'partiels', n: r.PARTIELLEMENT_CONFORME, fond: 'bg-partiel-texte', texte: 'text-partiel-texte' },
+      { classe: 'NON_CONFORME', libelle: 'Non conforme', libelleCourt: 'non conformes', n: r.NON_CONFORME, fond: 'bg-alerte-texte', texte: 'text-alerte-texte' },
+      { classe: 'SANS_MESURE', libelle: 'Sans mesure', libelleCourt: 'sans mesure', n: r.SANS_MESURE, fond: 'bg-muted-foreground', texte: 'text-muted-foreground' },
+    ];
   });
 
   protected resume(): string {
