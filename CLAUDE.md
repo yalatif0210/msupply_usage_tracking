@@ -58,9 +58,10 @@ Monorepo npm workspaces.
 ### Dépendances
 
 - Le socle UI du front est une **liste fermée** : spartan/ui (Tailwind v4 +
-  Angular CDK), ApexCharts (graphes), @ng-icons/lucide (icônes), Inter (police,
-  auto-hébergée). Toute autre dépendance runtime — front ou API — passe par un
-  ADR.
+  Angular CDK, avec ses compagnons `clsx` / `tailwind-merge` /
+  `class-variance-authority` / `tw-animate-css`), ApexCharts (graphes),
+  @ng-icons/lucide (icônes), `@fontsource/inter` (police, auto-hébergée). Toute
+  autre dépendance runtime — front ou API — passe par un ADR.
 - Hors socle UI : préférer la bibliothèque standard, ne pas ajouter de
   dépendance sans nécessité démontrée.
 - Les composants spartan sont **copiés** dans `apps/web/src/app/ui/spartan/`

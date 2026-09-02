@@ -143,7 +143,7 @@ const AVEC_TOLERANCE = new Set<SousComposante>(SOUS_COMPOSANTES_AVEC_TOLERANCE);
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--bordure); }
     tbody tr { cursor: pointer; }
-    tbody tr:hover, tbody tr.actif { background: var(--accent-doux); }
+    tbody tr:hover, tbody tr.actif { background: var(--marque-doux); }
     .badge { padding: 0.1rem 0.4rem; font-size: 0.75rem; border-radius: 4px; }
     .badge.en_vigueur { background: var(--conforme-fond); color: var(--conforme-texte); }
     .badge.planifiee { background: var(--partiel-fond); color: var(--partiel-texte); }

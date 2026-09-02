@@ -254,7 +254,7 @@ const COLONNES: readonly { cle: TriColonne; libelle: string; num: boolean }[] = 
     th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid var(--bordure); }
     th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
     .districts tbody tr { cursor: pointer; }
-    .districts tbody tr:hover { background: var(--accent-doux); }
+    .districts tbody tr:hover { background: var(--marque-doux); }
     .repcell { width: 16rem; }
     .vide { color: var(--texte-doux); }
     .onglets { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--bordure); margin: 0.5rem 0 1.5rem; }

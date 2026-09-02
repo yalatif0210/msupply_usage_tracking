@@ -1,0 +1,145 @@
+/*
+ * Jetons de thème de la console DQA : portage shadcn/ui (base « slate »).
+ * Cf. docs/adr/0008-adoption-spartan-ui.md et DESIGN_SYSTEM.md §2.
+ *
+ * Les composants ne référencent jamais une couleur en dur : utilitaires
+ * Tailwind mappés au thème (`bg-card`, `text-muted-foreground`…) ou `var(--…)`.
+ * `--primary` est forcé au bleu de marque DQA (`#1f6fd6`, validé en projection)
+ * au lieu du quasi-noir de shadcn. Mode clair uniquement : le bloc `.dark`
+ * reste mais aucun sélecteur de thème n'est exposé.
+ */
+
+:root {
+  color-scheme: light;
+
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.129 0.042 264.695);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.129 0.042 264.695);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.129 0.042 264.695);
+  --primary: #1f6fd6; /* bleu de marque DQA, pas le slate quasi-noir de shadcn */
+  --primary-foreground: oklch(0.984 0.003 247.858);
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: oklch(0.208 0.042 265.755);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417);
+  --accent: oklch(0.968 0.007 247.896);
+  --accent-foreground: oklch(0.208 0.042 265.755);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.929 0.013 255.508);
+  --input: oklch(0.929 0.013 255.508);
+  --ring: oklch(0.704 0.04 256.788);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.704 0.04 256.788);
+}
+
+:root.dark {
+  color-scheme: dark;
+
+  --background: oklch(0.129 0.042 264.695);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.208 0.042 265.755);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: #1f6fd6;
+  --primary-foreground: oklch(0.984 0.003 247.858);
+  --secondary: oklch(0.279 0.041 260.031);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788);
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.984 0.003 247.858);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.551 0.027 264.364);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.208 0.042 265.755);
+  --sidebar-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-primary: oklch(0.984 0.003 247.858);
+  --sidebar-primary-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-accent: oklch(0.279 0.041 260.031);
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.551 0.027 264.364);
+}
+
+@theme inline {
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
+/*
+ * Couleurs de statut : calibrées pour la projection, hors palette du thème
+ * (DESIGN_SYSTEM §2). La couleur n'est jamais seule : toujours doublée d'un
+ * libellé.
+ */
+:root {
+  --conforme-fond: #e3f1e4;
+  --conforme-texte: #1b5e20;
+  --alerte-fond: #fde3e1;
+  --alerte-texte: #8a1c13;
+  --nc-fond: #ececec;
+  --nc-texte: #4a4a4a;
+  --partiel-fond: #fff3d6;
+  --partiel-texte: #7a5200;
+}
+
+/*
+ * Jetons hérités de la période StarAdmin (ADR 0006). Encore référencés par les
+ * écrans non migrés ; retirés au ticket 12 une fois tous les écrans passés sur
+ * spartan/ui. Ne PAS en ajouter.
+ */
+:root {
+  --fond: #f1f4f9;
+  --surface: #ffffff;
+  --surface-alt: #f7f9fc;
+  --texte: #1f2733;
+  --texte-doux: #5b6b7f;
+  --texte-tres-doux: #a8b0bd;
+  --bordure: #d7dee7;
+  --marque: #1f6fd6; /* couleur de marque (ex-`--accent`) */
+  --marque-doux: #e8f1fc; /* ligne survolée, fond de sélection */
+  --neutre: #eceff3;
+
+  /* Éléments interactifs posés sur la barre 1 (fond de marque). */
+  --sur-marque-faible: rgba(255, 255, 255, 0.15);
+  --sur-marque-fort: rgba(255, 255, 255, 0.25);
+  --sur-marque-bordure: rgba(255, 255, 255, 0.4);
+
+  --barre1-fond: var(--marque);
+  --barre1-texte: #ffffff;
+  --barre2-fond: var(--surface);
+  --barre2-texte: var(--texte);
+
+  /* Palette de tracé multi-séries, cyclée, sans signification de statut. */
+  --serie-1: #1f6fd6;
+  --serie-2: #1b978a;
+  --serie-3: #8659c4;
+  --serie-4: #c07c00;
+  --serie-5: #cc4b63;
+  --serie-6: #56657a;
+}

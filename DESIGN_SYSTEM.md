@@ -21,21 +21,25 @@ projetée en salle éclairée.
 ## 1. Socle : spartan/ui
 
 - **Brain** (primitives sans style, sur Angular CDK) + **Helm** (composants
-  stylés). Les composants Helm sont **copiés dans `apps/web/src/app/ui/`** via
-  le CLI spartan : on les possède, on les édite, on ne les met pas à jour en
-  masse.
-- Tailwind CSS v4 avec le preset spartan (`hlm-tailwind-preset`). La fonction
-  `hlm()` fusionne les classes.
-- Angular 20 zoneless, standalone, `ChangeDetectionStrategy.OnPush`, signals.
+  stylés). Les composants Helm sont **copiés dans `apps/web/src/app/ui/spartan/`**
+  par `ng g @spartan-ng/cli:ui` (mode Angular CLI, non interactif via
+  `components.json`, `"style": "nova"`), avec les utilitaires Tailwind inlinés
+  et les alias `@spartan-ng/helm/*` posés dans `tsconfig`. On les possède, on
+  les édite, on ne les met pas à jour en masse.
+- Tailwind CSS v4 (`.postcssrc.json` avec `@tailwindcss/postcss`) + preset
+  `@spartan-ng/brain/hlm-tailwind-preset`. La fonction `hlm()` fusionne les
+  classes (`clsx` + `tailwind-merge` + `class-variance-authority` +
+  `tw-animate-css` : compagnons requis par spartan, cf. `CLAUDE.md §3`).
+- Angular 21 zoneless, standalone, `ChangeDetectionStrategy.OnPush`, signals.
   Pas d'état global : services injectés et signals (pas de store tiers).
 
-### Composants Helm attendus
+### Composants Helm
 
-Coquille et navigation à part (§5), on s'appuie sur : `button`, `card`,
-`badge`, `table`, `tabs`, `select`, `dropdown-menu`, `dialog`, `sheet`,
-`tooltip`, `input`, `label`, `checkbox`, `radio-group`, `separator`,
-`skeleton`, `scroll-area`, `sonner` (toasts). Tout composant Helm ajouté est
-listé ici.
+Posés (ticket 01) : `button`, `card`, `badge`, `table`, `tabs`, `select`,
+`dropdown-menu`, `tooltip`, `dialog`, `input`, `label`, `separator`,
+`skeleton`, `sonner` (toasts). Ajoutés au fil des tickets selon besoin
+(`checkbox`, `radio-group`, `sheet`, `scroll-area`…) ; tout ajout est listé
+ici. Coquille et navigation : §5.
 
 ### Ce qu'on ne prend pas de shadcn-admin
 
@@ -98,8 +102,12 @@ séries, on cycle. Ces jetons remplacent les anciens `--serie-1..6`.
   l'échelle, on l'ajoute au thème, on ne le bricole pas dans le template.
 - Ordre des classes : `prettier-plugin-tailwindcss`.
 - Les styles spécifiques à un composant vivent dans son template (classes
-  utilitaires) ; `styles.css` ne contient que l'entrée Tailwind, l'import de
-  `theme.css` et la police.
+  utilitaires). `styles.css` ne porte que l'entrée Tailwind + preset spartan,
+  l'import de `theme.css`, la police, et la couche `@layer base` (reset,
+  `cursor`, et une compat transitoire pour les écrans non migrés, retirée au
+  ticket 12). Les jetons vivent dans `theme.css`.
+- `prettier-plugin-tailwindcss` n'est pas encore installé : l'ordre des classes
+  suit la convention shadcn à la main jusqu'à ce qu'il le soit.
 
 ---
 

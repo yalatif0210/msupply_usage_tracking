@@ -12,9 +12,11 @@ template **shadcn-admin** (React) comme cible visuelle.
 
 **Décision.** Le front adopte **spartan/ui**, le portage Angular de shadcn/ui :
 primitives « Brain » sur Angular CDK + composants « Helm » copiés dans le
-dépôt. Cela impose **Tailwind CSS v4**. Les graphes passent à **ApexCharts**
-(`ng-apexcharts`), les icônes à **lucide** (`@ng-icons/lucide`), la police à
-**Inter** auto-hébergée. Le socle UI devient une **liste fermée**
+dépôt. Cela impose **Tailwind CSS v4** et ses compagnons spartan (`clsx`,
+`tailwind-merge`, `class-variance-authority`, `tw-animate-css`). Les graphes
+passent à **ApexCharts** (`ng-apexcharts` + `apexcharts`), les icônes à
+**lucide** (`@ng-icons/lucide` + `@ng-icons/core`), la police à **Inter**
+(`@fontsource/inter`, auto-hébergée). Le socle UI devient une **liste fermée**
 (`CLAUDE.md §3`) ; au-delà, un ADR.
 
 On **garde** de l'ADR 0006 : la coquille à deux barres horizontales **sans

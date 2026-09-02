@@ -4,15 +4,7 @@
     "outDir": "dist/out-tsc",
     "types": []
   },
-  "files": [
-    "src/main.ts"
-  ],
-  "include": [
-    "src/**/*.ts",
-    "src/app/ui/spartan/**/src/**/*.ts"
-  ],
-  "exclude": [
-    "src/**/*.spec.ts",
-    "src/**/*.test.ts"
-  ]
+  "files": ["src/main.ts"],
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"]
 }

@@ -52,11 +52,11 @@ import { AuthService } from '../core/auth.service';
     .compte { display: flex; align-items: center; gap: 1rem; font-size: 0.85rem; }
     .qui { opacity: 0.9; }
     .compte button {
-      background: var(--sur-accent-faible); color: inherit;
-      border: 1px solid var(--sur-accent-bordure); border-radius: 4px;
+      background: var(--sur-marque-faible); color: inherit;
+      border: 1px solid var(--sur-marque-bordure); border-radius: 4px;
       padding: 0.3rem 0.7rem; cursor: pointer; font-size: 0.85rem;
     }
-    .compte button:hover { background: var(--sur-accent-fort); }
+    .compte button:hover { background: var(--sur-marque-fort); }
 
     .barre2 {
       display: flex; gap: 0.25rem; flex-wrap: wrap;
