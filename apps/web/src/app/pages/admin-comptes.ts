@@ -9,7 +9,8 @@ import { HlmInput } from '@spartan-ng/helm/input';
 import { HlmLabel } from '@spartan-ng/helm/label';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { HlmTableImports } from '@spartan-ng/helm/table';
-import { HlmBadge } from '@spartan-ng/helm/badge';
+import { HlmBadge, type BadgeVariants } from '@spartan-ng/helm/badge';
+import { HlmCard } from '@spartan-ng/helm/card';
 import { ROLES, type CompteAdmin, type EntreeCompte, type MajCompte, type Role } from '@dqa/contracts';
 import { AdminComptesService } from '../core/admin-comptes.service';
 import { AuthService } from '../core/auth.service';
@@ -18,7 +19,7 @@ import { Coquille } from '../ui/coquille';
 
 /** `valueChange` d'un `hlm-select` est typé `unknown` : on restreint au rôle avant d'écrire. */
 const estRole = (v: unknown): v is Role =>
-  typeof v === 'string' && (ROLES as readonly string[]).includes(v);
+  typeof v === 'string' && ROLES.some((r) => r === v);
 
 @Component({
   selector: 'dqa-admin-comptes',
@@ -35,6 +36,7 @@ const estRole = (v: unknown): v is Role =>
     HlmSelectImports,
     HlmTableImports,
     HlmBadge,
+    HlmCard,
   ],
   template: `
     <dqa-coquille />
@@ -120,7 +122,7 @@ const estRole = (v: unknown): v is Role =>
         </hlm-dialog>
       </div>
 
-      <div class="mt-6 rounded-lg border border-border bg-card">
+      <div hlmCard class="mt-6">
         @if (chargement()) {
           <p class="p-4 text-sm text-muted-foreground">Chargement…</p>
         } @else {
@@ -128,12 +130,12 @@ const estRole = (v: unknown): v is Role =>
             <table hlmTable class="w-full">
               <thead hlmTHead>
                 <tr hlmTr>
-                  <th hlmTh class="text-xs text-muted-foreground">Identifiant</th>
-                  <th hlmTh class="text-xs text-muted-foreground">Nom</th>
-                  <th hlmTh class="text-xs text-muted-foreground">Rôle</th>
-                  <th hlmTh class="text-xs text-muted-foreground">Statut</th>
-                  <th hlmTh class="text-xs text-muted-foreground">Créé</th>
-                  <th hlmTh class="text-xs text-muted-foreground">Actions</th>
+                  <th hlmTh class="text-xs font-medium text-muted-foreground">Identifiant</th>
+                  <th hlmTh class="text-xs font-medium text-muted-foreground">Nom</th>
+                  <th hlmTh class="text-xs font-medium text-muted-foreground">Rôle</th>
+                  <th hlmTh class="text-xs font-medium text-muted-foreground">Statut</th>
+                  <th hlmTh class="text-xs font-medium text-muted-foreground">Créé</th>
+                  <th hlmTh class="text-xs font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody hlmTBody>

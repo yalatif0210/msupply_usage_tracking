@@ -64,6 +64,9 @@
       ],
       "@spartan-ng/helm/checkbox": [
         "./src/app/ui/spartan/checkbox/src/index.ts"
+      ],
+      "@spartan-ng/helm/alert": [
+        "./src/app/ui/spartan/alert/src/index.ts"
       ]
     }
   },

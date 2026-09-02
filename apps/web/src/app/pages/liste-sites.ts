@@ -6,7 +6,7 @@ import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { HlmSkeleton } from '@spartan-ng/helm/skeleton';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import type { Programme, ScoreSite } from '@dqa/contracts';
-import { VALEUR_ABSENTE } from '../core/affichage';
+import { VALEUR_ABSENTE, versChaine } from '../core/affichage';
 import { ressource } from '../core/ressource';
 import { SitesService } from '../core/sites.service';
 import { BadgeClassification } from '../ui/badge-classification';
@@ -176,11 +176,11 @@ export class ListeSitesPage {
    * `district` -> filtre client instantane, `programmeId` -> refetch en fond.
    */
   protected majDistrict(valeur: unknown): void {
-    this.res.definirLocal({ district: typeof valeur === 'string' ? valeur : '' });
+    this.res.definirLocal({ district: versChaine(valeur) });
   }
 
   protected majProgramme(valeur: unknown): void {
-    this.res.definir({ programmeId: typeof valeur === 'string' ? valeur : '' });
+    this.res.definir({ programmeId: versChaine(valeur) });
   }
 
   /**

@@ -9,3 +9,13 @@
  */
 export const VALEUR_ABSENTE = 'n/d';
 export const SANS_OBJET = 's/o';
+
+/**
+ * Coerce en chaîne la valeur d'un `(valueChange)` / `(ngModelChange)` de
+ * `hlm-select` (typée `unknown` faute d'inférence du générique `BrnSelect`).
+ * Une valeur non-chaîne (jamais attendue de nos `<hlm-select-item>`) devient la
+ * chaîne vide, c'est-à-dire « filtre inactif ».
+ */
+export function versChaine(valeur: unknown): string {
+  return typeof valeur === 'string' ? valeur : '';
+}

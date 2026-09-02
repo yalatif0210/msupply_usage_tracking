@@ -38,7 +38,7 @@ pour la police. Recréer l'aspect de shadcn-admin.
 
 - On **garde** la coquille à **deux barres horizontales, aucune barre
   latérale**, et le **mode clair uniquement**.
-- Tout graphe porte une **légende complète, jamais tronquée** ; au-delà de 6
+- Tout graphe porte une **légende complète, jamais tronquée** ; à partir de 6
   séries elle passe sous le graphe et s'enroule.
 - **Un changement de filtre ne fait jamais clignoter ni recharger la vue** : le
   contenu courant reste affiché pendant que la donnée se rafraîchit en
@@ -227,7 +227,7 @@ autorisé qu'au tout premier chargement, quand aucune donnée n'existe encore.
 | `ui/courbe-series` | `line` multi-séries (repères de seuil en annotations, trous préservés) |
 | `ui/mini-courbe` | `line` sparkline (`sparkline.enabled`) |
 
-Règles (`DESIGN_SYSTEM §8`) : légende complète jamais tronquée ; au-delà de 6
+Règles (`DESIGN_SYSTEM §8`) : légende complète jamais tronquée ; à partir de 6
 séries la légende passe sous le graphe et s'enroule ; graduations d'axe en
 rotation ou éclaircies plutôt que rognées ; palette `--chart-*` jamais les
 couleurs de statut ; `chart.animations.enabled: false`.

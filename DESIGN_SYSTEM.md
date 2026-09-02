@@ -185,7 +185,7 @@ composants SVG maison `ui/radar`, `ui/courbe-series`, `ui/mini-courbe`.
 - **Légende toujours complète, jamais tronquée.** Les libellés de séries et les
   graduations d'axe ne sont jamais rognés : rotation ou éclaircissage des
   graduations plutôt que débordement.
-- Au-delà de **6 séries**, la légende passe **sous** le graphe et s'enroule.
+- À partir de **6 séries** (le cas « par pilier »), la légende passe **sous** le graphe et s'enroule.
 - La couleur (`--chart-1..5`) est **toujours doublée** par la légende ou un
   libellé direct.
 - Palette de séries = jetons `--chart-*` du thème, jamais les couleurs de

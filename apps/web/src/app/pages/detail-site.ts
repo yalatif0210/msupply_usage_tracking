@@ -29,7 +29,7 @@ import { HlmCardImports } from '@spartan-ng/helm/card';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { HlmSkeleton } from '@spartan-ng/helm/skeleton';
 import { HlmTableImports } from '@spartan-ng/helm/table';
-import { VALEUR_ABSENTE } from '../core/affichage';
+import { VALEUR_ABSENTE, versChaine } from '../core/affichage';
 import { ressource } from '../core/ressource';
 import { SitesService } from '../core/sites.service';
 import { BadgeClassification } from '../ui/badge-classification';
@@ -122,7 +122,7 @@ function reculerMois(mois: string, n: number): string {
               class="w-64"
               [itemToString]="libelleProgramme"
               [ngModel]="res.filtres().programme"
-              (ngModelChange)="res.definir({ programme: $event })"
+              (ngModelChange)="res.definir({ programme: versChaine($event) })"
             >
               <hlm-select-trigger class="w-64">
                 <hlm-select-value placeholder="Tous programmes" />
@@ -162,7 +162,7 @@ function reculerMois(mois: string, n: number): string {
             @for (pil of d.piliers; track pil.pilier) {
               <div hlmCard>
                 <div hlmCardHeader>
-                  <h2 hlmCardTitle>{{ pil.pilier }} · {{ libellePilier(pil.pilier) }}</h2>
+                  <h2 hlmCardTitle>{{ pil.pilier }} · {{ pil.libelle }}</h2>
                 </div>
                 <div hlmCardContent class="space-y-3">
                   @for (sc of pil.sousComposantes; track sc.sousComposante) {
@@ -242,7 +242,7 @@ function reculerMois(mois: string, n: number): string {
                 <div class="flex flex-wrap items-end gap-3">
                   <div class="grid gap-1.5">
                     <span class="text-sm font-medium">De</span>
-                    <hlm-select class="w-36" [ngModel]="res.filtres().de" (ngModelChange)="res.definir({ de: $event })">
+                    <hlm-select class="w-36" [ngModel]="res.filtres().de" (ngModelChange)="res.definir({ de: versChaine($event) })">
                       <hlm-select-trigger class="w-36"><hlm-select-value placeholder="n/d" /></hlm-select-trigger>
                       <hlm-select-content *hlmSelectPortal>
                         @for (m of moisDisponibles(); track m) { <hlm-select-item [value]="m">{{ m }}</hlm-select-item> }
@@ -251,7 +251,7 @@ function reculerMois(mois: string, n: number): string {
                   </div>
                   <div class="grid gap-1.5">
                     <span class="text-sm font-medium">à</span>
-                    <hlm-select class="w-36" [ngModel]="res.filtres().a" (ngModelChange)="res.definir({ a: $event })">
+                    <hlm-select class="w-36" [ngModel]="res.filtres().a" (ngModelChange)="res.definir({ a: versChaine($event) })">
                       <hlm-select-trigger class="w-36"><hlm-select-value placeholder="n/d" /></hlm-select-trigger>
                       <hlm-select-content *hlmSelectPortal>
                         @for (m of moisDisponibles(); track m) { <hlm-select-item [value]="m">{{ m }}</hlm-select-item> }
@@ -367,6 +367,7 @@ function reculerMois(mois: string, n: number): string {
 export class DetailSitePage {
   readonly id = input.required<string>();
   protected readonly absent = VALEUR_ABSENTE;
+  protected readonly versChaine = versChaine;
   protected readonly piliers = PILIERS;
 
   private readonly service = inject(SitesService);

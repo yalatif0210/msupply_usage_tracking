@@ -7,7 +7,8 @@ import { HlmInput } from '@spartan-ng/helm/input';
 import { HlmLabel } from '@spartan-ng/helm/label';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { HlmTableImports } from '@spartan-ng/helm/table';
-import { HlmBadge } from '@spartan-ng/helm/badge';
+import { HlmBadge, type BadgeVariants } from '@spartan-ng/helm/badge';
+import { HlmCard } from '@spartan-ng/helm/card';
 import {
   LIBELLES_PILIER,
   LIBELLES_SOUS_COMPOSANTE,
@@ -26,7 +27,11 @@ import { Coquille } from '../ui/coquille';
 
 const AVEC_TOLERANCE = new Set<SousComposante>(SOUS_COMPOSANTES_AVEC_TOLERANCE);
 
-type BadgeVariant = 'default' | 'secondary' | 'outline';
+const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant']> = {
+  planifiee: 'secondary',
+  en_vigueur: 'default',
+  passee: 'outline',
+};
 
 @Component({
   selector: 'dqa-admin-grille',
@@ -41,6 +46,7 @@ type BadgeVariant = 'default' | 'secondary' | 'outline';
     HlmSelectImports,
     HlmTableImports,
     HlmBadge,
+    HlmCard,
   ],
   template: `
     <dqa-coquille />
@@ -54,7 +60,7 @@ type BadgeVariant = 'default' | 'secondary' | 'outline';
       </p>
 
       <div class="mt-6 grid gap-6 lg:grid-cols-3">
-        <section class="rounded-lg border border-border bg-card lg:col-span-1">
+        <section hlmCard class="lg:col-span-1">
           <div class="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
             <h2 class="text-sm font-semibold tracking-tight">Versions</h2>
             <button hlmBtn size="sm" type="button" (click)="nouvelleVersion()">Nouvelle version</button>
@@ -63,9 +69,9 @@ type BadgeVariant = 'default' | 'secondary' | 'outline';
             <table hlmTable class="w-full">
               <thead hlmTHead>
                 <tr hlmTr>
-                  <th hlmTh class="text-xs text-muted-foreground">Version</th>
-                  <th hlmTh class="text-xs text-muted-foreground">Effet</th>
-                  <th hlmTh class="text-xs text-muted-foreground">Statut</th>
+                  <th hlmTh class="text-xs font-medium text-muted-foreground">Version</th>
+                  <th hlmTh class="text-xs font-medium text-muted-foreground">Effet</th>
+                  <th hlmTh class="text-xs font-medium text-muted-foreground">Statut</th>
                 </tr>
               </thead>
               <tbody hlmTBody>
@@ -88,7 +94,7 @@ type BadgeVariant = 'default' | 'secondary' | 'outline';
           </div>
         </section>
 
-        <section class="rounded-lg border border-border bg-card p-4 lg:col-span-2">
+        <section hlmCard class="p-4 lg:col-span-2">
           @if (brouillon(); as b) {
             <h2 class="text-sm font-semibold tracking-tight">
               {{ enModification() ? 'Modifier la version planifiée' : 'Nouvelle version' }}
@@ -262,8 +268,8 @@ export class AdminGrillePage {
   protected avecTolerance = (s: SousComposante) => AVEC_TOLERANCE.has(s);
   protected libelleStatut = (s: GrilleParametre['statut']) =>
     ({ planifiee: 'Planifiée', en_vigueur: 'En vigueur', passee: 'Passée' })[s];
-  protected badgeStatut = (s: GrilleParametre['statut']): BadgeVariant =>
-    ({ planifiee: 'secondary', en_vigueur: 'default', passee: 'outline' } as const)[s];
+  protected badgeStatut = (s: GrilleParametre['statut']): BadgeVariants['variant'] =>
+    VARIANTE_STATUT[s];
 
   // -- Édition du brouillon : recalcul du total 100 % client, sans rechargement.
   // Chaque saisie rejoue le signal `brouillon` pour que `totalPoids` (computed)

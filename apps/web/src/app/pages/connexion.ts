@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideTriangleAlert } from '@ng-icons/lucide';
+import { HlmAlertImports } from '@spartan-ng/helm/alert';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmInput } from '@spartan-ng/helm/input';
 import { HlmLabel } from '@spartan-ng/helm/label';
@@ -16,7 +17,7 @@ import { AuthService } from '../core/auth.service';
 @Component({
   selector: 'dqa-connexion',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, NgIcon, HlmButton, HlmInput, HlmLabel],
+  imports: [FormsModule, NgIcon, HlmAlertImports, HlmButton, HlmInput, HlmLabel],
   providers: [provideIcons({ lucideTriangleAlert })],
   template: `
     <main class="flex min-h-svh items-center justify-center bg-background px-4 py-12">
@@ -59,13 +60,10 @@ import { AuthService } from '../core/auth.service';
           </div>
 
           @if (erreur()) {
-            <p
-              class="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
-              role="alert"
-            >
-              <ng-icon name="lucideTriangleAlert" class="shrink-0 text-base" aria-hidden="true" />
-              {{ erreur() }}
-            </p>
+            <div hlmAlert variant="destructive" role="alert">
+              <ng-icon name="lucideTriangleAlert" aria-hidden="true" />
+              <p hlmAlertDescription>{{ erreur() }}</p>
+            </div>
           }
 
           <button hlmBtn type="submit" class="w-full" [disabled]="enCours()">

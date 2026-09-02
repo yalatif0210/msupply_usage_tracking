@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { DecimalPipe, formatNumber } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
@@ -44,7 +44,7 @@ interface CarteKpi {
     GrapheCourbe,
     RepartitionClassificationComponent,
   ],
-  providers: [provideIcons({ lucideBuilding2, lucideCircleCheck, lucideCircleDashed, lucideGauge })],
+  providers: [DecimalPipe, provideIcons({ lucideBuilding2, lucideCircleCheck, lucideCircleDashed, lucideGauge })],
   template: `
     <dqa-coquille />
     <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
@@ -177,6 +177,7 @@ export class TableauDeBordPage {
   /** Repères de la courbe aux bornes de classification composite (cf. classer_composite). */
   protected readonly seuils = [75, 90];
   private readonly service = inject(SyntheseService);
+  private readonly nb = inject(DecimalPipe);
 
   protected readonly tdb = signal<TableauDeBord | null>(null);
   protected readonly chargement = signal(true);
@@ -214,7 +215,7 @@ export class TableauDeBordPage {
     }
     const signe = ecart > 0 ? '+' : '';
     return {
-      texte: `${signe}${formatNumber(ecart, 'en-US', '1.0-1')} pts depuis ${precedent.moisPaqd}`,
+      texte: `${signe}${this.nb.transform(ecart, '1.0-1')} pts depuis ${precedent.moisPaqd}`,
       classe: ecart > 0 ? 'text-conforme-texte' : 'text-alerte-texte',
     };
   });
@@ -236,7 +237,7 @@ export class TableauDeBordPage {
         valeur:
           n.scoreCompositeMoyen === null
             ? this.absent
-            : formatNumber(n.scoreCompositeMoyen, 'en-US', '1.0-1'),
+            : (this.nb.transform(n.scoreCompositeMoyen, '1.0-1') ?? this.absent),
         icone: 'lucideGauge',
         sousTitre: 'sur 100',
         delta: this.deltaScore(),

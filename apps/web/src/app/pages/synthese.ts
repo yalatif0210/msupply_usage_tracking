@@ -15,7 +15,7 @@ import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { HlmSkeletonImports } from '@spartan-ng/helm/skeleton';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { HlmTabsImports } from '@spartan-ng/helm/tabs';
-import { VALEUR_ABSENTE } from '../core/affichage';
+import { VALEUR_ABSENTE, versChaine } from '../core/affichage';
 import { ressource } from '../core/ressource';
 import { SitesService } from '../core/sites.service';
 import { SyntheseService } from '../core/synthese.service';
@@ -380,15 +380,15 @@ export class SynthesePage {
 
   /** `valueChange` d'un `hlm-select` : la valeur d'un item est toujours une chaîne. */
   protected majMois(valeur: unknown): void {
-    this.res.definir({ mois: chaine(valeur) });
+    this.res.definir({ mois: versChaine(valeur) });
   }
 
   protected majProgramme(valeur: unknown): void {
-    this.res.definir({ programmeId: chaine(valeur) });
+    this.res.definir({ programmeId: versChaine(valeur) });
   }
 
   protected majRegion(valeur: unknown): void {
-    this.res.definir({ region: chaine(valeur) });
+    this.res.definir({ region: versChaine(valeur) });
   }
 
   protected trier(colonne: TriColonne): void {
@@ -420,6 +420,3 @@ export class SynthesePage {
   }
 }
 
-function chaine(valeur: unknown): string {
-  return typeof valeur === 'string' ? valeur : '';
-}
