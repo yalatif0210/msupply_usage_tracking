@@ -1,0 +1,161 @@
+import { Location } from '@angular/common';
+import { inject, signal, type Signal, type WritableSignal } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+
+/**
+ * Primitive de donnee asynchrone qui ne vide jamais la vue.
+ *
+ * Enveloppe un chargeur `(filtres) => Promise<T>` dont les entrees sont un jeu
+ * de filtres (des chaines, tel que les rend un `<select>`). Regles :
+ *
+ * - `valeur()` garde la derniere donnee connue tant qu'un rafraichissement est
+ *   en vol : on ne repasse jamais au germe une fois qu'une donnee existe ;
+ * - `enCours()` passe a vrai des l'appel, faux a l'arrivee comme sur echec ;
+ * - sur echec `valeur()` est conservee et `erreur()` porte la cause, non
+ *   bloquante ;
+ * - l'etat de filtre est reflete dans l'URL **en place** : on construit l'arbre
+ *   d'URL avec le `Router` (sans naviguer, donc sans re-run de garde, sans
+ *   re-execution du `loadComponent`, sans reset de scroll) et on le pousse par
+ *   `Location.replaceState`, ce qui n'ajoute aucune entree d'historique ;
+ * - au montage, les filtres presents dans l'URL priment sur les valeurs par
+ *   defaut.
+ */
+export interface OptionsRessource<T, F extends Record<string, string>> {
+  /** Charge la donnee pour un jeu de filtres. Lever une erreur = echec non bloquant. */
+  readonly charger: (filtres: F) => Promise<T>;
+  /** Valeur affichee tant qu'aucun chargement n'a abouti. */
+  readonly germe: T;
+  /** Filtres par defaut, avant lecture de l'URL. */
+  readonly filtresInitiaux: F;
+  /**
+   * Cles de filtre a refleter dans l'URL. Par defaut, toutes.
+   * Une cle absente de cette liste reste locale (jamais dans l'URL).
+   */
+  readonly clesUrl?: readonly (keyof F & string)[];
+  /**
+   * Ajustement des filtres apres un chargement reussi (ex. aligner le mois
+   * affiche sur celui que le serveur a effectivement servi). Le partiel
+   * renvoye est applique sans declencher de nouveau chargement.
+   */
+  readonly apresChargement?: (donnee: T, filtres: F) => Partial<F> | void;
+}
+
+export class Ressource<T, F extends Record<string, string>> {
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly location = inject(Location);
+
+  private readonly _valeur: WritableSignal<T>;
+  private readonly _filtres: WritableSignal<F>;
+  private readonly _enCours = signal(false);
+  private readonly _erreur = signal<unknown>(null);
+  private readonly _pret = signal(false);
+  /** Numero de la requete courante : une reponse d'un jeton perime est ignoree. */
+  private jeton = 0;
+
+  /** Derniere donnee connue, ou le germe tant qu'aucun chargement n'a abouti. */
+  readonly valeur: Signal<T>;
+  /** Un rafraichissement est en vol. */
+  readonly enCours = this._enCours.asReadonly();
+  /** Cause du dernier echec, remise a `null` a chaque nouvel appel. */
+  readonly erreur = this._erreur.asReadonly();
+  /** Au moins un chargement a abouti : autorise a sortir du squelette. */
+  readonly pret = this._pret.asReadonly();
+  /** Etat de filtre courant. */
+  readonly filtres: Signal<F>;
+
+  constructor(private readonly options: OptionsRessource<T, F>) {
+    this._valeur = signal(options.germe);
+    this._filtres = signal(this.lireUrl(options.filtresInitiaux));
+    this.valeur = this._valeur.asReadonly();
+    this.filtres = this._filtres.asReadonly();
+  }
+
+  /** Premier chargement. A appeler une fois, quand les entrees externes sont pretes. */
+  demarrer(): Promise<void> {
+    return this.charger();
+  }
+
+  /** Modifie des filtres, reflete l'URL, puis rafraichit en arriere-plan. */
+  definir(modif: Partial<F>): void {
+    this._filtres.update((f) => ({ ...f, ...modif }));
+    this.ecrireUrl();
+    void this.charger();
+  }
+
+  /**
+   * Modifie des filtres et reflete l'URL, **sans** rafraichir : pour un filtre
+   * satisfiable avec la donnee deja chargee (filtrage client instantane).
+   */
+  definirLocal(modif: Partial<F>): void {
+    this._filtres.update((f) => ({ ...f, ...modif }));
+    this.ecrireUrl();
+  }
+
+  /** Relance le chargement avec les filtres courants. */
+  rafraichir(): Promise<void> {
+    return this.charger();
+  }
+
+  private async charger(): Promise<void> {
+    const jeton = ++this.jeton;
+    this._enCours.set(true);
+    this._erreur.set(null);
+    try {
+      const donnee = await this.options.charger(this._filtres());
+      if (jeton !== this.jeton) return;
+      this._valeur.set(donnee);
+      this._pret.set(true);
+      const ajuste = this.options.apresChargement?.(donnee, this._filtres());
+      if (ajuste && Object.keys(ajuste).length > 0) {
+        this._filtres.update((f) => ({ ...f, ...ajuste }));
+        this.ecrireUrl();
+      }
+    } catch (cause) {
+      if (jeton !== this.jeton) return;
+      this._erreur.set(cause);
+    } finally {
+      if (jeton === this.jeton) this._enCours.set(false);
+    }
+  }
+
+  private clesUrl(): readonly (keyof F & string)[] {
+    return this.options.clesUrl ?? (Object.keys(this.options.filtresInitiaux) as (keyof F & string)[]);
+  }
+
+  private lireUrl(base: F): F {
+    const params = this.route.snapshot.queryParamMap;
+    const out: F = { ...base };
+    for (const cle of this.clesUrl()) {
+      const valeur = params.get(cle);
+      if (valeur !== null) out[cle] = valeur as F[keyof F & string];
+    }
+    return out;
+  }
+
+  private ecrireUrl(): void {
+    const filtres = this._filtres();
+    const queryParams: Record<string, string | null> = {};
+    for (const cle of this.clesUrl()) {
+      const valeur = filtres[cle];
+      // chaine vide = filtre inactif : on retire le parametre plutot que ?x=
+      queryParams[cle] = valeur ? valeur : null;
+    }
+    const arbre = this.router.createUrlTree([], {
+      relativeTo: this.route,
+      queryParams,
+      queryParamsHandling: 'merge',
+    });
+    this.location.replaceState(this.router.serializeUrl(arbre));
+  }
+}
+
+/**
+ * Fabrique de {@link Ressource}. A appeler dans un contexte d'injection
+ * (initialiseur de champ ou constructeur de composant).
+ */
+export function ressource<T, F extends Record<string, string>>(
+  options: OptionsRessource<T, F>,
+): Ressource<T, F> {
+  return new Ressource(options);
+}
