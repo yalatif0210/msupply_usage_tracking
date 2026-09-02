@@ -6,7 +6,7 @@ pas la page (déjà migré).
 
 **Blocked by:** 03, 05
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
 
 - [ ] Bascule « Par pilier » / « Sous-composantes » en `tabs` spartan (client,
       sans refetch).

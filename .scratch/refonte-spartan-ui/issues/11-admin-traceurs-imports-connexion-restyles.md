@@ -5,7 +5,7 @@ prennent le registre shadcn-admin.
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
 
 - [ ] `admin-traceurs` : gestion des produits traceurs sur `table` / `input` /
       `checkbox` spartan.

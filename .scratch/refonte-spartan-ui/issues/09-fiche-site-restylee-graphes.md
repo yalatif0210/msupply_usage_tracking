@@ -6,7 +6,7 @@ plus au changement de période.
 
 **Blocked by:** 03, 04, 05
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
 
 - [ ] Radar « forces / faiblesses » via le composant radar ApexCharts (04),
       bascule 6 piliers / 10 sous-composantes, tous les axes étiquetés.

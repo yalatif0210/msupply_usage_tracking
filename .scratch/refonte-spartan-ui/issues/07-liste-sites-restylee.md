@@ -6,7 +6,7 @@ triable propre, badges de classification cohérents. La mécanique des filtres
 
 **Blocked by:** 03, 05
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
 
 - [ ] `liste-sites` en `table` spartan : en-tête discret (`text-xs`,
       `text-muted-foreground`), lignes hautes, survol.

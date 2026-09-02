@@ -6,7 +6,7 @@ courbe de progression en vrai graphe.
 
 **Blocked by:** 04, 05
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
 
 - [ ] Cartes de stat spartan (`card`) : chiffre en grand (`tabular-nums`),
       libellé, icône lucide, delta en secondaire ; grille

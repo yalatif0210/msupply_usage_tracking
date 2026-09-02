@@ -5,7 +5,7 @@ registre shadcn-admin, avec des formulaires cohérents.
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
 
 - [ ] `admin-grille` : édition de la grille de paramètres sur `input` /
       `select` spartan, `table` spartan ; le recalcul de la somme des poids
