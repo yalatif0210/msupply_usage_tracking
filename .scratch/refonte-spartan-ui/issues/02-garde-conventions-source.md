@@ -6,16 +6,16 @@ anti-tiret existante. La garde protège toute la migration qui suit.
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
 
-- [ ] `typographie.test.ts` renommé `conventions-source.test.ts`, même
+- [x] `typographie.test.ts` renommé `conventions-source.test.ts`, même
       mécanique de scan récursif de `apps/web/src` et même style de rapport.
-- [ ] Assertion 1 conservée : aucun tiret long (`—` `–` `−`).
-- [ ] Assertion 2 : aucune valeur Tailwind arbitraire dans un template
+- [x] Assertion 1 conservée : aucun tiret long (`—` `–` `−`).
+- [x] Assertion 2 : aucune valeur Tailwind arbitraire dans un template
       (attribut `class` contenant `-[...]`, ex. `bg-[#123456]`, `w-[13px]`).
-- [ ] Assertion 3 : aucun littéral hex (`#rrggbb`) ni `oklch(` dans le bloc
+- [x] Assertion 3 : aucun littéral hex (`#rrggbb`) ni `oklch(` dans le bloc
       `styles` d'un composant Angular.
-- [ ] Liste d'exceptions explicite, chaque entrée justifiée par un commentaire
+- [x] Liste d'exceptions explicite, chaque entrée justifiée par un commentaire
       (les composants Helm copiés peuvent en réclamer ponctuellement).
-- [ ] Verte sur l'arbre courant ; échoue sur une violation plantée pour
+- [x] Verte sur l'arbre courant ; échoue sur une violation plantée pour
       chacune des trois assertions.

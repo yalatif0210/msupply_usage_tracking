@@ -8,9 +8,9 @@ ticket.
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
 
-- [ ] Primitive de données asynchrone partagée (nom indicatif `core/ressource`)
+- [x] Primitive de données asynchrone partagée (nom indicatif `core/ressource`)
       autour d'un appel de service :
   - `valeur()` = dernière donnée connue, `enCours()` = un refetch est en vol ;
   - retient la valeur précédente pendant un refetch (jamais `null` si une
@@ -21,21 +21,21 @@ ticket.
     ré-exécution du `loadComponent`, sans reset du scroll, sans entrée
     d'historique par frappe ;
   - restaure l'état de filtre depuis l'URL au montage.
-- [ ] Tests unitaires (env node, prior art `core/valider-reponse.test.ts`) :
+- [x] Tests unitaires (env node, prior art `core/valider-reponse.test.ts`) :
       valeur précédente conservée pendant et après un refetch ; `enCours()`
       correct ; valeur conservée sur échec ; l'URL est mise à jour sans que
       `navigate` soit appelé ; état restauré depuis un query param au montage.
-- [ ] `liste-sites` recâblé : liste complète chargée une fois par `programmeId` ;
+- [x] `liste-sites` recâblé : liste complète chargée une fois par `programmeId` ;
       `district` = filtre client instantané ; `programmeId` = refetch en
       arrière-plan ; pas de clignotement.
-- [ ] `synthese` recâblé : `mois`, `programmeId`, `region` = refetch en
+- [x] `synthese` recâblé : `mois`, `programmeId`, `region` = refetch en
       arrière-plan ; la bascule d'onglet reste client.
-- [ ] `detail-site` recâblé : `de`, `a`, `programme` = refetch en arrière-plan ;
+- [x] `detail-site` recâblé : `de`, `a`, `programme` = refetch en arrière-plan ;
       le score composite et les cartes de pilier **restent en place**, seul le
       bloc « Analyse fine » montre l'attente.
-- [ ] Affordance d'attente : fine barre de progression en haut du panneau
+- [x] Affordance d'attente : fine barre de progression en haut du panneau
       concerné + `aria-busy` ; jamais de spinner plein écran. Squelette toléré
       au seul premier chargement.
-- [ ] Copier l'URL d'un écran filtré et la rouvrir (ou F5) restaure les
+- [x] Copier l'URL d'un écran filtré et la rouvrir (ou F5) restaure les
       filtres ; « précédent » ne remonte pas frappe à frappe.
-- [ ] `ng build` + typecheck verts ; `conventions-source.test.ts` verte.
+- [x] `ng build` + typecheck verts ; `conventions-source.test.ts` verte.
