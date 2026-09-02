@@ -46,5 +46,11 @@ export const routes: Routes = [
     canActivate: [gardeAuthentifie, gardeRole(['admin'])],
     loadComponent: () => import('./pages/admin-comptes').then((m) => m.AdminComptesPage),
   },
+  {
+    // Harnais de revue des composants de graphe (ticket 04). Sans garde, donnees
+    // statiques. A retirer au ticket 12 si la revue ne le conserve pas.
+    path: '_graphes',
+    loadComponent: () => import('./pages/demo-graphes').then((m) => m.DemoGraphesPage),
+  },
   { path: '**', redirectTo: '' },
 ];
