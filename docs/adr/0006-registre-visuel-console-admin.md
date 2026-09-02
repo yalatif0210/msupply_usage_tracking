@@ -1,5 +1,12 @@
 # Registre visuel d'une console d'administration (famille StarAdmin)
 
+> **Remplacé par l'[ADR 0008](0008-adoption-spartan-ui.md) (2026-09).** Le
+> schéma chromatique StarAdmin en jetons maison et l'interdiction des
+> librairies d'UI / graphes sont abandonnés au profit de spartan/ui + Tailwind
+> + ApexCharts + lucide. La coquille à deux barres sans barre latérale, le mode
+> clair unique, les couleurs de statut calibrées projection et l'interdiction
+> du tiret long restent. Ce qui suit documente la période StarAdmin.
+
 **Contexte.** Le `DESIGN_SYSTEM.md` initial visait un « outil de pilotage
 institutionnel sobre » : palette navy sur blanc cassé, bandeau horizontal
 unique, pas de librairie tierce. En cours de projet la coordination a demandé

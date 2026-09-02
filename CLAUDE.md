@@ -25,10 +25,13 @@ fait : import par lot, validation défensive, historisation explicite.
 | Couche    | Techno                                    |
 |-----------|-------------------------------------------|
 | API       | NestJS 10, TypeScript strict              |
-| Front     | Angular 20+, standalone components, signals |
+| Front     | Angular 20+ zoneless, standalone components, signals |
+| UI front  | spartan/ui (Tailwind v4 + Angular CDK), ApexCharts, lucide, Inter |
 | Base      | PostgreSQL 16                             |
 | Contrats  | Package TS partagé `@dqa/contracts`       |
 | Infra     | Docker Compose, Nginx                     |
+
+Design : `DESIGN_SYSTEM.md` et `docs/adr/0008-adoption-spartan-ui.md`.
 
 Monorepo npm workspaces.
 
@@ -51,6 +54,18 @@ Monorepo npm workspaces.
 - Pas d'assertion `as` pour contourner une erreur de type. Corriger le type.
 - Types dérivés plutôt que dupliqués : `Pick`, `Omit`, `satisfies`.
 - Les unions discriminées priment sur les booléens optionnels.
+
+### Dépendances
+
+- Le socle UI du front est une **liste fermée** : spartan/ui (Tailwind v4 +
+  Angular CDK), ApexCharts (graphes), lucide (icônes), Inter (police,
+  auto-hébergée). Toute autre dépendance runtime — front ou API — passe par un
+  ADR.
+- Hors socle UI : préférer la bibliothèque standard, ne pas ajouter de
+  dépendance sans nécessité démontrée.
+- Les composants spartan sont **copiés** dans `apps/web/src/app/ui/` (modèle
+  Helm) : on les possède et on les édite ; ce ne sont pas une boîte noire à
+  mettre à jour en masse.
 
 ### Frontière API ↔ front
 
@@ -142,25 +157,39 @@ Exemple : `feat(import): valide les compteurs METADATA à la réception`.
 
 ### Ce qu'il ne faut pas faire
 
-- Ne pas ajouter de dépendance sans nécessité démontrée. Préférer la
-  bibliothèque standard.
+- Ne pas ajouter de dépendance hors du socle UI sans ADR (cf. §3 Dépendances).
 - Ne pas créer de fichier `utils.ts` fourre-tout. Nommer par intention.
 - Ne pas écrire de commentaire qui paraphrase le code. Commenter le pourquoi,
   jamais le quoi.
 - Ne pas introduire d'état global côté Angular. Les signals et les services
-  injectés suffisent.
+  injectés suffisent (pas de store tiers).
+- Ne pas utiliser de valeur Tailwind arbitraire (`bg-[#…]`, `w-[13px]`) :
+  toujours un utilitaire mappé au thème. Une couleur = un jeton.
 
 ---
 
 ## 8. Interface
 
-Le système de design est décrit dans `DESIGN_SYSTEM.md`. Registre visuel :
-outil de pilotage institutionnel, dense en information, sobre. Pas de
-gradients, pas d'ombres portées décoratives, pas d'animation gratuite.
+Système de design : `DESIGN_SYSTEM.md`. Décision d'adopter spartan/ui :
+`docs/adr/0008-adoption-spartan-ui.md` (remplace l'ADR 0006).
 
-Le tableau de bord est consulté en réunion et projeté. Priorité à la lisibilité
-à distance : contrastes francs, tailles de police généreuses sur les chiffres
-clés.
+Registre visuel : console d'administration dense et sobre, recréée à partir du
+template **shadcn-admin** sur **spartan/ui**. Coquille à **deux barres
+horizontales, aucune barre latérale**. **Mode clair uniquement.**
+
+Le tableau de bord est consulté en réunion et **projeté** : contrastes francs,
+chiffres clés généreux (`tabular-nums`), légendes de graphe toujours complètes
+et jamais tronquées.
+
+Interdits : dégradés, animation décorative, tiret long (`—` `–` `−` ; test de
+garde `apps/web/src/app/typographie.test.ts`). Autorisés depuis l'ADR 0008 :
+ombre `xs` sur les surfaces, transitions courtes sur repli / dépli.
+
+Un changement de filtre (`select`, onglet, case, champ de recherche) ne démonte
+jamais la vue et n'affiche jamais de spinner plein écran : filtrage côté client
+quand la donnée est déjà chargée, sinon requête en arrière-plan avec le contenu
+courant laissé visible. L'état des filtres est reflété dans l'URL (query params)
+sans navigation qui remonte le composant.
 
 ---
 

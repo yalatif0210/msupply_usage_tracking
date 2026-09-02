@@ -1,47 +1,79 @@
 # DESIGN_SYSTEM.md — Console DQA mSupply
 
-Registre visuel : **console d'administration institutionnelle**, dense en
-information, consultée en réunion et **projetée**. Schéma chromatique de la
-famille StarAdmin (bleu franc, fond clair froid, surfaces blanches), recréé en
-jetons maison (ADR 0006). La lisibilité à distance prime.
+Registre visuel : **console d'administration**, dense en information, consultée
+en réunion et **projetée**. Recréée à partir du template **shadcn-admin**
+(React) sur **spartan/ui** — le portage Angular de shadcn/ui. Décision et
+compromis : `docs/adr/0008-adoption-spartan-ui.md` (remplace l'ADR 0006).
 
-Interdits : gradients, ombres portées décoratives, animations gratuites,
-iconographie superflue, **tiret long** (voir §6).
+La lisibilité à distance prime : contrastes francs, chiffres clés généreux,
+légendes de graphe complètes.
 
-Aucune librairie d'UI ni de graphes tierce : HTML + CSS natif, SVG inline.
-Angular standalone, `ChangeDetectionStrategy.OnPush`, signals, zoneless. Pas
-d'état global : services injectés et signals suffisent.
+Interdits : dégradés, animation décorative, iconographie superflue, **tiret
+long** (§10). Autorisés : ombre `xs` sur les surfaces, transitions courtes sur
+repli / dépli.
 
-Palette relevée du dépôt public StarAdmin
-(`template/demo_1/src/assets/styles/_variables.scss` : bleu `#00aeef` /
-`#128bfc`, fond `#F3F3F3`, bordure `#cdd6dc`) puis retranscrite en jetons
-maison ci-dessous. Sa barre latérale colorée n'est pas reprise (aucune
-sidebar, cf. §2) ; la couleur de marque passe sur la barre 1.
+**Mode clair uniquement.** Le bloc `.dark` généré par spartan reste dans
+`theme.css` mais aucun sélecteur de thème n'est exposé : la console est
+projetée en salle éclairée.
 
 ---
 
-## 1. Couleurs
+## 1. Socle : spartan/ui
 
-Jetons CSS définis sur `:root` dans `apps/web/src/styles.css`. Aucune valeur
-hexadécimale en dur dans un composant : toujours `var(--jeton)`.
+- **Brain** (primitives sans style, sur Angular CDK) + **Helm** (composants
+  stylés). Les composants Helm sont **copiés dans `apps/web/src/app/ui/`** via
+  le CLI spartan : on les possède, on les édite, on ne les met pas à jour en
+  masse.
+- Tailwind CSS v4 avec le preset spartan (`hlm-tailwind-preset`). La fonction
+  `hlm()` fusionne les classes.
+- Angular 20 zoneless, standalone, `ChangeDetectionStrategy.OnPush`, signals.
+  Pas d'état global : services injectés et signals (pas de store tiers).
+
+### Composants Helm attendus
+
+Coquille et navigation à part (§5), on s'appuie sur : `button`, `card`,
+`badge`, `table`, `tabs`, `select`, `dropdown-menu`, `dialog`, `sheet`,
+`tooltip`, `input`, `label`, `checkbox`, `radio-group`, `separator`,
+`skeleton`, `scroll-area`, `sonner` (toasts). Tout composant Helm ajouté est
+listé ici.
+
+### Ce qu'on ne prend pas de shadcn-admin
+
+La barre latérale (§5), le mode sombre, la recherche ⌘K globale, le
+`ConfigDrawer`, les polices multiples (Inter seule, §6), `recharts` (→
+ApexCharts, §8), les dégradés (`faded-bottom`), Clerk.
+
+---
+
+## 2. Jetons de thème (`theme.css`)
+
+Jetons shadcn (base `slate`), en oklch, sur `:root`. **Aucune valeur hex ou
+oklch en dur dans un composant** : toujours un utilitaire Tailwind mappé au
+thème (`bg-card`, `text-muted-foreground`, `border-border`…).
 
 ### Chrome
 
-| Jeton | Valeur | Usage |
-|---|---|---|
-| `--fond` | `#f1f4f9` | arrière-plan général |
-| `--surface` | `#ffffff` | cartes, tableaux, barre de navigation |
-| `--surface-alt` | `#f7f9fc` | zébrage, remplissages discrets |
-| `--texte` | `#1f2733` | corps, chiffres clés |
-| `--texte-doux` | `#5b6b7f` | libellés, légendes |
-| `--texte-tres-doux` | `#a8b0bd` | repères d'axe, valeurs sans objet |
-| `--bordure` | `#d7dee7` | séparateurs, contours de cellule |
-| `--accent` | `#1f6fd6` | liens, sélection, onglet actif, fond de la barre 1 |
-| `--accent-doux` | `#e8f1fc` | ligne survolée, fond de sélection |
-| `--neutre` | `#eceff3` | jauge vide, fond de segment neutre |
-| `--sur-accent-*` | blanc translucide | éléments interactifs posés sur la barre 1 |
+| Jeton | Rôle |
+|---|---|
+| `--background` / `--foreground` | fond général / texte |
+| `--card` / `--card-foreground` | surfaces (cartes, tableaux, barres) |
+| `--muted` / `--muted-foreground` | remplissages discrets / libellés, légendes |
+| `--accent` / `--accent-foreground` | survol, sélection douce |
+| `--border` | séparateurs, contours |
+| `--input` | bordure de champ |
+| `--ring` | anneau de focus (3px) |
+| `--primary` / `--primary-foreground` | liens, onglet actif, bouton primaire, fond de la barre 1 |
 
-### Statuts (contraste franc, la couleur jamais seule : toujours doublée d'un libellé)
+**`--primary` est forcé à `#1f6fd6`** (l'ancien `--accent` StarAdmin, déjà
+validé en projection) au lieu du quasi-noir de shadcn : un primaire sombre se
+lit mal projeté et supprime l'affordance « lien / actif ».
+
+Échelle de rayon shadcn : `--radius: 0.625rem`, dérivés `--radius-sm/md/lg/xl`.
+Bouton / champ / badge = `sm` ; carte / dialogue = `lg`.
+
+### Statuts — calibrés pour la projection, hors palette du thème
+
+La couleur n'est **jamais seule** : toujours doublée d'un libellé texte.
 
 | Statut | Fond | Texte |
 |---|---|---|
@@ -52,58 +84,145 @@ hexadécimale en dur dans un composant : toujours `var(--jeton)`.
 Classification de site : CONFORME → vert, PARTIELLEMENT CONFORME →
 `--partiel-fond` `#fff3d6` / `--partiel-texte` `#7a5200`, NON CONFORME → rouge.
 
-Ces couleurs de statut sont calibrées pour la projection ; elles ne suivent pas
-la palette du template.
+### Graphes
 
-## 2. Coquille : deux barres horizontales
+`--chart-1` … `--chart-5` (jetons shadcn) pour les séries. Au-delà de cinq
+séries, on cycle. Ces jetons remplacent les anciens `--serie-1..6`.
 
-`ui/coquille` remplace tout bandeau ad hoc. **Aucune barre latérale.**
+---
 
-- **Barre 1** (texte blanc sur fond `--accent`) : titre à gauche, nom + rôle
-  de l'utilisateur et bouton Déconnexion à droite.
-- **Barre 2** (surface blanche, bordure basse) : navigation de sections,
-  filtrée par rôle. Onglet actif souligné à `--accent`.
+## 3. Tailwind
+
+- Utilitaires mappés au thème uniquement. **Pas de valeur arbitraire**
+  (`bg-[#…]`, `w-[13px]`, `text-[15px]`) : si le besoin n'existe pas dans
+  l'échelle, on l'ajoute au thème, on ne le bricole pas dans le template.
+- Ordre des classes : `prettier-plugin-tailwindcss`.
+- Les styles spécifiques à un composant vivent dans son template (classes
+  utilitaires) ; `styles.css` ne contient que l'entrée Tailwind, l'import de
+  `theme.css` et la police.
+
+---
+
+## 4. Typographie
+
+- **Inter**, auto-hébergée (`@fontsource`/woff2 vendu) : aucune requête
+  externe, démarrage sans FOUT.
+- Base `14px` (`text-sm` de shadcn). Échelle 12 / 13 / 14 / 16 / 18.
+- Titres : `h1` 700, `h2`–`h6` 600 ; `tracking-tight` sur les titres.
+- **Chiffres clés** : `text-2xl` minimum, `font-bold`, `tabular-nums` pour
+  l'alignement en colonne.
+
+---
+
+## 5. Coquille : deux barres horizontales
+
+`ui/coquille` est le seul point d'entrée de la navigation. **Aucune barre
+latérale** — on écarte volontairement la sidebar de shadcn-admin (ADR 0008,
+héritée d'ADR 0006).
+
+- **Barre 1** (texte `--primary-foreground` sur `--primary`) : titre à gauche ;
+  nom + rôle de l'utilisateur et Déconnexion à droite (spartan `dropdown-menu`).
+- **Barre 2** (`--card`, bordure basse) : navigation de sections, filtrée par
+  rôle ; onglet actif souligné à `--primary`.
 - **Aucun sélecteur global** (mois, programme, plage) dans les barres : chaque
-  écran porte ses propres filtres dans son `<main>`.
-- Écran étroit : les barres s'empilent, la navigation passe à la ligne.
+  écran porte ses filtres dans son `<main>`.
+- Écran étroit : les barres s'empilent ; la navigation passe à la ligne (ou
+  bascule en `dropdown-menu`, comme le `TopNav` de shadcn-admin).
+- Contenu : largeur max `72rem`, centré, gouttière `1.5rem`.
 
-## 3. Typographie
+---
 
-- Police système (`system-ui`), pas de webfont : démarrage instantané.
-- Échelle : corps `16px`, libellés `14px`, titres de section `1.6rem`.
-- **Chiffres clés généreux** : `2.4rem` minimum, `font-variant-numeric:
-  tabular-nums` pour l'alignement en colonne.
+## 6. Espacement et grille
 
-## 4. Espacement et grille
+- Échelle Tailwind par défaut (base `0.25rem`). Marge de carte `1rem`,
+  gouttières `1rem`.
+- Tableaux : lignes hautes, zébrage léger (`--muted`), en-tête collant,
+  en-tête `text-xs` `text-muted-foreground` `font-medium`.
+- Cartes de stat : grille `sm:grid-cols-2 lg:grid-cols-4` ; en-tête = titre
+  `text-sm font-medium` + icône lucide `size-4 text-muted-foreground` ; corps =
+  chiffre `text-2xl font-bold` + delta `text-xs text-muted-foreground`.
 
-- Unité de base `8px` ; marges de carte `16px` ; gouttières `16px`.
-- Largeur de contenu max `72rem`, centrée.
-- Tableaux : lignes hautes (`44px`), zébrage léger (`--surface-alt`), en-tête
-  collant.
+---
 
-## 5. Composants
+## 7. Composants métier
 
 - **Carte de pilier** : libellé, valeur mesurée en grand, seuil en secondaire,
   badge de statut. Pas de bordure colorée : le badge porte la couleur.
-- **Badge de statut** : pastille + libellé texte, coins à `4px`, jamais rond.
-- **Badge « n piliers sur 6 »** : neutre, discret, visible tant que la
+- **Badge de statut** : spartan `badge` (`variant` mappé au statut), pastille +
+  libellé, coins `sm`, jamais rond.
+- **Badge « n piliers sur 6 »** : `badge` neutre discret, visible tant que la
   couverture est partielle.
-- **Graphes** : SVG inline, sans librairie. Courbe de progression, radar
-  (taux d'atteinte du seuil), barre de répartition. Couleur toujours doublée
-  d'une légende ou d'un libellé.
+- **Barre de répartition** (classifications d'un ensemble de sites) : `<div>`
+  flex segmenté en CSS, **pas un graphe** ApexCharts ; chaque segment doublé
+  d'une légende chiffrée.
 - **État vide** : phrase explicite (« Aucun import n'a encore été traité pour
   ce site »), jamais une page en erreur ni un tableau vide muet.
 
-## 6. Ponctuation
+---
+
+## 8. Graphes — ApexCharts
+
+`ng-apexcharts` (standalone, signal inputs, compatible zoneless). Remplace les
+composants SVG maison `ui/radar`, `ui/courbe-series`, `ui/mini-courbe`.
+
+| Usage | Type ApexCharts |
+|---|---|
+| Progression d'un score dans le temps | `line` (ou `area` discret) |
+| Forces / faiblesses d'un site | `radar` |
+| Aperçu compact dans une carte / cellule | `line` sparkline (`sparkline.enabled`) |
+| Comparaison par catégorie | `bar` |
+
+### Règles de lisibilité (non négociables — projection)
+
+- **Légende toujours complète, jamais tronquée.** Les libellés de séries et les
+  graduations d'axe ne sont jamais rognés : rotation ou éclaircissage des
+  graduations plutôt que débordement.
+- Au-delà de **6 séries**, la légende passe **sous** le graphe et s'enroule.
+- La couleur (`--chart-1..5`) est **toujours doublée** par la légende ou un
+  libellé direct.
+- Palette de séries = jetons `--chart-*` du thème, jamais les couleurs de
+  statut (une courbe « par pilier » n'est ni conforme ni en alerte).
+- Repères de seuil (65 / 75 / 90…) en annotations pointillées `--muted-foreground`.
+- Un mois sans donnée reste un trou : on ne relie que des points consécutifs.
+- Animations d'entrée désactivées (`chart.animations.enabled: false`).
+
+---
+
+## 9. Icônes
+
+**lucide** (`lucide-angular`), tree-shakeable. Jeu aligné sur shadcn-admin.
+Taille par défaut `size-4` ; couleur `currentColor` ou `text-muted-foreground`.
+Une icône ne remplace jamais un libellé sur un élément d'action.
+
+---
+
+## 10. Interactions — filtres
+
+Un changement de filtre (`select`, onglet, case, champ de recherche) :
+
+- **ne démonte jamais la vue** et n'affiche **jamais** de spinner plein écran ;
+- **filtrage côté client** quand la donnée nécessaire est déjà chargée (ex.
+  région / district sur la synthèse si tous les grains sont chargés d'un coup) ;
+- sinon **requête en arrière-plan**, le contenu courant restant visible ;
+- affordance d'attente = **barre de progression fine** en haut de la zone
+  concernée + `aria-busy` sur le panneau, rien de plus ;
+- l'état des filtres est reflété dans l'**URL** (query params) — lien
+  partageable, survit à F5 — **sans** navigation qui remonte le composant.
+
+S'applique à **tout** contrôle de filtre, pas seulement aux `<select>`.
+
+---
+
+## 11. Ponctuation
 
 **Aucun tiret long dans la console** : ni cadratin `—` (U+2014), ni
-demi-cadratin `–` (U+2013), ni signe moins typographique `−` (U+2212). Un test
-de garde (`apps/web/src/app/typographie.test.ts`) échoue s'il en réapparaît.
+demi-cadratin `–` (U+2013), ni signe moins typographique `−` (U+2212). Test de
+garde : `apps/web/src/app/typographie.test.ts`.
 
 | Cas | Remplacement |
 |---|---|
 | Valeur absente (`{{ x ?? … }}`) | `n/d` (`VALEUR_ABSENTE`) |
-| Grandeur sans objet (tolérance d'une sous-composante qui n'en porte pas) | `s/o` (`SANS_OBJET`) |
+| Grandeur sans objet | `s/o` (`SANS_OBJET`) |
 | Séparateur de titre (« P1 … Complétude ») | point médian `·` |
 | Apposition en ligne | deux-points |
 | Delta négatif | trait d'union `-3 pts` (la couleur porte le sens) |

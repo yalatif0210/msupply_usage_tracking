@@ -16,4 +16,7 @@ tmp/
 .playwright-mcp/
 /*.png
 .mcp.json
+
+# Référence visuelle locale (cf. ADR 0008) — retirée une fois DESIGN_SYSTEM figé
 shadcn-admin-1.0.0.zip
+/docs/reference/
