@@ -24,15 +24,20 @@ import {
   type SousComposante,
   type SousComposanteBref,
 } from '@dqa/contracts';
+import { HlmButton } from '@spartan-ng/helm/button';
+import { HlmCardImports } from '@spartan-ng/helm/card';
+import { HlmSelectImports } from '@spartan-ng/helm/select';
+import { HlmSkeleton } from '@spartan-ng/helm/skeleton';
+import { HlmTableImports } from '@spartan-ng/helm/table';
 import { VALEUR_ABSENTE } from '../core/affichage';
 import { ressource } from '../core/ressource';
 import { SitesService } from '../core/sites.service';
 import { BadgeClassification } from '../ui/badge-classification';
 import { BadgeStatut } from '../ui/badge-statut';
 import { BarreAttente } from '../ui/barre-attente';
-import { CourbeSeries, type SerieCourbe } from '../ui/courbe-series';
 import { Coquille } from '../ui/coquille';
-import { Radar, type AxeRadar } from '../ui/radar';
+import { GrapheCourbe, type SerieGrapheCourbe } from '../ui/graphe-courbe';
+import { GrapheRadar, type AxeGrapheRadar } from '../ui/graphe-radar';
 
 type Granularite = 'composite' | 'pilier' | 'sousComposante';
 type ModeRadar = '6' | '10';
@@ -52,10 +57,14 @@ interface DonneesFiche {
 
 /** Nombre de forces / faiblesses saillantes listées sous le radar. */
 const NB_SAILLANTS = 3;
-/** Longueur max d'une étiquette d'axe radar en mode 10 sous-composantes. */
-const LONGUEUR_ETIQUETTE_RADAR = 14;
 /** Fenêtre du préréglage « 12 derniers mois » (bornes incluses). */
 const MOIS_FENETRE_ANNEE = 11;
+
+const LIBELLE_GRANULARITE: Record<Granularite, string> = {
+  composite: 'Score composite',
+  pilier: 'Par pilier',
+  sousComposante: 'Par sous-composante',
+};
 
 /** `AAAA-MM` moins `n` mois, sur le calendrier grégorien. */
 function reculerMois(mois: string, n: number): string {
@@ -70,116 +79,150 @@ function reculerMois(mois: string, n: number): string {
   imports: [
     FormsModule,
     RouterLink,
+    DecimalPipe,
     Coquille,
     BadgeStatut,
     BadgeClassification,
     BarreAttente,
-    CourbeSeries,
-    Radar,
-    DecimalPipe,
+    GrapheRadar,
+    GrapheCourbe,
+    HlmButton,
+    HlmSkeleton,
+    ...HlmCardImports,
+    ...HlmSelectImports,
+    ...HlmTableImports,
   ],
   template: `
     <dqa-coquille />
-    <main>
-      <a routerLink="/sites" class="retour">← Tous les sites</a>
+    <main class="mx-auto max-w-6xl px-4 py-6">
+      <a routerLink="/sites" class="text-sm text-primary hover:underline">← Tous les sites</a>
 
       @switch (res.phase()) {
       @case ('squelette') {
-        <p>Chargement…</p>
+        <div class="mt-6 space-y-4">
+          <hlm-skeleton class="h-8 w-64" />
+          <hlm-skeleton class="h-28 w-full" />
+          <hlm-skeleton class="h-64 w-full" />
+        </div>
       }
       @case ('echec') {
-        <p class="vide">La fiche n'a pas pu être chargée. Réessayez.</p>
+        <p class="mt-6 text-muted-foreground">La fiche n'a pas pu être chargée. Réessayez.</p>
       }
       @default {
       @if (res.valeur().detail; as d) {
-        <h1>{{ d.site.siteNom }}</h1>
-        <p class="meta">
+        <h1 class="mt-2 text-2xl font-bold tracking-tight">{{ d.site.siteNom }}</h1>
+        <p class="mt-1 text-sm text-muted-foreground">
           {{ d.site.district ?? absent }} · {{ d.site.region ?? absent }} · {{ d.site.typeStructure ?? absent }}
         </p>
 
-        <div class="controles">
-          <label>
-            Programme
-            <select [ngModel]="res.filtres().programme" (ngModelChange)="res.definir({ programme: $event })">
-              <option value="">Tous programmes</option>
-              @for (p of programmes(); track p.programmeId) {
-                <option [value]="p.programmeId">{{ p.programmeNom }}</option>
-              }
-            </select>
-          </label>
-          <span class="mois">Mois affiché : {{ d.moisPaqd ?? absent }}</span>
+        <div class="mt-6 flex flex-wrap items-end gap-6">
+          <div class="grid gap-1.5">
+            <span class="text-sm font-medium">Programme</span>
+            <hlm-select
+              class="w-64"
+              [itemToString]="libelleProgramme"
+              [ngModel]="res.filtres().programme"
+              (ngModelChange)="res.definir({ programme: $event })"
+            >
+              <hlm-select-trigger class="w-64">
+                <hlm-select-value placeholder="Tous programmes" />
+              </hlm-select-trigger>
+              <hlm-select-content *hlmSelectPortal>
+                <hlm-select-item value="">Tous programmes</hlm-select-item>
+                @for (p of programmes(); track p.programmeId) {
+                  <hlm-select-item [value]="p.programmeId">{{ p.programmeNom }}</hlm-select-item>
+                }
+              </hlm-select-content>
+            </hlm-select>
+          </div>
+          <span class="text-sm text-muted-foreground">Mois affiché : {{ d.moisPaqd ?? absent }}</span>
         </div>
 
         @if (d.piliers.length === 0) {
-          <p class="vide">Aucune mesure pour ce site. Le premier import contenant ce site alimentera l'écran.</p>
+          <p class="mt-6 text-muted-foreground">Aucune mesure pour ce site. Le premier import contenant ce site alimentera l'écran.</p>
         } @else {
-          <div class="composite">
-            <div class="score">
-              <div class="chiffre">{{ d.scoreComposite === null ? absent : (d.scoreComposite | number: '1.0-1') }}</div>
-              <div class="sur">/ 100</div>
-            </div>
-            <div class="rang">
-              <dqa-badge-classification [classification]="d.classification" />
-              @if (d.piliersCouverts < d.piliersTotal) {
-                <div class="partiel">
-                  Score calculé sur {{ d.piliersCouverts }} pilier{{ d.piliersCouverts > 1 ? 's' : '' }} sur {{ d.piliersTotal }}
-                </div>
-              }
+          <div hlmCard class="mt-6">
+            <div hlmCardContent class="flex flex-wrap items-center gap-6">
+              <div class="flex items-baseline gap-2">
+                <span class="text-5xl font-bold leading-none tabular-nums">{{ d.scoreComposite === null ? absent : (d.scoreComposite | number: '1.0-1') }}</span>
+                <span class="text-lg text-muted-foreground">/ 100</span>
+              </div>
+              <div class="grid gap-1.5">
+                <dqa-badge-classification [classification]="d.classification" />
+                @if (d.piliersCouverts < d.piliersTotal) {
+                  <span class="text-sm text-muted-foreground">
+                    Score calculé sur {{ d.piliersCouverts }} pilier{{ d.piliersCouverts > 1 ? 's' : '' }} sur {{ d.piliersTotal }}
+                  </span>
+                }
+              </div>
             </div>
           </div>
 
-          <div class="cartes">
+          <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             @for (pil of d.piliers; track pil.pilier) {
-              <article class="carte">
-                <h2>{{ pil.pilier }} · {{ pil.libelle }}</h2>
-                @for (sc of pil.sousComposantes; track sc.sousComposante) {
-                  <div class="mesure">
-                    <dqa-badge-statut [statut]="sc.statut" />
-                    <div>
-                      <div class="valeur">
-                        {{ sc.valeur === null ? absent : (sc.valeur | number: '1.0-1') }} <span class="unite">%</span>
+              <div hlmCard>
+                <div hlmCardHeader>
+                  <h2 hlmCardTitle>{{ pil.pilier }} · {{ libellePilier(pil.pilier) }}</h2>
+                </div>
+                <div hlmCardContent class="space-y-3">
+                  @for (sc of pil.sousComposantes; track sc.sousComposante) {
+                    <div class="flex items-start gap-3">
+                      <dqa-badge-statut [statut]="sc.statut" />
+                      <div>
+                        <div class="text-2xl leading-none tabular-nums">
+                          {{ sc.valeur === null ? absent : (sc.valeur | number: '1.0-1') }} <span class="text-sm text-muted-foreground">%</span>
+                        </div>
+                        <div class="mt-1 text-xs text-muted-foreground">seuil {{ sc.seuil === null ? absent : (sc.seuil | number: '1.0-1') }} %</div>
+                        @if (sc.raison) { <div class="mt-1 text-xs text-alerte-texte">{{ sc.raison }}</div> }
                       </div>
-                      <div class="seuil">seuil {{ sc.seuil === null ? absent : (sc.seuil | number: '1.0-1') }} %</div>
-                      @if (sc.raison) { <div class="raison">{{ sc.raison }}</div> }
                     </div>
-                  </div>
-                }
-              </article>
+                  }
+                </div>
+              </div>
             }
           </div>
 
           @if (p4Mesure() && p4Produits(); as p4) {
             @if (p4.produits.length > 0) {
-              <details class="drill">
-                <summary>P4 · détail par produit traceur ({{ p4.produits.length }})</summary>
-                <div class="drill-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Produit</th><th class="num">Théo.</th><th class="num">Compté</th><th class="num">Écart SDU</th><th>SDU</th>
-                        <th class="num">Début</th><th class="num">Récept.</th><th class="num">Fin</th><th class="num">Reconst.</th>
-                        <th class="num">Déclarée</th><th class="num">Écart conso.</th><th>Conso.</th>
+              <details class="mt-6">
+                <summary class="cursor-pointer text-sm text-primary">P4 · détail par produit traceur ({{ p4.produits.length }})</summary>
+                <div hlmTableContainer class="mt-3">
+                  <table hlmTable>
+                    <thead hlmTHead>
+                      <tr hlmTr>
+                        <th hlmTh>Produit</th>
+                        <th hlmTh class="text-right">Théo.</th>
+                        <th hlmTh class="text-right">Compté</th>
+                        <th hlmTh class="text-right">Écart SDU</th>
+                        <th hlmTh>SDU</th>
+                        <th hlmTh class="text-right">Début</th>
+                        <th hlmTh class="text-right">Récept.</th>
+                        <th hlmTh class="text-right">Fin</th>
+                        <th hlmTh class="text-right">Reconst.</th>
+                        <th hlmTh class="text-right">Déclarée</th>
+                        <th hlmTh class="text-right">Écart conso.</th>
+                        <th hlmTh>Conso.</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody hlmTBody>
                       @for (pr of p4.produits; track pr.produitCode) {
-                        <tr>
-                          <td>{{ pr.libelle ?? pr.produitCode }}</td>
-                          <td class="num">{{ pr.sdu.theorique === null ? absent : (pr.sdu.theorique | number: '1.0-0') }}</td>
-                          <td class="num">{{ pr.sdu.comptee === null ? absent : (pr.sdu.comptee | number: '1.0-0') }}</td>
-                          <td class="num">{{ pr.sdu.ecartPct === null ? '∞' : (pr.sdu.ecartPct | number: '1.0-1') + ' %' }}</td>
-                          <td><dqa-badge-statut [statut]="pr.sdu.conforme ? 'CONFORME' : 'ALERTE'" /></td>
+                        <tr hlmTr>
+                          <td hlmTd>{{ pr.libelle ?? pr.produitCode }}</td>
+                          <td hlmTd class="text-right tabular-nums">{{ pr.sdu.theorique === null ? absent : (pr.sdu.theorique | number: '1.0-0') }}</td>
+                          <td hlmTd class="text-right tabular-nums">{{ pr.sdu.comptee === null ? absent : (pr.sdu.comptee | number: '1.0-0') }}</td>
+                          <td hlmTd class="text-right tabular-nums">{{ pr.sdu.ecartPct === null ? '∞' : (pr.sdu.ecartPct | number: '1.0-1') + ' %' }}</td>
+                          <td hlmTd><dqa-badge-statut [statut]="pr.sdu.conforme ? 'CONFORME' : 'ALERTE'" /></td>
                           @if (pr.consommation; as c) {
                             @if (c.evaluable) {
-                              <td class="num">{{ c.stockDebut | number: '1.0-0' }}</td>
-                              <td class="num">{{ c.receptions | number: '1.0-0' }}</td>
-                              <td class="num">{{ c.stockFin | number: '1.0-0' }}</td>
-                              <td class="num">{{ c.reconstituee | number: '1.0-0' }}</td>
-                              <td class="num">{{ c.declaree | number: '1.0-0' }}</td>
-                              <td class="num">{{ c.ecartPct | number: '1.0-1' }} %</td>
-                              <td><dqa-badge-statut [statut]="c.conforme ? 'CONFORME' : 'ALERTE'" /></td>
+                              <td hlmTd class="text-right tabular-nums">{{ c.stockDebut | number: '1.0-0' }}</td>
+                              <td hlmTd class="text-right tabular-nums">{{ c.receptions | number: '1.0-0' }}</td>
+                              <td hlmTd class="text-right tabular-nums">{{ c.stockFin | number: '1.0-0' }}</td>
+                              <td hlmTd class="text-right tabular-nums">{{ c.reconstituee | number: '1.0-0' }}</td>
+                              <td hlmTd class="text-right tabular-nums">{{ c.declaree | number: '1.0-0' }}</td>
+                              <td hlmTd class="text-right tabular-nums">{{ c.ecartPct | number: '1.0-1' }} %</td>
+                              <td hlmTd><dqa-badge-statut [statut]="c.conforme ? 'CONFORME' : 'ALERTE'" /></td>
                             } @else {
-                              <td class="non-eval" colspan="7">non évaluable : {{ raisonConso(c.raisonExclusion) }}</td>
+                              <td hlmTd class="text-muted-foreground" colspan="7">non évaluable : {{ raisonConso(c.raisonExclusion) }}</td>
                             }
                           }
                         </tr>
@@ -192,52 +235,60 @@ function reculerMois(mois: string, n: number): string {
           }
 
           @if (d.sousComposantes.length > 0) {
-            <section class="analyse" [attr.aria-busy]="res.enCours()">
+            <section class="mt-8 border-t border-border pt-6" [attr.aria-busy]="res.enCours()">
               <dqa-barre-attente [actif]="res.enCours()" />
-              <div class="entete-analyse">
-                <h2>Analyse fine</h2>
-                <div class="plage">
-                  <label>De
-                    <select [ngModel]="res.filtres().de" (ngModelChange)="res.definir({ de: $event })">
-                      @for (m of moisDisponibles(); track m) { <option [value]="m">{{ m }}</option> }
-                    </select>
-                  </label>
-                  <label>à
-                    <select [ngModel]="res.filtres().a" (ngModelChange)="res.definir({ a: $event })">
-                      @for (m of moisDisponibles(); track m) { <option [value]="m">{{ m }}</option> }
-                    </select>
-                  </label>
-                  <button type="button" (click)="preset('cycle')">Cycle courant</button>
-                  <button type="button" (click)="preset('12m')">12 derniers mois</button>
-                  <button type="button" (click)="preset('tout')">Tout</button>
+              <div class="mt-2 flex flex-wrap items-end justify-between gap-4">
+                <h2 class="text-xl font-semibold tracking-tight">Analyse fine</h2>
+                <div class="flex flex-wrap items-end gap-3">
+                  <div class="grid gap-1.5">
+                    <span class="text-sm font-medium">De</span>
+                    <hlm-select class="w-36" [ngModel]="res.filtres().de" (ngModelChange)="res.definir({ de: $event })">
+                      <hlm-select-trigger class="w-36"><hlm-select-value placeholder="n/d" /></hlm-select-trigger>
+                      <hlm-select-content *hlmSelectPortal>
+                        @for (m of moisDisponibles(); track m) { <hlm-select-item [value]="m">{{ m }}</hlm-select-item> }
+                      </hlm-select-content>
+                    </hlm-select>
+                  </div>
+                  <div class="grid gap-1.5">
+                    <span class="text-sm font-medium">à</span>
+                    <hlm-select class="w-36" [ngModel]="res.filtres().a" (ngModelChange)="res.definir({ a: $event })">
+                      <hlm-select-trigger class="w-36"><hlm-select-value placeholder="n/d" /></hlm-select-trigger>
+                      <hlm-select-content *hlmSelectPortal>
+                        @for (m of moisDisponibles(); track m) { <hlm-select-item [value]="m">{{ m }}</hlm-select-item> }
+                      </hlm-select-content>
+                    </hlm-select>
+                  </div>
+                  <button hlmBtn size="sm" variant="outline" type="button" (click)="preset('cycle')">Cycle courant</button>
+                  <button hlmBtn size="sm" variant="outline" type="button" (click)="preset('12m')">12 derniers mois</button>
+                  <button hlmBtn size="sm" variant="outline" type="button" (click)="preset('tout')">Tout</button>
                 </div>
               </div>
 
-              <details class="drill" open>
-                <summary>Sous-composantes au {{ d.moisPaqd }}</summary>
-                <div class="drill-scroll">
-                  <table class="a-plat">
-                    <thead>
-                      <tr>
-                        <th (click)="trierSc('sousComposante')">Sous-composante{{ fleche('sousComposante') }}</th>
-                        <th (click)="trierSc('pilier')">Pilier{{ fleche('pilier') }}</th>
-                        <th class="num" (click)="trierSc('valeur')">Valeur{{ fleche('valeur') }}</th>
-                        <th class="num" (click)="trierSc('seuil')">Seuil{{ fleche('seuil') }}</th>
-                        <th class="num" (click)="trierSc('ecart')">Écart au seuil{{ fleche('ecart') }}</th>
-                        <th class="num" (click)="trierSc('tauxAtteinte')">Taux d'atteinte{{ fleche('tauxAtteinte') }}</th>
-                        <th (click)="trierSc('statut')">Statut{{ fleche('statut') }}</th>
+              <details class="mt-6" open>
+                <summary class="cursor-pointer text-sm text-primary">Sous-composantes au {{ d.moisPaqd }}</summary>
+                <div hlmTableContainer class="mt-3">
+                  <table hlmTable>
+                    <thead hlmTHead>
+                      <tr hlmTr>
+                        <th hlmTh><button type="button" class="inline-flex items-center gap-1 hover:text-primary" (click)="trierSc('sousComposante')">Sous-composante{{ fleche('sousComposante') }}</button></th>
+                        <th hlmTh><button type="button" class="inline-flex items-center gap-1 hover:text-primary" (click)="trierSc('pilier')">Pilier{{ fleche('pilier') }}</button></th>
+                        <th hlmTh class="text-right"><button type="button" class="inline-flex items-center gap-1 hover:text-primary" (click)="trierSc('valeur')">Valeur{{ fleche('valeur') }}</button></th>
+                        <th hlmTh class="text-right"><button type="button" class="inline-flex items-center gap-1 hover:text-primary" (click)="trierSc('seuil')">Seuil{{ fleche('seuil') }}</button></th>
+                        <th hlmTh class="text-right"><button type="button" class="inline-flex items-center gap-1 hover:text-primary" (click)="trierSc('ecart')">Écart au seuil{{ fleche('ecart') }}</button></th>
+                        <th hlmTh class="text-right"><button type="button" class="inline-flex items-center gap-1 hover:text-primary" (click)="trierSc('tauxAtteinte')">Taux d'atteinte{{ fleche('tauxAtteinte') }}</button></th>
+                        <th hlmTh><button type="button" class="inline-flex items-center gap-1 hover:text-primary" (click)="trierSc('statut')">Statut{{ fleche('statut') }}</button></th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody hlmTBody>
                       @for (sc of scTriees(); track sc.sousComposante) {
-                        <tr>
-                          <td>{{ libelleSc(sc.sousComposante) }}</td>
-                          <td>{{ pilierDe(sc.sousComposante) }}</td>
-                          <td class="num">{{ sc.valeur === null ? absent : (sc.valeur | number: '1.0-1') }}</td>
-                          <td class="num">{{ sc.seuil === null ? absent : (sc.seuil | number: '1.0-1') }}</td>
-                          <td class="num">{{ ecartAuSeuil(sc) }}</td>
-                          <td class="num">{{ sc.tauxAtteinte === null ? absent : (sc.tauxAtteinte | number: '1.0-1') }}</td>
-                          <td><dqa-badge-statut [statut]="sc.statut" /></td>
+                        <tr hlmTr>
+                          <td hlmTd>{{ libelleSc(sc.sousComposante) }}</td>
+                          <td hlmTd>{{ pilierDe(sc.sousComposante) }}</td>
+                          <td hlmTd class="text-right tabular-nums">{{ sc.valeur === null ? absent : (sc.valeur | number: '1.0-1') }}</td>
+                          <td hlmTd class="text-right tabular-nums">{{ sc.seuil === null ? absent : (sc.seuil | number: '1.0-1') }}</td>
+                          <td hlmTd class="text-right tabular-nums">{{ ecartAuSeuil(sc) }}</td>
+                          <td hlmTd class="text-right tabular-nums">{{ sc.tauxAtteinte === null ? absent : (sc.tauxAtteinte | number: '1.0-1') }}</td>
+                          <td hlmTd><dqa-badge-statut [statut]="sc.statut" /></td>
                         </tr>
                       }
                     </tbody>
@@ -245,52 +296,59 @@ function reculerMois(mois: string, n: number): string {
                 </div>
               </details>
 
-              <div class="radar-bloc">
-                <div class="entete-bloc">
-                  <h3>Forces et faiblesses au {{ d.moisPaqd }}</h3>
-                  <div class="bascule">
-                    <label><input type="radio" name="axes" [checked]="axes() === '6'" (change)="axes.set('6')" /> 6 piliers</label>
-                    <label><input type="radio" name="axes" [checked]="axes() === '10'" (change)="axes.set('10')" /> 10 sous-composantes</label>
+              <div class="mt-6">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                  <h3 class="text-base font-medium">Forces et faiblesses au {{ d.moisPaqd }}</h3>
+                  <div class="flex gap-2">
+                    <button hlmBtn size="sm" type="button" [variant]="axes() === '6' ? 'default' : 'outline'" (click)="axes.set('6')">6 piliers</button>
+                    <button hlmBtn size="sm" type="button" [variant]="axes() === '10' ? 'default' : 'outline'" (click)="axes.set('10')">10 sous-composantes</button>
                   </div>
                 </div>
-                <dqa-radar [axes]="axesRadar()" />
-                <div class="forces">
+                <dqa-graphe-radar class="mt-4 block" [axes]="axesRadar()" />
+                <div class="mt-4 grid gap-6 text-sm sm:grid-cols-2">
                   <div>
-                    <h4>Forces</h4>
-                    <ul>@for (f of forces(); track f.sousComposante) { <li>{{ libelleSc(f.sousComposante) }} · {{ f.tauxAtteinte | number: '1.0-0' }}</li> }</ul>
+                    <h4 class="mb-1 font-medium">Forces</h4>
+                    <ul class="space-y-0.5">@for (f of forces(); track f.sousComposante) { <li class="tabular-nums">{{ libelleSc(f.sousComposante) }} · {{ f.tauxAtteinte | number: '1.0-0' }}</li> }</ul>
                   </div>
                   <div>
-                    <h4>Faiblesses</h4>
-                    <ul>@for (f of faiblesses(); track f.sousComposante) { <li>{{ libelleSc(f.sousComposante) }} · {{ f.tauxAtteinte | number: '1.0-0' }}</li> }</ul>
+                    <h4 class="mb-1 font-medium">Faiblesses</h4>
+                    <ul class="space-y-0.5">@for (f of faiblesses(); track f.sousComposante) { <li class="tabular-nums">{{ libelleSc(f.sousComposante) }} · {{ f.tauxAtteinte | number: '1.0-0' }}</li> }</ul>
                   </div>
                 </div>
               </div>
 
               @if (historique(); as h) {
                 @if (h.points.length > 1) {
-                  <div class="courbe-bloc">
-                    <div class="entete-bloc">
-                      <h3>Évolution</h3>
-                      <div class="bascule">
-                        <select [ngModel]="granularite()" (ngModelChange)="granularite.set($event)">
-                          <option value="composite">Score composite</option>
-                          <option value="pilier">Par pilier</option>
-                          <option value="sousComposante">Par sous-composante</option>
-                        </select>
+                  <div class="mt-6">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                      <h3 class="text-base font-medium">Évolution</h3>
+                      <div class="flex flex-wrap gap-3">
+                        <hlm-select class="w-52" [itemToString]="libelleGranularite" [ngModel]="granularite()" (ngModelChange)="granularite.set($event)">
+                          <hlm-select-trigger class="w-52"><hlm-select-value /></hlm-select-trigger>
+                          <hlm-select-content *hlmSelectPortal>
+                            <hlm-select-item value="composite">Score composite</hlm-select-item>
+                            <hlm-select-item value="pilier">Par pilier</hlm-select-item>
+                            <hlm-select-item value="sousComposante">Par sous-composante</hlm-select-item>
+                          </hlm-select-content>
+                        </hlm-select>
                         @if (granularite() === 'sousComposante') {
-                          <select [ngModel]="pilierCourbe()" (ngModelChange)="pilierCourbe.set($event)">
-                            @for (p of piliers; track p) { <option [value]="p">{{ p }} · {{ libellePilier(p) }}</option> }
-                          </select>
+                          <hlm-select class="w-64" [itemToString]="libellePilierCourbe" [ngModel]="pilierCourbe()" (ngModelChange)="pilierCourbe.set($event)">
+                            <hlm-select-trigger class="w-64"><hlm-select-value /></hlm-select-trigger>
+                            <hlm-select-content *hlmSelectPortal>
+                              @for (p of piliers; track p) { <hlm-select-item [value]="p">{{ p }} · {{ libellePilier(p) }}</hlm-select-item> }
+                            </hlm-select-content>
+                          </hlm-select>
                         }
                       </div>
                     </div>
-                    <dqa-courbe-series
+                    <dqa-graphe-courbe
+                      class="mt-4 block"
                       [etiquettes]="etiquettesCourbe()"
                       [series]="seriesCourbe()"
                       [seuils]="granularite() === 'composite' ? [75, 90] : [65, 75, 90]"
                     />
                     @if (granularite() === 'composite') {
-                      <p class="delta">{{ deltaComposite() }}</p>
+                      <p class="mt-2 text-sm text-muted-foreground">{{ deltaComposite() }}</p>
                     }
                   </div>
                 }
@@ -299,65 +357,11 @@ function reculerMois(mois: string, n: number): string {
           }
         }
       } @else {
-        <p class="vide">Site inconnu ou hors périmètre.</p>
+        <p class="mt-6 text-muted-foreground">Site inconnu ou hors périmètre.</p>
       }
       }
       }
     </main>
-  `,
-  styles: `
-    main { max-width: 60rem; margin: 0 auto; padding: 0 1rem; }
-    .retour { color: var(--marque); font-size: 0.9rem; }
-    h1 { font-size: 1.8rem; margin: 0.5rem 0 0; }
-    .meta { color: var(--texte-doux); margin-top: 0.25rem; }
-    .controles { display: flex; gap: 1.5rem; align-items: center; margin: 1.5rem 0; flex-wrap: wrap; }
-    label { display: grid; gap: 0.3rem; font-size: 0.85rem; }
-    select { padding: 0.4rem; }
-    .mois { color: var(--texte-doux); font-size: 0.9rem; }
-    .composite { display: flex; align-items: center; gap: 1.5rem; border: 1px solid var(--bordure); background: var(--surface); padding: 1.2rem 1.5rem; margin-bottom: 1.5rem; }
-    .composite .score { display: flex; align-items: baseline; gap: 0.5rem; }
-    .composite .chiffre { font-size: 3.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
-    .composite .sur { font-size: 1.1rem; color: var(--texte-doux); }
-    .composite .rang { display: grid; gap: 0.4rem; }
-    .composite .partiel { color: var(--texte-doux); font-size: 0.85rem; }
-    .cartes { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
-    .carte { border: 1px solid var(--bordure); background: var(--surface); padding: 1.2rem; }
-    .carte h2 { font-size: 1rem; margin: 0 0 1rem; }
-    .mesure { display: flex; gap: 1rem; align-items: flex-start; }
-    .valeur { font-size: 2.4rem; font-variant-numeric: tabular-nums; line-height: 1; }
-    .unite { font-size: 1rem; color: var(--texte-doux); }
-    .seuil { color: var(--texte-doux); font-size: 0.85rem; margin-top: 0.3rem; }
-    .raison { color: var(--alerte-texte); font-size: 0.85rem; margin-top: 0.3rem; }
-    .vide { color: var(--texte-doux); }
-    .analyse { margin-top: 2rem; border-top: 1px solid var(--bordure); padding-top: 1.5rem; }
-    .analyse h2 { font-size: 1.2rem; margin: 0; }
-    .analyse h3 { font-size: 1rem; margin: 0; }
-    .entete-analyse, .entete-bloc { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
-    .plage { display: flex; gap: 0.6rem; align-items: end; flex-wrap: wrap; }
-    .plage label { flex-direction: row; align-items: center; gap: 0.3rem; }
-    button { padding: 0.4rem 0.7rem; background: none; border: 1px solid var(--bordure); color: var(--marque); cursor: pointer; font-size: 0.8rem; }
-    button:hover { border-color: var(--marque); }
-    .bascule { display: flex; gap: 0.8rem; align-items: center; font-size: 0.85rem; }
-    .bascule label { flex-direction: row; align-items: center; gap: 0.3rem; }
-    .radar-bloc, .courbe-bloc { margin-top: 1.5rem; }
-    .forces { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1rem; font-size: 0.9rem; }
-    .forces h4 { margin: 0 0 0.4rem; font-size: 0.9rem; }
-    .forces ul { list-style: none; margin: 0; padding: 0; }
-    .forces li { padding: 0.15rem 0; font-variant-numeric: tabular-nums; }
-    .delta { font-size: 0.9rem; color: var(--texte-doux); margin: 0.4rem 0 0; }
-    table { width: 100%; border-collapse: collapse; }
-    .a-plat { font-size: 0.9rem; }
-    .a-plat th, .a-plat td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--bordure); }
-    .a-plat th.num, .a-plat td.num { text-align: right; font-variant-numeric: tabular-nums; }
-    .a-plat thead th { cursor: pointer; white-space: nowrap; }
-    .a-plat thead th:hover { color: var(--marque); }
-    .drill { margin-top: 1.5rem; }
-    .drill summary { cursor: pointer; font-size: 0.9rem; color: var(--marque); }
-    .drill-scroll { overflow-x: auto; margin-top: 0.8rem; }
-    .drill table { border-collapse: collapse; font-size: 0.85rem; }
-    .drill th, .drill td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--bordure); white-space: nowrap; }
-    .drill th.num, .drill td.num { text-align: right; font-variant-numeric: tabular-nums; }
-    .drill .non-eval { color: var(--texte-doux); font-size: 0.8rem; white-space: normal; }
   `,
 })
 export class DetailSitePage {
@@ -436,6 +440,18 @@ export class DetailSitePage {
   protected libelleSc = (sc: SousComposante) => LIBELLES_SOUS_COMPOSANTE[sc];
   protected pilierDe = (sc: SousComposante) => PILIER_DE_SOUS_COMPOSANTE[sc];
 
+  /** Libellé de série pour le `<hlm-select>` de programme (l'`itemToString` reçoit une chaîne). */
+  protected libelleProgramme = (id: string): string =>
+    this.programmes().find((p) => p.programmeId === id)?.programmeNom ?? 'Tous programmes';
+
+  protected libelleGranularite = (g: string): string =>
+    g === 'composite' || g === 'pilier' || g === 'sousComposante' ? LIBELLE_GRANULARITE[g] : g;
+
+  protected libellePilierCourbe = (p: string): string => {
+    const pil = PILIERS.find((x) => x === p);
+    return pil ? `${pil} · ${LIBELLES_PILIER[pil]}` : p;
+  };
+
   /** Écart signé valeur - seuil, arrondi au dixième ; `null` si non calculable. */
   private ecartNum(sc: SousComposanteBref): number | null {
     if (sc.valeur === null || sc.seuil === null) return null;
@@ -497,15 +513,12 @@ export class DetailSitePage {
   });
 
   // radar
-  protected readonly axesRadar = computed<AxeRadar[]>(() => {
+  protected readonly axesRadar = computed<AxeGrapheRadar[]>(() => {
     const d = this.detail();
     if (!d) return [];
     if (this.axes() === '10') {
       return d.sousComposantes.map((s) => ({
-        etiquette:
-          s.sousComposante === 'ratio_ajustements'
-            ? 'ratio ajust.'
-            : this.libelleSc(s.sousComposante).slice(0, LONGUEUR_ETIQUETTE_RADAR),
+        etiquette: this.libelleSc(s.sousComposante),
         valeur: s.tauxAtteinte,
         statut: s.statut,
       }));
@@ -515,7 +528,7 @@ export class DetailSitePage {
       const vals = scs.map((s) => s.tauxAtteinte).filter((v): v is number => v !== null);
       const alerte = scs.some((s) => s.statut === 'ALERTE');
       return {
-        etiquette: p,
+        etiquette: `${p} · ${this.libellePilier(p)}`,
         valeur: vals.length ? vals.reduce((t, v) => t + v, 0) / vals.length : null,
         statut: vals.length === 0 ? 'NON_CALCULABLE' : alerte ? 'ALERTE' : 'CONFORME',
       };
@@ -542,7 +555,7 @@ export class DetailSitePage {
     (this.historique()?.points ?? []).map((p) => p.moisPaqd),
   );
 
-  protected readonly seriesCourbe = computed<SerieCourbe[]>(() => {
+  protected readonly seriesCourbe = computed<SerieGrapheCourbe[]>(() => {
     const points = this.historique()?.points ?? [];
     const g = this.granularite();
     if (g === 'composite') {
