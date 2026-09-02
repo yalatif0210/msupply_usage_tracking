@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import {
   LIBELLES_PILIER,
@@ -11,6 +10,11 @@ import {
   type SousComposante,
   type SyntheseNationale,
 } from '@dqa/contracts';
+import { HlmCardImports } from '@spartan-ng/helm/card';
+import { HlmSelectImports } from '@spartan-ng/helm/select';
+import { HlmSkeletonImports } from '@spartan-ng/helm/skeleton';
+import { HlmTableImports } from '@spartan-ng/helm/table';
+import { HlmTabsImports } from '@spartan-ng/helm/tabs';
 import { VALEUR_ABSENTE } from '../core/affichage';
 import { ressource } from '../core/ressource';
 import { SitesService } from '../core/sites.service';
@@ -36,266 +40,307 @@ const COLONNES: readonly { cle: TriColonne; libelle: string; num: boolean }[] = 
   { cle: 'nbNonCalculable', libelle: 'Non calculables', num: true },
 ];
 
+/** Classe partagée des en-têtes de tableau (DESIGN_SYSTEM §6). */
+const TH = 'text-xs font-medium text-muted-foreground';
+
 @Component({
   selector: 'dqa-synthese',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, DecimalPipe, Coquille, BarreAttente, RepartitionClassificationComponent],
+  imports: [
+    DecimalPipe,
+    Coquille,
+    BarreAttente,
+    RepartitionClassificationComponent,
+    HlmSkeletonImports,
+    HlmSelectImports,
+    HlmTabsImports,
+    HlmCardImports,
+    HlmTableImports,
+  ],
   template: `
     <dqa-coquille />
-    <main>
-      <h1>Synthèse nationale</h1>
+    <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+      <h1 class="text-2xl font-bold tracking-tight">Synthèse nationale</h1>
 
       @switch (res.phase()) {
       @case ('squelette') {
-        <p>Chargement…</p>
+        <div class="mt-6 flex flex-col gap-4">
+          <div hlmSkeleton class="h-9 w-72"></div>
+          <div hlmSkeleton class="h-32 w-full"></div>
+          <div hlmSkeleton class="h-64 w-full"></div>
+        </div>
       }
       @case ('echec') {
-        <p class="vide">La synthèse est indisponible.</p>
+        <p class="mt-6 text-sm text-muted-foreground">La synthèse est indisponible.</p>
       }
       @default {
       @if (res.valeur(); as s) {
-        <div class="controles">
+        <div class="mt-4 mb-6 flex flex-wrap items-end gap-4">
           @if (s.moisDisponibles.length > 1) {
-            <label>
+            <label class="grid gap-1.5 text-xs font-medium text-muted-foreground">
               Mois PAQD
-              <select [ngModel]="res.filtres().mois" (ngModelChange)="res.definir({ mois: $event })">
-                @for (m of s.moisDisponibles; track m) {
-                  <option [value]="m">{{ m }}</option>
-                }
-              </select>
+              <hlm-select [value]="res.filtres().mois" (valueChange)="majMois($event)">
+                <hlm-select-trigger class="w-44">
+                  <hlm-select-value placeholder="Mois PAQD" />
+                </hlm-select-trigger>
+                <hlm-select-content *hlmSelectPortal>
+                  @for (m of s.moisDisponibles; track m) {
+                    <hlm-select-item [value]="m">{{ m }}</hlm-select-item>
+                  }
+                </hlm-select-content>
+              </hlm-select>
             </label>
           } @else {
-            <span class="mois">Mois PAQD : {{ s.moisPaqd ?? absent }}</span>
+            <p class="text-sm text-muted-foreground">Mois PAQD : {{ s.moisPaqd ?? absent }}</p>
           }
-          <label>
+
+          <label class="grid gap-1.5 text-xs font-medium text-muted-foreground">
             Programme
-            <select [ngModel]="res.filtres().programmeId" (ngModelChange)="res.definir({ programmeId: $event })">
-              <option value="">Tous programmes</option>
-              @for (p of programmes(); track p.programmeId) {
-                <option [value]="p.programmeId">{{ p.programmeNom }}</option>
-              }
-            </select>
+            <hlm-select [value]="res.filtres().programmeId" (valueChange)="majProgramme($event)">
+              <hlm-select-trigger class="w-56">
+                <hlm-select-value placeholder="Tous programmes" />
+              </hlm-select-trigger>
+              <hlm-select-content *hlmSelectPortal>
+                <hlm-select-item value="">Tous programmes</hlm-select-item>
+                @for (p of programmes(); track p.programmeId) {
+                  <hlm-select-item [value]="p.programmeId">{{ p.programmeNom }}</hlm-select-item>
+                }
+              </hlm-select-content>
+            </hlm-select>
           </label>
-          <label>
+
+          <label class="grid gap-1.5 text-xs font-medium text-muted-foreground">
             Région
-            <select [ngModel]="res.filtres().region" (ngModelChange)="res.definir({ region: $event })">
-              <option value="">Toutes</option>
-              @for (r of regions(); track r) {
-                <option [value]="r">{{ r }}</option>
-              }
-            </select>
+            <hlm-select [value]="res.filtres().region" (valueChange)="majRegion($event)">
+              <hlm-select-trigger class="w-48">
+                <hlm-select-value placeholder="Toutes" />
+              </hlm-select-trigger>
+              <hlm-select-content *hlmSelectPortal>
+                <hlm-select-item value="">Toutes</hlm-select-item>
+                @for (r of regions(); track r) {
+                  <hlm-select-item [value]="r">{{ r }}</hlm-select-item>
+                }
+              </hlm-select-content>
+            </hlm-select>
           </label>
         </div>
 
-        <div class="corps" [attr.aria-busy]="res.enCours()">
+        <div [attr.aria-busy]="res.enCours()">
           <dqa-barre-attente [actif]="res.enCours()" />
 
-          @if (s.programmeId) {
-            <p class="filtre-actif">
-              National, piliers et districts filtrés sur le programme sélectionné.
-            </p>
-          }
-
-          @if (s.moisPaqd === null) {
-            <p class="vide">
-              Aucun mois n'a encore de score. La synthèse s'alimentera au premier
-              import traité.
-            </p>
-          } @else if (s.national.nbMesures === 0) {
-            <p class="vide">
-              Aucun site n'a de score composite pour ce mois
-              {{ s.programmeId || s.region ? 'avec ce filtre' : '' }}.
-            </p>
-          } @else {
-            <nav class="onglets" aria-label="Vue de la synthèse">
-              <button type="button" [class.actif]="onglet() === 'pilier'" (click)="onglet.set('pilier')">
-                Par pilier
-              </button>
-              <button type="button" [class.actif]="onglet() === 'sousComposante'" (click)="onglet.set('sousComposante')">
-                Sous-composantes
-              </button>
-            </nav>
-
-            @if (onglet() === 'sousComposante') {
-              @if (s.parSousComposante.length === 0) {
-                <p class="vide">Aucune sous-composante mesurée pour ce filtre.</p>
-              } @else {
-                <table class="sous-composantes">
-                  <thead>
-                    <tr>
-                      @for (c of colonnes; track c.cle) {
-                        <th [class.num]="c.num" [attr.aria-sort]="ariaSort(c.cle)" (click)="trier(c.cle)">
-                          {{ c.libelle }}
-                        </th>
-                      }
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (sc of sousComposantesTriees(s); track sc.sousComposante) {
-                      <tr>
-                        <td>{{ libelleSc(sc.sousComposante) }}</td>
-                        <td>{{ sc.pilier }}</td>
-                        <td class="num">
-                          {{ sc.tauxAtteinteMoyen === null ? absent : (sc.tauxAtteinteMoyen | number: '1.0-1') }}
-                        </td>
-                        <td class="num">{{ sc.nbConforme }}</td>
-                        <td class="num">{{ sc.nbAlerte }}</td>
-                        <td class="num">{{ sc.nbNonCalculable }}</td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              }
-            } @else {
-            <section class="national">
-              <div class="score">
-                <div class="chiffre">{{ s.national.scoreCompositeMoyen | number: '1.0-1' }}</div>
-                <div class="sur">/ 100 · score composite moyen</div>
-                <div class="couverture">
-                  calculé sur {{ s.national.nbMesures }} site{{ s.national.nbMesures > 1 ? 's' : '' }}
-                  sur {{ s.national.nbSites }}
-                </div>
-              </div>
-              <div class="rep">
-                <dqa-repartition-classification [repartition]="s.national.repartition" />
-              </div>
-            </section>
-
-            <section class="piliers">
-              <h2>Moyenne nationale par pilier</h2>
-              @for (mp of s.national.moyennesPiliers; track mp.pilier) {
-                <div class="pilier">
-                  <div class="lib">{{ mp.pilier }} · {{ libelle(mp.pilier) }}</div>
-                  <div class="jauge">
-                    <span class="rempli" [style.width.%]="mp.moyenne ?? 0"></span>
-                  </div>
-                  <div class="val">{{ mp.moyenne === null ? absent : (mp.moyenne | number: '1.0-1') }}</div>
-                </div>
-              }
-            </section>
-
-            <section class="districts">
-              <h2>Par district</h2>
-              @if (s.parDistrict.length === 0) {
-                <p class="vide">Aucun district ne correspond à ce filtre.</p>
-              } @else {
-                <table>
-                  <thead>
-                    <tr>
-                      <th>District</th>
-                      <th class="num">Sites</th>
-                      <th class="num">Mesurés</th>
-                      <th class="num">Score moyen</th>
-                      <th>Répartition</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (d of s.parDistrict; track d.district) {
-                      <tr (click)="ouvrirDistrict(d.district)">
-                        <td>{{ d.district }}</td>
-                        <td class="num">{{ d.nbSites }}</td>
-                        <td class="num">{{ d.nbMesures }}</td>
-                        <td class="num">
-                          {{ d.scoreCompositeMoyen === null ? absent : (d.scoreCompositeMoyen | number: '1.0-1') }}
-                        </td>
-                        <td class="repcell">
-                          <dqa-repartition-classification [repartition]="d.repartition" [compact]="true" />
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              }
-            </section>
-
-            <section class="programmes">
-              <h2>Scores par programme</h2>
-              @if (s.parProgramme.length === 0) {
-                <p class="vide">Aucun programme ne correspond à ce filtre.</p>
-              } @else {
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Programme</th>
-                      <th class="num">Sites gérant</th>
-                      <th class="num">Mesurés</th>
-                      <th class="num">Score national</th>
-                      <th>Répartition</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (p of s.parProgramme; track p.programmeId) {
-                      <tr>
-                        <td>{{ p.programmeNom }}</td>
-                        <td class="num">{{ p.nbSites }}</td>
-                        <td class="num">{{ p.nbMesures }}</td>
-                        <td class="num">
-                          {{ p.scoreCompositeMoyen === null ? absent : (p.scoreCompositeMoyen | number: '1.0-1') }}
-                        </td>
-                        <td class="repcell">
-                          <dqa-repartition-classification [repartition]="p.repartition" [compact]="true" />
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              }
-            </section>
+          <div class="flex flex-col gap-6">
+            @if (s.programmeId) {
+              <p class="text-sm text-muted-foreground">
+                National, piliers et districts filtrés sur le programme sélectionné.
+              </p>
             }
-          }
+
+            @if (s.moisPaqd === null) {
+              <p class="text-sm text-muted-foreground">
+                Aucun mois n'a encore de score. La synthèse s'alimentera au premier
+                import traité.
+              </p>
+            } @else if (s.national.nbMesures === 0) {
+              <p class="text-sm text-muted-foreground">
+                Aucun site n'a de score composite pour ce mois{{ s.programmeId || s.region ? ' avec ce filtre' : '' }}.
+              </p>
+            } @else {
+              <hlm-tabs tab="pilier">
+                <hlm-tabs-list class="grid w-full max-w-md grid-cols-2" aria-label="Vue de la synthèse">
+                  <button hlmTabsTrigger="pilier">Par pilier</button>
+                  <button hlmTabsTrigger="sousComposante">Sous-composantes</button>
+                </hlm-tabs-list>
+
+                <div hlmTabsContent="pilier" class="flex flex-col gap-6 pt-4">
+                  <section hlmCard>
+                    <div hlmCardContent class="flex flex-wrap items-center gap-x-10 gap-y-4">
+                      <div>
+                        <div class="text-4xl leading-none font-bold tabular-nums">
+                          {{ s.national.scoreCompositeMoyen === null ? absent : (s.national.scoreCompositeMoyen | number: '1.0-1') }}
+                        </div>
+                        <div class="mt-1 text-sm text-muted-foreground">/ 100 · score composite moyen</div>
+                        <div class="text-xs text-muted-foreground">
+                          calculé sur {{ s.national.nbMesures }} site{{ s.national.nbMesures > 1 ? 's' : '' }}
+                          sur {{ s.national.nbSites }}
+                        </div>
+                      </div>
+                      <div class="min-w-64 flex-1">
+                        <dqa-repartition-classification [repartition]="s.national.repartition" />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section hlmCard>
+                    <div hlmCardHeader>
+                      <h2 hlmCardTitle>Moyenne nationale par pilier</h2>
+                    </div>
+                    <div hlmCardContent class="flex flex-col gap-2">
+                      @for (mp of s.national.moyennesPiliers; track mp.pilier) {
+                        <div class="flex items-center gap-4">
+                          <div class="w-64 shrink-0 text-sm">{{ mp.pilier }} · {{ libelle(mp.pilier) }}</div>
+                          <div class="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                            <div class="h-full rounded-full bg-primary" [style.width.%]="mp.moyenne ?? 0"></div>
+                          </div>
+                          <div class="w-12 shrink-0 text-right text-sm tabular-nums">
+                            {{ mp.moyenne === null ? absent : (mp.moyenne | number: '1.0-1') }}
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </section>
+
+                  <section hlmCard>
+                    <div hlmCardHeader>
+                      <h2 hlmCardTitle>Par district</h2>
+                    </div>
+                    <div hlmCardContent>
+                      @if (s.parDistrict.length === 0) {
+                        <p class="text-sm text-muted-foreground">Aucun district ne correspond à ce filtre.</p>
+                      } @else {
+                        <div hlmTableContainer>
+                          <table hlmTable>
+                            <thead hlmTHead>
+                              <tr hlmTr>
+                                <th hlmTh [class]="TH">District</th>
+                                <th hlmTh [class]="TH + ' text-right'">Sites</th>
+                                <th hlmTh [class]="TH + ' text-right'">Mesurés</th>
+                                <th hlmTh [class]="TH + ' text-right'">Score moyen</th>
+                                <th hlmTh [class]="TH">Répartition</th>
+                              </tr>
+                            </thead>
+                            <tbody hlmTBody>
+                              @for (d of s.parDistrict; track d.district) {
+                                <tr hlmTr class="cursor-pointer" (click)="ouvrirDistrict(d.district)">
+                                  <td hlmTd>{{ d.district }}</td>
+                                  <td hlmTd class="text-right tabular-nums">{{ d.nbSites }}</td>
+                                  <td hlmTd class="text-right tabular-nums">{{ d.nbMesures }}</td>
+                                  <td hlmTd class="text-right tabular-nums">
+                                    {{ d.scoreCompositeMoyen === null ? absent : (d.scoreCompositeMoyen | number: '1.0-1') }}
+                                  </td>
+                                  <td hlmTd class="whitespace-normal">
+                                    <dqa-repartition-classification [repartition]="d.repartition" [compact]="true" />
+                                  </td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                      }
+                    </div>
+                  </section>
+
+                  <section hlmCard>
+                    <div hlmCardHeader>
+                      <h2 hlmCardTitle>Scores par programme</h2>
+                    </div>
+                    <div hlmCardContent>
+                      @if (s.parProgramme.length === 0) {
+                        <p class="text-sm text-muted-foreground">Aucun programme ne correspond à ce filtre.</p>
+                      } @else {
+                        <div hlmTableContainer>
+                          <table hlmTable>
+                            <thead hlmTHead>
+                              <tr hlmTr>
+                                <th hlmTh [class]="TH">Programme</th>
+                                <th hlmTh [class]="TH + ' text-right'">Sites gérant</th>
+                                <th hlmTh [class]="TH + ' text-right'">Mesurés</th>
+                                <th hlmTh [class]="TH + ' text-right'">Score national</th>
+                                <th hlmTh [class]="TH">Répartition</th>
+                              </tr>
+                            </thead>
+                            <tbody hlmTBody>
+                              @for (p of s.parProgramme; track p.programmeId) {
+                                <tr hlmTr>
+                                  <td hlmTd>{{ p.programmeNom }}</td>
+                                  <td hlmTd class="text-right tabular-nums">{{ p.nbSites }}</td>
+                                  <td hlmTd class="text-right tabular-nums">{{ p.nbMesures }}</td>
+                                  <td hlmTd class="text-right tabular-nums">
+                                    {{ p.scoreCompositeMoyen === null ? absent : (p.scoreCompositeMoyen | number: '1.0-1') }}
+                                  </td>
+                                  <td hlmTd class="whitespace-normal">
+                                    <dqa-repartition-classification [repartition]="p.repartition" [compact]="true" />
+                                  </td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                      }
+                    </div>
+                  </section>
+                </div>
+
+                <div hlmTabsContent="sousComposante" class="pt-4">
+                  <section hlmCard>
+                    <div hlmCardHeader>
+                      <h2 hlmCardTitle>Par sous-composante</h2>
+                    </div>
+                    <div hlmCardContent>
+                      @if (s.parSousComposante.length === 0) {
+                        <p class="text-sm text-muted-foreground">Aucune sous-composante mesurée pour ce filtre.</p>
+                      } @else {
+                        <div hlmTableContainer>
+                          <table hlmTable>
+                            <thead hlmTHead>
+                              <tr hlmTr>
+                                @for (c of colonnes; track c.cle) {
+                                  <th
+                                    hlmTh
+                                    class="cursor-pointer text-xs font-medium text-muted-foreground select-none hover:text-foreground"
+                                    [class.text-right]="c.num"
+                                    [attr.aria-sort]="ariaSort(c.cle)"
+                                    (click)="trier(c.cle)"
+                                  >
+                                    {{ c.libelle }}
+                                    @if (ariaSort(c.cle) === 'ascending') {
+                                      <span aria-hidden="true">↑</span>
+                                    } @else if (ariaSort(c.cle) === 'descending') {
+                                      <span aria-hidden="true">↓</span>
+                                    }
+                                  </th>
+                                }
+                              </tr>
+                            </thead>
+                            <tbody hlmTBody>
+                              @for (sc of sousComposantesTriees(s); track sc.sousComposante) {
+                                <tr hlmTr>
+                                  <td hlmTd>{{ libelleSc(sc.sousComposante) }}</td>
+                                  <td hlmTd>{{ sc.pilier }}</td>
+                                  <td hlmTd class="text-right tabular-nums">
+                                    {{ sc.tauxAtteinteMoyen === null ? absent : (sc.tauxAtteinteMoyen | number: '1.0-1') }}
+                                  </td>
+                                  <td hlmTd class="text-right tabular-nums">{{ sc.nbConforme }}</td>
+                                  <td hlmTd class="text-right tabular-nums">{{ sc.nbAlerte }}</td>
+                                  <td hlmTd class="text-right tabular-nums">{{ sc.nbNonCalculable }}</td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                      }
+                    </div>
+                  </section>
+                </div>
+              </hlm-tabs>
+            }
+          </div>
         </div>
       }
       }
       }
     </main>
   `,
-  styles: `
-    main { max-width: 72rem; margin: 0 auto; padding: 0 1rem; }
-    h1 { font-size: 1.6rem; }
-    h2 { font-size: 1.05rem; margin: 2rem 0 0.8rem; }
-    .controles { display: flex; gap: 1.5rem; align-items: center; margin: 1rem 0 1.5rem; flex-wrap: wrap; }
-    label { display: grid; gap: 0.3rem; font-size: 0.85rem; }
-    select { padding: 0.4rem; }
-    .mois { color: var(--texte-doux); font-size: 0.9rem; }
-    .filtre-actif { color: var(--texte-doux); font-size: 0.85rem; margin: -0.5rem 0 1rem; }
-    .national { display: flex; gap: 2rem; align-items: center; border: 1px solid var(--bordure); background: var(--surface); padding: 1.4rem 1.6rem; flex-wrap: wrap; }
-    .national .chiffre { font-size: 4rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
-    .national .sur { color: var(--texte-doux); margin-top: 0.2rem; }
-    .national .couverture { color: var(--texte-doux); font-size: 0.85rem; margin-top: 0.3rem; }
-    .national .rep { flex: 1; min-width: 16rem; }
-    .pilier { display: grid; grid-template-columns: 18rem 1fr 3rem; gap: 0.8rem; align-items: center; padding: 0.3rem 0; }
-    .pilier .lib { font-size: 0.9rem; }
-    .pilier .jauge { height: 0.8rem; background: var(--neutre); border: 1px solid var(--bordure); }
-    .pilier .rempli { display: block; height: 100%; background: var(--marque); }
-    .pilier .val { text-align: right; font-variant-numeric: tabular-nums; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid var(--bordure); }
-    th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
-    .districts tbody tr { cursor: pointer; }
-    .districts tbody tr:hover { background: var(--marque-doux); }
-    .repcell { width: 16rem; }
-    .vide { color: var(--texte-doux); }
-    .onglets { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--bordure); margin: 0.5rem 0 1.5rem; }
-    .onglets button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 0.6rem 0.9rem; font-size: 0.95rem; color: var(--texte-doux); cursor: pointer; }
-    .onglets button.actif { color: var(--marque); border-bottom-color: var(--marque); font-weight: 600; }
-    .sous-composantes thead th { cursor: pointer; white-space: nowrap; }
-    .sous-composantes thead th:hover { color: var(--marque); }
-    .sous-composantes thead th[aria-sort='ascending'],
-    .sous-composantes thead th[aria-sort='descending'] { color: var(--marque); border-bottom-width: 2px; }
-    .sous-composantes thead th[aria-sort='ascending']::after { content: ' \\2191'; }
-    .sous-composantes thead th[aria-sort='descending']::after { content: ' \\2193'; }
-  `,
 })
 export class SynthesePage {
   protected readonly absent = VALEUR_ABSENTE;
   protected readonly colonnes = COLONNES;
+  protected readonly TH = TH;
   private readonly service = inject(SyntheseService);
   private readonly sites = inject(SitesService);
   private readonly router = inject(Router);
 
   protected readonly regions = signal<string[]>([]);
   protected readonly programmes = signal<Programme[]>([]);
-  protected readonly onglet = signal<'pilier' | 'sousComposante'>('pilier');
   protected readonly tri = signal<{ colonne: TriColonne; sens: 1 | -1 }>({
     colonne: 'tauxAtteinteMoyen',
     sens: 1,
@@ -333,6 +378,19 @@ export class SynthesePage {
     return LIBELLES_SOUS_COMPOSANTE[sc];
   }
 
+  /** `valueChange` d'un `hlm-select` : la valeur d'un item est toujours une chaîne. */
+  protected majMois(valeur: unknown): void {
+    this.res.definir({ mois: chaine(valeur) });
+  }
+
+  protected majProgramme(valeur: unknown): void {
+    this.res.definir({ programmeId: chaine(valeur) });
+  }
+
+  protected majRegion(valeur: unknown): void {
+    this.res.definir({ region: chaine(valeur) });
+  }
+
   protected trier(colonne: TriColonne): void {
     const t = this.tri();
     this.tri.set({ colonne, sens: t.colonne === colonne ? ((t.sens * -1) as 1 | -1) : 1 });
@@ -360,4 +418,8 @@ export class SynthesePage {
   protected ouvrirDistrict(district: string): void {
     void this.router.navigate(['/sites'], { queryParams: { district } });
   }
+}
+
+function chaine(valeur: unknown): string {
+  return typeof valeur === 'string' ? valeur : '';
 }
