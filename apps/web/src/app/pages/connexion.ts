@@ -1,56 +1,79 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { lucideTriangleAlert } from '@ng-icons/lucide';
+import { HlmButton } from '@spartan-ng/helm/button';
+import { HlmInput } from '@spartan-ng/helm/input';
+import { HlmLabel } from '@spartan-ng/helm/label';
 import { AuthService } from '../core/auth.service';
 
+/**
+ * Écran de connexion au registre shadcn-admin : carte centrée sur fond neutre,
+ * champs spartan, bouton pleine largeur. Le message d'erreur est un bloc
+ * non bloquant sous les champs (jamais une redirection ni une page en erreur).
+ */
 @Component({
   selector: 'dqa-connexion',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule],
+  imports: [FormsModule, NgIcon, HlmButton, HlmInput, HlmLabel],
+  providers: [provideIcons({ lucideTriangleAlert })],
   template: `
-    <main class="carte">
-      <h1>Tableau de bord DQA</h1>
-      <p class="sous-titre">Connexion requise</p>
-      <form (ngSubmit)="soumettre()">
-        <label>
-          Identifiant
-          <input name="identifiant" [(ngModel)]="identifiant" autocomplete="username" required />
-        </label>
-        <label>
-          Mot de passe
-          <input
-            name="motDePasse"
-            type="password"
-            [(ngModel)]="motDePasse"
-            autocomplete="current-password"
-            required
-          />
-        </label>
-        @if (erreur()) {
-          <p class="erreur" role="alert">{{ erreur() }}</p>
-        }
-        <button type="submit" [disabled]="enCours()">
-          {{ enCours() ? 'Connexion…' : 'Se connecter' }}
-        </button>
-      </form>
+    <main class="flex min-h-svh items-center justify-center bg-background px-4 py-12">
+      <div
+        class="w-full max-w-sm rounded-xl border border-border bg-card p-6 text-card-foreground shadow-xs sm:p-8"
+      >
+        <div class="flex flex-col gap-1.5 text-center">
+          <h1 class="text-xl font-bold tracking-tight">Tableau de bord DQA</h1>
+          <p class="text-sm text-muted-foreground">
+            Entrez vos identifiants pour accéder à la console.
+          </p>
+        </div>
+
+        <form class="mt-6 flex flex-col gap-4" (ngSubmit)="soumettre()">
+          <div class="flex flex-col gap-1.5">
+            <label hlmLabel for="identifiant">Identifiant</label>
+            <input
+              hlmInput
+              id="identifiant"
+              name="identifiant"
+              class="w-full"
+              [(ngModel)]="identifiant"
+              autocomplete="username"
+              required
+            />
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label hlmLabel for="mot-de-passe">Mot de passe</label>
+            <input
+              hlmInput
+              id="mot-de-passe"
+              name="motDePasse"
+              type="password"
+              class="w-full"
+              [(ngModel)]="motDePasse"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+
+          @if (erreur()) {
+            <p
+              class="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              role="alert"
+            >
+              <ng-icon name="lucideTriangleAlert" class="shrink-0 text-base" aria-hidden="true" />
+              {{ erreur() }}
+            </p>
+          }
+
+          <button hlmBtn type="submit" class="w-full" [disabled]="enCours()">
+            {{ enCours() ? 'Connexion…' : 'Se connecter' }}
+          </button>
+        </form>
+      </div>
     </main>
-  `,
-  styles: `
-    .carte {
-      max-width: 22rem;
-      margin: 6rem auto;
-      padding: 2rem;
-      background: var(--surface);
-      border: 1px solid var(--bordure);
-    }
-    h1 { font-size: 1.4rem; margin: 0; }
-    .sous-titre { color: var(--texte-doux); margin-top: 0.25rem; }
-    form { display: grid; gap: 1rem; margin-top: 1.5rem; }
-    label { display: grid; gap: 0.3rem; font-size: 0.9rem; }
-    input { padding: 0.5rem; border: 1px solid var(--bordure); font-size: 1rem; }
-    button { padding: 0.6rem; background: var(--marque); color: var(--surface); border: 0; font-size: 1rem; cursor: pointer; }
-    button[disabled] { opacity: 0.6; cursor: default; }
-    .erreur { color: var(--alerte-texte); margin: 0; font-size: 0.9rem; }
   `,
 })
 export class ConnexionPage {

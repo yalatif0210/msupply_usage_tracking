@@ -1,75 +1,121 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { toast } from '@spartan-ng/brain/sonner';
+import { HlmBadge } from '@spartan-ng/helm/badge';
+import { HlmButton } from '@spartan-ng/helm/button';
+import { HlmCheckbox } from '@spartan-ng/helm/checkbox';
+import { HlmInput } from '@spartan-ng/helm/input';
+import { HlmLabel } from '@spartan-ng/helm/label';
+import { HlmTableImports } from '@spartan-ng/helm/table';
 import type { ProduitTraceur } from '@dqa/contracts';
 import { VALEUR_ABSENTE } from '../core/affichage';
+import { messageErreurHttp } from '../core/message-erreur';
 import { TraceursService } from '../core/traceurs.service';
 import { Coquille } from '../ui/coquille';
 
+/**
+ * Administration du panier de produits traceurs (P4 / P5). Table et champs
+ * spartan ; retours utilisateur en toasts sonner. Une ligne inactive reste
+ * lisible mais estompée.
+ */
 @Component({
   selector: 'dqa-admin-traceurs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, DatePipe, Coquille],
+  imports: [
+    FormsModule,
+    DatePipe,
+    Coquille,
+    HlmTableImports,
+    HlmBadge,
+    HlmButton,
+    HlmCheckbox,
+    HlmInput,
+    HlmLabel,
+  ],
   template: `
     <dqa-coquille />
-    <main>
-      <h1>Produits traceurs</h1>
-      <p class="intro">
+    <main class="mx-auto max-w-5xl px-6 py-6">
+      <h1 class="text-2xl font-bold tracking-tight">Produits traceurs</h1>
+      <p class="mt-1 max-w-2xl text-sm text-muted-foreground">
         Panier de produits retenu pour les piliers P4 (écart SDU) et P5
-        (concordance). Le code doit correspondre au <code>produit_code</code> du
-        fichier d'extraction.
+        (concordance). Le code doit correspondre au
+        <code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">produit_code</code>
+        du fichier d'extraction.
       </p>
 
-      <form (ngSubmit)="ajouter()">
-        <input name="code" [(ngModel)]="code" placeholder="Code produit" required />
-        <input name="libelle" [(ngModel)]="libelle" placeholder="Libellé (facultatif)" />
-        <button type="submit" [disabled]="!code || enCours()">Ajouter / mettre à jour</button>
+      <form class="mt-5 flex flex-wrap items-end gap-3" (ngSubmit)="ajouter()">
+        <div class="flex flex-col gap-1.5">
+          <label hlmLabel for="code">Code produit</label>
+          <input hlmInput id="code" name="code" class="w-56" [(ngModel)]="code" required />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label hlmLabel for="libelle">Libellé (facultatif)</label>
+          <input hlmInput id="libelle" name="libelle" class="w-72" [(ngModel)]="libelle" />
+        </div>
+        <button hlmBtn type="submit" [disabled]="!code || enCours()">Ajouter ou mettre à jour</button>
       </form>
-      @if (erreur()) {
-        <p class="erreur" role="alert">{{ erreur() }}</p>
-      }
 
       @if (chargement()) {
-        <p>Chargement…</p>
+        <p class="mt-6 text-sm text-muted-foreground">Chargement…</p>
+      } @else if (traceurs().length === 0) {
+        <div class="mt-6 rounded-lg border border-dashed border-border px-4 py-10 text-center">
+          <p class="text-sm font-medium text-foreground">Aucun produit traceur</p>
+          <p class="mt-1 text-sm text-muted-foreground">
+            Ajoutez un premier code produit pour composer le panier P4 / P5.
+          </p>
+        </div>
       } @else {
-        <table>
-          <thead>
-            <tr><th>Code</th><th>Libellé</th><th>Actif</th><th>Modifié le</th><th></th></tr>
-          </thead>
-          <tbody>
-            @for (t of traceurs(); track t.produitCode) {
-              <tr [class.inactif]="!t.actif">
-                <td><code>{{ t.produitCode }}</code></td>
-                <td>{{ t.libelle ?? absent }}</td>
-                <td>
-                  <label class="switch">
-                    <input type="checkbox" [checked]="t.actif" (change)="basculer(t)" />
-                    {{ t.actif ? 'oui' : 'non' }}
-                  </label>
-                </td>
-                <td>{{ t.majLe | date: 'dd/MM/yyyy HH:mm' }}</td>
-                <td><button type="button" class="lien" (click)="retirer(t)">Retirer</button></td>
+        <div hlmTableContainer class="mt-6 rounded-lg border border-border">
+          <table hlmTable>
+            <thead hlmTHead>
+              <tr hlmTr>
+                <th hlmTh>Code</th>
+                <th hlmTh>Libellé</th>
+                <th hlmTh>Actif</th>
+                <th hlmTh>Modifié le</th>
+                <th hlmTh><span class="sr-only">Actions</span></th>
               </tr>
-            }
-          </tbody>
-        </table>
+            </thead>
+            <tbody hlmTBody>
+              @for (t of traceurs(); track t.produitCode) {
+                <tr hlmTr [class.opacity-60]="!t.actif">
+                  <td hlmTd>
+                    <code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">{{ t.produitCode }}</code>
+                  </td>
+                  <td hlmTd [class.text-muted-foreground]="!t.libelle">{{ t.libelle ?? absent }}</td>
+                  <td hlmTd>
+                    <label class="flex items-center gap-2 text-sm">
+                      <hlm-checkbox [checked]="t.actif" (checkedChange)="basculer(t)" />
+                      <span>{{ t.actif ? 'oui' : 'non' }}</span>
+                    </label>
+                  </td>
+                  <td hlmTd class="tabular-nums text-muted-foreground">
+                    {{ t.majLe | date: 'dd/MM/yyyy HH:mm' }}
+                  </td>
+                  <td hlmTd class="text-right">
+                    <button
+                      hlmBtn
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      class="text-destructive"
+                      (click)="retirer(t)"
+                    >
+                      Retirer
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-2 text-xs text-muted-foreground">
+          <span hlmBadge variant="secondary">{{ actifs() }} actif(s)</span>
+          sur {{ traceurs().length }} code(s) enregistré(s).
+        </p>
       }
     </main>
-  `,
-  styles: `
-    main { max-width: 60rem; margin: 0 auto; padding: 0 1rem; }
-    h1 { font-size: 1.6rem; }
-    .intro { color: var(--texte-doux); font-size: 0.9rem; }
-    form { display: flex; gap: 0.75rem; margin: 1rem 0; flex-wrap: wrap; }
-    input { padding: 0.5rem; border: 1px solid var(--bordure); }
-    button { padding: 0.5rem 0.9rem; background: var(--marque); color: var(--surface); border: 0; cursor: pointer; }
-    button[disabled] { opacity: 0.5; cursor: default; }
-    .lien { background: none; color: var(--alerte-texte); padding: 0; text-decoration: underline; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid var(--bordure); }
-    tr.inactif { color: var(--texte-doux); }
-    .erreur { color: var(--alerte-texte); }
-    .switch { display: inline-flex; gap: 0.4rem; align-items: center; font-size: 0.85rem; }
   `,
 })
 export class AdminTraceursPage {
@@ -81,10 +127,13 @@ export class AdminTraceursPage {
   protected readonly traceurs = signal<ProduitTraceur[]>([]);
   protected readonly chargement = signal(true);
   protected readonly enCours = signal(false);
-  protected readonly erreur = signal<string | null>(null);
 
   constructor() {
     void this.charger();
+  }
+
+  protected actifs(): number {
+    return this.traceurs().filter((t) => t.actif).length;
   }
 
   private async charger(): Promise<void> {
@@ -93,7 +142,6 @@ export class AdminTraceursPage {
   }
 
   protected async ajouter(): Promise<void> {
-    this.erreur.set(null);
     this.enCours.set(true);
     try {
       await this.service.enregistrer({
@@ -103,20 +151,32 @@ export class AdminTraceursPage {
       this.code = '';
       this.libelle = '';
       await this.charger();
-    } catch {
-      this.erreur.set('Enregistrement impossible.');
+      toast.success('Produit traceur enregistré.');
+    } catch (err) {
+      toast.error(messageErreurHttp(err));
     } finally {
       this.enCours.set(false);
     }
   }
 
   protected async basculer(t: ProduitTraceur): Promise<void> {
-    await this.service.enregistrer({ produitCode: t.produitCode, actif: !t.actif });
-    await this.charger();
+    try {
+      await this.service.enregistrer({ produitCode: t.produitCode, actif: !t.actif });
+      await this.charger();
+      toast.success(t.actif ? 'Produit désactivé.' : 'Produit activé.');
+    } catch (err) {
+      toast.error(messageErreurHttp(err));
+      await this.charger();
+    }
   }
 
   protected async retirer(t: ProduitTraceur): Promise<void> {
-    await this.service.supprimer(t.produitCode);
-    await this.charger();
+    try {
+      await this.service.supprimer(t.produitCode);
+      await this.charger();
+      toast.success('Produit traceur retiré.');
+    } catch (err) {
+      toast.error(messageErreurHttp(err));
+    }
   }
 }

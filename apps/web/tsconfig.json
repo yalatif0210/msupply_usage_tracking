@@ -61,6 +61,9 @@
       ],
       "@spartan-ng/helm/sonner": [
         "./src/app/ui/spartan/sonner/src/index.ts"
+      ],
+      "@spartan-ng/helm/checkbox": [
+        "./src/app/ui/spartan/checkbox/src/index.ts"
       ]
     }
   },
