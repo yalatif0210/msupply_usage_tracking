@@ -190,9 +190,11 @@ composants SVG maison `ui/radar`, `ui/courbe-series`, `ui/mini-courbe`.
 
 ## 9. Icônes
 
-**lucide** (`lucide-angular`), tree-shakeable. Jeu aligné sur shadcn-admin.
-Taille par défaut `size-4` ; couleur `currentColor` ou `text-muted-foreground`.
-Une icône ne remplace jamais un libellé sur un élément d'action.
+**lucide** via **`@ng-icons/lucide`** + `@ng-icons/core` (`<ng-icon>`,
+`provideIcons`) : c'est le wrapper qu'attendent les composants Helm de spartan.
+Tree-shakeable (un import nommé par icône). Taille par défaut `size-4` ; couleur
+`currentColor` ou `text-muted-foreground`. Une icône ne remplace jamais un
+libellé sur un élément d'action.
 
 ---
 

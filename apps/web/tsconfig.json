@@ -3,7 +3,10 @@
     "target": "ES2022",
     "module": "ES2022",
     "moduleResolution": "bundler",
-    "lib": ["ES2022", "DOM"],
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
@@ -12,7 +15,54 @@
     "skipLibCheck": true,
     "experimentalDecorators": false,
     "esModuleInterop": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "paths": {
+      "@spartan-ng/helm/button": [
+        "./src/app/ui/spartan/button/src/index.ts"
+      ],
+      "@spartan-ng/helm/utils": [
+        "./src/app/ui/spartan/utils/src/index.ts"
+      ],
+      "@spartan-ng/helm/card": [
+        "./src/app/ui/spartan/card/src/index.ts"
+      ],
+      "@spartan-ng/helm/badge": [
+        "./src/app/ui/spartan/badge/src/index.ts"
+      ],
+      "@spartan-ng/helm/table": [
+        "./src/app/ui/spartan/table/src/index.ts"
+      ],
+      "@spartan-ng/helm/tabs": [
+        "./src/app/ui/spartan/tabs/src/index.ts"
+      ],
+      "@spartan-ng/helm/select": [
+        "./src/app/ui/spartan/select/src/index.ts"
+      ],
+      "@spartan-ng/helm/tooltip": [
+        "./src/app/ui/spartan/tooltip/src/index.ts"
+      ],
+      "@spartan-ng/helm/input": [
+        "./src/app/ui/spartan/input/src/index.ts"
+      ],
+      "@spartan-ng/helm/label": [
+        "./src/app/ui/spartan/label/src/index.ts"
+      ],
+      "@spartan-ng/helm/separator": [
+        "./src/app/ui/spartan/separator/src/index.ts"
+      ],
+      "@spartan-ng/helm/skeleton": [
+        "./src/app/ui/spartan/skeleton/src/index.ts"
+      ],
+      "@spartan-ng/helm/dialog": [
+        "./src/app/ui/spartan/dialog/src/index.ts"
+      ],
+      "@spartan-ng/helm/dropdown-menu": [
+        "./src/app/ui/spartan/dropdown-menu/src/index.ts"
+      ],
+      "@spartan-ng/helm/sonner": [
+        "./src/app/ui/spartan/sonner/src/index.ts"
+      ]
+    }
   },
   "angularCompilerOptions": {
     "strictTemplates": true,

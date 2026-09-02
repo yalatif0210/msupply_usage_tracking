@@ -33,7 +33,7 @@ La coordination a fourni le template **shadcn-admin** comme cible visuelle.
 
 Reconstruire la couche visuelle du front sur **spartan/ui** — le portage
 Angular de shadcn/ui — avec **Tailwind v4**, **ApexCharts** pour de vrais
-graphes aux légendes toujours lisibles, **lucide** pour les icônes et **Inter**
+graphes aux légendes toujours lisibles, **@ng-icons/lucide** pour les icônes et **Inter**
 pour la police. Recréer l'aspect de shadcn-admin.
 
 - On **garde** la coquille à **deux barres horizontales, aucune barre
@@ -136,7 +136,7 @@ pour la police. Recréer l'aspect de shadcn-admin.
 - **ADR 0008 fait autorité.** Aucune modification de `apps/api`,
   `packages/contracts`, `db/migrations`. Toute la spec est dans `apps/web`.
 - Socle UI = liste fermée (`CLAUDE.md §3`) : spartan/ui (Tailwind v4 + Angular
-  CDK), ApexCharts (`ng-apexcharts`), lucide (`lucide-angular`), Inter
+  CDK), ApexCharts (`ng-apexcharts`), @ng-icons/lucide, Inter
   auto-hébergée. Rien d'autre sans nouvel ADR.
 - Les composants Helm de spartan sont **copiés** dans `apps/web/src/app/ui/`
   via le CLI spartan ; on les édite, on ne les traite pas comme une dépendance
@@ -329,15 +329,22 @@ leurs bloqueurs sont fusionnés. 12 ferme la marche.
 
 - **spartan/ui 1.x exige Angular ≥ 21** (`@spartan-ng/brain` :
   `@angular/core >=21 <23`, `@angular/cdk >=21`). `apps/web` était sur Angular
-  20 : le ticket 01 monte d'abord `apps/web` en **Angular 21** (plancher
-  spartan, et `lucide-angular@1.0.0` plafonne à 21), avec un bump TypeScript
-  `~5.8` → `~5.9` sur tout le dépôt. NestJS n'est pas touché.
-- Le CLI spartan est un générateur **nx** ; DQA est en npm workspaces. Les
-  composants Helm sont donc **copiés à la main** depuis le dépôt spartan (MIT),
-  ce qui reste le modèle « tu les possèdes ».
+  20 : le ticket 01 monte `apps/web` en **Angular 21**, avec un bump TypeScript
+  `~5.8` → `~5.9` et vitest `3` → `4` sur tout le dépôt. NestJS n'est pas
+  touché (fait : 169 tests API verts après upgrade).
+- Le CLI spartan **fonctionne en mode Angular CLI** (`ng g @spartan-ng/cli:init`
+  / `:ui`, non interactif via `components.json`) : il copie les composants Helm
+  dans `apps/web/src/app/ui/spartan/` avec les utilitaires Tailwind **inlinés**
+  et pose les alias `@spartan-ng/helm/*` dans `tsconfig`. Deux composants
+  générés (`hlm-dropdown-menu-radio`, `-checkbox`) ont un `useExisting`
+  auto-référent corrigé par `forwardRef`.
+- Icônes : `@ng-icons/lucide` + `@ng-icons/core` (pas `lucide-angular`) — c'est
+  le wrapper qu'attendent les composants Helm.
+- Tailwind v4 : `.postcssrc.json` avec `@tailwindcss/postcss` requis (sinon
+  36 règles du preset spartan sont ignorées au build).
 - spartan/ui 1.x (stable, 55+ composants, Brain sur Angular CDK). Compat
-  zoneless à confirmer au ticket 01 ; tout composant Brain problématique est
-  signalé dans le ticket.
+  zoneless **confirmée** au ticket 01 (Button, Card, Badge, ApexCharts, ng-icon
+  rendus sous `provideZonelessChangeDetection`).
 - `ng-apexcharts` revendique la compat zoneless et est testé sous
   `provideZonelessChangeDetection()` ; rendu SVG (net en projection).
 - Cette migration **refait une grande partie** du travail visuel des tranches

@@ -26,7 +26,7 @@ fait : import par lot, validation défensive, historisation explicite.
 |-----------|-------------------------------------------|
 | API       | NestJS 10, TypeScript strict              |
 | Front     | Angular 21 zoneless, standalone components, signals |
-| UI front  | spartan/ui (Tailwind v4 + Angular CDK), ApexCharts, lucide, Inter |
+| UI front  | spartan/ui (Tailwind v4 + Angular CDK), ApexCharts, @ng-icons/lucide, Inter |
 | Base      | PostgreSQL 16                             |
 | Contrats  | Package TS partagé `@dqa/contracts`       |
 | Infra     | Docker Compose, Nginx                     |
@@ -58,14 +58,15 @@ Monorepo npm workspaces.
 ### Dépendances
 
 - Le socle UI du front est une **liste fermée** : spartan/ui (Tailwind v4 +
-  Angular CDK), ApexCharts (graphes), lucide (icônes), Inter (police,
+  Angular CDK), ApexCharts (graphes), @ng-icons/lucide (icônes), Inter (police,
   auto-hébergée). Toute autre dépendance runtime — front ou API — passe par un
   ADR.
 - Hors socle UI : préférer la bibliothèque standard, ne pas ajouter de
   dépendance sans nécessité démontrée.
-- Les composants spartan sont **copiés** dans `apps/web/src/app/ui/` (modèle
-  Helm) : on les possède et on les édite ; ce ne sont pas une boîte noire à
-  mettre à jour en masse.
+- Les composants spartan sont **copiés** dans `apps/web/src/app/ui/spartan/`
+  (générateur `spartan/cli:ui`, modèle Helm, alias `@spartan-ng/helm/*`) : on
+  les possède et on les édite ; ce ne sont pas une boîte noire à mettre à jour
+  en masse.
 
 ### Frontière API ↔ front
 

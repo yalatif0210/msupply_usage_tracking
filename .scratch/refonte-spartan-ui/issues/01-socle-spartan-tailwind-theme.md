@@ -7,46 +7,46 @@ reste vert.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-### Prérequis — montée de version Angular
+### Montée de version Angular
 
 spartan/ui 1.x exige **Angular ≥ 21** (`@spartan-ng/brain` :
-`@angular/core >=21 <23`, `@angular/cdk >=21`). `apps/web` est sur Angular 20.
-`lucide-angular@1.0.0` plafonne à Angular 21 ; `ng-apexcharts@3` demande
-`>=20`. **Angular 21** lève tous les blocages : c'est la cible.
+`@angular/core >=21 <23`, `@angular/cdk >=21`).
 
-- [ ] `apps/web` monté de Angular 20 → **21** (`@angular/core`, `common`,
-      `compiler`, `forms`, `platform-browser`, `router`, `@angular/build`,
-      `@angular/cli`, `@angular/compiler-cli`).
-- [ ] `@angular/cdk@21` ajouté (dépendance de `@spartan-ng/brain`).
-- [ ] TypeScript bump `~5.8` → `~5.9` sur tout le dépôt (racine, `apps/api`,
-      `apps/web`, `packages/contracts`) — Angular 21 exige `>=5.9 <6.0`.
-- [ ] Aucune régression : `ng build -w @dqa/web`, `typecheck` des trois
-      workspaces, `npm test` (contrats + web), suite API (169) — tous verts.
-- [ ] Aucun changement visuel ni fonctionnel dû à l'upgrade.
+- [x] `apps/web` monté de Angular 20 → **21** (core, common, compiler, forms,
+      platform-browser, router, `@angular/build`, `@angular/cli`,
+      `@angular/compiler-cli`).
+- [x] `@angular/cdk@21` ajouté.
+- [x] TypeScript `~5.8` → `~5.9` sur tout le dépôt ; vitest `3` → `4`
+      (Angular 21 exige vitest 4) ; `unplugin-swc` bump.
+- [x] Aucune régression : `ng build -w @dqa/web`, typecheck des 3 workspaces,
+      43 tests front, **169 tests API** — tous verts.
+- [x] Aucun changement visuel ni fonctionnel dû à l'upgrade.
 
 ### Socle spartan / Tailwind / graphes
 
-- [ ] Tailwind v4 intégré au build Angular 21 (support natif de
-      `@angular/build@21`, peer `tailwindcss ^4`).
-- [ ] `@spartan-ng/brain` installé ; composants Helm **copiés à la main**
-      depuis le dépôt spartan (MIT) — le CLI spartan est un générateur nx, or
-      DQA est en npm workspaces. Le socle UI de `CLAUDE.md §3` est respecté.
-- [ ] `ng-apexcharts` (+ `apexcharts`) et `lucide-angular` installés.
-- [ ] `theme.css` : jetons shadcn (base `slate`, oklch), `--primary` forcé à
-      `#1f6fd6`, `--chart-1..5` disponibles, bloc `.dark` présent mais aucun
-      sélecteur de thème.
-- [ ] Couleurs de statut (CONFORME / ALERTE / NON_CALCULABLE) et classification
-      PARTIELLEMENT CONFORME conservées, hors palette du thème.
-- [ ] Inter auto-hébergée, aucune requête externe au démarrage.
-- [ ] `styles.css` réduit à l'entrée Tailwind + import `theme.css` + police.
-- [ ] Budget `angular.json` relevé pour absorber Tailwind + spartan +
-      ApexCharts + lucide.
-- [ ] Composants Helm copiés : `button`, `card`, `badge`, `table`, `tabs`,
+- [x] Tailwind v4 : `spartan/cli:init` + `.postcssrc.json`
+      (`@tailwindcss/postcss`), preset `@spartan-ng/brain/hlm-tailwind-preset`.
+- [x] Composants Helm via `ng g @spartan-ng/cli:ui` (mode Angular CLI, non
+      interactif via `components.json`) dans `src/app/ui/spartan/`, alias
+      `@spartan-ng/helm/*` : `button`, `card`, `badge`, `table`, `tabs`,
       `select`, `dropdown-menu`, `tooltip`, `dialog`, `input`, `label`,
-      `separator`, `skeleton`.
-- [ ] Smoke sous zoneless : un `Button` spartan, une icône lucide et un graphe
-      ApexCharts trivial rendus et vérifiés à l'écran (capture) ; toute
-      incompatibilité zoneless est signalée dans les commentaires du ticket.
-- [ ] `ng build` + `npm run typecheck -w @dqa/web` verts ; suite API inchangée.
+      `separator`, `skeleton`, `sonner`. `forwardRef` appliqué à
+      `hlm-dropdown-menu-radio` / `-checkbox` (useExisting auto-référent).
+- [x] `ng-apexcharts` + `apexcharts` ; `@ng-icons/lucide` + `@ng-icons/core`
+      (pas `lucide-angular` : c'est le wrapper qu'attend spartan Helm).
+- [x] Jetons de thème shadcn (base slate) dans `styles.css` ; `--primary`
+      forcé à `#1f6fd6` ; `--chart-1..5` exposés ; bloc `.dark` présent, aucun
+      sélecteur de thème.
+- [x] Couleurs de statut et classification conservées, hors palette du thème.
+- [x] Inter auto-hébergée (`@fontsource/inter`), aucune requête externe.
+- [x] `--accent` (marque, bleu) renommé `--marque` dans les 10 composants qui
+      l'utilisaient, pour ne pas entrer en collision avec le `--accent` de
+      shadcn. Bloc StarAdmin hérité conservé jusqu'au ticket 12.
+- [x] Budget `angular.json` relevé (900 kb / 1.6 mb + `anyComponentStyle`).
+- [x] Smoke sous zoneless : `hlmBtn` (défaut + outline, primaire `#1f6fd6`),
+      `hlmBadge`, `hlmCard`, `<ng-icon name="lucideCircleCheck">`, `<apx-chart>`
+      ligne — tous rendus et capturés (`smoke-socle-spartan.png`). Route
+      `/_smoke` temporaire retirée. Aucune incompatibilité zoneless.
+- [x] `ng build` + typecheck verts ; suite API inchangée.
