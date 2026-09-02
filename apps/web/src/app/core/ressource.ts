@@ -1,6 +1,15 @@
 import { Location } from '@angular/common';
-import { inject, signal, type Signal, type WritableSignal } from '@angular/core';
+import { computed, inject, signal, type Signal, type WritableSignal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+
+/**
+ * Phase d'affichage d'une {@link Ressource} :
+ * - `squelette` : aucun chargement n'a encore abouti (premier rendu) ;
+ * - `echec` : le premier chargement a échoué, aucune donnée à montrer ;
+ * - `prete` : une donnée existe (un rafraîchissement ultérieur peut être en
+ *   vol ou avoir échoué sans que la vue se vide).
+ */
+export type PhaseRessource = 'squelette' | 'echec' | 'prete';
 
 /**
  * Primitive de donnee asynchrone qui ne vide jamais la vue.
@@ -63,15 +72,24 @@ export class Ressource<T, F extends Record<string, string>> {
   readonly pret = this._pret.asReadonly();
   /** Etat de filtre courant. */
   readonly filtres: Signal<F>;
+  /** Phase d'affichage, pour un `@switch` cote composant. */
+  readonly phase: Signal<PhaseRessource>;
 
   constructor(private readonly options: OptionsRessource<T, F>) {
     this._valeur = signal(options.germe);
     this._filtres = signal(this.lireUrl(options.filtresInitiaux));
     this.valeur = this._valeur.asReadonly();
     this.filtres = this._filtres.asReadonly();
+    this.phase = computed(() =>
+      this._pret() ? 'prete' : this._erreur() !== null ? 'echec' : 'squelette',
+    );
   }
 
-  /** Premier chargement. A appeler une fois, quand les entrees externes sont pretes. */
+  /**
+   * Premier chargement, a appeler une fois quand les entrees externes sont
+   * pretes. Identique a {@link rafraichir} ; le nom distinct documente
+   * l'intention au point d'appel (init vs. relance manuelle).
+   */
   demarrer(): Promise<void> {
     return this.charger();
   }
@@ -120,6 +138,8 @@ export class Ressource<T, F extends Record<string, string>> {
   }
 
   private clesUrl(): readonly (keyof F & string)[] {
+    // `filtresInitiaux` est un `F` : ses clés SONT `keyof F & string`. Seule la
+    // signature trop large de `Object.keys` (`string[]`) impose la restriction.
     return this.options.clesUrl ?? (Object.keys(this.options.filtresInitiaux) as (keyof F & string)[]);
   }
 
@@ -128,6 +148,9 @@ export class Ressource<T, F extends Record<string, string>> {
     const out: F = { ...base };
     for (const cle of this.clesUrl()) {
       const valeur = params.get(cle);
+      // `F` étend `Record<string, string>` : une valeur de filtre est toujours
+      // une chaîne. TS ne peut pas le prouver pour une écriture générique
+      // (`F` pourrait être une union littérale), d'où la restriction, bornée ici.
       if (valeur !== null) out[cle] = valeur as F[keyof F & string];
     }
     return out;

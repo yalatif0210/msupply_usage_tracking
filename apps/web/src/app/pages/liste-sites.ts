@@ -46,11 +46,14 @@ type FiltresListe = {
         </label>
       </div>
 
-      @if (!res.pret() && !res.erreur()) {
+      @switch (res.phase()) {
+      @case ('squelette') {
         <p>Chargement…</p>
-      } @else if (!res.pret()) {
+      }
+      @case ('echec') {
         <p class="vide">La liste des sites est indisponible.</p>
-      } @else {
+      }
+      @default {
         <div class="resultats" [attr.aria-busy]="res.enCours()">
           <dqa-barre-attente [actif]="res.enCours()" />
           @if (sitesAffiches().length === 0) {
@@ -94,6 +97,7 @@ type FiltresListe = {
             <p class="note">Sites triés du score le plus faible au plus élevé ; sites sans mesure en fin de liste.</p>
           }
         </div>
+      }
       }
     </main>
   `,

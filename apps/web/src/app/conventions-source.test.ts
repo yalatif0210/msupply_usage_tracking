@@ -16,18 +16,19 @@ import { describe, expect, it } from 'vitest';
  *     d'union. Voir DESIGN_SYSTEM.md §11.
  *
  *  2. AUCUNE VALEUR TAILWIND ARBITRAIRE dans un template : une chaine de
- *     classes (`class="..."`, `[class]`, `[class.x]`, `[ngClass]`) qui contient
- *     un crochet de valeur arbitraire (`bg-[#123456]`, `w-[13px]`,
- *     `text-[15px]`, `min-[600px]:...`). Motif detecte : `-[` a l'interieur de
- *     la chaine de classes. Une couleur ou une mesure absente de l'echelle du
- *     theme s'ajoute au theme, elle ne se bricole pas dans le template
- *     (DESIGN_SYSTEM.md §3, spec .scratch/refonte-spartan-ui).
+ *     classes (`class="..."`, `[class]`, `[class.x]`, `[ngClass]`, ou la cle
+ *     `class` d'un bloc `host: { ... }`) qui contient un crochet de valeur
+ *     arbitraire (`bg-[#123456]`, `w-[13px]`, `text-[15px]`, `min-[600px]:...`).
+ *     Motif detecte : `-[` a l'interieur. Une couleur ou une mesure absente de
+ *     l'echelle du theme s'ajoute au theme, elle ne se bricole pas dans le
+ *     template (DESIGN_SYSTEM.md §3, spec .scratch/refonte-spartan-ui).
  *
  *  3. AUCUN LITTERAL DE COULEUR dans le CSS d'un composant (bloc `styles:` d'un
- *     composant Angular, ou fichier `.css`) : ni hex (`#rgb` / `#rrggbb` /
- *     `#rrggbbaa`), ni `oklch(` / `rgb(` / `hsl(`. Les couleurs passent par
- *     `var(--...)` ou un utilitaire Tailwind mappe au theme. Les definitions de
- *     jetons vivent dans `theme.css` (exception ci-dessous).
+ *     composant Angular, fichier `.css`, ou attribut/liaison `style` d'un
+ *     template) : ni hex (`#rgb` / `#rrggbb` / `#rrggbbaa`), ni `oklch(` /
+ *     `rgb(` / `hsl(`. Les couleurs passent par `var(--...)` ou un utilitaire
+ *     Tailwind mappe au theme. Les definitions de jetons vivent dans
+ *     `theme.css` (exception ci-dessous).
  *
  * EXCEPTIONS : liste explicite, chaque entree justifiee. Le dernier `it`
  * verifie que chaque exception existe encore sur le disque, pour qu'une
@@ -137,16 +138,20 @@ function tiretsLongs(chemin: string): string[] {
 
 /** `class="..."`, `[class]="..."`, `[class.x]="..."`, `[ngClass]="..."`, `ngClass="..."`. */
 const CHAINE_DE_CLASSES = /\[?(?:ng)?class(?:\.[\w-]+)?\]?\s*=\s*(['"`])([\s\S]*?)\1/gi;
+/** Cle `class` d'un objet `host: { ... }` de decorateur Angular. */
+const CLASSE_HOST = /(['"]?)class\1\s*:\s*(['"`])([\s\S]*?)\2/gi;
 const VALEUR_ARBITRAIRE = /-\[/;
 
 function valeursArbitraires(chemin: string): string[] {
   const contenu = readFileSync(chemin, 'utf8');
   const fautes: string[] = [];
-  for (const m of contenu.matchAll(CHAINE_DE_CLASSES)) {
-    const valeur = m[2] ?? '';
-    if (VALEUR_ARBITRAIRE.test(valeur)) {
-      const n = ligneDe(contenu, m.index ?? 0);
-      fautes.push(`L${n}: ${m[0].replace(/\s+/g, ' ').trim()}`);
+  for (const motif of [CHAINE_DE_CLASSES, CLASSE_HOST]) {
+    for (const m of contenu.matchAll(motif)) {
+      const valeur = m[m.length - 1] ?? '';
+      if (VALEUR_ARBITRAIRE.test(valeur)) {
+        const n = ligneDe(contenu, m.index ?? 0);
+        fautes.push(`L${n}: ${m[0].replace(/\s+/g, ' ').trim()}`);
+      }
     }
   }
   return fautes;
@@ -171,6 +176,12 @@ function segmentsCss(chemin: string, contenu: string): { css: string; base: numb
   return [];
 }
 
+/**
+ * `style="..."`, `[style]`, `[style.x]`, `[ngStyle]`, `[attr.style]`. Le
+ * lookbehind evite `element.style` / `ctx.fillStyle` (code TS, pas un template).
+ */
+const CHAINE_DE_STYLE = /(?<![\w.])\[?(?:attr\.|ng)?style(?:\.[\w-]+)?\]?\s*=\s*(['"`])([\s\S]*?)\1/gi;
+
 function couleursEnDur(chemin: string): string[] {
   const contenu = readFileSync(chemin, 'utf8');
   const fautes: string[] = [];
@@ -179,6 +190,14 @@ function couleursEnDur(chemin: string): string[] {
       if (COULEUR_EN_DUR.test(ligneCss)) {
         const n = ligneDe(contenu, base + css.indexOf(ligneCss));
         fautes.push(`L${n}: ${ligneCss.trim()}`);
+      }
+    }
+  }
+  if (chemin.endsWith('.ts') || chemin.endsWith('.html')) {
+    for (const m of contenu.matchAll(CHAINE_DE_STYLE)) {
+      const valeur = m[2] ?? '';
+      if (COULEUR_EN_DUR.test(valeur)) {
+        fautes.push(`L${ligneDe(contenu, m.index ?? 0)}: ${m[0].replace(/\s+/g, ' ').trim()}`);
       }
     }
   }

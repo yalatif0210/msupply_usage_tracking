@@ -47,9 +47,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/admin-comptes').then((m) => m.AdminComptesPage),
   },
   {
-    // Harnais de revue des composants de graphe (ticket 04). Sans garde, donnees
-    // statiques. A retirer au ticket 12 si la revue ne le conserve pas.
+    // Harnais de revue des composants de graphe (ticket 04), données statiques.
+    // À retirer au ticket 12 si la revue ne le conserve pas.
     path: '_graphes',
+    canActivate: [gardeAuthentifie],
     loadComponent: () => import('./pages/demo-graphes').then((m) => m.DemoGraphesPage),
   },
   { path: '**', redirectTo: '' },

@@ -1,31 +1,36 @@
 import { DOCUMENT, inject, Injectable } from '@angular/core';
 
 /**
- * Resolution des jetons de couleur du theme en chaines concretes pour
+ * Résolution des jetons de couleur du thème en chaînes concrètes pour
  * ApexCharts.
  *
- * ApexCharts pose les couleurs de serie en attribut SVG (`fill`, `stroke`) et
- * ne resout pas `var(--x)`. Il faut donc lui passer des couleurs deja
- * calculees. On lit la valeur calculee d'une propriete custom via une sonde
- * detachee de l'affichage, puis on normalise en `#rrggbb` par le canvas 2D
- * (qui accepte aussi bien `oklch(...)` que `rgb(...)`), pour que le calcul
- * d'opacite d'ApexCharts (remplissage du radar) recoive un hexa exploitable.
+ * ApexCharts pose les couleurs de série en attribut SVG (`fill`, `stroke`) et
+ * ne résout pas `var(--x)`. On lit donc la valeur calculée du jeton sur
+ * `:root` (les `--chart-*` y sont définis, DESIGN_SYSTEM §2) et on la normalise
+ * en `#rrggbb` via le canvas 2D, pour que le calcul d'opacité d'ApexCharts
+ * (remplissage du radar) reçoive un hexa exploitable. Le thème est statique et
+ * en mode clair unique : chaque jeton n'est résolu qu'une fois.
  */
 
-/** Jetons de serie du theme (DESIGN_SYSTEM.md 2), cycles au-dela de cinq. */
+/** Jetons de série du thème, cyclés au-delà de cinq. */
 export const JETONS_SERIE = ['--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5'] as const;
 
 @Injectable({ providedIn: 'root' })
 export class JetonsGraphe {
   private readonly doc = inject(DOCUMENT);
+  private readonly cache = new Map<string, string>();
 
-  /** Couleur concrete (`#rrggbb` si possible) d'une propriete custom du theme. */
+  /** Couleur concrète (`#rrggbb` si possible) d'une propriété custom du thème. */
   jeton(propriete: string): string {
+    const enCache = this.cache.get(propriete);
+    if (enCache !== undefined) return enCache;
     const brut = this.valeurCalculee(propriete);
-    return this.versHexa(brut) ?? brut;
+    const resolue = this.versHexa(brut) ?? brut;
+    this.cache.set(propriete, resolue);
+    return resolue;
   }
 
-  /** `n` couleurs de serie, palette `--chart-*` cyclee au-dela de cinq. */
+  /** `n` couleurs de série, palette `--chart-*` cyclée au-delà de cinq. */
   palette(n: number): string[] {
     const total = Math.max(0, Math.trunc(n));
     return Array.from({ length: total }, (_, i) => this.jeton(JETONS_SERIE[i % JETONS_SERIE.length]!));
@@ -33,17 +38,8 @@ export class JetonsGraphe {
 
   private valeurCalculee(propriete: string): string {
     const vue = this.doc.defaultView;
-    const racine = this.doc.documentElement;
     if (!vue) return '';
-    const sonde = this.doc.createElement('span');
-    sonde.style.color = `var(${propriete})`;
-    sonde.style.position = 'absolute';
-    sonde.style.opacity = '0';
-    sonde.style.pointerEvents = 'none';
-    racine.appendChild(sonde);
-    const calculee = vue.getComputedStyle(sonde).color;
-    sonde.remove();
-    return (calculee || vue.getComputedStyle(racine).getPropertyValue(propriete)).trim();
+    return vue.getComputedStyle(this.doc.documentElement).getPropertyValue(propriete).trim();
   }
 
   private versHexa(couleur: string): string | null {

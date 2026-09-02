@@ -45,6 +45,14 @@ const COLONNES: readonly { cle: TriColonne; libelle: string; num: boolean }[] = 
     <main>
       <h1>Synthèse nationale</h1>
 
+      @switch (res.phase()) {
+      @case ('squelette') {
+        <p>Chargement…</p>
+      }
+      @case ('echec') {
+        <p class="vide">La synthèse est indisponible.</p>
+      }
+      @default {
       @if (res.valeur(); as s) {
         <div class="controles">
           @if (s.moisDisponibles.length > 1) {
@@ -236,10 +244,8 @@ const COLONNES: readonly { cle: TriColonne; libelle: string; num: boolean }[] = 
             }
           }
         </div>
-      } @else if (res.erreur()) {
-        <p class="vide">La synthèse est indisponible.</p>
-      } @else {
-        <p>Chargement…</p>
+      }
+      }
       }
     </main>
   `,

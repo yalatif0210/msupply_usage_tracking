@@ -58,6 +58,11 @@ interface LienSection {
       <a routerLink="/" class="shrink-0 text-base font-bold tracking-tight whitespace-nowrap text-primary-foreground">Tableau de bord DQA</a>
 
       @if (auth.utilisateur(); as u) {
+        <!--
+          Declencheur pose main : les variants hlmBtn (ghost/outline) visent une
+          surface claire (hover bg-muted) et jurent sur la barre 1 bg-primary.
+          Utilitaires du theme directement, comme le ProfileDropdown de shadcn-admin.
+        -->
         <button
           type="button"
           class="inline-flex min-w-0 max-w-60 items-center gap-2 rounded-md px-2 py-1 text-sm font-medium text-primary-foreground hover:bg-primary-foreground/10 aria-expanded:bg-primary-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground/40"

@@ -6,6 +6,7 @@ import {
   type ApexYAxis,
   ChartComponent,
 } from 'ng-apexcharts';
+import { CHART_BASE, POLICE_GRAPHE, seuilsYAxis, VALEUR_ABSENTE_GRAPHE } from './graphe-commun';
 import { JetonsGraphe } from './graphe-jetons';
 
 /**
@@ -17,8 +18,8 @@ export interface PointGrapheSparkline {
   valeur: number | null;
 }
 
-const POLICE = 'var(--font-sans)';
-const VALEUR_ABSENTE = 'n/d';
+const POLICE = POLICE_GRAPHE;
+const VALEUR_ABSENTE = VALEUR_ABSENTE_GRAPHE;
 
 /**
  * Courbe compacte d'une serie datee (remplace `ui/mini-courbe`). Aucun axe,
@@ -71,9 +72,8 @@ export class GrapheSparkline {
   protected readonly chartOptions = computed<ApexChart>(() => ({
     type: 'line',
     height: this.hauteur(),
-    fontFamily: POLICE,
     sparkline: { enabled: true },
-    animations: { enabled: false },
+    ...CHART_BASE,
   }));
 
   protected readonly serieApex = computed(() => [
@@ -86,16 +86,9 @@ export class GrapheSparkline {
 
   protected readonly yaxis = computed<ApexYAxis>(() => ({ min: this.min(), max: this.max() }));
 
-  protected readonly annotations = computed<ApexAnnotations>(() => {
-    const trait = this.jetons.jeton('--muted-foreground');
-    return {
-      yaxis: this.seuils().map((valeur) => ({
-        y: valeur,
-        borderColor: trait,
-        strokeDashArray: 3,
-      })),
-    };
-  });
+  protected readonly annotations = computed<ApexAnnotations>(() => ({
+    yaxis: seuilsYAxis(this.seuils(), this.jetons.jeton('--muted-foreground')),
+  }));
 
   protected readonly resumeAria = computed(() => {
     const fourni = this.resume();

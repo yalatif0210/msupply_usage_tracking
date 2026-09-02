@@ -1,4 +1,3 @@
-import '@angular/compiler';
 import { Location } from '@angular/common';
 import { Injector, runInInjectionContext } from '@angular/core';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
@@ -114,6 +113,25 @@ describe('ressource : ne vide jamais la vue', () => {
     d.rejeter(new Error('boum'));
     await tick();
     expect(res.enCours()).toBe(false);
+  });
+
+  it('phase() : squelette avant tout chargement, prete apres succes', async () => {
+    const d = differe<string>();
+    const { res } = monter({ charger: () => d.promesse, germe: '', filtresInitiaux: { q: 'a' } });
+    expect(res.phase()).toBe('squelette');
+    void res.demarrer();
+    d.resoudre('ok');
+    await tick();
+    expect(res.phase()).toBe('prete');
+  });
+
+  it('phase() : echec quand le premier chargement rate sans donnee', async () => {
+    const d = differe<string>();
+    const { res } = monter({ charger: () => d.promesse, germe: '', filtresInitiaux: { q: 'a' } });
+    void res.demarrer();
+    d.rejeter(new Error('boum'));
+    await tick();
+    expect(res.phase()).toBe('echec');
   });
 
   it('garde la valeur precedente sur echec et expose erreur()', async () => {

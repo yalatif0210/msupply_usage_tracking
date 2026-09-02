@@ -83,9 +83,15 @@ function reculerMois(mois: string, n: number): string {
     <main>
       <a routerLink="/sites" class="retour">← Tous les sites</a>
 
-      @if (!res.pret() && !res.erreur()) {
+      @switch (res.phase()) {
+      @case ('squelette') {
         <p>Chargement…</p>
-      } @else if (res.valeur().detail; as d) {
+      }
+      @case ('echec') {
+        <p class="vide">La fiche n'a pas pu être chargée. Réessayez.</p>
+      }
+      @default {
+      @if (res.valeur().detail; as d) {
         <h1>{{ d.site.siteNom }}</h1>
         <p class="meta">
           {{ d.site.district ?? absent }} · {{ d.site.region ?? absent }} · {{ d.site.typeStructure ?? absent }}
@@ -294,6 +300,8 @@ function reculerMois(mois: string, n: number): string {
         }
       } @else {
         <p class="vide">Site inconnu ou hors périmètre.</p>
+      }
+      }
       }
     </main>
   `,

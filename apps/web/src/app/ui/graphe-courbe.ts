@@ -10,6 +10,7 @@ import {
   type ApexYAxis,
   ChartComponent,
 } from 'ng-apexcharts';
+import { CHART_BASE, POLICE_GRAPHE, seuilsYAxis } from './graphe-commun';
 import { JetonsGraphe } from './graphe-jetons';
 
 /**
@@ -24,7 +25,7 @@ export interface SerieGrapheCourbe {
   points: (number | null)[];
 }
 
-const POLICE = 'var(--font-sans)';
+const POLICE = POLICE_GRAPHE;
 /** Au-dela de ce nombre de series, la legende passe sous le graphe (DESIGN_SYSTEM.md 8). */
 const SERIES_LEGENDE_SOUS_GRAPHE = 6;
 
@@ -88,10 +89,8 @@ export class GrapheCourbe {
   protected readonly chartOptions = computed<ApexChart>(() => ({
     type: 'line',
     height: this.hauteur(),
-    fontFamily: POLICE,
-    toolbar: { show: false },
     zoom: { enabled: false },
-    animations: { enabled: false },
+    ...CHART_BASE,
   }));
 
   protected readonly serieApex = computed(() =>
@@ -141,28 +140,12 @@ export class GrapheCourbe {
     markers: { size: 6 },
   }));
 
-  protected readonly annotations = computed<ApexAnnotations>(() => {
-    const trait = this.jetons.jeton('--muted-foreground');
-    return {
-      yaxis: this.seuils().map((valeur) => ({
-        y: valeur,
-        borderColor: trait,
-        strokeDashArray: 4,
-        label: {
-          text: `seuil ${valeur}`,
-          position: 'left',
-          textAnchor: 'start',
-          borderWidth: 0,
-          style: {
-            color: trait,
-            background: this.jetons.jeton('--background'),
-            fontSize: '11px',
-            fontFamily: POLICE,
-          },
-        },
-      })),
-    };
-  });
+  protected readonly annotations = computed<ApexAnnotations>(() => ({
+    yaxis: seuilsYAxis(this.seuils(), this.jetons.jeton('--muted-foreground'), {
+      avecEtiquette: true,
+      fond: this.jetons.jeton('--background'),
+    }),
+  }));
 
   protected readonly resumeAria = computed(() => {
     const fourni = this.resume();

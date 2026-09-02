@@ -11,6 +11,7 @@ import {
   type ApexYAxis,
   ChartComponent,
 } from 'ng-apexcharts';
+import { CHART_BASE, POLICE_GRAPHE, VALEUR_ABSENTE_GRAPHE } from './graphe-commun';
 import { JetonsGraphe } from './graphe-jetons';
 
 /**
@@ -27,8 +28,8 @@ export interface AxeGrapheRadar {
   statut: StatutSousComposante;
 }
 
-const POLICE = 'var(--font-sans)';
-const VALEUR_ABSENTE = 'n/d';
+const POLICE = POLICE_GRAPHE;
+const VALEUR_ABSENTE = VALEUR_ABSENTE_GRAPHE;
 
 /**
  * Radar ApexCharts (remplace `ui/radar`). Une seule serie, remplissage
@@ -129,9 +130,7 @@ export class GrapheRadar {
   protected readonly chartOptions = computed<ApexChart>(() => ({
     type: 'radar',
     height: this.hauteur(),
-    fontFamily: POLICE,
-    toolbar: { show: false },
-    animations: { enabled: false },
+    ...CHART_BASE,
   }));
 
   protected readonly serie = computed(() => [
