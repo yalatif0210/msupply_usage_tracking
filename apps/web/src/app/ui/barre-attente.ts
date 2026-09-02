@@ -11,9 +11,9 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `@if (actif()) { <div class="barre" aria-hidden="true"><span></span></div> }`,
   styles: `
-    .barre { position: relative; height: 2px; overflow: hidden; }
-    .barre::before { content: ''; position: absolute; inset: 0; background: var(--primary); opacity: 0.18; }
-    .barre span { position: absolute; inset: 0; width: 40%; background: var(--primary); animation: glisse 1.1s ease-in-out infinite; }
+    .barre { position: relative; height: 3px; overflow: hidden; }
+    .barre::before { content: ''; position: absolute; inset: 0; background: var(--primary); opacity: 0.25; }
+    .barre span { position: absolute; inset: 0; width: 45%; background: var(--primary); animation: glisse 1.1s ease-in-out infinite; }
     @keyframes glisse {
       0% { left: -40%; }
       100% { left: 100%; }

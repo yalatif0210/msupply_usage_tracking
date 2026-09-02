@@ -26,8 +26,11 @@ export interface SerieGrapheCourbe {
 }
 
 const POLICE = POLICE_GRAPHE;
-/** Au-dela de ce nombre de series, la legende passe sous le graphe (DESIGN_SYSTEM.md 8). */
-const SERIES_LEGENDE_SOUS_GRAPHE = 6;
+/**
+ * A partir de ce nombre de series, la legende passe sous le graphe et s'enroule
+ * (DESIGN_SYSTEM.md 8). 6 series ("par pilier") est donc deja en dessous.
+ */
+const SERIES_LEGENDE_SOUS_GRAPHE = 5;
 
 /**
  * Courbe multi-series ApexCharts (remplace `ui/courbe-series`).
@@ -129,10 +132,11 @@ export class GrapheCourbe {
   }));
 
   protected readonly legende = computed<ApexLegend>(() => ({
-    show: true,
+    // une seule serie : pas de legende (le titre/aria porte deja le nom).
+    show: this.series().length > 1,
     position: this.series().length > SERIES_LEGENDE_SOUS_GRAPHE ? 'bottom' : 'top',
     horizontalAlign: 'left',
-    showForSingleSeries: true,
+    showForSingleSeries: false,
     fontSize: '13px',
     fontFamily: POLICE,
     labels: { colors: this.jetons.jeton('--foreground') },
