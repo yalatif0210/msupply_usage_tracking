@@ -227,7 +227,7 @@ S'applique à **tout** contrôle de filtre, pas seulement aux `<select>`.
 
 **Aucun tiret long dans la console** : ni cadratin `—` (U+2014), ni
 demi-cadratin `–` (U+2013), ni signe moins typographique `−` (U+2212). Test de
-garde : `apps/web/src/app/typographie.test.ts`.
+garde : `apps/web/src/app/conventions-source.test.ts`.
 
 | Cas | Remplacement |
 |---|---|

@@ -184,7 +184,7 @@ chiffres clés généreux (`tabular-nums`), légendes de graphe toujours complè
 et jamais tronquées.
 
 Interdits : dégradés, animation décorative, tiret long (`—` `–` `−` ; test de
-garde `apps/web/src/app/typographie.test.ts`). Autorisés depuis l'ADR 0008 :
+garde `apps/web/src/app/conventions-source.test.ts`). Autorisés depuis l'ADR 0008 :
 ombre `xs` sur les surfaces, transitions courtes sur repli / dépli.
 
 Un changement de filtre (`select`, onglet, case, champ de recherche) ne démonte
