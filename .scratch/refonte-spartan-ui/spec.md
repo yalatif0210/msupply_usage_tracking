@@ -256,22 +256,31 @@ scan de `apps/web/src`, trois assertions :
 Liste d'exceptions explicite, vide au départ (les composants Helm copiés
 peuvent en avoir besoin ponctuellement — chaque exception est justifiée).
 
-### Découpage en tranches
+### Découpage en tickets
 
-Ordre : **T1 → T2 → T3 → (T4 ∥ T5 ∥ T7) → T6 → T8**. Une branche par tranche,
-`/code-review` deux axes en fin de tranche, fusion `ff` vers master, captures
-Playwright des écrans touchés.
+12 tickets dans `.scratch/refonte-spartan-ui/issues/` (session `/to-tickets`,
+2026-09-02). Une branche par ticket, `/code-review` deux axes, fusion `ff` vers
+master, captures Playwright des écrans touchés.
 
-| Tranche | Contenu | Dépend de |
+**Les tickets indépendants se traitent en parallèle.** Frontière après le
+ticket 01 : 02, 03, 04, 05 démarrent ensemble. Ensuite 06 (04 + 05), 07 et 08
+(03 + 05), 09 (03 + 04 + 05), 10 et 11 (05) — tous parallélisables dès que
+leurs bloqueurs sont fusionnés. 12 ferme la marche.
+
+| # | Ticket | Bloqué par |
 |---|---|---|
-| **T1 Socle** | Tailwind v4 + preset spartan, `spartan init`, `theme.css` (jetons + `--primary`), Inter auto-hébergée, `styles.css` réduit, budget `angular.json` relevé, premiers Helm (`button`, `card`, `badge`, `separator`, `skeleton`). `ng build` vert. | — |
-| **T2 Coquille** | `ui/coquille` re-stylée : barre 1 + `dropdown-menu` compte, barre 2, repli `dropdown-menu` sur écran étroit. lucide câblé. | T1 |
-| **T3 Primitive filtres** | `core/ressource` + tests unitaires ; barre de progression fine + `aria-busy` ; sync URL en place. Migration de `liste-sites`, `synthese`, `detail-site` dessus. Corrige le clignotement. | T1 |
-| **T4 Tableau de bord** | `/` : cartes de stat `card` + lucide + delta, `tabs`, grille 4 + 3 ; `mini-courbe` → ApexCharts sparkline / line ; `repartition-classification` re-stylée. | T2, T3 |
-| **T5 Sites + Synthèse** | `liste-sites` et `synthese` : `table` spartan triable, `tabs`, `badge-*` spartan, filtres via T3. | T2, T3 |
-| **T6 Fiche site** | `detail-site` : `radar` + `courbe-series` → ApexCharts (règles de légende) ; `select` / `tabs` spartan ; drill-down P4 en `table` ; « Analyse fine » ne clignote plus. | T3, T5 |
-| **T7 Admin + connexion** | `admin-grille`, `admin-comptes`, `admin-traceurs`, `journal-imports`, `connexion` sur composants spartan. | T2 |
-| **T8 Nettoyage** | Suppression des composants SVG maison remplacés ; garde `conventions-source.test.ts` étendue et verte ; `docs/reference/shadcn-admin/` + zip retirés ; `docs/guide_module_indicateurs.md` et guides touchés mis à jour ; captures finales. | T4, T5, T6, T7 |
+| 01 | Socle spartan/ui + Tailwind + thème | — |
+| 02 | Garde de conventions de source élargie | 01 |
+| 03 | Primitive `core/ressource` + recâblage des filtres | 01 |
+| 04 | Composants de graphe ApexCharts | 01 |
+| 05 | Coquille deux barres re-stylée | 01 |
+| 06 | Tableau de bord national re-stylé | 04, 05 |
+| 07 | Liste des sites re-stylée | 03, 05 |
+| 08 | Synthèse re-stylée | 03, 05 |
+| 09 | Fiche site re-stylée + graphes | 03, 04, 05 |
+| 10 | Admin : grille + comptes | 05 |
+| 11 | Admin : traceurs + journal imports + connexion | 05 |
+| 12 | Nettoyage + docs + captures finales | 06, 07, 08, 09, 10, 11 |
 
 ## Testing Decisions
 
