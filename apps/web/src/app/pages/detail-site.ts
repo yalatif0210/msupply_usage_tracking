@@ -5,7 +5,6 @@ import {
   inject,
   input,
   signal,
-  type WritableSignal,
 } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -26,9 +25,11 @@ import {
   type SousComposanteBref,
 } from '@dqa/contracts';
 import { VALEUR_ABSENTE } from '../core/affichage';
+import { ressource } from '../core/ressource';
 import { SitesService } from '../core/sites.service';
 import { BadgeClassification } from '../ui/badge-classification';
 import { BadgeStatut } from '../ui/badge-statut';
+import { BarreAttente } from '../ui/barre-attente';
 import { CourbeSeries, type SerieCourbe } from '../ui/courbe-series';
 import { Coquille } from '../ui/coquille';
 import { Radar, type AxeRadar } from '../ui/radar';
@@ -36,6 +37,18 @@ import { Radar, type AxeRadar } from '../ui/radar';
 type Granularite = 'composite' | 'pilier' | 'sousComposante';
 type ModeRadar = '6' | '10';
 type TriSc = 'sousComposante' | 'pilier' | 'valeur' | 'seuil' | 'ecart' | 'tauxAtteinte' | 'statut';
+
+type FiltresFiche = {
+  programme: string;
+  de: string;
+  a: string;
+}
+
+interface DonneesFiche {
+  detail: DetailSite | null;
+  historique: HistoriqueSite | null;
+  p4: DetailP4Produits | null;
+}
 
 /** Nombre de forces / faiblesses saillantes listées sous le radar. */
 const NB_SAILLANTS = 3;
@@ -54,15 +67,25 @@ function reculerMois(mois: string, n: number): string {
 @Component({
   selector: 'dqa-detail-site',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, Coquille, BadgeStatut, BadgeClassification, CourbeSeries, Radar, DecimalPipe],
+  imports: [
+    FormsModule,
+    RouterLink,
+    Coquille,
+    BadgeStatut,
+    BadgeClassification,
+    BarreAttente,
+    CourbeSeries,
+    Radar,
+    DecimalPipe,
+  ],
   template: `
     <dqa-coquille />
     <main>
       <a routerLink="/sites" class="retour">← Tous les sites</a>
 
-      @if (chargement()) {
+      @if (!res.pret() && !res.erreur()) {
         <p>Chargement…</p>
-      } @else if (detail(); as d) {
+      } @else if (res.valeur().detail; as d) {
         <h1>{{ d.site.siteNom }}</h1>
         <p class="meta">
           {{ d.site.district ?? absent }} · {{ d.site.region ?? absent }} · {{ d.site.typeStructure ?? absent }}
@@ -71,7 +94,7 @@ function reculerMois(mois: string, n: number): string {
         <div class="controles">
           <label>
             Programme
-            <select [ngModel]="programmeId()" (ngModelChange)="definirEtRecharger(programmeId, $event)">
+            <select [ngModel]="res.filtres().programme" (ngModelChange)="res.definir({ programme: $event })">
               <option value="">Tous programmes</option>
               @for (p of programmes(); track p.programmeId) {
                 <option [value]="p.programmeId">{{ p.programmeNom }}</option>
@@ -163,17 +186,18 @@ function reculerMois(mois: string, n: number): string {
           }
 
           @if (d.sousComposantes.length > 0) {
-            <section class="analyse">
+            <section class="analyse" [attr.aria-busy]="res.enCours()">
+              <dqa-barre-attente [actif]="res.enCours()" />
               <div class="entete-analyse">
                 <h2>Analyse fine</h2>
                 <div class="plage">
                   <label>De
-                    <select [ngModel]="de()" (ngModelChange)="definirEtRecharger(de, $event)">
+                    <select [ngModel]="res.filtres().de" (ngModelChange)="res.definir({ de: $event })">
                       @for (m of moisDisponibles(); track m) { <option [value]="m">{{ m }}</option> }
                     </select>
                   </label>
                   <label>à
-                    <select [ngModel]="a()" (ngModelChange)="definirEtRecharger(a, $event)">
+                    <select [ngModel]="res.filtres().a" (ngModelChange)="res.definir({ a: $event })">
                       @for (m of moisDisponibles(); track m) { <option [value]="m">{{ m }}</option> }
                     </select>
                   </label>
@@ -335,19 +359,41 @@ export class DetailSitePage {
 
   private readonly service = inject(SitesService);
 
-  protected readonly programmeId = signal('');
-  protected readonly de = signal('');
-  protected readonly a = signal('');
   protected readonly granularite = signal<Granularite>('composite');
   protected readonly pilierCourbe = signal<Pilier>(PILIERS[0]);
   protected readonly axes = signal<ModeRadar>('6');
   protected readonly triSc = signal<{ colonne: TriSc; sens: 1 | -1 }>({ colonne: 'tauxAtteinte', sens: 1 });
 
-  protected readonly detail = signal<DetailSite | null>(null);
-  protected readonly historique = signal<HistoriqueSite | null>(null);
-  protected readonly p4Produits = signal<DetailP4Produits | null>(null);
   protected readonly programmes = signal<Programme[]>([]);
-  protected readonly chargement = signal(true);
+
+  protected readonly res = ressource<DonneesFiche, FiltresFiche>({
+    charger: async (f) => {
+      const h = await this.service.historique(this.id(), {
+        programmeId: f.programme || undefined,
+        de: f.de || undefined,
+        a: f.a || undefined,
+      });
+      // le mois de la fiche suit la borne haute réellement servie par l'historique
+      const moisFiche = h.points.at(-1)?.moisPaqd ?? (f.a || undefined);
+      const [d, p4] = await Promise.all([
+        this.service.detailSite(this.id(), { programmeId: f.programme || undefined, mois: moisFiche }),
+        this.service.p4Produits(this.id(), { programmeId: f.programme || undefined, mois: moisFiche }),
+      ]);
+      return { detail: d, historique: h, p4 };
+    },
+    germe: { detail: null, historique: null, p4: null },
+    filtresInitiaux: { programme: '', de: '', a: '' },
+    // aligne la plage sur ce que l'historique a réellement renvoyé
+    apresChargement: (v) => {
+      const points = v.historique?.points ?? [];
+      if (points.length === 0) return undefined;
+      return { de: points[0]!.moisPaqd, a: points.at(-1)!.moisPaqd };
+    },
+  });
+
+  protected readonly historique = computed<HistoriqueSite | null>(() => this.res.valeur().historique);
+  protected readonly p4Produits = computed<DetailP4Produits | null>(() => this.res.valeur().p4);
+  private readonly detail = computed<DetailSite | null>(() => this.res.valeur().detail);
 
   protected readonly moisDisponibles = computed(() => this.historique()?.moisDisponibles ?? []);
 
@@ -357,60 +403,25 @@ export class DetailSitePage {
 
   private async init(): Promise<void> {
     this.programmes.set(await this.service.programmes());
-    await this.recharger();
-  }
-
-  protected async recharger(): Promise<void> {
-    this.chargement.set(true);
-    try {
-      const h = await this.service.historique(this.id(), {
-        programmeId: this.programmeId() || undefined,
-        de: this.de() || undefined,
-        a: this.a() || undefined,
-      });
-      // aligne la plage sur ce que l'historique a réellement renvoyé
-      if (h.points.length) {
-        this.de.set(h.points[0]!.moisPaqd);
-        this.a.set(h.points.at(-1)!.moisPaqd);
-      }
-      const moisFiche = this.a() || h.points.at(-1)?.moisPaqd || undefined;
-      const [d, p4] = await Promise.all([
-        this.service.detailSite(this.id(), { programmeId: this.programmeId() || undefined, mois: moisFiche }),
-        this.service.p4Produits(this.id(), { programmeId: this.programmeId() || undefined, mois: moisFiche }),
-      ]);
-      this.historique.set(h);
-      this.detail.set(d);
-      this.p4Produits.set(p4);
-    } catch {
-      this.detail.set(null);
-      this.historique.set(null);
-      this.p4Produits.set(null);
-    }
-    this.chargement.set(false);
-  }
-
-  /** Écrit un filtre (programme, borne de plage) puis relance le chargement. */
-  protected definirEtRecharger(cible: WritableSignal<string>, valeur: string): void {
-    cible.set(valeur);
-    void this.recharger();
+    await this.res.demarrer();
   }
 
   protected preset(quoi: 'cycle' | '12m' | 'tout'): void {
     const mois = this.moisDisponibles(); // décroissant
     if (quoi === 'cycle') {
-      this.de.set('');
-      this.a.set('');
-    } else if (quoi === 'tout' && mois.length) {
-      this.de.set(mois.at(-1)!);
-      this.a.set(mois[0]!);
-    } else if (quoi === '12m' && mois.length) {
+      this.res.definir({ de: '', a: '' });
+      return;
+    }
+    if (quoi === 'tout' && mois.length) {
+      this.res.definir({ de: mois.at(-1)!, a: mois[0]! });
+      return;
+    }
+    if (quoi === '12m' && mois.length) {
       // 12 mois calendaires en arrière depuis le dernier mois connu, et non les
       // 12 derniers mois *mesurés* : l'API borne ensuite à l'historique réel.
       const fin = mois[0]!;
-      this.a.set(fin);
-      this.de.set(reculerMois(fin, MOIS_FENETRE_ANNEE));
+      this.res.definir({ a: fin, de: reculerMois(fin, MOIS_FENETRE_ANNEE) });
     }
-    void this.recharger();
   }
 
   protected libellePilier = (p: Pilier) => LIBELLES_PILIER[p];
@@ -439,7 +450,7 @@ export class DetailSitePage {
     () => this.detail()?.piliers.find((p) => p.pilier === 'P4')?.score != null,
   );
 
-  // ── tableau à plat ─────────────────────────────────────────────────────
+  // tableau à plat
   protected trierSc(colonne: TriSc): void {
     const t = this.triSc();
     this.triSc.set({ colonne, sens: t.colonne === colonne ? ((t.sens * -1) as 1 | -1) : 1 });
@@ -477,7 +488,7 @@ export class DetailSitePage {
     });
   });
 
-  // ── radar ──────────────────────────────────────────────────────────────
+  // radar
   protected readonly axesRadar = computed<AxeRadar[]>(() => {
     const d = this.detail();
     if (!d) return [];
@@ -518,7 +529,7 @@ export class DetailSitePage {
   );
   protected readonly forces = computed(() => this.classees().slice(-NB_SAILLANTS).reverse());
 
-  // ── courbes ────────────────────────────────────────────────────────────
+  // courbes
   protected readonly etiquettesCourbe = computed(() =>
     (this.historique()?.points ?? []).map((p) => p.moisPaqd),
   );

@@ -1,17 +1,25 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import type { Programme, ScoreSite } from '@dqa/contracts';
 import { VALEUR_ABSENTE } from '../core/affichage';
+import { ressource } from '../core/ressource';
 import { SitesService } from '../core/sites.service';
 import { BadgeClassification } from '../ui/badge-classification';
+import { BarreAttente } from '../ui/barre-attente';
 import { Coquille } from '../ui/coquille';
+
+/** Filtres de l'ecran. `district` est purement client : il ne recharge pas. */
+type FiltresListe = {
+  programmeId: string;
+  district: string;
+}
 
 @Component({
   selector: 'dqa-liste-sites',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, Coquille, BadgeClassification, DecimalPipe],
+  imports: [FormsModule, RouterLink, Coquille, BadgeClassification, BarreAttente, DecimalPipe],
   template: `
     <dqa-coquille />
     <main>
@@ -20,7 +28,7 @@ import { Coquille } from '../ui/coquille';
       <div class="filtres">
         <label>
           District
-          <select [(ngModel)]="district" (ngModelChange)="recharger()">
+          <select [ngModel]="res.filtres().district" (ngModelChange)="res.definirLocal({ district: $event })">
             <option value="">Tous</option>
             @for (d of districts(); track d) {
               <option [value]="d">{{ d }}</option>
@@ -29,7 +37,7 @@ import { Coquille } from '../ui/coquille';
         </label>
         <label>
           Programme
-          <select [(ngModel)]="programmeId" (ngModelChange)="recharger()">
+          <select [ngModel]="res.filtres().programmeId" (ngModelChange)="res.definir({ programmeId: $event })">
             <option value="">Tous</option>
             @for (p of programmes(); track p.programmeId) {
               <option [value]="p.programmeId">{{ p.programmeNom }}</option>
@@ -38,47 +46,54 @@ import { Coquille } from '../ui/coquille';
         </label>
       </div>
 
-      @if (chargement()) {
+      @if (!res.pret() && !res.erreur()) {
         <p>Chargement…</p>
-      } @else if (sites().length === 0) {
-        <p class="vide">Aucun site ne correspond, ou aucun import n'a encore été traité.</p>
+      } @else if (!res.pret()) {
+        <p class="vide">La liste des sites est indisponible.</p>
       } @else {
-        <table>
-          <thead>
-            <tr>
-              <th>Site</th>
-              <th>District</th>
-              <th>Mois</th>
-              <th class="num">Score composite</th>
-              <th>Classification</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (s of sites(); track s.site.siteId) {
-              <tr>
-                <td><a [routerLink]="['/sites', s.site.siteId]">{{ s.site.siteNom }}</a></td>
-                <td>{{ s.site.district ?? absent }}</td>
-                <td>{{ s.moisPaqd ?? absent }}</td>
-                <td class="num">
-                  {{ s.scoreComposite === null ? absent : (s.scoreComposite | number: '1.0-1') }}
-                </td>
-                <td>
-                  @if (s.moisPaqd) {
-                    <dqa-badge-classification [classification]="s.classification" />
-                    @if (s.piliersCouverts < 6) {
-                      <span class="couverture" title="Score composite renormalisé sur une couverture partielle">
-                        {{ s.piliersCouverts }}/6 piliers
-                      </span>
-                    }
-                  } @else {
-                    <span class="vide">Aucune mesure</span>
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-        <p class="note">Sites triés du score le plus faible au plus élevé ; sites sans mesure en fin de liste.</p>
+        <div class="resultats" [attr.aria-busy]="res.enCours()">
+          <dqa-barre-attente [actif]="res.enCours()" />
+          @if (sitesAffiches().length === 0) {
+            <p class="vide">Aucun site ne correspond, ou aucun import n'a encore été traité.</p>
+          } @else {
+            <table>
+              <thead>
+                <tr>
+                  <th>Site</th>
+                  <th>District</th>
+                  <th>Mois</th>
+                  <th class="num">Score composite</th>
+                  <th>Classification</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (s of sitesAffiches(); track s.site.siteId) {
+                  <tr>
+                    <td><a [routerLink]="['/sites', s.site.siteId]">{{ s.site.siteNom }}</a></td>
+                    <td>{{ s.site.district ?? absent }}</td>
+                    <td>{{ s.moisPaqd ?? absent }}</td>
+                    <td class="num">
+                      {{ s.scoreComposite === null ? absent : (s.scoreComposite | number: '1.0-1') }}
+                    </td>
+                    <td>
+                      @if (s.moisPaqd) {
+                        <dqa-badge-classification [classification]="s.classification" />
+                        @if (s.piliersCouverts < 6) {
+                          <span class="couverture" title="Score composite renormalisé sur une couverture partielle">
+                            {{ s.piliersCouverts }}/6 piliers
+                          </span>
+                        }
+                      } @else {
+                        <span class="vide">Aucune mesure</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+            <p class="note">Sites triés du score le plus faible au plus élevé ; sites sans mesure en fin de liste.</p>
+          }
+        </div>
       }
     </main>
   `,
@@ -100,14 +115,23 @@ import { Coquille } from '../ui/coquille';
 export class ListeSitesPage {
   protected readonly absent = VALEUR_ABSENTE;
   private readonly service = inject(SitesService);
-  private readonly route = inject(ActivatedRoute);
 
-  protected district = this.route.snapshot.queryParamMap.get('district') ?? '';
-  protected programmeId = '';
-  protected readonly sites = signal<ScoreSite[]>([]);
   protected readonly districts = signal<string[]>([]);
   protected readonly programmes = signal<Programme[]>([]);
-  protected readonly chargement = signal(true);
+
+  protected readonly res = ressource<ScoreSite[], FiltresListe>({
+    charger: (f) => this.service.listerSites({ programmeId: f.programmeId || undefined }),
+    germe: [],
+    filtresInitiaux: { programmeId: '', district: '' },
+    clesUrl: ['programmeId', 'district'],
+  });
+
+  /** Filtrage `district` fait ici, sur la liste deja chargee : instantane, sans requete. */
+  protected readonly sitesAffiches = computed<ScoreSite[]>(() => {
+    const district = this.res.filtres().district;
+    const liste = this.res.valeur();
+    return district ? liste.filter((s) => s.site.district === district) : liste;
+  });
 
   constructor() {
     void this.init();
@@ -117,17 +141,6 @@ export class ListeSitesPage {
     const [d, p] = await Promise.all([this.service.districts(), this.service.programmes()]);
     this.districts.set(d);
     this.programmes.set(p);
-    await this.recharger();
-  }
-
-  protected async recharger(): Promise<void> {
-    this.chargement.set(true);
-    this.sites.set(
-      await this.service.listerSites({
-        district: this.district || undefined,
-        programmeId: this.programmeId || undefined,
-      }),
-    );
-    this.chargement.set(false);
+    await this.res.demarrer();
   }
 }
