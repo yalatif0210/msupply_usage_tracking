@@ -1,100 +1,228 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ROLES, type CompteAdmin, type EntreeCompte, type MajCompte } from '@dqa/contracts';
+import { BrnDialogContent } from '@spartan-ng/brain/dialog';
+import { toast } from '@spartan-ng/brain/sonner';
+import { HlmButton } from '@spartan-ng/helm/button';
+import { HlmDialogImports } from '@spartan-ng/helm/dialog';
+import { HlmInput } from '@spartan-ng/helm/input';
+import { HlmLabel } from '@spartan-ng/helm/label';
+import { HlmSelectImports } from '@spartan-ng/helm/select';
+import { HlmTableImports } from '@spartan-ng/helm/table';
+import { HlmBadge } from '@spartan-ng/helm/badge';
+import { ROLES, type CompteAdmin, type EntreeCompte, type MajCompte, type Role } from '@dqa/contracts';
 import { AdminComptesService } from '../core/admin-comptes.service';
 import { AuthService } from '../core/auth.service';
 import { messageErreurHttp } from '../core/message-erreur';
 import { Coquille } from '../ui/coquille';
 
+/** `valueChange` d'un `hlm-select` est typé `unknown` : on restreint au rôle avant d'écrire. */
+const estRole = (v: unknown): v is Role =>
+  typeof v === 'string' && (ROLES as readonly string[]).includes(v);
+
 @Component({
   selector: 'dqa-admin-comptes',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, DatePipe, Coquille],
+  imports: [
+    FormsModule,
+    DatePipe,
+    Coquille,
+    BrnDialogContent,
+    HlmButton,
+    HlmDialogImports,
+    HlmInput,
+    HlmLabel,
+    HlmSelectImports,
+    HlmTableImports,
+    HlmBadge,
+  ],
   template: `
     <dqa-coquille />
-    <main>
-      <h1>Comptes</h1>
-      <p class="intro">
-        Le rôle <b>admin</b> gère les comptes sans toucher aux données.
-        <b>coordination</b> déclenche les imports et édite la grille et les
-        traceurs. <b>lecteur</b> consulte seulement.
-      </p>
+    <main class="mx-auto max-w-6xl px-6 py-6">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">Comptes</h1>
+          <p class="mt-1 max-w-3xl text-sm text-muted-foreground">
+            Le rôle <b class="font-medium text-foreground">admin</b> gère les comptes sans toucher
+            aux données. <b class="font-medium text-foreground">coordination</b> déclenche les
+            imports et édite la grille et les traceurs.
+            <b class="font-medium text-foreground">lecteur</b> consulte seulement.
+          </p>
+        </div>
 
-      @if (erreur()) {
-        <p class="erreur" role="alert">{{ erreur() }}</p>
-      }
+        <hlm-dialog #dialogCreer="hlmDialog">
+          <button hlmBtn hlmDialogTrigger type="button" (click)="reinitFormulaire()">Nouveau compte</button>
+          <hlm-dialog-content *brnDialogContent class="sm:max-w-md">
+            <hlm-dialog-header>
+              <h3 hlmDialogTitle>Nouveau compte</h3>
+              <p hlmDialogDescription>
+                Le compte est actif dès la création. Le mot de passe fait au moins 8 caractères.
+              </p>
+            </hlm-dialog-header>
 
-      <form (ngSubmit)="creer()">
-        <input name="identifiant" [(ngModel)]="nouveau.identifiant" placeholder="Identifiant" required />
-        <input name="nom" [(ngModel)]="nouveau.nom" placeholder="Nom" required />
-        <select name="role" [(ngModel)]="nouveau.role">
-          @for (r of roles; track r) { <option [value]="r">{{ r }}</option> }
-        </select>
-        <input name="mdp" type="password" [(ngModel)]="nouveau.motDePasse" placeholder="Mot de passe (8+)" required />
-        <button type="submit" [disabled]="enCours()">Créer</button>
-      </form>
+            <form class="grid gap-4 py-2" (ngSubmit)="creer(dialogCreer)">
+              <div class="grid gap-1.5">
+                <label hlmLabel for="compte-identifiant">Identifiant</label>
+                <input
+                  hlmInput
+                  id="compte-identifiant"
+                  name="identifiant"
+                  autocomplete="off"
+                  required
+                  [ngModel]="nouveau().identifiant"
+                  (ngModelChange)="majNouveau('identifiant', $event)"
+                />
+              </div>
+              <div class="grid gap-1.5">
+                <label hlmLabel for="compte-nom">Nom</label>
+                <input
+                  hlmInput
+                  id="compte-nom"
+                  name="nom"
+                  required
+                  [ngModel]="nouveau().nom"
+                  (ngModelChange)="majNouveau('nom', $event)"
+                />
+              </div>
+              <div class="grid gap-1.5">
+                <label hlmLabel>Rôle</label>
+                <hlm-select [value]="nouveau().role" (valueChange)="majRoleNouveau($event)">
+                  <hlm-select-trigger class="w-full">
+                    <hlm-select-value />
+                  </hlm-select-trigger>
+                  <hlm-select-content *hlmSelectPortal>
+                    @for (r of roles; track r) {
+                      <hlm-select-item [value]="r">{{ r }}</hlm-select-item>
+                    }
+                  </hlm-select-content>
+                </hlm-select>
+              </div>
+              <div class="grid gap-1.5">
+                <label hlmLabel for="compte-mdp">Mot de passe</label>
+                <input
+                  hlmInput
+                  id="compte-mdp"
+                  name="motDePasse"
+                  type="password"
+                  autocomplete="new-password"
+                  required
+                  [ngModel]="nouveau().motDePasse"
+                  (ngModelChange)="majNouveau('motDePasse', $event)"
+                />
+              </div>
 
-      @if (chargement()) {
-        <p>Chargement…</p>
-      } @else {
-        <table>
-          <thead>
-            <tr><th>Identifiant</th><th>Nom</th><th>Rôle</th><th>Actif</th><th>Créé</th><th></th></tr>
-          </thead>
-          <tbody>
-            @for (c of comptes(); track c.id) {
-              <tr [class.inactif]="!c.actif">
-                <td>{{ c.identifiant }}</td>
-                <td><input [(ngModel)]="c.nom" [name]="'nom-' + c.id" /></td>
-                <td>
-                  <select [(ngModel)]="c.role" [name]="'role-' + c.id" [disabled]="verrouille(c)">
-                    @for (r of roles; track r) { <option [value]="r">{{ r }}</option> }
-                  </select>
-                </td>
-                <td>
-                  <label class="switch">
-                    <input type="checkbox" [checked]="c.actif" [disabled]="verrouille(c)" (change)="basculer(c)" />
-                    {{ c.actif ? 'oui' : 'non' }}
-                  </label>
-                </td>
-                <td>{{ c.creeLe | date: 'dd/MM/yyyy' }}</td>
-                <td class="actions">
-                  <button type="button" class="lien" (click)="enregistrer(c)">Enregistrer</button>
-                  <button type="button" class="lien" (click)="ouvrirMdp(c)">Mot de passe</button>
-                </td>
-              </tr>
-              @if (mdpPour() === c.id) {
-                <tr class="ligne-mdp">
-                  <td colspan="6">
-                    <input type="password" [(ngModel)]="mdpValeur" name="mdp-valeur" placeholder="Nouveau mot de passe (8+)" />
-                    <button type="button" (click)="validerMdp(c)" [disabled]="mdpValeur.length < 8">Réinitialiser</button>
-                    <button type="button" class="lien" (click)="mdpPour.set(null)">Annuler</button>
-                  </td>
+              <hlm-dialog-footer>
+                <button hlmBtn variant="outline" type="button" (click)="dialogCreer.close()">Annuler</button>
+                <button hlmBtn type="submit" [disabled]="enCours()">Créer</button>
+              </hlm-dialog-footer>
+            </form>
+          </hlm-dialog-content>
+        </hlm-dialog>
+      </div>
+
+      <div class="mt-6 rounded-lg border border-border bg-card">
+        @if (chargement()) {
+          <p class="p-4 text-sm text-muted-foreground">Chargement…</p>
+        } @else {
+          <div hlmTableContainer>
+            <table hlmTable class="w-full">
+              <thead hlmTHead>
+                <tr hlmTr>
+                  <th hlmTh class="text-xs text-muted-foreground">Identifiant</th>
+                  <th hlmTh class="text-xs text-muted-foreground">Nom</th>
+                  <th hlmTh class="text-xs text-muted-foreground">Rôle</th>
+                  <th hlmTh class="text-xs text-muted-foreground">Statut</th>
+                  <th hlmTh class="text-xs text-muted-foreground">Créé</th>
+                  <th hlmTh class="text-xs text-muted-foreground">Actions</th>
                 </tr>
-              }
-            }
-          </tbody>
-        </table>
-      }
+              </thead>
+              <tbody hlmTBody>
+                @for (c of comptes(); track c.id) {
+                  <tr hlmTr [class.text-muted-foreground]="!c.actif">
+                    <td hlmTd class="font-medium">{{ c.identifiant }}</td>
+                    <td hlmTd>
+                      <input
+                        hlmInput
+                        class="w-44"
+                        [name]="'nom-' + c.id"
+                        [ngModel]="c.nom"
+                        (ngModelChange)="c.nom = $event"
+                      />
+                    </td>
+                    <td hlmTd>
+                      <hlm-select
+                        [value]="c.role"
+                        [disabled]="verrouille(c)"
+                        (valueChange)="majRoleCompte(c, $event)"
+                      >
+                        <hlm-select-trigger class="w-40">
+                          <hlm-select-value />
+                        </hlm-select-trigger>
+                        <hlm-select-content *hlmSelectPortal>
+                          @for (r of roles; track r) {
+                            <hlm-select-item [value]="r">{{ r }}</hlm-select-item>
+                          }
+                        </hlm-select-content>
+                      </hlm-select>
+                    </td>
+                    <td hlmTd>
+                      <span hlmBadge [variant]="c.actif ? 'default' : 'outline'">
+                        {{ c.actif ? 'Actif' : 'Inactif' }}
+                      </span>
+                    </td>
+                    <td hlmTd>{{ c.creeLe | date: 'dd/MM/yyyy' }}</td>
+                    <td hlmTd>
+                      <div class="flex flex-wrap items-center gap-1.5">
+                        <button hlmBtn size="sm" type="button" (click)="enregistrer(c)">Enregistrer</button>
+                        <button hlmBtn size="sm" variant="outline" type="button" (click)="ouvrirMdp(c)">
+                          Mot de passe
+                        </button>
+                        <button
+                          hlmBtn
+                          size="sm"
+                          [variant]="c.actif ? 'destructive' : 'outline'"
+                          type="button"
+                          [disabled]="verrouille(c)"
+                          (click)="basculer(c)"
+                        >
+                          {{ c.actif ? 'Désactiver' : 'Activer' }}
+                        </button>
+                      </div>
+                      @if (mdpPour() === c.id) {
+                        <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                          <input
+                            hlmInput
+                            class="w-56"
+                            type="password"
+                            autocomplete="new-password"
+                            placeholder="Nouveau mot de passe (8+)"
+                            name="mdp-valeur"
+                            [ngModel]="mdpValeur()"
+                            (ngModelChange)="mdpValeur.set($event)"
+                          />
+                          <button
+                            hlmBtn
+                            size="sm"
+                            type="button"
+                            [disabled]="mdpValeur().length < 8"
+                            (click)="validerMdp(c)"
+                          >
+                            Réinitialiser
+                          </button>
+                          <button hlmBtn size="sm" variant="ghost" type="button" (click)="mdpPour.set(null)">
+                            Annuler
+                          </button>
+                        </div>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
     </main>
-  `,
-  styles: `
-    main { max-width: 62rem; margin: 0 auto; padding: 0 1rem; }
-    h1 { font-size: 1.6rem; }
-    .intro { color: var(--texte-doux); font-size: 0.9rem; }
-    form { display: flex; gap: 0.6rem; margin: 1rem 0; flex-wrap: wrap; }
-    input, select { padding: 0.45rem; border: 1px solid var(--bordure); }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--bordure); vertical-align: middle; }
-    tr.inactif { color: var(--texte-doux); }
-    .actions { display: flex; gap: 0.8rem; }
-    .ligne-mdp td { display: flex; gap: 0.6rem; align-items: center; }
-    button { padding: 0.45rem 0.8rem; background: var(--marque); color: var(--surface); border: 0; cursor: pointer; }
-    button[disabled] { opacity: 0.5; cursor: default; }
-    .lien { background: none; color: var(--marque); padding: 0; text-decoration: underline; }
-    .switch { display: inline-flex; gap: 0.4rem; align-items: center; font-size: 0.85rem; }
-    .erreur { color: var(--alerte-texte); }
   `,
 })
 export class AdminComptesPage {
@@ -105,11 +233,15 @@ export class AdminComptesPage {
   protected readonly comptes = signal<CompteAdmin[]>([]);
   protected readonly chargement = signal(true);
   protected readonly enCours = signal(false);
-  protected readonly erreur = signal<string | null>(null);
   protected readonly mdpPour = signal<string | null>(null);
-  protected mdpValeur = '';
+  protected readonly mdpValeur = signal('');
 
-  protected nouveau: EntreeCompte = { identifiant: '', nom: '', role: 'lecteur', motDePasse: '' };
+  protected readonly nouveau = signal<EntreeCompte>({
+    identifiant: '',
+    nom: '',
+    role: 'lecteur',
+    motDePasse: '',
+  });
 
   constructor() {
     void this.charger();
@@ -118,6 +250,22 @@ export class AdminComptesPage {
   private async charger(): Promise<void> {
     this.comptes.set(await this.service.lister());
     this.chargement.set(false);
+  }
+
+  protected reinitFormulaire(): void {
+    this.nouveau.set({ identifiant: '', nom: '', role: 'lecteur', motDePasse: '' });
+  }
+
+  protected majNouveau<K extends keyof EntreeCompte>(cle: K, valeur: EntreeCompte[K]): void {
+    this.nouveau.update((n) => ({ ...n, [cle]: valeur }));
+  }
+
+  protected majRoleNouveau(v: unknown): void {
+    if (estRole(v)) this.majNouveau('role', v);
+  }
+
+  protected majRoleCompte(c: CompteAdmin, v: unknown): void {
+    if (estRole(v)) c.role = v;
   }
 
   protected estMoi(c: CompteAdmin): boolean {
@@ -131,52 +279,58 @@ export class AdminComptesPage {
     return c.role === 'admin' && c.actif && adminsActifs.length === 1;
   }
 
-  protected async creer(): Promise<void> {
-    this.erreur.set(null);
+  protected async creer(dialog: { close: () => void }): Promise<void> {
+    const n = this.nouveau();
     this.enCours.set(true);
     try {
-      await this.service.creer({ ...this.nouveau, identifiant: this.nouveau.identifiant.trim(), nom: this.nouveau.nom.trim() });
-      this.nouveau = { identifiant: '', nom: '', role: 'lecteur', motDePasse: '' };
+      await this.service.creer({ ...n, identifiant: n.identifiant.trim(), nom: n.nom.trim() });
+      this.reinitFormulaire();
+      dialog.close();
       await this.charger();
+      toast.success('Compte créé');
     } catch (err) {
-      this.erreur.set(messageErreurHttp(err));
+      toast.error(messageErreurHttp(err));
     } finally {
       this.enCours.set(false);
     }
   }
 
   protected async enregistrer(c: CompteAdmin): Promise<void> {
-    await this.appliquer(c, { nom: c.nom, role: c.role, actif: c.actif });
+    await this.appliquer(c, { nom: c.nom, role: c.role, actif: c.actif }, 'Compte mis à jour');
   }
 
   protected async basculer(c: CompteAdmin): Promise<void> {
-    await this.appliquer(c, { nom: c.nom, role: c.role, actif: !c.actif });
+    await this.appliquer(
+      c,
+      { nom: c.nom, role: c.role, actif: !c.actif },
+      c.actif ? 'Compte désactivé' : 'Compte activé',
+    );
   }
 
-  private async appliquer(c: CompteAdmin, maj: MajCompte): Promise<void> {
-    this.erreur.set(null);
+  private async appliquer(c: CompteAdmin, maj: MajCompte, succes: string): Promise<void> {
     try {
       await this.service.modifier(c.id, maj);
       await this.charger();
+      toast.success(succes);
     } catch (err) {
-      this.erreur.set(messageErreurHttp(err));
+      toast.error(messageErreurHttp(err));
       await this.charger();
     }
   }
 
   protected ouvrirMdp(c: CompteAdmin): void {
-    this.mdpValeur = '';
+    this.mdpValeur.set('');
     this.mdpPour.set(this.mdpPour() === c.id ? null : c.id);
   }
 
   protected async validerMdp(c: CompteAdmin): Promise<void> {
-    this.erreur.set(null);
     try {
-      await this.service.reinitialiserMotDePasse(c.id, this.mdpValeur);
+      await this.service.reinitialiserMotDePasse(c.id, this.mdpValeur());
       this.mdpPour.set(null);
-      this.mdpValeur = '';
+      this.mdpValeur.set('');
+      toast.success('Mot de passe réinitialisé');
     } catch (err) {
-      this.erreur.set(messageErreurHttp(err));
+      toast.error(messageErreurHttp(err));
     }
   }
 }
