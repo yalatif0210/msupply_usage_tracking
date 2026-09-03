@@ -25,6 +25,23 @@ La valeur mesurée d'une sous-composante, figée mois par mois dans
 évolue ensuite. Le seuil et le statut ne sont pas figés : ils se déduisent de
 la valeur et de la grille du mois.
 
+**Compte brut** :
+Le couple attendu / réalisé — et, quand la sous-composante porte un délai,
+réalisé à l'heure — qui produit le taux d'une sous-composante (« P1 réceptions :
+3 réceptions sur 5 factures »). Figé mois par mois dans `hist_pilier_brut`, au
+même titre que la valeur de sous-composante gelée, et réconcilié avec elle. Le
+détail transaction par transaction derrière un compte brut n'est pas figé : il
+est lu en direct du core, avec un avertissement si le core a été ré-importé
+après le gel.
+_Éviter_ : donnée source, chiffre brut, numérateur
+
+**Rapport mensuel** :
+Synonyme de réquisition (le formulaire « Report & Requisition » de mSupply). La
+complétude et la promptitude des rapports d'un ensemble de sites se lisent au
+niveau national, stratifiées par strate de structure, en parallèle des mêmes
+mesures sur les inventaires de fin de mois.
+_Éviter_ : rapport d'activité, reporting
+
 **Taux d'atteinte du seuil** :
 Note sur 100 qui dit à quel point une sous-composante approche (ou dépasse) son
 seuil, sur une échelle commune aux dix. Sens-conscient : pour un seuil
@@ -141,7 +158,9 @@ mois, sur les produits traceurs. Statut binaire selon le seuil de la grille.
 Une commande mensuelle de réapprovisionnement, par programme, adressée par un
 site à son fournisseur. Elle couvre un mois M (celui de son inventaire de
 référence de fin de mois) et doit être soumise au plus tard le 5, 7 ou 10 du
-mois M+1 selon le type de structure. Comptée pour M, jamais pour M+1.
+mois M+1 selon le type de structure. Comptée pour M, jamais pour M+1. Aussi
+appelée **rapport** : les deux termes désignent le même objet (voir *Rapport
+mensuel*).
 
 **Régularité de saisie (P3)** :
 Part des jours calendaires du mois où le site a enregistré au moins une sortie
@@ -160,6 +179,15 @@ _Éviter_ : statut d'indicateur, PARTIEL, état, résultat
 L'ensemble des sites sanitaires retenus pour la mission (40 à ce jour), déclaré
 par la DAP dans l'extraction. Seuls ces sites entrent dans les scores nationaux.
 _Éviter_ : sites suivis, sites cibles
+
+**Strate de structure** :
+Regroupement administré des `type_structure` du référentiel DAP
+(`name_category3.description`) : CS regroupe CSU et CSR, les autres restent
+distincts (ESPC, HG, CHR, CHU, District, Institut). Axe des lectures nationales
+« rapports & inventaires ». La correspondance `type_structure → strate` est
+éditée dans la console, comme les traceurs ou la grille — une valeur nouvelle
+du référentiel se rattache sans migration.
+_Éviter_ : catégorie de site, niveau, type d'établissement (réservé à la valeur brute)
 
 **Coordination** :
 Rôle de la coordination nationale dans l'application : consulte tous les écrans,
