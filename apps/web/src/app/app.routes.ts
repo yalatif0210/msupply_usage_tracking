@@ -47,6 +47,13 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/admin-comptes').then((m) => m.AdminComptesPage),
   },
   {
+    // Lecture ouverte à tout rôle (lecteur inclus, en consultation seule) ;
+    // l'écriture est refusée côté API hors rôle coordination.
+    path: 'admin/strates',
+    canActivate: [gardeAuthentifie],
+    loadComponent: () => import('./pages/admin-strates').then((m) => m.AdminStratesPage),
+  },
+  {
     // Harnais de revue des composants de graphe (ticket 04), données statiques.
     // À retirer au ticket 12 si la revue ne le conserve pas.
     path: '_graphes',

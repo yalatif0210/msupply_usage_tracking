@@ -63,6 +63,32 @@ export const entreeProduitTraceurSchema = z.object({
 });
 export type EntreeProduitTraceur = z.infer<typeof entreeProduitTraceurSchema>;
 
+/**
+ * Correspondance `type_structure → strate` d'affichage des lectures nationales
+ * (voir CONTEXT.md « Strate de structure »). Administrée dans la console, pas
+ * historisée : un changement prend effet à la consultation suivante.
+ */
+export const strateStructureSchema = z.object({
+  typeStructure: z.string(),
+  strate: z.string().min(1),
+});
+export type StrateStructure = z.infer<typeof strateStructureSchema>;
+
+/** Corps d'un `PUT /api/admin/strates/:typeStructure`. */
+export const entreeStrateSchema = strateStructureSchema.pick({ strate: true });
+export type EntreeStrate = z.infer<typeof entreeStrateSchema>;
+
+/**
+ * État complet de l'écran d'admin des strates : les correspondances
+ * enregistrées et les `type_structure` présents dans `dim_site` qui n'en ont
+ * pas encore (ils agrègent sous « Non classé » tant qu'ils ne sont pas mappés).
+ */
+export const vueStratesSchema = z.object({
+  mappings: z.array(strateStructureSchema),
+  nonClasses: z.array(z.string()),
+});
+export type VueStrates = z.infer<typeof vueStratesSchema>;
+
 // ─── Détail d'un site ───────────────────────────────────────────────────────
 
 export const uniteMesureSchema = z.enum(['pct', 'jours', 'nombre', 'ratio']);

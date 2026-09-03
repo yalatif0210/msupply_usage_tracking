@@ -7,7 +7,7 @@ une strate « Non classé » explicite.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done (branche donnees-brutes-piliers)
 
 - [ ] Nouvelle table `strate_structure` (type de structure → strate), seed
       d'après la liste convenue : CSU et CSR → CS ; ESPC, HG, CHR, CHU → strate

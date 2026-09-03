@@ -2,10 +2,11 @@
 
 ## Rôle
 
-Édition « dans l'app » de deux référentiels qui, avant, ne changeaient que par
-migration : la **grille de paramètres** (rôle `coordination`) et les **comptes**
-(rôle `admin`). Emplacement : `apps/api/src/admin/` (module `AdminModule`,
-partagé avec les traceurs) et `apps/web/src/app/pages/admin-*.ts`.
+Édition « dans l'app » de référentiels qui, avant, ne changeaient que par
+migration : la **grille de paramètres** (rôle `coordination`), les **comptes**
+(rôle `admin`) et la correspondance **strate de structure** (lecture tout rôle,
+écriture `coordination`). Emplacement : `apps/api/src/admin/` (module
+`AdminModule`, partagé avec les traceurs) et `apps/web/src/app/pages/admin-*.ts`.
 
 ## Points d'entrée
 
@@ -20,6 +21,9 @@ partagé avec les traceurs) et `apps/web/src/app/pages/admin-*.ts`.
 | `POST` | `/api/admin/comptes` | admin | `CompteAdmin` (201) |
 | `PUT` | `/api/admin/comptes/:id` | admin | `CompteAdmin` |
 | `POST` | `/api/admin/comptes/:id/mot-de-passe` | admin | 204 |
+| `GET` | `/api/admin/strates` | tout rôle authentifié | `VueStrates` (`{ mappings, nonClasses }`) |
+| `PUT` | `/api/admin/strates/:typeStructure` | coordination | `StrateStructure` (upsert) |
+| `DELETE` | `/api/admin/strates/:typeStructure` | coordination | 204 (404 si inconnu) |
 
 ## Grille de paramètres (ADR 0003)
 
@@ -62,6 +66,24 @@ total des poids est affiché en direct.
 Écran `pages/admin-comptes.ts` : tableau éditable en place ; les actions
 interdites pour l'utilisateur courant sont désactivées côté front en plus du
 refus serveur.
+
+## Strates de structure (chantier « données brutes des piliers »)
+
+- Table `dqa.strate_structure (type_structure PK → strate)`, seed :
+  `CSU`/`CSR` → `CS` ; `ESPC`, `HG`, `CHR`, `CHU` → strate homonyme ;
+  `District sanitaire` → `District`. Migration `0031`.
+- **Aucun gel** : la strate est un regroupement d'affichage. Un changement
+  prend effet à la consultation suivante, sans ré-import (contrairement à la
+  grille dont chaque score référence une version). Table non historisée.
+- `dqa.strate_de(p_type text)` (SQL, `STABLE`) résout la strate d'un
+  `type_structure` : correspondance administrée, sinon `'Non classé'` (le NULL
+  y tombe aussi). C'est la porte d'entrée des lectures nationales — jamais un
+  site rangé nulle part.
+- `GET` renvoie aussi `nonClasses` : les `type_structure` présents dans
+  `dim_site` (périmètre DQA) sans correspondance, pour que l'écran montre ce
+  qu'il reste à classer. L'écran `pages/admin-strates.ts` les liste en tête,
+  surlignés ; `lecteur` a la vue en lecture seule (contrôles masqués, refus
+  serveur en doublure).
 
 ## Pièges connus
 
