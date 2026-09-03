@@ -9,7 +9,7 @@ ces colonnes.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done (branche `donnees-brutes-piliers`)
 
 - [ ] `mv_p1_completude` expose : inventaires réalisés / programmes gérés,
       réquisitions réalisées / programmes gérés, réceptions finalisées /
