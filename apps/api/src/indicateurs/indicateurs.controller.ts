@@ -2,6 +2,7 @@ import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common
 import type {
   DetailPilier,
   DetailSite,
+  FicheProduitMois,
   HistoriqueSite,
   Programme,
   ScoreSite,
@@ -11,6 +12,7 @@ import type {
 } from '@dqa/contracts';
 import {
   detailPilierQuerySchema,
+  ficheProduitMoisQuerySchema,
   filtreSitesSchema,
   historiqueQuerySchema,
   moisPaqdSchema,
@@ -69,6 +71,23 @@ export class IndicateursController {
     const detail = await this.repo.detailPilier(id, code, q);
     if (!detail) throw new NotFoundException('Site hors périmètre ou inconnu');
     return detail;
+  }
+
+  /**
+   * Fiche produit-mois : toutes les grandeurs brutes d'un produit traceur pour
+   * un site et un mois (route partageable, transversale aux piliers P3..P6).
+   * 404 si le site est hors périmètre ou si `code` n'est pas un produit traceur.
+   */
+  @Get('sites/:id/produits/:code')
+  async ficheProduitMois(
+    @Param('id') id: string,
+    @Param('code') code: string,
+    @Query() query: Record<string, string>,
+  ): Promise<FicheProduitMois> {
+    const q = ficheProduitMoisQuerySchema.parse(query);
+    const fiche = await this.repo.ficheProduitMois(id, code, q);
+    if (!fiche) throw new NotFoundException('Produit traceur ou site introuvable');
+    return fiche;
   }
 
   @Get('synthese')

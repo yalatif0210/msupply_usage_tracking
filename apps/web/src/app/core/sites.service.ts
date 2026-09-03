@@ -5,11 +5,13 @@ import { z } from 'zod';
 import {
   detailPilierSchema,
   detailSiteSchema,
+  ficheProduitMoisSchema,
   historiqueSiteSchema,
   programmeSchema,
   scoreSiteSchema,
   type DetailPilier,
   type DetailSite,
+  type FicheProduitMois,
   type HistoriqueSite,
   type Programme,
   type ScoreSite,
@@ -88,6 +90,28 @@ export class SitesService {
       ),
     );
     return validerReponse(detailPilierSchema, data);
+  }
+
+  /**
+   * Fiche produit-mois : grandeurs brutes d'un produit traceur pour un site et
+   * un mois. `mois` par défaut le plus récent mesuré du site ; 404 si `code`
+   * n'est pas un traceur ou si le site est hors périmètre.
+   */
+  async ficheProduitMois(
+    siteId: string,
+    code: string,
+    opts: { mois?: string; programmeId?: string } = {},
+  ): Promise<FicheProduitMois> {
+    let params = new HttpParams();
+    if (opts.mois) params = params.set('mois', opts.mois);
+    if (opts.programmeId) params = params.set('programmeId', opts.programmeId);
+    const data = await firstValueFrom(
+      this.http.get<unknown>(
+        `/api/sites/${encodeURIComponent(siteId)}/produits/${encodeURIComponent(code)}`,
+        { params },
+      ),
+    );
+    return validerReponse(ficheProduitMoisSchema, data);
   }
 
   async programmes(): Promise<Programme[]> {

@@ -27,6 +27,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/detail-site').then((m) => m.DetailSitePage),
   },
   {
+    path: 'sites/:id/produits/:code',
+    canActivate: [gardeAuthentifie],
+    loadComponent: () => import('./pages/fiche-produit').then((m) => m.FicheProduitPage),
+  },
+  {
     path: 'imports',
     canActivate: [gardeAuthentifie],
     loadComponent: () => import('./pages/journal-imports').then((m) => m.JournalImportsPage),

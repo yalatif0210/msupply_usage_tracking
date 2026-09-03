@@ -23,6 +23,8 @@ import {
   type DetailPilierQuery,
   type LigneAjustementP6,
   type DetailSite,
+  type FicheProduitMois,
+  type FicheProduitMoisQuery,
   type FiltreSites,
   type HistoriqueQuery,
   type HistoriqueSite,
@@ -1481,5 +1483,279 @@ export class IndicateursRepository {
     }));
 
     return { produits, coreMajLe: maj.rows[0]?.core_maj_le ?? null };
+  }
+
+  /**
+   * Fiche produit-mois : toutes les grandeurs brutes d'un produit traceur pour
+   * un site et un mois. Lue en direct des `fact_*` (inventaires, photos de
+   * stock, réceptions, dispensations, ajustements) ; `consommation`,
+   * `stockDebut` et `stockFin` sont repris de `mv_p4_ecart_produit` (mêmes
+   * calculs que l'écart consommation P4, migration 0017). `null` si le site est
+   * hors périmètre ou si `code` n'est pas un produit traceur → 404.
+   *
+   * Le filtre programme (`prog` NULL = tous programmes) porte sur les lignes de
+   * core ; la lecture de la vue prend la ligne agrégée (`programme_id` NULL) ou
+   * la ligne du programme (`IS NOT DISTINCT FROM`).
+   */
+  async ficheProduitMois(
+    siteId: string,
+    code: string,
+    q: FicheProduitMoisQuery,
+  ): Promise<FicheProduitMois | null> {
+    const site = await this.pool.query<LigneSite>(
+      `SELECT site_id, site_code, site_nom, district, region, type_structure
+       FROM dqa.dim_site WHERE site_id = $1 AND dans_perimetre_dqa`,
+      [siteId],
+    );
+    if (site.rowCount === 0) return null;
+    const siteRow = site.rows[0]!;
+
+    const traceur = await this.pool.query<{ libelle: string | null }>(
+      `SELECT libelle FROM dqa.dim_produit_traceur WHERE produit_code = $1`,
+      [code],
+    );
+    if (traceur.rowCount === 0) return null;
+    const libelle = traceur.rows[0]!.libelle;
+
+    const prog = q.programmeId ?? null;
+
+    const moisRows = await this.pool.query<{ mois_paqd: string }>(
+      `SELECT DISTINCT mois_paqd FROM dqa.hist_score_site
+       WHERE site_id = $1 AND programme_id IS NOT DISTINCT FROM $2
+       ORDER BY mois_paqd DESC`,
+      [siteId, prog],
+    );
+    const moisDisponibles = moisRows.rows.map((r) => r.mois_paqd);
+    const mois = q.mois && moisDisponibles.includes(q.mois) ? q.mois : moisDisponibles[0];
+
+    const commun = {
+      site: versSite(siteRow),
+      produit: { code, libelle },
+      moisPaqd: mois ?? null,
+      moisDisponibles,
+      programmeId: prog,
+    };
+
+    if (!mois) {
+      return {
+        ...commun,
+        inventaires: [],
+        snapshots: [],
+        receptions: [],
+        dispensations: { total: 0, nbJours: 0 },
+        ajustements: [],
+        consommation: { reconstituee: null, declaree: null, ecart: null },
+        stockDebut: null,
+        stockFin: null,
+        calculeLe: null,
+        coreMajLe: null,
+        reimporteDepuisLeGel: false,
+      };
+    }
+
+    const params = [siteId, code, mois, prog];
+
+    const inventaires = await this.pool.query<{
+      date: string;
+      statut: string | null;
+      theorique: string | null;
+      comptee: string | null;
+      ecart: string | null;
+    }>(
+      `SELECT to_char(fi.date_inventaire, 'YYYY-MM-DD')      AS date,
+              fi.statut                                      AS statut,
+              sum(fil.quantite_theorique)                    AS theorique,
+              sum(fil.quantite_comptee)                      AS comptee,
+              sum(fil.ecart_absolu)                          AS ecart
+       FROM dqa.fact_inventaire fi
+       JOIN dqa.fact_inventaire_ligne fil ON fil.inventaire_id = fi.inventaire_id
+       JOIN dqa.dim_produit p ON p.produit_id = fil.produit_id AND p.produit_code = $2
+       WHERE fi.site_id = $1 AND fi.statut = 'fn'
+         AND to_char(fi.date_inventaire, 'YYYY-MM') = $3
+         AND ($4::text IS NULL OR fi.programme_id = $4)
+       GROUP BY fi.inventaire_id, fi.date_inventaire, fi.statut
+       ORDER BY fi.date_inventaire, fi.inventaire_id`,
+      params,
+    );
+
+    const snapshots = await this.pool.query<{ date_photo: string; quantite_disponible: string }>(
+      `SELECT to_char(fss.date_photo, 'YYYY-MM-DD')  AS date_photo,
+              sum(fss.quantite_disponible)          AS quantite_disponible
+       FROM dqa.fact_stock_snapshot fss
+       JOIN dqa.dim_produit p ON p.produit_id = fss.produit_id AND p.produit_code = $2
+       WHERE fss.site_id = $1 AND to_char(fss.date_photo, 'YYYY-MM') = $3
+       GROUP BY fss.date_photo
+       ORDER BY fss.date_photo`,
+      [siteId, code, mois],
+    );
+
+    const receptions = await this.pool.query<{ date: string; quantite: string }>(
+      `SELECT to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM-DD') AS date,
+              sum(fl.quantite_unitaire)                                            AS quantite
+       FROM dqa.fact_transaction ft
+       JOIN dqa.fact_ligne_transaction fl ON fl.transaction_id = ft.transaction_id
+       JOIN dqa.dim_produit p ON p.produit_id = fl.produit_id AND p.produit_code = $2
+       WHERE ft.site_id = $1 AND ft.nature = 'reception'
+         AND coalesce(ft.statut, '') = 'fn' AND coalesce(ft.annulation, false) = false
+         AND coalesce(ft.date_confirmation, ft.date_saisie) IS NOT NULL
+         AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $3
+         AND ($4::text IS NULL OR ft.programme_id = $4)
+       GROUP BY ft.transaction_id, coalesce(ft.date_confirmation, ft.date_saisie)
+       ORDER BY coalesce(ft.date_confirmation, ft.date_saisie), ft.transaction_id`,
+      params,
+    );
+
+    const dispensations = await this.pool.query<{ total: string | null; nb_jours: number }>(
+      `SELECT sum(fl.quantite_unitaire)                                              AS total,
+              count(DISTINCT coalesce(ft.date_confirmation, ft.date_saisie))::int    AS nb_jours
+       FROM dqa.fact_transaction ft
+       JOIN dqa.fact_ligne_transaction fl ON fl.transaction_id = ft.transaction_id
+       JOIN dqa.dim_produit p ON p.produit_id = fl.produit_id AND p.produit_code = $2
+       WHERE ft.site_id = $1 AND ft.nature = 'dispensation'
+         AND coalesce(ft.annulation, false) = false
+         AND coalesce(ft.date_confirmation, ft.date_saisie) IS NOT NULL
+         AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $3
+         AND ($4::text IS NULL OR ft.programme_id = $4)`,
+      params,
+    );
+
+    const ajustements = await this.pool.query<{
+      date: string;
+      quantite: string;
+      sens: 'positif' | 'negatif';
+    }>(
+      `SELECT to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM-DD') AS date,
+              fl.quantite_unitaire                                                 AS quantite,
+              CASE
+                WHEN ft.nature = 'ajustement_negatif' THEN 'negatif'
+                WHEN ft.nature = 'ajustement_positif' THEN 'positif'
+                WHEN fl.quantite_unitaire < 0 THEN 'negatif'
+                ELSE 'positif'
+              END                                                                  AS sens
+       FROM dqa.fact_transaction ft
+       JOIN dqa.fact_ligne_transaction fl ON fl.transaction_id = ft.transaction_id
+       JOIN dqa.dim_produit p ON p.produit_id = fl.produit_id AND p.produit_code = $2
+       WHERE ft.site_id = $1
+         AND coalesce(ft.annulation, false) = false
+         AND coalesce(ft.date_confirmation, ft.date_saisie) IS NOT NULL
+         AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $3
+         AND ($4::text IS NULL OR ft.programme_id = $4)
+         AND (fl.issu_ajustement OR ft.nature IN ('ajustement_positif', 'ajustement_negatif'))
+       ORDER BY coalesce(ft.date_confirmation, ft.date_saisie), fl.ligne_id`,
+      params,
+    );
+
+    const conso = await this.pool.query<{
+      stock_debut: string | null;
+      stock_fin: string | null;
+      declaree: string | null;
+      reconstituee: string | null;
+    }>(
+      `SELECT ep.stock_debut, ep.stock_fin, ep.declaree, ep.reconstituee
+       FROM dqa.mv_p4_ecart_produit ep
+       WHERE ep.site_id = $1 AND ep.produit_code = $2 AND ep.mois_paqd = $3
+         AND ep.programme_id IS NOT DISTINCT FROM $4`,
+      params,
+    );
+    const cp = conso.rows[0];
+    const reconstituee = nombreOuNull(cp?.reconstituee ?? null);
+    const declaree = nombreOuNull(cp?.declaree ?? null);
+    const ecartConso =
+      reconstituee !== null && declaree !== null ? declaree - reconstituee : null;
+
+    const calculeLe = await this.horodatageGelFiche(siteId, mois, prog);
+
+    const maj = await this.pool.query<{ core_maj_le: Date | null }>(
+      `SELECT GREATEST(
+         (SELECT max(fi.maj_le) FROM dqa.fact_inventaire fi
+            JOIN dqa.fact_inventaire_ligne fil ON fil.inventaire_id = fi.inventaire_id
+            JOIN dqa.dim_produit p ON p.produit_id = fil.produit_id AND p.produit_code = $2
+           WHERE fi.site_id = $1 AND fi.statut = 'fn'
+             AND to_char(fi.date_inventaire, 'YYYY-MM') = $3
+             AND ($4::text IS NULL OR fi.programme_id = $4)),
+         (SELECT max(fil.maj_le) FROM dqa.fact_inventaire fi
+            JOIN dqa.fact_inventaire_ligne fil ON fil.inventaire_id = fi.inventaire_id
+            JOIN dqa.dim_produit p ON p.produit_id = fil.produit_id AND p.produit_code = $2
+           WHERE fi.site_id = $1 AND fi.statut = 'fn'
+             AND to_char(fi.date_inventaire, 'YYYY-MM') = $3
+             AND ($4::text IS NULL OR fi.programme_id = $4)),
+         (SELECT max(fss.maj_le) FROM dqa.fact_stock_snapshot fss
+            JOIN dqa.dim_produit p ON p.produit_id = fss.produit_id AND p.produit_code = $2
+           WHERE fss.site_id = $1 AND to_char(fss.date_photo, 'YYYY-MM') = $3),
+         (SELECT max(ft.maj_le) FROM dqa.fact_transaction ft
+            JOIN dqa.fact_ligne_transaction fl ON fl.transaction_id = ft.transaction_id
+            JOIN dqa.dim_produit p ON p.produit_id = fl.produit_id AND p.produit_code = $2
+           WHERE ft.site_id = $1 AND coalesce(ft.annulation, false) = false
+             AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $3
+             AND ($4::text IS NULL OR ft.programme_id = $4)
+             AND (fl.issu_ajustement
+                  OR ft.nature IN ('reception', 'dispensation', 'ajustement_positif', 'ajustement_negatif'))),
+         (SELECT max(fl.maj_le) FROM dqa.fact_transaction ft
+            JOIN dqa.fact_ligne_transaction fl ON fl.transaction_id = ft.transaction_id
+            JOIN dqa.dim_produit p ON p.produit_id = fl.produit_id AND p.produit_code = $2
+           WHERE ft.site_id = $1 AND coalesce(ft.annulation, false) = false
+             AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $3
+             AND ($4::text IS NULL OR ft.programme_id = $4)
+             AND (fl.issu_ajustement
+                  OR ft.nature IN ('reception', 'dispensation', 'ajustement_positif', 'ajustement_negatif')))
+       ) AS core_maj_le`,
+      params,
+    );
+    const coreMajLe = maj.rows[0]?.core_maj_le ?? null;
+
+    return {
+      ...commun,
+      inventaires: inventaires.rows.map((r) => ({
+        date: r.date,
+        statut: r.statut,
+        theorique: nombreOuNull(r.theorique),
+        comptee: nombreOuNull(r.comptee),
+        ecart: nombreOuNull(r.ecart),
+      })),
+      snapshots: snapshots.rows.map((r) => ({
+        datePhoto: r.date_photo,
+        quantiteDisponible: Number(r.quantite_disponible),
+      })),
+      receptions: receptions.rows.map((r) => ({ date: r.date, quantite: Number(r.quantite) })),
+      dispensations: {
+        total: Number(dispensations.rows[0]?.total ?? 0),
+        nbJours: dispensations.rows[0]?.nb_jours ?? 0,
+      },
+      ajustements: ajustements.rows.map((r) => ({
+        date: r.date,
+        quantite: Number(r.quantite),
+        sens: r.sens,
+      })),
+      consommation: { reconstituee, declaree, ecart: ecartConso },
+      stockDebut: nombreOuNull(cp?.stock_debut ?? null),
+      stockFin: nombreOuNull(cp?.stock_fin ?? null),
+      calculeLe: calculeLe ? calculeLe.toISOString() : null,
+      coreMajLe: coreMajLe ? coreMajLe.toISOString() : null,
+      reimporteDepuisLeGel:
+        calculeLe !== null && coreMajLe !== null && coreMajLe.getTime() > calculeLe.getTime(),
+    };
+  }
+
+  /**
+   * Horodatage du gel des comptes du mois pour la fiche produit (transverse aux
+   * piliers) : `max(calcule_le)` de `hist_pilier_brut`, à défaut celui du score.
+   */
+  private async horodatageGelFiche(
+    siteId: string,
+    mois: string,
+    prog: string | null,
+  ): Promise<Date | null> {
+    const brut = await this.pool.query<{ calcule_le: Date | null }>(
+      `SELECT max(calcule_le) AS calcule_le FROM dqa.hist_pilier_brut
+       WHERE site_id = $1 AND mois_paqd = $2 AND programme_id IS NOT DISTINCT FROM $3`,
+      [siteId, mois, prog],
+    );
+    if (brut.rows[0]?.calcule_le) return brut.rows[0].calcule_le;
+    const score = await this.pool.query<{ calcule_le: Date | null }>(
+      `SELECT calcule_le FROM dqa.hist_score_site
+       WHERE site_id = $1 AND mois_paqd = $2 AND programme_id IS NOT DISTINCT FROM $3`,
+      [siteId, mois, prog],
+    );
+    return score.rows[0]?.calcule_le ?? null;
   }
 }

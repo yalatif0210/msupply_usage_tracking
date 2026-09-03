@@ -631,6 +631,96 @@ export const detailPilierSchema = z.discriminatedUnion('code', [
 ]);
 export type DetailPilier = z.infer<typeof detailPilierSchema>;
 
+// ─── Fiche produit-mois (données brutes d'un produit traceur) ───────────────
+
+/**
+ * Requête de la fiche produit-mois : mêmes paramètres que le détail de site.
+ * `mois` par défaut le plus récent mesuré du site (`hist_score_site`) ;
+ * `programmeId` absent = tous programmes.
+ */
+export const ficheProduitMoisQuerySchema = detailSiteQuerySchema;
+export type FicheProduitMoisQuery = z.infer<typeof ficheProduitMoisQuerySchema>;
+
+/**
+ * Un inventaire finalisé du mois portant ce produit : stock théorique mSupply
+ * contre stock physique compté, et l'écart (`compté − théorique`). Les
+ * grandeurs sont nulles si aucune ligne de l'inventaire n'a de quantité.
+ */
+export const inventaireFicheProduitSchema = z.object({
+  date: dateIsoSchema,
+  statut: z.string().nullable(),
+  theorique: z.number().nullable(),
+  comptee: z.number().nullable(),
+  ecart: z.number().nullable(),
+});
+export type InventaireFicheProduit = z.infer<typeof inventaireFicheProduitSchema>;
+
+/** Une photo de stock (`fact_stock_snapshot`) du mois : quantité disponible à la date d'extraction. */
+export const snapshotFicheProduitSchema = z.object({
+  datePhoto: dateIsoSchema,
+  quantiteDisponible: z.number(),
+});
+export type SnapshotFicheProduit = z.infer<typeof snapshotFicheProduitSchema>;
+
+/** Une réception finalisée non annulée du mois (date, quantité en unités). */
+export const receptionFicheProduitSchema = z.object({
+  date: dateIsoSchema,
+  quantite: z.number(),
+});
+export type ReceptionFicheProduit = z.infer<typeof receptionFicheProduitSchema>;
+
+/** Un mouvement d'ajustement du mois (même prédicat que P6). */
+export const ajustementFicheProduitSchema = z.object({
+  date: dateIsoSchema,
+  quantite: z.number(),
+  sens: z.enum(['positif', 'negatif']),
+});
+export type AjustementFicheProduit = z.infer<typeof ajustementFicheProduitSchema>;
+
+/**
+ * Consommation du produit sur le mois. `reconstituee = stockDébut + réceptions
+ * − stockFin` entre les deux inventaires bornants ; `declaree` = Σ dispensations
+ * sur le même intervalle ; `ecart = declaree − reconstituee`. Les trois sont
+ * `null` quand le produit n'a pas deux inventaires bornants dans le mois.
+ */
+export const consommationFicheProduitSchema = z.object({
+  reconstituee: z.number().nullable(),
+  declaree: z.number().nullable(),
+  ecart: z.number().nullable(),
+});
+export type ConsommationFicheProduit = z.infer<typeof consommationFicheProduitSchema>;
+
+/**
+ * Toutes les grandeurs brutes d'un produit traceur pour un site et un mois, lues
+ * en direct du core (`fact_*`) sauf `consommation` / `stockDebut` / `stockFin`,
+ * repris de `mv_p4_ecart_produit` (mêmes calculs que l'écart consommation P4).
+ * `calculeLe` = gel des comptes du mois ; `reimporteDepuisLeGel` =
+ * `coreMajLe > calculeLe` (le détail live peut diverger des comptes figés).
+ * Route `/sites/:id/produits/:code` ; produits traceurs uniquement (404 sinon).
+ */
+export const ficheProduitMoisSchema = z.object({
+  site: siteSchema,
+  produit: z.object({ code: z.string(), libelle: z.string().nullable() }),
+  moisPaqd: moisPaqdSchema.nullable(),
+  moisDisponibles: z.array(moisPaqdSchema),
+  programmeId: z.string().nullable(),
+  inventaires: z.array(inventaireFicheProduitSchema),
+  snapshots: z.array(snapshotFicheProduitSchema),
+  receptions: z.array(receptionFicheProduitSchema),
+  dispensations: z.object({
+    total: z.number(),
+    nbJours: z.number().int().nonnegative(),
+  }),
+  ajustements: z.array(ajustementFicheProduitSchema),
+  consommation: consommationFicheProduitSchema,
+  stockDebut: z.number().nullable(),
+  stockFin: z.number().nullable(),
+  calculeLe: z.string().datetime().nullable(),
+  coreMajLe: z.string().datetime().nullable(),
+  reimporteDepuisLeGel: z.boolean(),
+});
+export type FicheProduitMois = z.infer<typeof ficheProduitMoisSchema>;
+
 // ─── Imports ────────────────────────────────────────────────────────────────
 
 export const STATUTS_IMPORT = ['recu', 'en_cours', 'valide', 'rejete'] as const;

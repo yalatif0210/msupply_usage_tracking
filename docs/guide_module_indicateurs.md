@@ -18,6 +18,7 @@ Emplacement : `apps/api/src/indicateurs/` (API) et `apps/web/src/app/pages/`
 | `GET` | `/api/sites/:id?mois=&programmeId=` | `DetailSite` | tout authentifié |
 | `GET` | `/api/sites/:id/historique?cycle=&de=&a=&programmeId=` | `HistoriqueSite` | tout authentifié |
 | `GET` | `/api/sites/:id/piliers/:code?mois=&programmeId=` | `DetailPilier` (union sur `code` ; `p4` = tableau produit P4 · P5) | tout authentifié |
+| `GET` | `/api/sites/:id/produits/:code?mois=&programmeId=` | `FicheProduitMois` (produits traceurs uniquement) | tout authentifié |
 | `GET` | `/api/synthese?mois=&programmeId=&region=` | `SyntheseNationale` | tout authentifié |
 | `GET` | `/api/tableau-de-bord` | `TableauDeBord` | tout authentifié |
 | `GET` | `/api/referentiel/programmes` | `Programme[]` | tout authentifié |
@@ -163,6 +164,29 @@ programmes.
 
 `GET /api/sites` trie les sites par `score_composite` **croissant**, sites sans
 mesure (`NULL`) en dernier — les sites en difficulté remontent en tête.
+
+## Fiche produit-mois
+
+`GET /api/sites/:id/produits/:code?mois=&programmeId=` (`ficheProduitMoisQuerySchema`,
+réponse `FicheProduitMois`) sert la route web partageable `/sites/:id/produits/:code`,
+ouverte depuis le code produit du tableau P4 · P5. Elle rassemble, pour **un
+produit traceur**, un site et un mois, toutes les grandeurs brutes derrière les
+piliers P3 à P6 : les inventaires finalisés du mois portant le produit (stock
+théorique mSupply vs stock physique compté, écart), les photos `fact_stock_snapshot`
+du mois, les réceptions finalisées, le total dispensé + le nombre de jours avec
+dispensation, les ajustements (même prédicat que P6), et la consommation
+reconstituée (`stockDébut + réceptions − stockFin` entre les deux inventaires
+bornants) vs déclarée avec leur écart. Le détail est lu **en direct des `fact_*`** ;
+`consommation`, `stockDebut` et `stockFin` sont repris de `mv_p4_ecart_produit`
+(mêmes calculs que l'écart consommation P4, migration 0017) et valent `null` sans
+deux inventaires bornants. `mois` par défaut = le plus récent mesuré du site
+(`hist_score_site`) ; `programmeId` restreint les lignes de core. La réponse porte
+`calculeLe` (gel des comptes du mois, `hist_pilier_brut` à défaut `hist_score_site`),
+`coreMajLe` (`max(maj_le)` des lignes de core lues) et `reimporteDepuisLeGel`
+(`coreMajLe > calculeLe` : note discrète à l'écran). **404** si le site est hors
+périmètre ou si `code` n'est pas dans `dim_produit_traceur`. Écran : composant
+autonome `pages/fiche-produit.ts`, données via `core/ressource` (sélecteur de mois
+synchronisé à l'URL, pas de remontage), fil d'Ariane vers `/sites/:id`.
 
 ## Synthèse nationale
 

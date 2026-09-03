@@ -9,7 +9,7 @@ produit », transversal aux piliers P3, P4, P5, P6.
 
 **Blocked by:** 06 (le tableau produit d'où part le lien)
 
-**Status:** ready-for-agent
+**Status:** done (branche donnees-brutes-piliers)
 
 - [ ] `GET /api/sites/:id/produits/:code?mois=` renvoie `FicheProduitMois` ;
       404 si le code n'est pas un produit traceur. Contrat validé par Zod.

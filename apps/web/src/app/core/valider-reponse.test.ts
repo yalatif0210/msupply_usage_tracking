@@ -3,6 +3,7 @@ import {
   compteAdminSchema,
   detailPilierSchema,
   detailSiteSchema,
+  ficheProduitMoisSchema,
   grilleDetailSchema,
   historiqueSiteSchema,
   PILIER_DE_SOUS_COMPOSANTE,
@@ -490,5 +491,65 @@ describe('validerReponse (couture D)', () => {
     const liste = z.array(compteAdminSchema);
     expect(validerReponse(liste, comptes())).toHaveLength(2);
     expect(() => validerReponse(liste, comptes({ role: 'super-admin' }))).toThrow(/non conforme/i);
+  });
+
+  const ficheProduit = (over: Record<string, unknown> = {}) => ({
+    site,
+    produit: { code: 'T1', libelle: 'Traceur 1' },
+    moisPaqd: '2026-08',
+    moisDisponibles: ['2026-08', '2026-07'],
+    programmeId: null,
+    inventaires: [
+      { date: '2026-08-05', statut: 'fn', theorique: 100, comptee: 90, ecart: -10 },
+      { date: '2026-08-28', statut: 'fn', theorique: 60, comptee: 50, ecart: -10 },
+    ],
+    snapshots: [{ datePhoto: '2026-08-15', quantiteDisponible: 70 }],
+    receptions: [{ date: '2026-08-10', quantite: 30 }],
+    dispensations: { total: 58, nbJours: 3 },
+    ajustements: [
+      { date: '2026-08-07', quantite: 12, sens: 'negatif' },
+      { date: '2026-08-09', quantite: 7, sens: 'positif' },
+    ],
+    consommation: { reconstituee: 80, declaree: 50, ecart: -30 },
+    stockDebut: 90,
+    stockFin: 50,
+    calculeLe: '2026-09-01T00:00:00.000Z',
+    coreMajLe: '2026-09-02T00:00:00.000Z',
+    reimporteDepuisLeGel: true,
+    ...over,
+  });
+
+  it('accepte une FicheProduitMois complète', () => {
+    const f = validerReponse(ficheProduitMoisSchema, ficheProduit());
+    expect(f.produit.code).toBe('T1');
+    expect(f.consommation.ecart).toBe(-30);
+    expect(f.dispensations.nbJours).toBe(3);
+  });
+
+  it('accepte une FicheProduitMois sans deux inventaires bornants (consommation nulle)', () => {
+    const f = validerReponse(
+      ficheProduitMoisSchema,
+      ficheProduit({
+        consommation: { reconstituee: null, declaree: null, ecart: null },
+        stockDebut: null,
+        stockFin: null,
+      }),
+    );
+    expect(f.consommation.reconstituee).toBeNull();
+  });
+
+  it('rejette une FicheProduitMois au sens d\'ajustement inconnu', () => {
+    expect(() =>
+      validerReponse(
+        ficheProduitMoisSchema,
+        ficheProduit({ ajustements: [{ date: '2026-08-07', quantite: 12, sens: 'bas' }] }),
+      ),
+    ).toThrow(/non conforme/i);
+  });
+
+  it('rejette une FicheProduitMois sans bloc consommation', () => {
+    expect(() =>
+      validerReponse(ficheProduitMoisSchema, ficheProduit({ consommation: undefined })),
+    ).toThrow(/non conforme/i);
   });
 });
