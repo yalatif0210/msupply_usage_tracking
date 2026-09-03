@@ -31,6 +31,8 @@ import {
   type RepartitionClassification,
   type ScorePilier,
   type ScoreSite,
+  type LigneRapports,
+  type LigneStrateRapports,
   type SeuilSousComposante,
   type Site,
   type SousComposante,
@@ -39,6 +41,7 @@ import {
   TOP_SOUS_COMPOSANTES_DIFFICULTE,
   type SyntheseNationale,
   type SyntheseQuery,
+  type SyntheseRapports,
   type TableauDeBord,
 } from '@dqa/contracts';
 import { PG_POOL } from '../database/database.module.js';
@@ -205,6 +208,52 @@ const versBloc = (r: LigneSynthese | undefined): BlocSynthese => ({
   } satisfies RepartitionClassification,
 });
 
+// ─── Synthèse « rapports & inventaires » ───────────────────────────────────
+
+/** Une ligne de `mv_synthese_rapports` telle que rendue par `pg` (comptes castés `::int`). */
+interface LigneRapportsBrute {
+  strate: string;
+  req_attendu: number;
+  req_realise: number;
+  req_a_lheure: number;
+  inv_attendu: number;
+  inv_realise: number;
+  inv_a_lheure: number;
+}
+
+const ligneRapportsVide = (): LigneRapports => ({
+  requisitions: { attendu: 0, realise: 0, aLHeure: 0 },
+  inventaires: { attendu: 0, realise: 0, aLHeure: 0 },
+});
+
+const versLigneStrateRapports = (r: LigneRapportsBrute): LigneStrateRapports => ({
+  strate: r.strate,
+  requisitions: {
+    attendu: r.req_attendu,
+    realise: r.req_realise,
+    aLHeure: r.req_a_lheure,
+  },
+  inventaires: {
+    attendu: r.inv_attendu,
+    realise: r.inv_realise,
+    aLHeure: r.inv_a_lheure,
+  },
+});
+
+/** Somme terme à terme des triplets de deux lignes (pour la ligne de total). */
+const cumulRapports = (a: LigneRapports, b: LigneRapports): LigneRapports => ({
+  requisitions: {
+    attendu: a.requisitions.attendu + b.requisitions.attendu,
+    realise: a.requisitions.realise + b.requisitions.realise,
+    aLHeure: a.requisitions.aLHeure + b.requisitions.aLHeure,
+  },
+  inventaires: {
+    attendu: a.inventaires.attendu + b.inventaires.attendu,
+    realise: a.inventaires.realise + b.inventaires.realise,
+    aLHeure: a.inventaires.aLHeure + b.inventaires.aLHeure,
+  },
+});
+
 @Injectable()
 export class IndicateursRepository {
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
@@ -322,6 +371,53 @@ export class IndicateursRepository {
       })),
       parSousComposante: parSousComposante.rows.map(versLigneSousComposante),
     };
+  }
+
+  /**
+   * Onglet national « Rapports & inventaires » : `mv_synthese_rapports` agrège
+   * les comptes P1 / P2 des réquisitions et des inventaires de fin de mois par
+   * strate de structure. `mois` par défaut = le plus récent gelé ; `region` /
+   * `programmeId` narrows via des lignes GROUPING SETS dédiées. La ligne de
+   * total est la somme des strates affichées (ré-agrégation, jamais une
+   * moyenne de moyennes).
+   */
+  async syntheseRapports(q: SyntheseQuery): Promise<SyntheseRapports> {
+    const prog = q.programmeId ?? null;
+    const region = q.region ?? null;
+
+    const moisRows = await this.pool.query<{ mois_paqd: string }>(
+      `SELECT DISTINCT mois_paqd FROM dqa.mv_synthese_rapports ORDER BY mois_paqd DESC`,
+    );
+    const moisDisponibles = moisRows.rows.map((r) => r.mois_paqd);
+    const mois = q.mois && moisDisponibles.includes(q.mois) ? q.mois : moisDisponibles[0];
+
+    if (!mois) {
+      return {
+        moisPaqd: null,
+        moisDisponibles: [],
+        programmeId: prog,
+        region,
+        strates: [],
+        total: ligneRapportsVide(),
+      };
+    }
+
+    const { rows } = await this.pool.query<LigneRapportsBrute>(
+      `SELECT strate,
+              req_attendu, req_realise, req_a_lheure,
+              inv_attendu, inv_realise, inv_a_lheure
+       FROM dqa.mv_synthese_rapports
+       WHERE mois_paqd = $1
+         AND region IS NOT DISTINCT FROM $2
+         AND programme_id IS NOT DISTINCT FROM $3
+       ORDER BY strate`,
+      [mois, region, prog],
+    );
+
+    const strates = rows.map(versLigneStrateRapports);
+    const total = strates.reduce<LigneRapports>(cumulRapports, ligneRapportsVide());
+
+    return { moisPaqd: mois, moisDisponibles, programmeId: prog, region, strates, total };
   }
 
   /** Agrégat de la page d'accueil : état national du dernier mois, courbe et sous-composantes en difficulté. */

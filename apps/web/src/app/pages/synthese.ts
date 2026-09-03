@@ -9,6 +9,7 @@ import {
   type Programme,
   type SousComposante,
   type SyntheseNationale,
+  type SyntheseRapports,
 } from '@dqa/contracts';
 import { HlmCardImports } from '@spartan-ng/helm/card';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
@@ -126,7 +127,7 @@ const TH = 'text-xs font-medium text-muted-foreground';
         </div>
 
         <div [attr.aria-busy]="res.enCours()">
-          <dqa-barre-attente [actif]="res.enCours()" />
+          <dqa-barre-attente [actif]="res.enCours() || resRapports.enCours()" />
 
           <div class="flex flex-col gap-6">
             @if (s.programmeId) {
@@ -146,9 +147,10 @@ const TH = 'text-xs font-medium text-muted-foreground';
               </p>
             } @else {
               <hlm-tabs tab="pilier">
-                <hlm-tabs-list class="grid w-full max-w-md grid-cols-2" aria-label="Vue de la synthèse">
+                <hlm-tabs-list class="grid w-full max-w-xl grid-cols-3" aria-label="Vue de la synthèse">
                   <button hlmTabsTrigger="pilier">Par pilier</button>
                   <button hlmTabsTrigger="sousComposante">Sous-composantes</button>
+                  <button hlmTabsTrigger="rapports">Rapports &amp; inventaires</button>
                 </hlm-tabs-list>
 
                 <div hlmTabsContent="pilier" class="flex flex-col gap-6 pt-4">
@@ -321,6 +323,71 @@ const TH = 'text-xs font-medium text-muted-foreground';
                     </div>
                   </section>
                 </div>
+
+                <div hlmTabsContent="rapports" class="pt-4">
+                  <section hlmCard>
+                    <div hlmCardHeader>
+                      <h2 hlmCardTitle>Rapports et inventaires par strate de structure</h2>
+                      <p class="text-sm text-muted-foreground">
+                        Réquisitions (rapports mensuels) et inventaires de fin de mois attendus,
+                        réalisés et réalisés dans les délais. L'attendu est compté par programme géré.
+                      </p>
+                    </div>
+                    <div hlmCardContent>
+                      @if (rapports(); as r) {
+                        @if (r.strates.length === 0) {
+                          <p class="text-sm text-muted-foreground">
+                            Aucune strate n'a de comptes figés pour ce mois{{ s.programmeId || s.region ? ' avec ce filtre' : '' }}.
+                          </p>
+                        } @else {
+                          <div hlmTableContainer>
+                            <table hlmTable>
+                              <thead hlmTHead>
+                                <tr hlmTr>
+                                  <th hlmTh [class]="TH" rowspan="2">Strate</th>
+                                  <th hlmTh [class]="TH + ' text-right'" colspan="3">Réquisitions</th>
+                                  <th hlmTh [class]="TH + ' text-right'" colspan="3">Inventaires de fin de mois</th>
+                                </tr>
+                                <tr hlmTr>
+                                  <th hlmTh [class]="TH + ' text-right'">Attendues</th>
+                                  <th hlmTh [class]="TH + ' text-right'">Réalisées</th>
+                                  <th hlmTh [class]="TH + ' text-right'">À l'heure</th>
+                                  <th hlmTh [class]="TH + ' text-right'">Attendus</th>
+                                  <th hlmTh [class]="TH + ' text-right'">Réalisés</th>
+                                  <th hlmTh [class]="TH + ' text-right'">À l'heure</th>
+                                </tr>
+                              </thead>
+                              <tbody hlmTBody>
+                                @for (l of r.strates; track l.strate) {
+                                  <tr hlmTr>
+                                    <td hlmTd>{{ l.strate }}</td>
+                                    <td hlmTd class="text-right tabular-nums">{{ l.requisitions.attendu }}</td>
+                                    <td hlmTd class="text-right tabular-nums">{{ l.requisitions.realise }}</td>
+                                    <td hlmTd class="text-right tabular-nums">{{ l.requisitions.aLHeure }}</td>
+                                    <td hlmTd class="text-right tabular-nums">{{ l.inventaires.attendu }}</td>
+                                    <td hlmTd class="text-right tabular-nums">{{ l.inventaires.realise }}</td>
+                                    <td hlmTd class="text-right tabular-nums">{{ l.inventaires.aLHeure }}</td>
+                                  </tr>
+                                }
+                                <tr hlmTr class="font-bold">
+                                  <td hlmTd>Total</td>
+                                  <td hlmTd class="text-right tabular-nums">{{ r.total.requisitions.attendu }}</td>
+                                  <td hlmTd class="text-right tabular-nums">{{ r.total.requisitions.realise }}</td>
+                                  <td hlmTd class="text-right tabular-nums">{{ r.total.requisitions.aLHeure }}</td>
+                                  <td hlmTd class="text-right tabular-nums">{{ r.total.inventaires.attendu }}</td>
+                                  <td hlmTd class="text-right tabular-nums">{{ r.total.inventaires.realise }}</td>
+                                  <td hlmTd class="text-right tabular-nums">{{ r.total.inventaires.aLHeure }}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        }
+                      } @else {
+                        <p class="text-sm text-muted-foreground">Chargement des comptes.</p>
+                      }
+                    </div>
+                  </section>
+                </div>
               </hlm-tabs>
             }
           </div>
@@ -359,6 +426,26 @@ export class SynthesePage {
     apresChargement: (s) => (s ? { mois: s.moisPaqd ?? '' } : undefined),
   });
 
+  /**
+   * Onglet « Rapports & inventaires » : ressource dédiée, sur les mêmes filtres
+   * que `res` (un changement de filtre rafraîchit les deux sans remonter la vue).
+   */
+  protected readonly resRapports = ressource<SyntheseRapports | null, FiltresSynthese>({
+    charger: (f) =>
+      this.service.syntheseRapports({
+        mois: f.mois || undefined,
+        region: f.region || undefined,
+        programmeId: f.programmeId || undefined,
+      }),
+    germe: null,
+    filtresInitiaux: { mois: '', programmeId: '', region: '' },
+    apresChargement: (r) => (r ? { mois: r.moisPaqd ?? '' } : undefined),
+  });
+
+  protected rapports(): SyntheseRapports | null {
+    return this.resRapports.valeur();
+  }
+
   constructor() {
     void this.init();
   }
@@ -367,7 +454,7 @@ export class SynthesePage {
     const [r, p] = await Promise.all([this.sites.regions(), this.sites.programmes()]);
     this.regions.set(r);
     this.programmes.set(p);
-    await this.res.demarrer();
+    await Promise.all([this.res.demarrer(), this.resRapports.demarrer()]);
   }
 
   protected libelle(pilier: Pilier): string {
@@ -380,15 +467,21 @@ export class SynthesePage {
 
   /** `valueChange` d'un `hlm-select` : la valeur d'un item est toujours une chaîne. */
   protected majMois(valeur: unknown): void {
-    this.res.definir({ mois: versChaine(valeur) });
+    this.majFiltre({ mois: versChaine(valeur) });
   }
 
   protected majProgramme(valeur: unknown): void {
-    this.res.definir({ programmeId: versChaine(valeur) });
+    this.majFiltre({ programmeId: versChaine(valeur) });
   }
 
   protected majRegion(valeur: unknown): void {
-    this.res.definir({ region: versChaine(valeur) });
+    this.majFiltre({ region: versChaine(valeur) });
+  }
+
+  /** Propage un changement de filtre aux deux ressources de la page. */
+  private majFiltre(modif: Partial<FiltresSynthese>): void {
+    this.res.definir(modif);
+    this.resRapports.definir(modif);
   }
 
   protected trier(colonne: TriColonne): void {

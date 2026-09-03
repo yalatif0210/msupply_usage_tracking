@@ -8,7 +8,7 @@ chiffres se réconcilient avec P1 / P2 : l'attendu est compté par programme gé
 **Blocked by:** 03 (comptes P1 et P2 figés pour tous les sites), 08 (table des
 strates)
 
-**Status:** ready-for-agent
+**Status:** done (branche donnees-brutes-piliers)
 
 - [ ] Nouvelle vue matérialisée agrégeant `hist_pilier_brut` (mesures
       réquisitions et inventaires de P1 et P2) jointe aux strates, par mois,

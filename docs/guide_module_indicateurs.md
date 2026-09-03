@@ -38,6 +38,7 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 | `mv_p4_ecart_produit` | détail par produit traceur des écarts SDU / consommation de P4 |
 | `mv_synthese_nationale` | agrégats nationaux / région / district / programme par mois PAQD |
 | `mv_synthese_sous_composante` | mêmes grains, par sous-composante : comptes de statut + taux d'atteinte moyen |
+| `mv_synthese_rapports` | comptes P1 / P2 des réquisitions et inventaires de fin de mois, agrégés par strate de structure (× région × programme) par mois PAQD |
 | `mv_p1_completude` | taux de complétude inventaires / réquisitions / réceptions (%), scores et p_completude |
 | `mv_p2_promptitude` | taux de promptitude inventaires / réquisitions (%), scores et p_promptitude |
 | `mv_p3_regularite` | taux de jours du mois avec sortie de stock (%) |
@@ -184,6 +185,27 @@ Servi dans `SyntheseNationale.parSousComposante`
 (dix lignes, au grain `district IS NULL`, tri taux d'atteinte croissant), pour
 l'onglet « Sous-composantes » de `/synthese`. Rafraîchie avec
 `mv_synthese_nationale`.
+
+**Rapports & inventaires.** `mv_synthese_rapports` (migration 0032) agrège
+`hist_pilier_brut` (mesures `p1_requisitions`, `p1_inventaires`,
+`p2_requisitions`, `p2_inventaires`) par **strate de structure**
+(`strate_de(dim_site.type_structure)`, « Non classé » pour un type non mappé),
+par mois PAQD, avec les grains « toutes régions » / « tous programmes » en
+GROUPING SETS comme `mv_synthese_nationale`. Elle ne lit que les lignes
+`programme_id IS NOT NULL` — le grain par programme géré — pour ne pas compter
+deux fois avec la ligne agrégée : l'« attendu » est ainsi le nombre de
+programmes gérés, réconcilié avec P1 / P2. Une strate sans site du périmètre
+pour le mois n'a pas de ligne. Rafraîchie par `rafraichir_et_geler` après le
+gel de `hist_pilier_brut`.
+
+`GET /api/synthese/rapports?mois=&region=&programmeId=` (`syntheseQuerySchema`,
+réponse `SyntheseRapports`) : `mois` par défaut le plus récent présent dans la
+vue ; `region` / `programmeId` narrows ; la réponse porte une ligne par strate
+(`{ strate, requisitions: { attendu, realise, aLHeure }, inventaires: { … } }`,
+tous entiers) plus une `total` = somme des strates affichées. Sert le troisième
+onglet « Rapports & inventaires » de `/synthese` (tableau strate × { réquisitions,
+inventaires } × { attendu, réalisé, à l'heure }, ligne de total, `tabular-nums`),
+avec les mêmes sélecteurs mois / région / programme que les deux autres onglets.
 
 **Tableau de bord national.** `GET /api/tableau-de-bord` (`TableauDeBord`,
 sans paramètre) sert la page d'accueil `/` : `national` (bloc du mois le plus

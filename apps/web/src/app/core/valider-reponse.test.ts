@@ -11,6 +11,7 @@ import {
   SOUS_COMPOSANTES,
   SOUS_COMPOSANTES_DU_PILIER,
   syntheseNationaleSchema,
+  syntheseRapportsSchema,
   tableauDeBordSchema,
   type Pilier,
 } from '@dqa/contracts';
@@ -169,6 +170,49 @@ describe('validerReponse (couture D)', () => {
     const bancale = synthese();
     bancale.national.repartition = { CONFORME: 1, PARTIELLEMENT_CONFORME: 2, NON_CONFORME: 1 } as never;
     expect(() => validerReponse(syntheseNationaleSchema, bancale)).toThrow(/non conforme/i);
+  });
+
+  const triplet = { attendu: 5, realise: 4, aLHeure: 3 };
+  const syntheseRapports = (over: Record<string, unknown> = {}) => ({
+    moisPaqd: '2026-08',
+    moisDisponibles: ['2026-08'],
+    programmeId: null,
+    region: null,
+    strates: [
+      { strate: 'CS', requisitions: triplet, inventaires: triplet },
+      { strate: 'Non classé', requisitions: { attendu: 1, realise: 0, aLHeure: 0 }, inventaires: triplet },
+    ],
+    total: {
+      requisitions: { attendu: 6, realise: 4, aLHeure: 3 },
+      inventaires: { attendu: 10, realise: 8, aLHeure: 6 },
+    },
+    ...over,
+  });
+
+  it('accepte une SyntheseRapports complète', () => {
+    const r = validerReponse(syntheseRapportsSchema, syntheseRapports());
+    expect(r.strates).toHaveLength(2);
+    expect(r.total.inventaires.attendu).toBe(10);
+  });
+
+  it('rejette une SyntheseRapports à compte négatif', () => {
+    const bancale = syntheseRapports() as { strates: { requisitions: { realise: number } }[] };
+    bancale.strates[0]!.requisitions.realise = -1;
+    expect(() => validerReponse(syntheseRapportsSchema, bancale)).toThrow(/non conforme/i);
+  });
+
+  it('rejette une SyntheseRapports à compte non entier', () => {
+    expect(() =>
+      validerReponse(
+        syntheseRapportsSchema,
+        syntheseRapports({
+          total: {
+            requisitions: { attendu: 6.5, realise: 4, aLHeure: 3 },
+            inventaires: { attendu: 10, realise: 8, aLHeure: 6 },
+          },
+        }),
+      ),
+    ).toThrow(/non conforme/i);
   });
 
   const tableauDeBord = (over: Record<string, unknown> = {}) => ({

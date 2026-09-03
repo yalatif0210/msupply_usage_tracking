@@ -7,6 +7,7 @@ import type {
   Programme,
   ScoreSite,
   SyntheseNationale,
+  SyntheseRapports,
   TableauDeBord,
 } from '@dqa/contracts';
 import {
@@ -87,6 +88,12 @@ export class IndicateursController {
   synthese(@Query() query: Record<string, string>): Promise<SyntheseNationale> {
     const q = syntheseQuerySchema.parse(query);
     return this.repo.synthese(q);
+  }
+
+  @Get('synthese/rapports')
+  syntheseRapports(@Query() query: Record<string, string>): Promise<SyntheseRapports> {
+    const q = syntheseQuerySchema.parse(query);
+    return this.repo.syntheseRapports(q);
   }
 
   @Get('tableau-de-bord')

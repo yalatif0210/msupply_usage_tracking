@@ -299,6 +299,48 @@ export const syntheseQuerySchema = z.object({
 });
 export type SyntheseQuery = z.infer<typeof syntheseQuerySchema>;
 
+// ─── Synthèse nationale : rapports & inventaires ────────────────────────────
+
+/**
+ * Triplet de comptes d'un livrable mensuel (réquisition ou inventaire de fin de
+ * mois), agrégé sur une strate : attendus / réalisés / réalisés à l'heure.
+ * L'« attendu » est compté par programme géré, comme le dénominateur de P1 / P2.
+ */
+export const tripletRapportsSchema = z.object({
+  attendu: z.number().int().nonnegative(),
+  realise: z.number().int().nonnegative(),
+  aLHeure: z.number().int().nonnegative(),
+});
+export type TripletRapports = z.infer<typeof tripletRapportsSchema>;
+
+/** Les deux livrables mensuels suivis en parallèle. */
+export const ligneRapportsSchema = z.object({
+  requisitions: tripletRapportsSchema,
+  inventaires: tripletRapportsSchema,
+});
+export type LigneRapports = z.infer<typeof ligneRapportsSchema>;
+
+export const ligneStrateRapportsSchema = ligneRapportsSchema.extend({
+  /** Strate de structure (`strate_de`) ; « Non classé » regroupe les types non mappés. */
+  strate: z.string().min(1),
+});
+export type LigneStrateRapports = z.infer<typeof ligneStrateRapportsSchema>;
+
+export const syntheseRapportsSchema = z.object({
+  /** Mois PAQD affiché, ou `null` si aucun mois n'est encore gelé. */
+  moisPaqd: moisPaqdSchema.nullable(),
+  moisDisponibles: z.array(moisPaqdSchema),
+  /** Filtre programme appliqué, ou `null` pour « tous programmes ». */
+  programmeId: z.string().nullable(),
+  /** Filtre région appliqué, ou `null` pour « toutes régions ». */
+  region: z.string().nullable(),
+  /** Une ligne par strate ayant au moins un site du périmètre pour le mois, triée par strate. */
+  strates: z.array(ligneStrateRapportsSchema),
+  /** Somme des strates affichées (ré-agrégation, pas une moyenne de moyennes). */
+  total: ligneRapportsSchema,
+});
+export type SyntheseRapports = z.infer<typeof syntheseRapportsSchema>;
+
 // ─── Tableau de bord national (page d'accueil) ──────────────────────────────
 
 /** Nombre de sous-composantes « en difficulté » affichées sur la page d'accueil. */
