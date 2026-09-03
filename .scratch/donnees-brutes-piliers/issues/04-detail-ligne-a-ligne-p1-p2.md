@@ -7,7 +7,7 @@ P2 ; P3/P6 suivent au ticket 05, P4/P5 au ticket 06.
 
 **Blocked by:** 02 (comptes bruts figés + avertissement ré-import)
 
-**Status:** ready-for-agent
+**Status:** done (branche donnees-brutes-piliers)
 
 - [ ] Route `GET /api/sites/:id/piliers/:code` (code P1 à P6). Réponse
       `DetailPilier`, union discriminée sur le code ; variantes P1 et P2

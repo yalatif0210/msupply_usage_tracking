@@ -17,6 +17,30 @@ export const PILIERS = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as const;
 export const pilierSchema = z.enum(PILIERS);
 export type Pilier = z.infer<typeof pilierSchema>;
 
+/**
+ * Code de pilier en minuscules, tel qu'il apparaît dans un chemin d'URL
+ * (`GET /api/sites/:id/piliers/:code`). L'énum `Pilier` est en majuscules ;
+ * ces deux tables font le pont dans les deux sens, sans assertion.
+ */
+export const CODE_PILIER = {
+  P1: 'p1',
+  P2: 'p2',
+  P3: 'p3',
+  P4: 'p4',
+  P5: 'p5',
+  P6: 'p6',
+} as const satisfies Record<Pilier, Lowercase<Pilier>>;
+export type CodePilier = (typeof CODE_PILIER)[Pilier];
+
+export const PILIER_DE_CODE = {
+  p1: 'P1',
+  p2: 'P2',
+  p3: 'P3',
+  p4: 'P4',
+  p5: 'P5',
+  p6: 'P6',
+} as const satisfies Record<CodePilier, Pilier>;
+
 export const LIBELLES_PILIER: Record<Pilier, string> = {
   P1: 'Complétude des transactions',
   P2: 'Promptitude des transactions',

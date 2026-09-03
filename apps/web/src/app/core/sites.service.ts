@@ -4,11 +4,13 @@ import { firstValueFrom } from 'rxjs';
 import { z } from 'zod';
 import {
   detailP4ProduitsSchema,
+  detailPilierSchema,
   detailSiteSchema,
   historiqueSiteSchema,
   programmeSchema,
   scoreSiteSchema,
   type DetailP4Produits,
+  type DetailPilier,
   type DetailSite,
   type HistoriqueSite,
   type Programme,
@@ -79,6 +81,27 @@ export class SitesService {
       this.http.get<unknown>(`/api/sites/${encodeURIComponent(siteId)}/piliers/p4`, { params }),
     );
     return validerReponse(detailP4ProduitsSchema, data);
+  }
+
+  /**
+   * Détail ligne à ligne d'un pilier, chargé à la demande au dépli de la carte.
+   * `code` en minuscules (`p1`..`p6`) ; seuls `p1` / `p2` sont servis à ce jour.
+   */
+  async detailPilier(
+    siteId: string,
+    code: DetailPilier['code'],
+    opts: { mois?: string; programmeId?: string } = {},
+  ): Promise<DetailPilier> {
+    let params = new HttpParams();
+    if (opts.mois) params = params.set('mois', opts.mois);
+    if (opts.programmeId) params = params.set('programmeId', opts.programmeId);
+    const data = await firstValueFrom(
+      this.http.get<unknown>(
+        `/api/sites/${encodeURIComponent(siteId)}/piliers/${code}`,
+        { params },
+      ),
+    );
+    return validerReponse(detailPilierSchema, data);
   }
 
   async programmes(): Promise<Programme[]> {

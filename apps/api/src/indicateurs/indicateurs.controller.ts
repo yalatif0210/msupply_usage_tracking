@@ -1,6 +1,7 @@
 import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
 import type {
   DetailP4Produits,
+  DetailPilier,
   DetailSite,
   HistoriqueSite,
   Programme,
@@ -9,6 +10,7 @@ import type {
   TableauDeBord,
 } from '@dqa/contracts';
 import {
+  detailPilierQuerySchema,
   detailSiteQuerySchema,
   filtreSitesSchema,
   historiqueQuerySchema,
@@ -57,6 +59,26 @@ export class IndicateursController {
   ): Promise<DetailP4Produits> {
     const q = detailSiteQuerySchema.parse(query);
     const detail = await this.repo.detailP4Produits(id, q.mois, q.programmeId);
+    if (!detail) throw new NotFoundException('Site hors périmètre ou inconnu');
+    return detail;
+  }
+
+  /**
+   * Détail ligne à ligne d'un pilier, lu en direct du core. Variantes livrées :
+   * `p1`, `p2`. `p4` garde son handler dédié ci-dessus (unifié au ticket 06) ;
+   * `p3` / `p5` / `p6` arrivent aux tickets suivants.
+   */
+  @Get('sites/:id/piliers/:code')
+  async detailPilier(
+    @Param('id') id: string,
+    @Param('code') code: string,
+    @Query() query: Record<string, string>,
+  ): Promise<DetailPilier> {
+    if (code !== 'p1' && code !== 'p2') {
+      throw new NotFoundException(`Détail du pilier ${code} non disponible`);
+    }
+    const q = detailPilierQuerySchema.parse(query);
+    const detail = await this.repo.detailPilier(id, code, q);
     if (!detail) throw new NotFoundException('Site hors périmètre ou inconnu');
     return detail;
   }

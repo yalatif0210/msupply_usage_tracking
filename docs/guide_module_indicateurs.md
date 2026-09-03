@@ -18,6 +18,7 @@ Emplacement : `apps/api/src/indicateurs/` (API) et `apps/web/src/app/pages/`
 | `GET` | `/api/sites/:id?mois=&programmeId=` | `DetailSite` | tout authentifié |
 | `GET` | `/api/sites/:id/historique?cycle=&de=&a=&programmeId=` | `HistoriqueSite` | tout authentifié |
 | `GET` | `/api/sites/:id/piliers/p4?mois=&programmeId=` | `DetailP4Produits` | tout authentifié |
+| `GET` | `/api/sites/:id/piliers/:code?mois=&programmeId=` | `DetailPilier` (union sur `code`) | tout authentifié |
 | `GET` | `/api/synthese?mois=&programmeId=&region=` | `SyntheseNationale` | tout authentifié |
 | `GET` | `/api/tableau-de-bord` | `TableauDeBord` | tout authentifié |
 | `GET` | `/api/referentiel/programmes` | `Programme[]` | tout authentifié |
@@ -120,6 +121,20 @@ déclarée / reconstituée), le statut par produit, ou « non évaluable » +
 raison pour l'écart consommation. Même logique que `mv_p4_ecart` sans agréger
 (doublon de CTE assumé, pas de cascade sur `mv_score_pilier`). Rendu dans un
 `<details>` sous les cartes de pilier de la fiche site.
+
+**Détail ligne à ligne par pilier** (`GET /api/sites/:id/piliers/:code`,
+`DetailPilier` — union discriminée sur `code`). Lu **en direct du core**
+(`fact_inventaire`, `fact_requisition`, `fact_transaction`), jamais gelé.
+Chaque réponse porte aussi les `comptesBruts` figés du pilier, `calculeLe`
+(gel des comptes, `hist_pilier_brut` à défaut `hist_score_site`), `coreMajLe`
+(`max(maj_le)` des lignes de core lues) et `reimporteDepuisLeGel`
+(`coreMajLe > calculeLe` : le détail live peut diverger des comptes figés).
+Variantes livrées : `p1` (inventaires / réquisitions / réceptions / factures du
+mois + état par programme géré), `p2` (inventaires avec « dans les 3 derniers
+jours », réquisitions avec date limite — règles de la migration 0020 — et « à
+l'heure »). `p4` garde son handler dédié `piliers/p4` (unifié au ticket 06) ;
+`p3` / `p5` / `p6` suivent. Le filtre `programmeId` restreint les lignes de core
+au programme ; absent = tous programmes.
 
 - `piliersCouverts` = nombre de scores de pilier non nuls (2 aujourd'hui) ;
   `piliersTotal = 6`. L'écran affiche « Score calculé sur N piliers sur 6 »

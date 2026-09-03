@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   compteAdminSchema,
   detailP4ProduitsSchema,
+  detailPilierSchema,
   detailSiteSchema,
   grilleDetailSchema,
   historiqueSiteSchema,
@@ -323,6 +324,63 @@ describe('validerReponse (couture D)', () => {
   it('rejette un sdu.conforme absent', () => {
     expect(() =>
       validerReponse(detailP4ProduitsSchema, detailP4({ sdu: { theorique: 1, comptee: 1, ecartPct: 0 } })),
+    ).toThrow(/non conforme/i);
+  });
+
+  const detailPilierBase = {
+    site,
+    moisPaqd: '2026-08',
+    moisDisponibles: ['2026-08'],
+    programmeId: null,
+    comptesBruts: [
+      { mesure: 'p1_inventaires', libelle: 'inventaires', attendu: 2, realise: 1, aLHeure: null },
+    ],
+    calculeLe: '2026-09-01T00:00:00.000Z',
+    coreMajLe: '2026-09-02T00:00:00.000Z',
+    reimporteDepuisLeGel: true,
+  };
+  const detailPilierP1 = (over: Record<string, unknown> = {}) => ({
+    ...detailPilierBase,
+    code: 'p1',
+    inventaires: [{ date: '2026-08-28', programme: 'VIH' }],
+    requisitions: [{ programme: 'VIH', moisCouvert: '2026-08', dateSoumission: null }],
+    receptions: [{ date: '2026-08-10', reference: 'GRN-1' }],
+    factures: [{ date: '2026-08-05', reference: null }],
+    programmesGeres: [{ programme: 'VIH', aInventaire: true, aRequisition: false }],
+    ...over,
+  });
+  const detailPilierP2 = (over: Record<string, unknown> = {}) => ({
+    ...detailPilierBase,
+    code: 'p2',
+    inventaires: [{ date: '2026-08-29', programme: 'VIH', dansLes3DerniersJours: true }],
+    requisitions: [
+      { programme: 'VIH', dateSoumission: '2026-08-31', dateLimite: '2026-09-05', aLHeure: true },
+    ],
+    ...over,
+  });
+
+  it('accepte un DetailPilier variante p1 et variante p2', () => {
+    const p1 = validerReponse(detailPilierSchema, detailPilierP1());
+    expect(p1.code).toBe('p1');
+    if (p1.code === 'p1') expect(p1.programmesGeres[0]?.aRequisition).toBe(false);
+    const p2 = validerReponse(detailPilierSchema, detailPilierP2());
+    expect(p2.code).toBe('p2');
+    if (p2.code === 'p2') expect(p2.requisitions[0]?.aLHeure).toBe(true);
+  });
+
+  it('rejette un DetailPilier au code inconnu', () => {
+    expect(() => validerReponse(detailPilierSchema, detailPilierP1({ code: 'p9' }))).toThrow(/non conforme/i);
+  });
+
+  it('rejette une variante p1 sans son tableau de factures', () => {
+    expect(() => validerReponse(detailPilierSchema, detailPilierP1({ factures: undefined }))).toThrow(
+      /non conforme/i,
+    );
+  });
+
+  it('rejette une variante p2 dont un inventaire n\'a pas le drapeau des 3 derniers jours', () => {
+    expect(() =>
+      validerReponse(detailPilierSchema, detailPilierP2({ inventaires: [{ date: '2026-08-29', programme: 'VIH' }] })),
     ).toThrow(/non conforme/i);
   });
 

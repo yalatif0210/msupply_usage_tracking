@@ -425,6 +425,113 @@ export const detailP4ProduitsSchema = z.object({
 });
 export type DetailP4Produits = z.infer<typeof detailP4ProduitsSchema>;
 
+// ─── Détail ligne à ligne d'un pilier (lu en direct du core) ────────────────
+
+/**
+ * Requête du détail par pilier : mêmes paramètres que le détail de site.
+ * `mois` par défaut le plus récent gelé ; `programmeId` absent = tous programmes.
+ */
+export const detailPilierQuerySchema = detailSiteQuerySchema;
+export type DetailPilierQuery = z.infer<typeof detailPilierQuerySchema>;
+
+/**
+ * Champs communs à toutes les variantes de `DetailPilier`.
+ *
+ * - `comptesBruts` : les couples figés du pilier (`hist_pilier_brut`), identiques
+ *   à `DetailSite.piliers[].comptesBruts`.
+ * - `calculeLe` : horodatage du gel des comptes bruts pour ce site / mois /
+ *   programme (`hist_pilier_brut.calcule_le`, à défaut `hist_score_site`).
+ * - `coreMajLe` : `max(maj_le)` des lignes de core que ce pilier lit pour ce
+ *   site + mois. `reimporteDepuisLeGel` = `coreMajLe > calculeLe` : le détail
+ *   live ci-dessous peut alors différer des comptes figés.
+ */
+const detailPilierBaseSchema = z.object({
+  site: siteSchema,
+  moisPaqd: moisPaqdSchema.nullable(),
+  moisDisponibles: z.array(moisPaqdSchema),
+  programmeId: z.string().nullable(),
+  comptesBruts: z.array(compteBrutSchema),
+  calculeLe: z.string().datetime().nullable(),
+  coreMajLe: z.string().datetime().nullable(),
+  reimporteDepuisLeGel: z.boolean(),
+});
+
+/** Un inventaire finalisé du mois (P1 : liste brute). */
+export const ligneInventaireP1Schema = z.object({
+  date: dateIsoSchema,
+  programme: z.string(),
+});
+
+/** Une réquisition couvrant le mois (P1). */
+export const ligneRequisitionP1Schema = z.object({
+  programme: z.string(),
+  moisCouvert: moisPaqdSchema,
+  dateSoumission: dateIsoSchema.nullable(),
+});
+
+/** Une réception finalisée ou une facture fournisseur du mois (P1). */
+export const ligneTransactionP1Schema = z.object({
+  date: dateIsoSchema,
+  reference: z.string().nullable(),
+});
+
+/** Un programme géré du site et l'état de ses deux livrables du mois (P1). */
+export const programmeGereP1Schema = z.object({
+  programme: z.string(),
+  aInventaire: z.boolean(),
+  aRequisition: z.boolean(),
+});
+
+export const detailPilierP1Schema = detailPilierBaseSchema.extend({
+  code: z.literal('p1'),
+  /** Inventaires finalisés du mois, un par ligne. */
+  inventaires: z.array(ligneInventaireP1Schema),
+  /** Réquisitions dont le mois couvert est le mois PAQD. */
+  requisitions: z.array(ligneRequisitionP1Schema),
+  /** Réceptions finalisées du mois. */
+  receptions: z.array(ligneTransactionP1Schema),
+  /** Factures fournisseur du mois (dénominateur des réceptions). */
+  factures: z.array(ligneTransactionP1Schema),
+  /** Un item par programme géré : signale l'inventaire ou la réquisition manquant. */
+  programmesGeres: z.array(programmeGereP1Schema),
+});
+export type DetailPilierP1 = z.infer<typeof detailPilierP1Schema>;
+
+/** Un inventaire finalisé du mois avec la règle des 3 derniers jours (P2). */
+export const ligneInventaireP2Schema = z.object({
+  date: dateIsoSchema,
+  programme: z.string(),
+  dansLes3DerniersJours: z.boolean(),
+});
+
+/** Une réquisition avec sa date limite et le verdict « à l'heure » (P2). */
+export const ligneRequisitionP2Schema = z.object({
+  programme: z.string(),
+  dateSoumission: dateIsoSchema.nullable(),
+  dateLimite: dateIsoSchema,
+  aLHeure: z.boolean(),
+});
+
+export const detailPilierP2Schema = detailPilierBaseSchema.extend({
+  code: z.literal('p2'),
+  /** Inventaires finalisés du mois, hors des 3 derniers jours d'abord côté front. */
+  inventaires: z.array(ligneInventaireP2Schema),
+  /** Réquisitions du mois, en retard d'abord côté front. */
+  requisitions: z.array(ligneRequisitionP2Schema),
+});
+export type DetailPilierP2 = z.infer<typeof detailPilierP2Schema>;
+
+/**
+ * Détail par pilier servi par `GET /api/sites/:id/piliers/:code`. Union
+ * discriminée sur `code` : les tickets suivants ajoutent les variantes `p3`,
+ * `p4` et `p6` au tableau, chacune sur son propre `const`.
+ */
+export const detailPilierSchema = z.discriminatedUnion('code', [
+  detailPilierP1Schema,
+  detailPilierP2Schema,
+]);
+export type DetailPilier = z.infer<typeof detailPilierSchema>;
+
 // ─── Imports ────────────────────────────────────────────────────────────────
 
 export const STATUTS_IMPORT = ['recu', 'en_cours', 'valide', 'rejete'] as const;

@@ -2,20 +2,26 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   input,
   signal,
+  untracked,
 } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
+  CODE_PILIER,
   LIBELLES_PILIER,
   LIBELLES_SOUS_COMPOSANTE,
   PILIER_DE_SOUS_COMPOSANTE,
   PILIERS,
   SOUS_COMPOSANTES_DU_PILIER,
   type DetailP4Produits,
+  type DetailPilier,
+  type DetailPilierP1,
+  type DetailPilierP2,
   type DetailSite,
   type HistoriqueSite,
   type Pilier,
@@ -191,6 +197,104 @@ function reculerMois(mois: string, n: number): string {
                         </div>
                       }
                     </dl>
+                  }
+
+                  @if (pil.pilier === 'P1' || pil.pilier === 'P2') {
+                    <details class="border-t border-border pt-3 text-xs" #dt (toggle)="basculerPilier(pil.pilier, dt.open)">
+                      <summary class="cursor-pointer text-primary">Détail ligne à ligne</summary>
+                      <div class="mt-2" [attr.aria-busy]="chargePilier(pil.pilier) ? 'true' : null">
+                        <dqa-barre-attente [actif]="chargePilier(pil.pilier)" />
+
+                        @if (p1De(pil.pilier); as dp) {
+                          @if (dp.reimporteDepuisLeGel) {
+                            <p class="mt-2 text-alerte-texte">Données du core modifiées depuis le gel du mois : le détail ci-dessous peut différer des comptes figés.</p>
+                          }
+                          <div class="mt-2 space-y-3">
+                            <div>
+                              <h3 class="font-medium">Programmes gérés</h3>
+                              <ul class="mt-1 space-y-0.5">
+                                @for (pg of programmesTries(dp.programmesGeres); track pg.programme) {
+                                  <li class="flex items-baseline justify-between gap-3">
+                                    <span>{{ pg.programme }}</span>
+                                    <span class="tabular-nums text-muted-foreground">
+                                      inventaire {{ pg.aInventaire ? 'oui' : 'non' }} · réquisition {{ pg.aRequisition ? 'oui' : 'non' }}
+                                    </span>
+                                  </li>
+                                } @empty {
+                                  <li class="text-muted-foreground">aucun programme géré déclaré</li>
+                                }
+                              </ul>
+                            </div>
+                            <div>
+                              <h3 class="font-medium">Inventaires finalisés ({{ dp.inventaires.length }})</h3>
+                              <ul class="mt-1 space-y-0.5">
+                                @for (iv of dp.inventaires; track $index) {
+                                  <li class="tabular-nums">{{ iv.date }} · {{ iv.programme }}</li>
+                                } @empty {
+                                  <li class="text-muted-foreground">aucun</li>
+                                }
+                              </ul>
+                            </div>
+                            <div>
+                              <h3 class="font-medium">Réquisitions couvrant le mois ({{ dp.requisitions.length }})</h3>
+                              <ul class="mt-1 space-y-0.5">
+                                @for (rq of dp.requisitions; track $index) {
+                                  <li class="tabular-nums">{{ rq.programme }} · soumise {{ rq.dateSoumission ?? absent }}</li>
+                                } @empty {
+                                  <li class="text-muted-foreground">aucune</li>
+                                }
+                              </ul>
+                            </div>
+                            <div>
+                              <h3 class="font-medium">Réceptions / factures ({{ dp.receptions.length }} / {{ dp.factures.length }})</h3>
+                              <ul class="mt-1 space-y-0.5">
+                                @for (rc of dp.receptions; track $index) {
+                                  <li class="tabular-nums">réception {{ rc.date }}{{ rc.reference ? ' · ' + rc.reference : '' }}</li>
+                                }
+                                @for (fa of dp.factures; track $index) {
+                                  <li class="tabular-nums">facture {{ fa.date }}{{ fa.reference ? ' · ' + fa.reference : '' }}</li>
+                                }
+                                @if (!dp.receptions.length && !dp.factures.length) {
+                                  <li class="text-muted-foreground">aucune</li>
+                                }
+                              </ul>
+                            </div>
+                          </div>
+                        }
+
+                        @if (p2De(pil.pilier); as dp) {
+                          @if (dp.reimporteDepuisLeGel) {
+                            <p class="mt-2 text-alerte-texte">Données du core modifiées depuis le gel du mois : le détail ci-dessous peut différer des comptes figés.</p>
+                          }
+                          <div class="mt-2 space-y-3">
+                            <div>
+                              <h3 class="font-medium">Inventaires finalisés ({{ dp.inventaires.length }})</h3>
+                              <ul class="mt-1 space-y-0.5">
+                                @for (iv of invP2Tries(dp.inventaires); track $index) {
+                                  <li class="tabular-nums">
+                                    {{ iv.date }} · {{ iv.programme }} · {{ iv.dansLes3DerniersJours ? 'dans les 3 derniers jours' : 'hors des 3 derniers jours' }}
+                                  </li>
+                                } @empty {
+                                  <li class="text-muted-foreground">aucun</li>
+                                }
+                              </ul>
+                            </div>
+                            <div>
+                              <h3 class="font-medium">Réquisitions ({{ dp.requisitions.length }})</h3>
+                              <ul class="mt-1 space-y-0.5">
+                                @for (rq of reqP2Tries(dp.requisitions); track $index) {
+                                  <li class="tabular-nums">
+                                    {{ rq.programme }} · soumise {{ rq.dateSoumission ?? absent }} · limite {{ rq.dateLimite }} · {{ rq.aLHeure ? "à l'heure" : 'en retard' }}
+                                  </li>
+                                } @empty {
+                                  <li class="text-muted-foreground">aucune</li>
+                                }
+                              </ul>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    </details>
                   }
                 </div>
               </div>
@@ -425,9 +529,87 @@ export class DetailSitePage {
 
   protected readonly moisDisponibles = computed(() => this.historique()?.moisDisponibles ?? []);
 
+  /** Détail ligne à ligne d'un pilier, chargé au dépli de sa carte (P1 / P2). */
+  private readonly detailsPilier = signal<Partial<Record<Pilier, DetailPilier>>>({});
+  private readonly chargements = signal<Partial<Record<Pilier, boolean>>>({});
+  private readonly ouverts = signal<ReadonlySet<Pilier>>(new Set());
+  /** Dernier couple (programme, mois) pour lequel les dépliants sont à jour. */
+  private cleContexte = '';
+
   constructor() {
+    // Un changement de mois / programme invalide les dépliants ouverts et les
+    // recharge en arrière-plan, sans démonter la vue (CLAUDE.md §8).
+    effect(() => {
+      const cle = `${this.res.filtres().programme}|${this.detail()?.moisPaqd ?? ''}`;
+      untracked(() => {
+        if (cle === this.cleContexte) return;
+        this.cleContexte = cle;
+        const ouverts = this.ouverts();
+        if (ouverts.size === 0) return;
+        this.detailsPilier.set({});
+        for (const p of ouverts) void this.chargerPilier(p);
+      });
+    });
     void this.init();
   }
+
+  protected chargePilier = (p: Pilier): boolean => this.chargements()[p] ?? false;
+
+  protected p1De = (p: Pilier): DetailPilierP1 | undefined => {
+    const d = this.detailsPilier()[p];
+    return d?.code === 'p1' ? d : undefined;
+  };
+  protected p2De = (p: Pilier): DetailPilierP2 | undefined => {
+    const d = this.detailsPilier()[p];
+    return d?.code === 'p2' ? d : undefined;
+  };
+
+  protected basculerPilier(p: Pilier, ouvert: boolean): void {
+    const s = new Set(this.ouverts());
+    if (ouvert) {
+      s.add(p);
+      void this.chargerPilier(p);
+    } else {
+      s.delete(p);
+    }
+    this.ouverts.set(s);
+  }
+
+  private async chargerPilier(p: Pilier): Promise<void> {
+    if (p !== 'P1' && p !== 'P2') return;
+    if (this.detailsPilier()[p] || this.chargements()[p]) return;
+    this.chargements.update((m) => ({ ...m, [p]: true }));
+    try {
+      const f = this.res.filtres();
+      const d = await this.service.detailPilier(this.id(), CODE_PILIER[p], {
+        programmeId: f.programme || undefined,
+        mois: this.detail()?.moisPaqd ?? undefined,
+      });
+      this.detailsPilier.update((m) => ({ ...m, [p]: d }));
+    } catch {
+      // échec non bloquant : la carte reste, un nouveau dépli retentera
+    } finally {
+      this.chargements.update((m) => ({ ...m, [p]: false }));
+    }
+  }
+
+  /** Cas fautifs d'abord : programme sans inventaire ni réquisition en tête. */
+  protected programmesTries = (
+    l: DetailPilierP1['programmesGeres'],
+  ): DetailPilierP1['programmesGeres'] =>
+    [...l].sort((a, b) => this.rangProgramme(a) - this.rangProgramme(b));
+  private rangProgramme = (x: DetailPilierP1['programmesGeres'][number]): number =>
+    x.aInventaire && x.aRequisition ? 1 : 0;
+
+  protected invP2Tries = (
+    l: DetailPilierP2['inventaires'],
+  ): DetailPilierP2['inventaires'] =>
+    [...l].sort((a, b) => Number(a.dansLes3DerniersJours) - Number(b.dansLes3DerniersJours));
+
+  protected reqP2Tries = (
+    l: DetailPilierP2['requisitions'],
+  ): DetailPilierP2['requisitions'] =>
+    [...l].sort((a, b) => Number(a.aLHeure) - Number(b.aLHeure));
 
   private async init(): Promise<void> {
     this.programmes.set(await this.service.programmes());

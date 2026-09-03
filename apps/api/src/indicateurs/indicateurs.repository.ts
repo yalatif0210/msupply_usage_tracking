@@ -5,14 +5,20 @@ import {
   LIBELLES_PILIER,
   LIBELLES_SOUS_COMPOSANTE,
   MESURES_BRUTES,
+  PILIER_DE_CODE,
   PILIER_DE_MESURE_BRUTE,
   PILIER_DE_SOUS_COMPOSANTE,
   POIDS_PILIER,
   SOUS_COMPOSANTES,
   type BlocSynthese,
   type Classification,
+  type CodePilier,
   type CompteBrut,
   type DetailP4Produits,
+  type DetailPilier,
+  type DetailPilierP1,
+  type DetailPilierP2,
+  type DetailPilierQuery,
   type DetailSite,
   type FiltreSites,
   type HistoriqueQuery,
@@ -913,5 +919,305 @@ export class IndicateursRepository {
       parPilier.set(pilier, liste);
     }
     return parPilier;
+  }
+
+  /**
+   * Détail transaction par transaction derrière le taux d'un pilier, lu en
+   * direct du core (`fact_*`). `comptesBruts` et `calculeLe` restent les valeurs
+   * figées ; `coreMajLe` / `reimporteDepuisLeGel` disent si le core a bougé
+   * depuis le gel. `null` si le site est hors périmètre.
+   *
+   * Le filtre programme (`prog` NULL = tous programmes) porte sur les lignes de
+   * core : NULL ne restreint rien, une valeur restreint à ce programme.
+   */
+  async detailPilier(
+    siteId: string,
+    code: Extract<CodePilier, 'p1' | 'p2'>,
+    q: DetailPilierQuery,
+  ): Promise<DetailPilier | null> {
+    const pilier = PILIER_DE_CODE[code];
+
+    const site = await this.pool.query<LigneSite>(
+      `SELECT site_id, site_code, site_nom, district, region, type_structure
+       FROM dqa.dim_site WHERE site_id = $1 AND dans_perimetre_dqa`,
+      [siteId],
+    );
+    if (site.rowCount === 0) return null;
+    const siteRow = site.rows[0]!;
+    const prog = q.programmeId ?? null;
+
+    const moisRows = await this.pool.query<{ mois_paqd: string }>(
+      `SELECT DISTINCT mois_paqd FROM dqa.hist_score_site
+       WHERE site_id = $1 AND programme_id IS NOT DISTINCT FROM $2
+       ORDER BY mois_paqd DESC`,
+      [siteId, prog],
+    );
+    const moisDisponibles = moisRows.rows.map((r) => r.mois_paqd);
+    const mois = q.mois && moisDisponibles.includes(q.mois) ? q.mois : moisDisponibles[0];
+
+    const comptesBruts = mois
+      ? (await this.comptesBrutsParPilier(siteId, mois, prog)).get(pilier) ?? []
+      : [];
+
+    const commun = {
+      site: versSite(siteRow),
+      moisPaqd: mois ?? null,
+      moisDisponibles,
+      programmeId: prog,
+      comptesBruts,
+    };
+
+    if (!mois) {
+      const vide = { ...commun, calculeLe: null, coreMajLe: null, reimporteDepuisLeGel: false };
+      return code === 'p1'
+        ? { ...vide, code: 'p1', inventaires: [], requisitions: [], receptions: [], factures: [], programmesGeres: [] }
+        : { ...vide, code: 'p2', inventaires: [], requisitions: [] };
+    }
+
+    const calculeLe = await this.horodatageGel(siteId, mois, prog, pilier);
+    const horo = (coreMajLe: Date | null) => ({
+      calculeLe: calculeLe ? calculeLe.toISOString() : null,
+      coreMajLe: coreMajLe ? coreMajLe.toISOString() : null,
+      reimporteDepuisLeGel:
+        calculeLe !== null && coreMajLe !== null && coreMajLe.getTime() > calculeLe.getTime(),
+    });
+
+    if (code === 'p1') {
+      const { coreMajLe, ...lignes } = await this.detailPilierP1(siteId, mois, prog);
+      return { ...commun, ...horo(coreMajLe), code: 'p1', ...lignes };
+    }
+    const { coreMajLe, ...lignes } = await this.detailPilierP2(siteId, mois, prog);
+    return { ...commun, ...horo(coreMajLe), code: 'p2', ...lignes };
+  }
+
+  /** Horodatage du gel des comptes bruts du pilier, à défaut celui du score. */
+  private async horodatageGel(
+    siteId: string,
+    mois: string,
+    prog: string | null,
+    pilier: Pilier,
+  ): Promise<Date | null> {
+    const mesures = MESURES_BRUTES.filter((m) => PILIER_DE_MESURE_BRUTE[m] === pilier);
+    const brut = await this.pool.query<{ calcule_le: Date | null }>(
+      `SELECT max(calcule_le) AS calcule_le FROM dqa.hist_pilier_brut
+       WHERE site_id = $1 AND mois_paqd = $2 AND programme_id IS NOT DISTINCT FROM $3
+         AND mesure = ANY($4::text[])`,
+      [siteId, mois, prog, mesures],
+    );
+    if (brut.rows[0]?.calcule_le) return brut.rows[0].calcule_le;
+    const score = await this.pool.query<{ calcule_le: Date | null }>(
+      `SELECT calcule_le FROM dqa.hist_score_site
+       WHERE site_id = $1 AND mois_paqd = $2 AND programme_id IS NOT DISTINCT FROM $3`,
+      [siteId, mois, prog],
+    );
+    return score.rows[0]?.calcule_le ?? null;
+  }
+
+  private async detailPilierP1(
+    siteId: string,
+    mois: string,
+    prog: string | null,
+  ): Promise<
+    Pick<
+      DetailPilierP1,
+      'inventaires' | 'requisitions' | 'receptions' | 'factures' | 'programmesGeres'
+    > & { coreMajLe: Date | null }
+  > {
+    const params = [siteId, mois, prog];
+
+    const inventaires = await this.pool.query<{ date: string; programme: string }>(
+      `SELECT to_char(fi.date_inventaire, 'YYYY-MM-DD') AS date,
+              coalesce(nullif(dp.programme_nom, ''), fi.programme_id, 'Sans programme') AS programme
+       FROM dqa.fact_inventaire fi
+       LEFT JOIN dqa.dim_programme dp ON dp.programme_id = fi.programme_id
+       WHERE fi.site_id = $1 AND fi.statut = 'fn'
+         AND to_char(fi.date_inventaire, 'YYYY-MM') = $2
+         AND ($3::text IS NULL OR fi.programme_id = $3)
+       ORDER BY fi.date_inventaire, programme`,
+      params,
+    );
+
+    const requisitions = await this.pool.query<{
+      programme: string;
+      mois_couvert: string;
+      date_soumission: string | null;
+    }>(
+      `SELECT coalesce(nullif(dp.programme_nom, ''), fr.programme_id, 'Sans programme') AS programme,
+              fr.mois_couvert,
+              to_char(fr.date_soumission, 'YYYY-MM-DD') AS date_soumission
+       FROM dqa.fact_requisition fr
+       LEFT JOIN dqa.dim_programme dp ON dp.programme_id = fr.programme_id
+       WHERE fr.site_id = $1 AND fr.mois_couvert = $2
+         AND ($3::text IS NULL OR fr.programme_id = $3)
+       ORDER BY programme`,
+      params,
+    );
+
+    const receptions = await this.pool.query<{ date: string; reference: string | null }>(
+      `SELECT to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM-DD') AS date,
+              coalesce(nullif(ft.goods_received_id, ''), nullif(ft.commentaire, '')) AS reference
+       FROM dqa.fact_transaction ft
+       WHERE ft.site_id = $1 AND ft.nature = 'reception'
+         AND coalesce(ft.statut, '') = 'fn' AND coalesce(ft.annulation, false) = false
+         AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $2
+         AND ($3::text IS NULL OR ft.programme_id = $3)
+       ORDER BY coalesce(ft.date_confirmation, ft.date_saisie)`,
+      params,
+    );
+
+    const factures = await this.pool.query<{ date: string; reference: string | null }>(
+      `SELECT to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM-DD') AS date,
+              coalesce(nullif(ft.goods_received_id, ''), nullif(ft.commentaire, '')) AS reference
+       FROM dqa.fact_transaction ft
+       WHERE ft.site_id = $1 AND ft.nature = 'facture_fournisseur'
+         AND coalesce(ft.annulation, false) = false
+         AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $2
+         AND ($3::text IS NULL OR ft.programme_id = $3)
+       ORDER BY coalesce(ft.date_confirmation, ft.date_saisie)`,
+      params,
+    );
+
+    const programmesGeres = await this.pool.query<{
+      programme: string;
+      a_inventaire: boolean;
+      a_requisition: boolean;
+    }>(
+      `SELECT coalesce(nullif(dp.programme_nom, ''), sp.programme_id) AS programme,
+              EXISTS (SELECT 1 FROM dqa.fact_inventaire fi
+                       WHERE fi.site_id = sp.site_id AND fi.statut = 'fn'
+                         AND fi.programme_id = sp.programme_id
+                         AND to_char(fi.date_inventaire, 'YYYY-MM') = $2) AS a_inventaire,
+              EXISTS (SELECT 1 FROM dqa.fact_requisition fr
+                       WHERE fr.site_id = sp.site_id AND fr.programme_id = sp.programme_id
+                         AND fr.mois_couvert = $2) AS a_requisition
+       FROM dqa.dim_site_programme sp
+       LEFT JOIN dqa.dim_programme dp ON dp.programme_id = sp.programme_id
+       WHERE sp.site_id = $1 AND sp.actif AND ($3::text IS NULL OR sp.programme_id = $3)
+       ORDER BY programme`,
+      params,
+    );
+
+    const maj = await this.pool.query<{ core_maj_le: Date | null }>(
+      `SELECT GREATEST(
+         (SELECT max(fi.maj_le) FROM dqa.fact_inventaire fi
+           WHERE fi.site_id = $1 AND fi.statut = 'fn'
+             AND to_char(fi.date_inventaire, 'YYYY-MM') = $2
+             AND ($3::text IS NULL OR fi.programme_id = $3)),
+         (SELECT max(fr.maj_le) FROM dqa.fact_requisition fr
+           WHERE fr.site_id = $1 AND fr.mois_couvert = $2
+             AND ($3::text IS NULL OR fr.programme_id = $3)),
+         (SELECT max(ft.maj_le) FROM dqa.fact_transaction ft
+           WHERE ft.site_id = $1 AND ft.nature IN ('reception', 'facture_fournisseur')
+             AND coalesce(ft.annulation, false) = false
+             AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $2
+             AND ($3::text IS NULL OR ft.programme_id = $3))
+       ) AS core_maj_le`,
+      params,
+    );
+
+    return {
+      inventaires: inventaires.rows,
+      requisitions: requisitions.rows.map((r) => ({
+        programme: r.programme,
+        moisCouvert: r.mois_couvert,
+        dateSoumission: r.date_soumission,
+      })),
+      receptions: receptions.rows,
+      factures: factures.rows,
+      programmesGeres: programmesGeres.rows.map((r) => ({
+        programme: r.programme,
+        aInventaire: r.a_inventaire,
+        aRequisition: r.a_requisition,
+      })),
+      coreMajLe: maj.rows[0]?.core_maj_le ?? null,
+    };
+  }
+
+  private async detailPilierP2(
+    siteId: string,
+    mois: string,
+    prog: string | null,
+  ): Promise<
+    Pick<DetailPilierP2, 'inventaires' | 'requisitions'> & { coreMajLe: Date | null }
+  > {
+    const params = [siteId, mois, prog];
+
+    const inventaires = await this.pool.query<{
+      date: string;
+      programme: string;
+      dans_les_3_derniers_jours: boolean;
+    }>(
+      `SELECT to_char(fi.date_inventaire, 'YYYY-MM-DD') AS date,
+              coalesce(nullif(dp.programme_nom, ''), fi.programme_id, 'Sans programme') AS programme,
+              fi.date_inventaire >= (date_trunc('month', fi.date_inventaire)
+                                     + interval '1 month' - interval '3 days')::date
+                AS dans_les_3_derniers_jours
+       FROM dqa.fact_inventaire fi
+       LEFT JOIN dqa.dim_programme dp ON dp.programme_id = fi.programme_id
+       WHERE fi.site_id = $1 AND fi.statut = 'fn'
+         AND to_char(fi.date_inventaire, 'YYYY-MM') = $2
+         AND ($3::text IS NULL OR fi.programme_id = $3)
+       ORDER BY fi.date_inventaire, programme`,
+      params,
+    );
+
+    // Date limite : mêmes règles que migration 0020 — mois couvert + 1 mois +
+    // (jour limite − 1) jours ; jour limite = dim_site.jour_limite_requisition,
+    // à défaut 5 (CSU/CSR/ESPC), 7 (HG/CHR), 10 sinon.
+    const requisitions = await this.pool.query<{
+      programme: string;
+      date_soumission: string | null;
+      date_limite: string;
+      a_lheure: boolean;
+    }>(
+      `SELECT coalesce(nullif(dp.programme_nom, ''), fr.programme_id, 'Sans programme') AS programme,
+              to_char(fr.date_soumission, 'YYYY-MM-DD') AS date_soumission,
+              to_char(lim.date_limite, 'YYYY-MM-DD') AS date_limite,
+              (fr.date_soumission IS NOT NULL AND fr.date_soumission <= lim.date_limite) AS a_lheure
+       FROM dqa.fact_requisition fr
+       JOIN dqa.dim_site ds ON ds.site_id = fr.site_id
+       LEFT JOIN dqa.dim_programme dp ON dp.programme_id = fr.programme_id
+       CROSS JOIN LATERAL (
+         SELECT (date_trunc('month', (fr.mois_couvert || '-01')::date) + interval '1 month')::date
+                + (coalesce(
+                     ds.jour_limite_requisition,
+                     CASE WHEN ds.type_structure IN ('CSU', 'CSR', 'ESPC') THEN 5
+                          WHEN ds.type_structure IN ('HG', 'CHR')          THEN 7
+                          ELSE 10 END
+                   ) - 1) AS date_limite
+       ) lim
+       WHERE fr.site_id = $1 AND fr.mois_couvert = $2
+         AND ($3::text IS NULL OR fr.programme_id = $3)
+       ORDER BY programme`,
+      params,
+    );
+
+    const maj = await this.pool.query<{ core_maj_le: Date | null }>(
+      `SELECT GREATEST(
+         (SELECT max(fi.maj_le) FROM dqa.fact_inventaire fi
+           WHERE fi.site_id = $1 AND fi.statut = 'fn'
+             AND to_char(fi.date_inventaire, 'YYYY-MM') = $2
+             AND ($3::text IS NULL OR fi.programme_id = $3)),
+         (SELECT max(fr.maj_le) FROM dqa.fact_requisition fr
+           WHERE fr.site_id = $1 AND fr.mois_couvert = $2
+             AND ($3::text IS NULL OR fr.programme_id = $3))
+       ) AS core_maj_le`,
+      params,
+    );
+
+    return {
+      inventaires: inventaires.rows.map((r) => ({
+        date: r.date,
+        programme: r.programme,
+        dansLes3DerniersJours: r.dans_les_3_derniers_jours,
+      })),
+      requisitions: requisitions.rows.map((r) => ({
+        programme: r.programme,
+        dateSoumission: r.date_soumission,
+        dateLimite: r.date_limite,
+        aLHeure: r.a_lheure,
+      })),
+      coreMajLe: maj.rows[0]?.core_maj_le ?? null,
+    };
   }
 }
