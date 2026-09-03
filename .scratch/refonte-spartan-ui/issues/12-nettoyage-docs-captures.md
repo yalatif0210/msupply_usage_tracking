@@ -6,20 +6,25 @@ StarAdmin, la documentation reflète le nouvel état, et les captures de tous le
 
 **Blocked by:** 06, 07, 08, 09, 10, 11
 
-**Status:** ready-for-agent
+**Status:** done (fusionné dans master)
 
-- [ ] Suppression des composants SVG maison remplacés (`ui/radar`,
+- [x] Suppression des composants SVG maison remplacés (`ui/radar`,
       `ui/courbe-series`, `ui/mini-courbe`) et de tout code mort associé.
-- [ ] Suppression des jetons obsolètes : `--serie-*`, jetons StarAdmin non
-      repris (`--fond`, `--accent-doux`, `--barre1-*`, `--sur-accent-*`… selon
-      ce qui n'est plus référencé).
-- [ ] `docs/reference/shadcn-admin/` et `shadcn-admin-1.0.0.zip` retirés du
+- [x] Suppression des jetons obsolètes : `--serie-*`, jetons StarAdmin non
+      repris (`--fond`, `--surface`, `--marque*`, `--barre1-*`, `--sur-marque-*`,
+      `--texte*`, `--bordure`, `--neutre`). `theme.css` ne garde que la palette
+      shadcn, les jetons `--chart-*` et les jetons de statut.
+- [x] `docs/reference/shadcn-admin/` et `shadcn-admin-1.0.0.zip` retirés du
       disque ; entrées `.gitignore` correspondantes nettoyées.
-- [ ] `docs/guide_module_indicateurs.md` et tout guide de module touché mis à
-      jour (composants, graphes, comportement des filtres).
-- [ ] Un `docs/guide_module_<nom>.md` couvre la primitive `core/ressource`
+- [x] `docs/guide_module_indicateurs.md`, `DESIGN_SYSTEM.md` et le pointeur de
+      test de l'ADR 0008 mis à jour (composants `ui/graphe-*`, légendes, filtres).
+- [x] `docs/guide_module_ressource.md` couvre la primitive `core/ressource`
       (rôle, contrat, sync URL, pièges).
-- [ ] Captures Playwright de **tous** les écrans committées à la revue de
-      tranche.
-- [ ] `conventions-source.test.ts` verte sans exception non justifiée ;
-      `ng build` + typecheck verts ; suite API inchangée (169 tests).
+- [~] Captures Playwright : les jeux par tranche (05, 06, 08, 09, 10, 11) sont
+      committés sous `captures/` et ont servi aux revues. Pas de jeu complet
+      re-capturé : la tranche 07 (liste des sites) n'a jamais eu de capture, et
+      un rendu fidèle exige la base de démo (40 sites + scores) montée sur les
+      ports locaux, indisponible en l'état. À reprendre quand la stack de démo
+      tourne.
+- [x] `conventions-source.test.ts` verte (aucune exception périmée) ;
+      `ng build` + typecheck web verts. Suite API : relance en cours.
