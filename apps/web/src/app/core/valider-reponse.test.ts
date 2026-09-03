@@ -32,6 +32,7 @@ const pilier = (code: Pilier, score: number | null) => ({
     statut: score === null ? ('NON_CALCULABLE' as const) : ('CONFORME' as const),
     raison: score === null ? 'pas de donnée' : null,
   })),
+  comptesBruts: [],
 });
 
 /** Les dix sous-composantes brèves dans l'ordre canonique. */

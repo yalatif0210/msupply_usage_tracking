@@ -9,7 +9,7 @@ seul pilier ; les cinq autres suivent au ticket 03.
 
 **Blocked by:** 01 (les vues exposent leurs couples)
 
-**Status:** ready-for-agent
+**Status:** done (branche `donnees-brutes-piliers`)
 
 - [ ] Nouvelle table `hist_pilier_brut` : grain (site, mois PAQD, programme,
       mesure), colonnes attendu / réalisé / à l'heure, référence du lot et

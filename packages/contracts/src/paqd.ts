@@ -94,6 +94,55 @@ export const SOUS_COMPOSANTES_DU_PILIER: Record<Pilier, readonly SousComposante[
   P6: ['ratio_ajustements'],
 };
 
+// ─── Comptes bruts ──────────────────────────────────────────────────────────
+
+/**
+ * Mesure brute d'une sous-composante : le couple attendu / réalisé (et réalisé
+ * à l'heure quand un délai s'applique) figé mois par mois dans `hist_pilier_brut`.
+ * Une par sous-composante, sauf P3 et P6 qui n'ont qu'un couple.
+ */
+export const MESURES_BRUTES = [
+  'p1_inventaires',
+  'p1_requisitions',
+  'p1_receptions',
+  'p2_inventaires',
+  'p2_requisitions',
+  'p3_regularite',
+  'p4_ecart_sdu',
+  'p4_ecart_consommation',
+  'p5_concordance',
+  'p6_ajustements',
+] as const;
+export const mesureBruteSchema = z.enum(MESURES_BRUTES);
+export type MesureBrute = z.infer<typeof mesureBruteSchema>;
+
+export const PILIER_DE_MESURE_BRUTE: Record<MesureBrute, Pilier> = {
+  p1_inventaires: 'P1',
+  p1_requisitions: 'P1',
+  p1_receptions: 'P1',
+  p2_inventaires: 'P2',
+  p2_requisitions: 'P2',
+  p3_regularite: 'P3',
+  p4_ecart_sdu: 'P4',
+  p4_ecart_consommation: 'P4',
+  p5_concordance: 'P5',
+  p6_ajustements: 'P6',
+};
+
+/** Libellé du couple : « X sur Y <libellé> ». */
+export const LIBELLES_MESURE_BRUTE: Record<MesureBrute, string> = {
+  p1_inventaires: 'inventaires finalisés',
+  p1_requisitions: 'réquisitions couvrant le mois',
+  p1_receptions: 'réceptions finalisées',
+  p2_inventaires: 'inventaires dans les délais',
+  p2_requisitions: 'réquisitions dans les délais',
+  p3_regularite: 'jours avec une sortie de stock',
+  p4_ecart_sdu: 'produits dans la tolérance (écart SDU)',
+  p4_ecart_consommation: 'produits dans la tolérance (écart consommation)',
+  p5_concordance: 'produits concordants',
+  p6_ajustements: 'ajustements',
+};
+
 // ─── Statuts ────────────────────────────────────────────────────────────────
 
 /**

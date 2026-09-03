@@ -157,4 +157,52 @@ describe('vues de pilier : couples attendu / réalisé', () => {
     );
     expect(rows[0]).toMatchObject({ nb_produits_sdu: 3, nb_conformes_sdu: 2 });
   });
+
+  // ── Ticket 02 : gel des comptes bruts P1 dans hist_pilier_brut ──────────
+  describe('gel des comptes bruts P1', () => {
+    const lot = () =>
+      db.query<{ id: number }>(`SELECT id FROM dqa.import_lot WHERE mois_paqd='2026-08'`).then((r) => r.rows[0]!.id);
+    const geler = async () => db.query(`CALL dqa.rafraichir_et_geler($1)`, [await lot()]);
+    const brut = (mesure: string) =>
+      db
+        .query<{ nb_attendu: number; nb_realise: number; nb_a_lheure: number | null; lot_id: number }>(
+          `SELECT nb_attendu, nb_realise, nb_a_lheure, lot_id FROM dqa.hist_pilier_brut
+           WHERE site_id='S1' AND mois_paqd='2026-08' AND programme_id IS NULL AND mesure=$1`,
+          [mesure],
+        )
+        .then((r) => r.rows[0]);
+
+    it('fige les trois mesures P1 au grain « tous programmes »', async () => {
+      await inv('A', 'VIH', '2026-08-28');
+      await req('R1', 'VIH', '2026-08-31');
+      await tx('RC1', 'reception', '2026-08-10');
+      await tx('FA1', 'facture_fournisseur', '2026-08-05');
+      await tx('FA2', 'facture_fournisseur', '2026-08-06');
+      await geler();
+      expect(await brut('p1_inventaires')).toMatchObject({ nb_attendu: 2, nb_realise: 1, nb_a_lheure: null });
+      expect(await brut('p1_requisitions')).toMatchObject({ nb_attendu: 2, nb_realise: 1 });
+      expect(await brut('p1_receptions')).toMatchObject({ nb_attendu: 2, nb_realise: 1 });
+      expect((await brut('p1_inventaires')).lot_id).toBe(await lot());
+    });
+
+    it('ré-appliquer le gel écrase la ligne (upsert sur la clé mesure)', async () => {
+      await inv('A', 'VIH', '2026-08-28');
+      await geler();
+      expect((await brut('p1_inventaires')).nb_realise).toBe(1);
+      await inv('B', 'TB', '2026-08-20');
+      await geler();
+      expect((await brut('p1_inventaires')).nb_realise).toBe(2);
+      const { rows } = await db.query(
+        `SELECT count(*)::int AS n FROM dqa.hist_pilier_brut
+         WHERE site_id='S1' AND mois_paqd='2026-08' AND programme_id IS NULL AND mesure='p1_inventaires'`,
+      );
+      expect(rows[0]).toMatchObject({ n: 1 });
+    });
+
+    it('sans facture fournisseur, p1_receptions n\'est pas figée (NON_CALCULABLE)', async () => {
+      await inv('A', 'VIH', '2026-08-28');
+      await geler();
+      expect(await brut('p1_receptions')).toBeUndefined();
+    });
+  });
 });

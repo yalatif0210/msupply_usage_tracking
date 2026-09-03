@@ -1,13 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Pool } from 'pg';
 import {
+  LIBELLES_MESURE_BRUTE,
   LIBELLES_PILIER,
   LIBELLES_SOUS_COMPOSANTE,
+  MESURES_BRUTES,
+  PILIER_DE_MESURE_BRUTE,
   PILIER_DE_SOUS_COMPOSANTE,
   POIDS_PILIER,
   SOUS_COMPOSANTES,
   type BlocSynthese,
   type Classification,
+  type CompteBrut,
   type DetailP4Produits,
   type DetailSite,
   type FiltreSites,
@@ -47,12 +51,12 @@ interface LigneSite {
  * `pct` = taux mesuré, `score` = 100 / 0 / null (CONFORME / ALERTE / NON_CALCULABLE).
  * Les deux voyagent toujours ensemble.
  */
-interface MesureBrute {
+interface ValeurBrute {
   pct: string | null;
   score: string | null;
 }
 
-const brute = (pct: string | null | undefined, score: string | null | undefined): MesureBrute => ({
+const brute = (pct: string | null | undefined, score: string | null | undefined): ValeurBrute => ({
   pct: pct ?? null,
   score: score ?? null,
 });
@@ -581,6 +585,8 @@ export class IndicateursRepository {
         brute(h?.ratio_ajustements_pct, h?.p_ajustements)),
     ];
 
+    const comptesParPilier = await this.comptesBrutsParPilier(siteId, mois, prog);
+
     return {
       site: versSite(siteRow),
       moisPaqd: mois,
@@ -590,7 +596,7 @@ export class IndicateursRepository {
       piliersTotal: 6,
       scoreComposite: nombreOuNull(h?.score_composite ?? null),
       classification: h?.classification ?? null,
-      piliers,
+      piliers: piliers.map((p) => ({ ...p, comptesBruts: comptesParPilier.get(p.pilier) ?? [] })),
       sousComposantes: dixSousComposantes(h?.sc ?? null),
     };
   }
@@ -783,7 +789,7 @@ export class IndicateursRepository {
   /** Une sous-composante rendue : statut binaire dérivé du score de sous-composante. */
   private mesure(
     sc: SousComposante,
-    m: MesureBrute,
+    m: ValeurBrute,
     seuil: string | null,
     raisonNC: string,
   ): MesureSousComposante {
@@ -802,7 +808,7 @@ export class IndicateursRepository {
   private pilierP1(
     score: string | null,
     seuil: string | null,
-    m: { inv: MesureBrute; req: MesureBrute; rec: MesureBrute },
+    m: { inv: ValeurBrute; req: ValeurBrute; rec: ValeurBrute },
   ): ScorePilier {
     const raisonProg = 'Aucun programme géré déclaré pour ce site';
     return this.envelopper('P1', score, [
@@ -816,7 +822,7 @@ export class IndicateursRepository {
   private pilierP2(
     score: string | null,
     seuil: string | null,
-    m: { inv: MesureBrute; req: MesureBrute },
+    m: { inv: ValeurBrute; req: ValeurBrute },
   ): ScorePilier {
     const raisonProg = 'Aucun programme géré déclaré pour ce site';
     return this.envelopper('P2', score, [
@@ -825,7 +831,7 @@ export class IndicateursRepository {
     ]);
   }
 
-  private pilierP3(score: string | null, seuil: string | null, m: MesureBrute): ScorePilier {
+  private pilierP3(score: string | null, seuil: string | null, m: ValeurBrute): ScorePilier {
     return this.envelopper('P3', score, [
       this.mesure('regularite_saisie', m, seuil, 'Aucune sortie de stock exploitable sur le mois'),
     ]);
@@ -833,7 +839,7 @@ export class IndicateursRepository {
 
   private pilierP4(
     score: string | null,
-    m: { sdu: MesureBrute; seuilSdu: string | null; conso: MesureBrute; seuilConso: string | null },
+    m: { sdu: ValeurBrute; seuilSdu: string | null; conso: ValeurBrute; seuilConso: string | null },
   ): ScorePilier {
     return this.envelopper('P4', score, [
       this.mesure('ecart_sdu', m.sdu, m.seuilSdu, 'Aucun produit traceur inventorié ce mois'),
@@ -842,13 +848,13 @@ export class IndicateursRepository {
     ]);
   }
 
-  private pilierP5(score: string | null, seuil: string | null, m: MesureBrute): ScorePilier {
+  private pilierP5(score: string | null, seuil: string | null, m: ValeurBrute): ScorePilier {
     return this.envelopper('P5', score, [
       this.mesure('concordance', m, seuil, 'Aucun inventaire finalisé exploitable pour le mois'),
     ]);
   }
 
-  private pilierP6(score: string | null, seuil: string | null, m: MesureBrute): ScorePilier {
+  private pilierP6(score: string | null, seuil: string | null, m: ValeurBrute): ScorePilier {
     return this.envelopper('P6', score, [
       this.mesure('ratio_ajustements', m, seuil, 'Aucun mouvement de stock pour le mois'),
     ]);
@@ -865,6 +871,47 @@ export class IndicateursRepository {
       poids: POIDS_PILIER[pilier] * 100,
       score: score === null ? null : Number(score),
       sousComposantes,
+      comptesBruts: [],
     };
+  }
+
+  /**
+   * Couples attendu / réalisé figés (`hist_pilier_brut`), groupés par pilier.
+   * Vide pour un mois sans gel de comptes bruts.
+   */
+  private async comptesBrutsParPilier(
+    siteId: string,
+    mois: string,
+    prog: string | null,
+  ): Promise<Map<Pilier, CompteBrut[]>> {
+    const { rows } = await this.pool.query<{
+      mesure: CompteBrut['mesure'];
+      nb_attendu: number | null;
+      nb_realise: number | null;
+      nb_a_lheure: number | null;
+    }>(
+      `SELECT mesure, nb_attendu, nb_realise, nb_a_lheure
+       FROM dqa.hist_pilier_brut
+       WHERE site_id = $1 AND mois_paqd = $2 AND programme_id IS NOT DISTINCT FROM $3`,
+      [siteId, mois, prog],
+    );
+    const parMesure = new Map(rows.map((r) => [r.mesure, r]));
+    const parPilier = new Map<Pilier, CompteBrut[]>();
+    for (const mesure of MESURES_BRUTES) {
+      const r = parMesure.get(mesure);
+      // `nb_attendu` nul ou 0 = sous-composante NON_CALCULABLE : pas de couple.
+      if (!r || !r.nb_attendu) continue;
+      const pilier = PILIER_DE_MESURE_BRUTE[mesure];
+      const liste = parPilier.get(pilier) ?? [];
+      liste.push({
+        mesure,
+        libelle: LIBELLES_MESURE_BRUTE[mesure],
+        attendu: r.nb_attendu,
+        realise: r.nb_realise,
+        aLHeure: r.nb_a_lheure,
+      });
+      parPilier.set(pilier, liste);
+    }
+    return parPilier;
   }
 }

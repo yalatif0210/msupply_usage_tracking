@@ -177,6 +177,21 @@ function reculerMois(mois: string, n: number): string {
                       </div>
                     </div>
                   }
+                  @if (pil.comptesBruts.length) {
+                    <dl class="space-y-1 border-t border-border pt-3 text-xs">
+                      @for (cb of pil.comptesBruts; track cb.mesure) {
+                        <div class="flex items-baseline justify-between gap-3">
+                          <dt class="text-muted-foreground">{{ cb.libelle }}</dt>
+                          <dd class="tabular-nums font-medium">
+                            {{ cb.realise ?? absent }} / {{ cb.attendu }}
+                            @if (cb.aLHeure !== null) {
+                              <span class="text-muted-foreground">· {{ cb.aLHeure }} à l'heure</span>
+                            }
+                          </dd>
+                        </div>
+                      }
+                    </dl>
+                  }
                 </div>
               </div>
             }

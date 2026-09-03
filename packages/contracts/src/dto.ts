@@ -3,6 +3,7 @@ import {
   classificationSchema,
   cyclePaqdSchema,
   dateIsoSchema,
+  mesureBruteSchema,
   moisPaqdSchema,
   pilierSchema,
   pourcentageSchema,
@@ -85,6 +86,22 @@ export const mesureSousComposanteSchema = z.object({
 });
 export type MesureSousComposante = z.infer<typeof mesureSousComposanteSchema>;
 
+/**
+ * Couple attendu / réalisé d'une sous-composante, figé mois par mois
+ * (`hist_pilier_brut`). `aLHeure` n'est renseigné que pour les sous-composantes
+ * qui portent un délai (P2). Les trois compteurs sont nuls quand la
+ * sous-composante est NON_CALCULABLE pour le mois : le front n'affiche alors
+ * pas de couple.
+ */
+export const compteBrutSchema = z.object({
+  mesure: mesureBruteSchema,
+  libelle: z.string(),
+  attendu: z.number().int().nonnegative().nullable(),
+  realise: z.number().int().nonnegative().nullable(),
+  aLHeure: z.number().int().nonnegative().nullable(),
+});
+export type CompteBrut = z.infer<typeof compteBrutSchema>;
+
 export const scorePilierSchema = z.object({
   pilier: pilierSchema,
   libelle: z.string(),
@@ -92,6 +109,12 @@ export const scorePilierSchema = z.object({
   /** Score sur 100, ou `null` si toutes les sous-composantes sont NON_CALCULABLE. */
   score: pourcentageSchema.nullable(),
   sousComposantes: z.array(mesureSousComposanteSchema),
+  /**
+   * Couples attendu / réalisé figés du pilier, un par sous-composante mesurée.
+   * Vide tant que le mois n'a pas de gel de comptes bruts (mois antérieurs au
+   * backfill).
+   */
+  comptesBruts: z.array(compteBrutSchema),
 });
 export type ScorePilier = z.infer<typeof scorePilierSchema>;
 
