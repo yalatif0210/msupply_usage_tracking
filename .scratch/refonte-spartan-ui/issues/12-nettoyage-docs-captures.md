@@ -27,4 +27,7 @@ StarAdmin, la documentation reflète le nouvel état, et les captures de tous le
       ports locaux, indisponible en l'état. À reprendre quand la stack de démo
       tourne.
 - [x] `conventions-source.test.ts` verte (aucune exception périmée) ;
-      `ng build` + typecheck web verts. Suite API : relance en cours.
+      `ng build` + typecheck web verts. Suite API : 169/169 verte en séquentiel
+      avec `--testTimeout=30000` ; les échecs de la passe parallèle par défaut
+      étaient tous des `timed out 5000ms` sous charge machine (source
+      `apps/api` inchangée depuis le dernier état vert), pas des régressions.
