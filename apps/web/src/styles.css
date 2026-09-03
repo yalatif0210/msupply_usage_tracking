@@ -22,26 +22,12 @@
   }
   body {
     margin: 0;
-    background: var(--fond);
-    color: var(--texte);
+    background: var(--background);
+    color: var(--foreground);
     font-family: var(--font-sans);
   }
   button:not(:disabled),
   [role='button']:not(:disabled) {
     cursor: pointer;
-  }
-
-  /*
-   * Rétablit les repères que le reset Tailwind supprime, pour les écrans pas
-   * encore passés sur spartan/ui (listes à puces, marges de paragraphe). Retiré
-   * au ticket 12 quand tous les écrans sont migrés.
-   */
-  main :is(ul, ol):not([class]) {
-    margin: revert;
-    padding: revert;
-    list-style: revert;
-  }
-  main p:not([class]) {
-    margin: revert;
   }
 }

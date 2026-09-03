@@ -91,7 +91,7 @@ Classification de site : CONFORME → vert, PARTIELLEMENT CONFORME →
 ### Graphes
 
 `--chart-1` … `--chart-5` (jetons shadcn) pour les séries. Au-delà de cinq
-séries, on cycle. Ces jetons remplacent les anciens `--serie-1..6`.
+séries, on cycle.
 
 ---
 
@@ -170,8 +170,10 @@ héritée d'ADR 0006).
 
 ## 8. Graphes — ApexCharts
 
-`ng-apexcharts` (standalone, signal inputs, compatible zoneless). Remplace les
-composants SVG maison `ui/radar`, `ui/courbe-series`, `ui/mini-courbe`.
+`ng-apexcharts` (standalone, signal inputs, compatible zoneless). Wrappers
+maison `ui/graphe-courbe`, `ui/graphe-radar`, `ui/graphe-sparkline` (les
+anciens composants SVG `ui/radar` / `ui/courbe-series` / `ui/mini-courbe` ont
+été supprimés au ticket 12).
 
 | Usage | Type ApexCharts |
 |---|---|

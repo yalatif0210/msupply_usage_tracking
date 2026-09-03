@@ -185,8 +185,14 @@ bloc national (score moyen en grand, barre de répartition à quatre segments
 (ligne cliquable → `/sites` filtré), section « scores par programme ».
 « Sous-composantes » : tableau des dix sous-composantes, triable. Sélecteurs
 mois / programme / région. Écran `pages/tableau-de-bord.ts` (route `/`) :
-tuiles, `ui/mini-courbe`, top 5 en difficulté ; la liste des sites est sur
+tuiles, `ui/graphe-sparkline`, top 5 en difficulté ; la liste des sites est sur
 `/sites` (`pages/liste-sites.ts`).
+
+Depuis l'ADR 0008, ces écrans sont sur spartan/ui : les graphes passent par
+ApexCharts (`ui/graphe-*`, légendes toujours complètes) et un changement de
+sélecteur ne remonte jamais la vue — la primitive `core/ressource` garde le
+contenu courant visible, refait la requête en arrière-plan et reflète les
+filtres dans l'URL sans navigation (cf. `docs/guide_module_ressource.md`).
 
 ## Progression d'un site
 
@@ -218,15 +224,16 @@ l'écran :
 
 - **Tableau à plat** des dix sous-composantes du dernier mois de la plage
   (valeur, seuil, écart au seuil, taux d'atteinte, statut ; triable).
-- **Radar** (`ui/radar`, SVG inline) : bascule 6 piliers ↔ 10
+- **Radar** (`ui/graphe-radar`, ApexCharts) : bascule 6 piliers ↔ 10
   sous-composantes, rayon = taux d'atteinte, étiquette d'axe colorée par le
   statut ; plus une liste « forces / faiblesses » (3 + 3, par taux d'atteinte).
-- **Courbes** (`ui/courbe-series`, SVG inline multi-séries) : granularité
-  composite / par pilier / par sous-composante d'un pilier choisi, axe Y
-  0..100 (taux d'atteinte pour les sous-composantes), repères 65 / 75 / 90.
+- **Courbes** (`ui/graphe-courbe`, ApexCharts) : granularité composite / par
+  pilier / par sous-composante d'un pilier choisi, axe Y 0..100 (taux
+  d'atteinte pour les sous-composantes), repères 65 / 75 / 90. À partir de six
+  séries la légende passe sous le graphe et s'enroule (jamais tronquée).
 
 Le mois affiché par les cartes de pilier et la fiche = borne haute de la
-plage. `ui/mini-courbe` (page d'accueil) reste une primitive séparée
+plage. `ui/graphe-sparkline` (page d'accueil) reste une primitive séparée
 (mono-série).
 
 ## Décisions de conception

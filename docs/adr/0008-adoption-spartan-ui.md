@@ -62,8 +62,8 @@ période StarAdmin. Les composants `ui/radar`, `ui/courbe-series`,
 `ui/mini-courbe` seront remplacés par ApexCharts ; `ui/badge-classification`,
 `ui/badge-statut` et `ui/repartition-classification` par des primitives
 spartan ; `ui/coquille` est **conservé** et re-stylé (Tailwind +
-`dropdown-menu`). Le test `apps/web/src/app/typographie.test.ts` reste (élargi
-au ticket 02). Nouvelle règle transverse
+`dropdown-menu`). Le test `apps/web/src/app/typographie.test.ts` reste, élargi
+et renommé `conventions-source.test.ts` au ticket 02. Nouvelle règle transverse
 (`DESIGN_SYSTEM.md §10`) : un changement de filtre ne recharge jamais la vue
 entière et reflète son état dans l'URL. Le template `shadcn-admin` est extrait
 dans `docs/reference/shadcn-admin/` (gitignoré) comme référence visuelle
