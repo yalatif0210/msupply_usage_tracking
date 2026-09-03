@@ -12,7 +12,7 @@ import {
   SOUS_COMPOSANTES,
   type BlocSynthese,
   type Classification,
-  type CodePilier,
+  type CodeDetailPilier,
   type CompteBrut,
   type DetailPilier,
   type DetailPilierP1,
@@ -939,7 +939,7 @@ export class IndicateursRepository {
    */
   async detailPilier(
     siteId: string,
-    code: Extract<CodePilier, 'p1' | 'p2' | 'p3' | 'p4' | 'p6'>,
+    code: CodeDetailPilier,
     q: DetailPilierQuery,
   ): Promise<DetailPilier | null> {
     const pilier = PILIER_DE_CODE[code];
@@ -1189,9 +1189,8 @@ export class IndicateursRepository {
       params,
     );
 
-    // Date limite : mêmes règles que migration 0020 — mois couvert + 1 mois +
-    // (jour limite − 1) jours ; jour limite = dim_site.jour_limite_requisition,
-    // à défaut 5 (CSU/CSR/ESPC), 7 (HG/CHR), 10 sinon.
+    // Date limite : `dqa.jour_limite_requisition` (fonction unique, migration
+    // 0033) — mois couvert + 1 mois + (jour limite − 1) jours.
     const requisitions = await this.pool.query<{
       programme: string;
       date_soumission: string | null;
@@ -1207,12 +1206,7 @@ export class IndicateursRepository {
        LEFT JOIN dqa.dim_programme dp ON dp.programme_id = fr.programme_id
        CROSS JOIN LATERAL (
          SELECT (date_trunc('month', (fr.mois_couvert || '-01')::date) + interval '1 month')::date
-                + (coalesce(
-                     ds.jour_limite_requisition,
-                     CASE WHEN ds.type_structure IN ('CSU', 'CSR', 'ESPC') THEN 5
-                          WHEN ds.type_structure IN ('HG', 'CHR')          THEN 7
-                          ELSE 10 END
-                   ) - 1) AS date_limite
+                + (dqa.jour_limite_requisition(ds.type_structure, ds.jour_limite_requisition) - 1) AS date_limite
        ) lim
        WHERE fr.site_id = $1 AND fr.mois_couvert = $2
          AND ($3::text IS NULL OR fr.programme_id = $3)
@@ -1381,9 +1375,9 @@ export class IndicateursRepository {
    * Tableau produit P4 · P5 : une ligne par produit traceur inventorié, lue de
    * `mv_p4_ecart_produit` (écart SDU + écart consommation, déjà calculés par la
    * vue). La concordance par produit (pilier P5) est un détail de mise en forme
-   * de la lecture — `least/greatest` sur les quantités `théorique` / `comptée`
-   * du dernier inventaire, comparé au seuil `concordance` de la grille du mois —
-   * elle ne redéfinit pas le score P5, calculé par `mv_p5_concordance`.
+   * lue directement de `mv_p4_ecart_produit` (colonnes `concordance_pct` /
+   * `concordance_conforme` ajoutées migration 0033, sémantique NULL alignée sur
+   * `mv_p5_concordance`) — jamais recalculée ici.
    */
   private async detailPilierP4(
     siteId: string,
@@ -1417,19 +1411,8 @@ export class IndicateursRepository {
               ep.ecart_sdu_pct, ep.sdu_conforme,
               ep.stock_debut, ep.stock_fin, ep.receptions, ep.declaree, ep.reconstituee,
               ep.conso_evaluable, ep.conso_raison_exclusion, ep.ecart_conso_pct, ep.conso_conforme,
-              c.taux_pct                                                    AS concordance_pct,
-              (c.taux_pct IS NOT NULL AND sc.seuil IS NOT NULL AND c.taux_pct >= sc.seuil)
-                                                                            AS concordance_conforme
+              ep.concordance_pct, ep.concordance_conforme
        FROM dqa.mv_p4_ecart_produit ep
-       LEFT JOIN dqa.grille_seuil_sous_composante sc
-              ON sc.grille_id = dqa.grille_pour_mois($2) AND sc.sous_composante = 'concordance'
-       CROSS JOIN LATERAL (
-         SELECT CASE
-                  WHEN greatest(abs(ep.theorique), abs(ep.comptee)) = 0 THEN 100.0
-                  ELSE round(least(abs(ep.theorique), abs(ep.comptee))
-                       / greatest(abs(ep.theorique), abs(ep.comptee)) * 100, 1)
-                END::numeric(8, 1) AS taux_pct
-       ) c
        WHERE ep.site_id = $1 AND ep.mois_paqd = $2 AND ep.programme_id IS NOT DISTINCT FROM $3
        ORDER BY ep.sdu_conforme, ep.produit_code`,
       params,

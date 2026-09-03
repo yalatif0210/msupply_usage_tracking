@@ -43,3 +43,7 @@ gelés et agrège les seuils de la grille du mois en ligne. La fiche du mois
 courant continue de lire les vues live (valeurs recalculées, identiques au
 mois courant) ; son éventuelle bascule sur `hist_score_site` est reportée à la
 tranche « fiche site analytique ».
+
+**Suite.** L'ADR 0009 étend ce gel aux **comptes bruts** des piliers (les
+couples attendu / réalisé derrière chaque taux), dans une table compagne
+`hist_pilier_brut` en lignes longues.

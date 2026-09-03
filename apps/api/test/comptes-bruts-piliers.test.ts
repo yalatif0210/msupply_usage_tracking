@@ -220,15 +220,18 @@ describe('vues de pilier : couples attendu / réalisé', () => {
         )
         .then((r) => r.rows[0]);
 
-    it('P2 : attendu et à l\'heure figés, réalisé nul (vient de P1)', async () => {
+    it('P2 : attendu, réalisé (repris de P1) et à l\'heure figés', async () => {
       await inv('A', 'VIH', '2026-08-29'); // dans les 3 derniers jours
       await inv('B', 'TB', '2026-08-10'); // hors délai
       await geler();
+      // 2 programmes gérés ont un inventaire → réalisé = 2 (comme p1_inventaires) ;
+      // un seul est à l'heure.
       expect(await brut('p2_inventaires')).toMatchObject({
         nb_attendu: 2,
+        nb_realise: 2,
         nb_a_lheure: 1,
-        nb_realise: null,
       });
+      expect((await brut('p1_inventaires')).nb_realise).toBe(2);
     });
 
     it('P3 : jours avec sortie / jours du mois', async () => {

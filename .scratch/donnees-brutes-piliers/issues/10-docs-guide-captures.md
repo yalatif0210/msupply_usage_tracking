@@ -7,19 +7,24 @@ modifiés sont archivées. Les suites de tests passent en entier.
 **Blocked by:** 05 (détail des piliers complet), 07 (fiche produit-mois), 09
 (onglet national)
 
-**Status:** ready-for-agent
+**Status:** done (branche donnees-brutes-piliers)
 
-- [ ] `docs/guide_module_indicateurs.md` mis à jour : `hist_pilier_brut` et son
-      gel, `mv_synthese_rapports`, les couples exposés par `mv_p1..p6`, les
-      endpoints `/piliers/:code`, `/synthese/rapports`, `/produits/:code`, le
-      contrat d'avertissement ré-import.
-- [ ] `docs/guide_module_admin.md` mis à jour : administration des strates.
-- [ ] `CONTEXT.md` relu (les entrées *Compte brut*, *Rapport mensuel*, *Strate
-      de structure* existent déjà) ; ajustées si le vocabulaire a bougé pendant
-      l'implémentation.
-- [ ] L'ADR du gel des comptes bruts est en place et référencé depuis le guide.
-- [ ] Captures Playwright : carte de pilier avec comptes, dépliants P1/P2/P3/P6,
-      tableau produit P4/P5, fiche produit-mois, onglet national, écran des
-      strates.
-- [ ] Suites vertes : API en entier, web en entier, garde
-      `conventions-source.test.ts`.
+- [x] `docs/guide_module_indicateurs.md` mis à jour : `hist_pilier_brut` +
+      section « Comptes bruts gelés (ADR 0009) », `mv_synthese_rapports`, les
+      couples exposés par `mv_p1..p6`, `/piliers/:code`, `/synthese/rapports`,
+      `/produits/:code`, l'avertissement ré-import, `jour_limite_requisition`,
+      concordance dans `mv_p4_ecart_produit`.
+- [x] `docs/guide_module_admin.md` : administration des strates (fait au T8).
+- [x] `CONTEXT.md` : *Compte brut*, *Rapport mensuel*, *Strate de structure*
+      posées au grilling ; inchangées pendant l'implémentation.
+- [x] ADR 0009 en place, renvoi croisé depuis l'ADR 0007 et le guide.
+- [x] **Revue 2-axes** (`/code-review since 6833295`) : 3 violations Standards
+      + 2 bugs Spec + 1 lacune de test corrigés (migration 0033 : concordance
+      par produit dans `mv_p4_ecart_produit` + `jour_limite_requisition()` ;
+      gel du `nb_realise` P2 repris de P1 ; `z.enum` sur `:code` ; test
+      d'import bout en bout Couture 2).
+- [~] Captures Playwright : reportées — la base de démo (40 sites + scores)
+      n'est pas montée localement (même blocage que le ticket 12 de la refonte
+      spartan). À reprendre quand la stack de démo tourne.
+- [x] Suites vertes : API 213/213 en séquentiel (`--testTimeout=30000`), web
+      62/62 incl. `conventions-source.test.ts`, typecheck + build API + web.

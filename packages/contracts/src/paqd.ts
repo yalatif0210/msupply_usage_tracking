@@ -41,6 +41,15 @@ export const PILIER_DE_CODE = {
   p6: 'P6',
 } as const satisfies Record<CodePilier, Pilier>;
 
+/**
+ * Codes de pilier dont `GET /api/sites/:id/piliers/:code` sert une variante de
+ * `DetailPilier`. `p5` en est absent : sa concordance par produit est servie
+ * par la variante `p4` (tableau produit P4 · P5 fusionné).
+ */
+export const CODES_DETAIL_PILIER = ['p1', 'p2', 'p3', 'p4', 'p6'] as const;
+export const codeDetailPilierSchema = z.enum(CODES_DETAIL_PILIER);
+export type CodeDetailPilier = z.infer<typeof codeDetailPilierSchema>;
+
 export const LIBELLES_PILIER: Record<Pilier, string> = {
   P1: 'Complétude des transactions',
   P2: 'Promptitude des transactions',

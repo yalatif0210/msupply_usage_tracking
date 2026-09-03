@@ -246,14 +246,38 @@ describe('vue mv_p4_ecart_produit', () => {
       await socle();
       const d = await repo.detailPilier('S1', 'p4', {});
       if (d === null || d.code !== 'p4') throw new Error('variante p4 attendue');
-      const conformes = d.produits.filter((p) => p.concordance.conforme).length;
-      const total = d.produits.length;
+      // `mv_p5_concordance` n'agrège que les produits à concordance calculable
+      // (quantités présentes) — le tableau les distingue par `tauxPct` non nul.
+      const evaluables = d.produits.filter((p) => p.concordance.tauxPct !== null);
+      const conformes = evaluables.filter((p) => p.concordance.conforme).length;
 
       const { rows } = await db.query<{ nb_produits: number; nb_produits_conformes: number }>(
         `SELECT nb_produits, nb_produits_conformes FROM dqa.mv_p5_concordance
          WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
       );
-      expect(rows[0]).toMatchObject({ nb_produits: total, nb_produits_conformes: conformes });
+      expect(rows[0]).toMatchObject({ nb_produits: evaluables.length, nb_produits_conformes: conformes });
+    });
+
+    it('quantités absentes : concordance nulle, exclue de l’agrégat (retour de revue)', async () => {
+      await socle();
+      // T8 : traceur inventorié au dernier inventaire mais sans quantités.
+      await produit('I8', 'T8', true);
+      await db.query(
+        `INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
+         VALUES ('B','I8','X',NULL,NULL,1)`,
+      );
+      await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+      const d = await repo.detailPilier('S1', 'p4', {});
+      if (d === null || d.code !== 'p4') throw new Error('variante p4 attendue');
+      const t8 = d.produits.find((p) => p.produitCode === 'T8');
+      expect(t8?.concordance).toEqual({ tauxPct: null, conforme: false });
+
+      const { rows } = await db.query<{ nb_produits: number }>(
+        `SELECT nb_produits FROM dqa.mv_p5_concordance
+         WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+      );
+      const evaluables = d.produits.filter((p) => p.concordance.tauxPct !== null).length;
+      expect(rows[0]?.nb_produits).toBe(evaluables);
     });
 
     it('404 (null) pour un site hors périmètre', async () => {

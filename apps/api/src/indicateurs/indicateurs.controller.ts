@@ -11,6 +11,7 @@ import type {
   TableauDeBord,
 } from '@dqa/contracts';
 import {
+  codeDetailPilierSchema,
   detailPilierQuerySchema,
   ficheProduitMoisQuerySchema,
   filtreSitesSchema,
@@ -64,11 +65,12 @@ export class IndicateursController {
     @Param('code') code: string,
     @Query() query: Record<string, string>,
   ): Promise<DetailPilier> {
-    if (code !== 'p1' && code !== 'p2' && code !== 'p3' && code !== 'p4' && code !== 'p6') {
+    const codeDetail = codeDetailPilierSchema.safeParse(code);
+    if (!codeDetail.success) {
       throw new NotFoundException(`Détail du pilier ${code} non disponible`);
     }
     const q = detailPilierQuerySchema.parse(query);
-    const detail = await this.repo.detailPilier(id, code, q);
+    const detail = await this.repo.detailPilier(id, codeDetail.data, q);
     if (!detail) throw new NotFoundException('Site hors périmètre ou inconnu');
     return detail;
   }

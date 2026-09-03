@@ -32,7 +32,8 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 
 | Source | Usage |
 |---|---|
-| `hist_score_site` | six scores de pilier + `score_composite` + `classification` gelés par (site, mois PAQD, programme) |
+| `hist_score_site` | six scores de pilier + `score_composite` + `classification` + dix valeurs `sc_*` gelés par (site, mois PAQD, programme) |
+| `hist_pilier_brut` | couples attendu / réalisé (et réalisé à l'heure) figés par (site, mois PAQD, programme, mesure) au même passage que `hist_score_site` — ADR 0009 |
 | `v_mois_cycle` | rang M+1..M+4 de chaque mois PAQD dans son cycle (depuis `dim_temps`) |
 | `v_sous_composante_atteinte` | taux d'atteinte du seuil + statut par (site, mois, programme, sous-composante), depuis `hist_score_site.sc_*` |
 | `mv_p4_ecart_produit` | détail par produit traceur : écarts SDU / consommation (P4) + quantités du dernier inventaire dont se déduit la concordance par produit (P5) |
@@ -59,6 +60,22 @@ désormais une vue d'indicateur ; une sous-composante donnée peut rester
 `NON_CALCULABLE` (raison explicite) faute de données du mois, mais aucun pilier
 n'est plus « pas encore outillé ».
 
+### Comptes bruts gelés (ADR 0009)
+
+Chaque vue `mv_pN` expose, à côté de son taux, le **couple attendu / réalisé**
+qui le produit (les CTE le calculaient déjà, la migration 0028 le projette).
+`rafraichir_et_geler` fige ces couples dans `hist_pilier_brut`, une ligne par
+`(site, mois PAQD, programme, mesure)` parmi les dix mesures (`p1_inventaires`,
+`p1_requisitions`, `p1_receptions`, `p2_inventaires`, `p2_requisitions`,
+`p3_regularite`, `p4_ecart_sdu`, `p4_ecart_consommation`, `p5_concordance`,
+`p6_ajustements`) ; une mesure NON_CALCULABLE n'est pas figée. Les migrations
+0029 (P1) et 0030 (P2..P6) ont posé la table et rattrapé les mois déjà clos.
+
+`DetailSite.piliers[].comptesBruts` sert ces couples dans la carte du pilier ;
+le **détail transaction par transaction** derrière un couple n'est jamais gelé,
+il est lu en direct du core par `/piliers/:code` avec un avertissement si le
+core a été ré-importé après le gel (`coreMajLe > calculeLe`).
+
 **P1 — complétude des transactions** (`mv_p1_completude`) : trois
 sous-composantes, seuil grille 100 %.
 - `completude_inventaires` : programmes gérés (`dim_site_programme` actif) avec
@@ -80,8 +97,10 @@ sous-composantes, **seuil grille 100 %**, dénominateur = **programmes gérés**
   daté dans les trois derniers jours du mois ÷ programmes gérés.
 - `promptitude_requisitions` : programmes gérés avec ≥ 1 réquisition couvrant
   le mois soumise au plus tard le jour limite du mois suivant ÷ programmes
-  gérés. Jour limite = `dim_site.jour_limite_requisition`, à défaut 5
-  (CSU/CSR/ESPC), 7 (HG/CHR), 10 (autres).
+  gérés. Jour limite = `dqa.jour_limite_requisition(type_structure,
+  jour_limite_requisition)` (fonction unique, migration 0033) :
+  `dim_site.jour_limite_requisition`, à défaut 5 (CSU/CSR/ESPC), 7 (HG/CHR),
+  10 (autres). Le détail P2 ligne à ligne réutilise cette fonction.
 
 Un programme géré sans inventaire (ou sans réquisition) du mois compte **0**,
 jamais NON_CALCULABLE : ne rien soumettre pénalise P2. NON_CALCULABLE seulement
@@ -120,10 +139,12 @@ seuil de taux (90 %) viennent de `grille_seuil_sous_composante.tolerance` /
 avec l'écart SDU (théorique / compté au dernier inventaire, statut), l'écart
 consommation (stock début-fin / réceptions / déclarée / reconstituée, statut,
 ou « non évaluable » + raison) **et** la concordance P5 par produit
-(`least(|théo|, |compté|) / greatest(…) · 100`, comparée au seuil `concordance`
-de la grille du mois — même formule que `mv_p5_concordance`, calculée dans la
-requête du repository comme mise en forme de lecture, jamais une redéfinition du
-score P5). La route `/piliers/p4` a remplacé l'ancien endpoint
+(`concordance_pct` / `concordance_conforme`, colonnes de `mv_p4_ecart_produit`
+depuis la migration 0033 : `least(|théo|, |compté|) / greatest(…) · 100`
+comparée au seuil `concordance` de la grille, `NULL` quand une quantité manque —
+même sémantique que `mv_p5_concordance`, qui l'exclut alors de son agrégat ; le
+repository ne fait que lire ces colonnes). La route `/piliers/p4` a remplacé
+l'ancien endpoint
 `DetailP4Produits` : P4 et P5 partagent désormais ce tableau. Rendu dans un
 `<details>` sous les cartes de pilier ; les cartes P4 et P5 l'ouvrent toutes
 deux, le code produit est un lien vers la fiche produit-mois. Comme les autres

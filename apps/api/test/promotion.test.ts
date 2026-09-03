@@ -55,6 +55,31 @@ describe('promotion staging → core', () => {
     expect(l.rows[0].lot_id_source).not.toBeNull();
   });
 
+  it('le gel des comptes bruts est câblé dans le flux d\'import (Couture 2)', async () => {
+    const res = await deposer(construireClasseur(optionsValides()), 'brut.xlsx');
+    expect(res.body.statut).toBe('valide');
+
+    // hist_pilier_brut peuplée pour le mois du lot
+    const brut = await base.pool.query<{ mesure: string; nb_attendu: number; nb_realise: number; lot_id: number }>(
+      `SELECT mesure, nb_attendu, nb_realise, lot_id FROM dqa.hist_pilier_brut
+       WHERE site_id = 'SITE-1' AND mois_paqd = '2026-08' AND programme_id IS NULL
+       ORDER BY mesure`,
+    );
+    expect(brut.rows.length).toBeGreaterThan(0);
+    expect(brut.rows.every((r) => r.lot_id !== null)).toBe(true);
+
+    // réconciliation : le couple p3_regularite figé correspond au taux sc_regularite_saisie
+    const p3 = brut.rows.find((r) => r.mesure === 'p3_regularite');
+    if (p3) {
+      const hist = await base.pool.query<{ sc: string | null }>(
+        `SELECT sc_regularite_saisie AS sc FROM dqa.hist_score_site
+         WHERE site_id = 'SITE-1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+      );
+      const taux = Math.round((p3.nb_realise / p3.nb_attendu) * 1000) / 10;
+      expect(Number(hist.rows[0]!.sc)).toBeCloseTo(taux, 1);
+    }
+  });
+
   it('ré-importer le même classeur laisse le core identique', async () => {
     await deposer(construireClasseur(optionsValides()), 'p2a.xlsx');
     const avant = await base.pool.query(
