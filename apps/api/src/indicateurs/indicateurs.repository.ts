@@ -14,11 +14,11 @@ import {
   type Classification,
   type CodePilier,
   type CompteBrut,
-  type DetailP4Produits,
   type DetailPilier,
   type DetailPilierP1,
   type DetailPilierP2,
   type DetailPilierP3,
+  type DetailPilierP4,
   type DetailPilierP6,
   type DetailPilierQuery,
   type LigneAjustementP6,
@@ -26,7 +26,7 @@ import {
   type FiltreSites,
   type HistoriqueQuery,
   type HistoriqueSite,
-  type LigneEcartProduitP4,
+  type LigneProduitP4P5,
   type MesureSousComposante,
   type RaisonExclusionConso,
   type Pilier,
@@ -797,100 +797,6 @@ export class IndicateursRepository {
     };
   }
 
-  async detailP4Produits(
-    siteId: string,
-    moisDemande: string | undefined,
-    programmeId: string | undefined,
-  ): Promise<DetailP4Produits | null> {
-    const site = await this.pool.query<LigneSite>(
-      `SELECT site_id, site_code, site_nom, district, region, type_structure
-       FROM dqa.dim_site WHERE site_id = $1 AND dans_perimetre_dqa`,
-      [siteId],
-    );
-    if (site.rowCount === 0) return null;
-    const siteRow = site.rows[0]!;
-    const prog = programmeId ?? null;
-
-    const moisRows = await this.pool.query<{ mois_paqd: string }>(
-      `SELECT DISTINCT mois_paqd FROM dqa.mv_p4_ecart_produit
-       WHERE site_id = $1 AND programme_id IS NOT DISTINCT FROM $2
-       ORDER BY mois_paqd DESC`,
-      [siteId, prog],
-    );
-    const moisDisponibles = moisRows.rows.map((r) => r.mois_paqd);
-    const mois =
-      moisDemande && moisDisponibles.includes(moisDemande) ? moisDemande : moisDisponibles[0];
-
-    if (!mois) {
-      return {
-        site: versSite(siteRow),
-        moisPaqd: null,
-        moisDisponibles: [],
-        programmeId: prog,
-        produits: [],
-      };
-    }
-
-    // `mv_p4_ecart_produit` restreint déjà aux sites du périmètre et aux
-    // traceurs actifs ; la garde ci-dessus a écarté un site hors périmètre.
-    const { rows } = await this.pool.query<{
-      produit_code: string;
-      libelle: string | null;
-      theorique: string | null;
-      comptee: string | null;
-      ecart_sdu_pct: string | null;
-      sdu_conforme: boolean;
-      stock_debut: string | null;
-      stock_fin: string | null;
-      receptions: string | null;
-      declaree: string | null;
-      reconstituee: string | null;
-      conso_evaluable: boolean;
-      conso_raison_exclusion: RaisonExclusionConso | null;
-      ecart_conso_pct: string | null;
-      conso_conforme: boolean;
-    }>(
-      `SELECT produit_code, libelle, theorique, comptee, ecart_sdu_pct, sdu_conforme,
-              stock_debut, stock_fin, receptions, declaree, reconstituee,
-              conso_evaluable, conso_raison_exclusion, ecart_conso_pct, conso_conforme
-       FROM dqa.mv_p4_ecart_produit
-       WHERE site_id = $1 AND mois_paqd = $2 AND programme_id IS NOT DISTINCT FROM $3
-       ORDER BY sdu_conforme, produit_code`,
-      [siteId, mois, prog],
-    );
-
-    const produits: LigneEcartProduitP4[] = rows.map((r) => ({
-      produitCode: r.produit_code,
-      libelle: r.libelle,
-      sdu: {
-        theorique: nombreOuNull(r.theorique),
-        comptee: nombreOuNull(r.comptee),
-        ecartPct: nombreOuNull(r.ecart_sdu_pct),
-        conforme: r.sdu_conforme,
-      },
-      consommation: r.conso_evaluable
-        ? {
-            evaluable: true,
-            stockDebut: Number(r.stock_debut),
-            stockFin: Number(r.stock_fin),
-            receptions: Number(r.receptions),
-            declaree: Number(r.declaree),
-            reconstituee: Number(r.reconstituee),
-            ecartPct: Number(r.ecart_conso_pct),
-            conforme: r.conso_conforme,
-          }
-        : { evaluable: false, raisonExclusion: r.conso_raison_exclusion ?? 'un_seul_inventaire' },
-    }));
-
-    return {
-      site: versSite(siteRow),
-      moisPaqd: mois,
-      moisDisponibles,
-      programmeId: prog,
-      produits,
-    };
-  }
-
   /** Une sous-composante rendue : statut binaire dérivé du score de sous-composante. */
   private mesure(
     sc: SousComposante,
@@ -1031,7 +937,7 @@ export class IndicateursRepository {
    */
   async detailPilier(
     siteId: string,
-    code: Extract<CodePilier, 'p1' | 'p2' | 'p3' | 'p6'>,
+    code: Extract<CodePilier, 'p1' | 'p2' | 'p3' | 'p4' | 'p6'>,
     q: DetailPilierQuery,
   ): Promise<DetailPilier | null> {
     const pilier = PILIER_DE_CODE[code];
@@ -1075,6 +981,8 @@ export class IndicateursRepository {
           return { ...vide, code, inventaires: [], requisitions: [] };
         case 'p3':
           return { ...vide, code, jours: [] };
+        case 'p4':
+          return { ...vide, code, produits: [] };
         case 'p6':
           return { ...vide, code, ajustements: [], nbMouvements: 0 };
       }
@@ -1098,6 +1006,10 @@ export class IndicateursRepository {
     }
     if (code === 'p3') {
       const { coreMajLe, ...lignes } = await this.detailPilierP3(siteId, mois, prog);
+      return { ...commun, ...horo(coreMajLe), code, ...lignes };
+    }
+    if (code === 'p4') {
+      const { coreMajLe, ...lignes } = await this.detailPilierP4(siteId, mois, prog);
       return { ...commun, ...horo(coreMajLe), code, ...lignes };
     }
     const { coreMajLe, ...lignes } = await this.detailPilierP6(siteId, mois, prog);
@@ -1335,6 +1247,7 @@ export class IndicateursRepository {
     };
   }
 
+
   /**
    * Bandeau calendaire de P3 : un item par jour calendaire du mois PAQD
    * (`dim_temps`), marqué s'il a porté ≥ 1 sortie de stock — mêmes prédicats que
@@ -1460,5 +1373,113 @@ export class IndicateursRepository {
       nbMouvements: mouvements.rows[0]?.nb ?? 0,
       coreMajLe: maj.rows[0]?.core_maj_le ?? null,
     };
+  }
+
+  /**
+   * Tableau produit P4 · P5 : une ligne par produit traceur inventorié, lue de
+   * `mv_p4_ecart_produit` (écart SDU + écart consommation, déjà calculés par la
+   * vue). La concordance par produit (pilier P5) est un détail de mise en forme
+   * de la lecture — `least/greatest` sur les quantités `théorique` / `comptée`
+   * du dernier inventaire, comparé au seuil `concordance` de la grille du mois —
+   * elle ne redéfinit pas le score P5, calculé par `mv_p5_concordance`.
+   */
+  private async detailPilierP4(
+    siteId: string,
+    mois: string,
+    prog: string | null,
+  ): Promise<Pick<DetailPilierP4, 'produits'> & { coreMajLe: Date | null }> {
+    const params = [siteId, mois, prog];
+
+    // `mv_p4_ecart_produit` restreint déjà aux sites du périmètre et aux
+    // traceurs actifs ; l'appelant a écarté un site hors périmètre.
+    const { rows } = await this.pool.query<{
+      produit_code: string;
+      libelle: string | null;
+      theorique: string | null;
+      comptee: string | null;
+      ecart_sdu_pct: string | null;
+      sdu_conforme: boolean;
+      stock_debut: string | null;
+      stock_fin: string | null;
+      receptions: string | null;
+      declaree: string | null;
+      reconstituee: string | null;
+      conso_evaluable: boolean;
+      conso_raison_exclusion: RaisonExclusionConso | null;
+      ecart_conso_pct: string | null;
+      conso_conforme: boolean;
+      concordance_pct: string | null;
+      concordance_conforme: boolean;
+    }>(
+      `SELECT ep.produit_code, ep.libelle, ep.theorique, ep.comptee,
+              ep.ecart_sdu_pct, ep.sdu_conforme,
+              ep.stock_debut, ep.stock_fin, ep.receptions, ep.declaree, ep.reconstituee,
+              ep.conso_evaluable, ep.conso_raison_exclusion, ep.ecart_conso_pct, ep.conso_conforme,
+              c.taux_pct                                                    AS concordance_pct,
+              (c.taux_pct IS NOT NULL AND sc.seuil IS NOT NULL AND c.taux_pct >= sc.seuil)
+                                                                            AS concordance_conforme
+       FROM dqa.mv_p4_ecart_produit ep
+       LEFT JOIN dqa.grille_seuil_sous_composante sc
+              ON sc.grille_id = dqa.grille_pour_mois($2) AND sc.sous_composante = 'concordance'
+       CROSS JOIN LATERAL (
+         SELECT CASE
+                  WHEN greatest(abs(ep.theorique), abs(ep.comptee)) = 0 THEN 100.0
+                  ELSE round(least(abs(ep.theorique), abs(ep.comptee))
+                       / greatest(abs(ep.theorique), abs(ep.comptee)) * 100, 1)
+                END::numeric(8, 1) AS taux_pct
+       ) c
+       WHERE ep.site_id = $1 AND ep.mois_paqd = $2 AND ep.programme_id IS NOT DISTINCT FROM $3
+       ORDER BY ep.sdu_conforme, ep.produit_code`,
+      params,
+    );
+
+    const maj = await this.pool.query<{ core_maj_le: Date | null }>(
+      `SELECT GREATEST(
+         (SELECT max(fi.maj_le) FROM dqa.fact_inventaire fi
+           WHERE fi.site_id = $1 AND fi.statut = 'fn'
+             AND to_char(fi.date_inventaire, 'YYYY-MM') = $2
+             AND ($3::text IS NULL OR fi.programme_id = $3)),
+         (SELECT max(fil.maj_le) FROM dqa.fact_inventaire_ligne fil
+           JOIN dqa.fact_inventaire fi ON fi.inventaire_id = fil.inventaire_id
+           WHERE fi.site_id = $1 AND fi.statut = 'fn'
+             AND to_char(fi.date_inventaire, 'YYYY-MM') = $2
+             AND ($3::text IS NULL OR fi.programme_id = $3)),
+         (SELECT max(ft.maj_le) FROM dqa.fact_transaction ft
+           WHERE ft.site_id = $1 AND ft.nature IN ('reception', 'dispensation')
+             AND coalesce(ft.annulation, false) = false
+             AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $2
+             AND ($3::text IS NULL OR ft.programme_id = $3))
+       ) AS core_maj_le`,
+      params,
+    );
+
+    const produits: LigneProduitP4P5[] = rows.map((r) => ({
+      produitCode: r.produit_code,
+      libelle: r.libelle,
+      sdu: {
+        theorique: nombreOuNull(r.theorique),
+        comptee: nombreOuNull(r.comptee),
+        ecartPct: nombreOuNull(r.ecart_sdu_pct),
+        conforme: r.sdu_conforme,
+      },
+      consommation: r.conso_evaluable
+        ? {
+            evaluable: true,
+            stockDebut: Number(r.stock_debut),
+            stockFin: Number(r.stock_fin),
+            receptions: Number(r.receptions),
+            declaree: Number(r.declaree),
+            reconstituee: Number(r.reconstituee),
+            ecartPct: Number(r.ecart_conso_pct),
+            conforme: r.conso_conforme,
+          }
+        : { evaluable: false, raisonExclusion: r.conso_raison_exclusion ?? 'un_seul_inventaire' },
+      concordance: {
+        tauxPct: nombreOuNull(r.concordance_pct),
+        conforme: r.concordance_conforme,
+      },
+    }));
+
+    return { produits, coreMajLe: maj.rows[0]?.core_maj_le ?? null };
   }
 }

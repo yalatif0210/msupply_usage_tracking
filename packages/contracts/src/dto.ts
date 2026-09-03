@@ -409,7 +409,7 @@ export const historiqueQuerySchema = z.object({
 });
 export type HistoriqueQuery = z.infer<typeof historiqueQuerySchema>;
 
-// ─── Drill-down par produit de l'écart SDU / consommation (P4) ───────────────
+// ─── Tableau produit P4 · P5 (écart SDU / consommation + concordance) ────────
 
 /** Raison pour laquelle un produit est exclu du calcul de l'écart consommation. */
 export const raisonExclusionConsoSchema = z.enum([
@@ -418,7 +418,11 @@ export const raisonExclusionConsoSchema = z.enum([
 ]);
 export type RaisonExclusionConso = z.infer<typeof raisonExclusionConsoSchema>;
 
-/** `ecartPct` nul = écart infini (compté 0, théorique > 0). */
+/**
+ * Écart SDU d'un produit : théorique (mSupply) contre compté (réalité) au
+ * dernier inventaire finalisé du mois. `ecartPct` nul = écart infini
+ * (compté 0, théorique > 0).
+ */
 export const ecartSduProduitSchema = z.object({
   theorique: z.number().nullable(),
   comptee: z.number().nullable(),
@@ -449,23 +453,29 @@ export const ecartConsoProduitSchema = z.discriminatedUnion('evaluable', [
 ]);
 export type EcartConsoProduit = z.infer<typeof ecartConsoProduitSchema>;
 
-export const ligneEcartProduitP4Schema = z.object({
+/**
+ * Concordance physique / théorique d'un produit (pilier P5), au dernier
+ * inventaire finalisé du mois :
+ * `least(|théorique|, |compté|) / greatest(|théorique|, |compté|) · 100`
+ * (même formule que `mv_p5_concordance`, sans agréger). `tauxPct` nul si aucune
+ * quantité exploitable ; `conforme` = `tauxPct ≥ seuil 'concordance'` de la
+ * grille du mois. Le score P5 du site reste calculé par la vue, jamais ici.
+ */
+export const concordanceProduitP5Schema = z.object({
+  tauxPct: z.number().nullable(),
+  conforme: z.boolean(),
+});
+export type ConcordanceProduitP5 = z.infer<typeof concordanceProduitP5Schema>;
+
+/** Une ligne du tableau produit P4 · P5 : un produit traceur inventorié. */
+export const ligneProduitP4P5Schema = z.object({
   produitCode: z.string(),
   libelle: z.string().nullable(),
   sdu: ecartSduProduitSchema,
   consommation: ecartConsoProduitSchema,
+  concordance: concordanceProduitP5Schema,
 });
-export type LigneEcartProduitP4 = z.infer<typeof ligneEcartProduitP4Schema>;
-
-export const detailP4ProduitsSchema = z.object({
-  site: siteSchema,
-  moisPaqd: moisPaqdSchema.nullable(),
-  moisDisponibles: z.array(moisPaqdSchema),
-  programmeId: z.string().nullable(),
-  /** Un item par produit traceur inventorié ; SDU hors tolérance d'abord. */
-  produits: z.array(ligneEcartProduitP4Schema),
-});
-export type DetailP4Produits = z.infer<typeof detailP4ProduitsSchema>;
+export type LigneProduitP4P5 = z.infer<typeof ligneProduitP4P5Schema>;
 
 // ─── Détail ligne à ligne d'un pilier (lu en direct du core) ────────────────
 
@@ -597,14 +607,26 @@ export const detailPilierP6Schema = detailPilierBaseSchema.extend({
 export type DetailPilierP6 = z.infer<typeof detailPilierP6Schema>;
 
 /**
+ * Variante P4 : le tableau produit P4 · P5 fusionné. Une ligne par produit
+ * traceur inventorié, écart SDU hors tolérance en tête (comme `mv_p4_ecart_produit`).
+ * Alimente les cartes P4 **et** P5 de la fiche site.
+ */
+export const detailPilierP4Schema = detailPilierBaseSchema.extend({
+  code: z.literal('p4'),
+  produits: z.array(ligneProduitP4P5Schema),
+});
+export type DetailPilierP4 = z.infer<typeof detailPilierP4Schema>;
+
+/**
  * Détail par pilier servi par `GET /api/sites/:id/piliers/:code`. Union
- * discriminée sur `code` : variantes livrées `p1`, `p2`, `p3`, `p6`. `p4` garde
- * son handler dédié `piliers/p4` ; la variante `p5` suit à un ticket ultérieur.
+ * discriminée sur `code` : variantes livrées `p1`, `p2`, `p3`, `p4` (tableau
+ * produit P4 · P5 fusionné), `p6`. `p5` est servi via la variante `p4`.
  */
 export const detailPilierSchema = z.discriminatedUnion('code', [
   detailPilierP1Schema,
   detailPilierP2Schema,
   detailPilierP3Schema,
+  detailPilierP4Schema,
   detailPilierP6Schema,
 ]);
 export type DetailPilier = z.infer<typeof detailPilierSchema>;

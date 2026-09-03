@@ -3,13 +3,11 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { z } from 'zod';
 import {
-  detailP4ProduitsSchema,
   detailPilierSchema,
   detailSiteSchema,
   historiqueSiteSchema,
   programmeSchema,
   scoreSiteSchema,
-  type DetailP4Produits,
   type DetailPilier,
   type DetailSite,
   type HistoriqueSite,
@@ -70,22 +68,10 @@ export class SitesService {
     return validerReponse(historiqueSiteSchema, data);
   }
 
-  async p4Produits(
-    siteId: string,
-    opts: { mois?: string; programmeId?: string } = {},
-  ): Promise<DetailP4Produits> {
-    let params = new HttpParams();
-    if (opts.mois) params = params.set('mois', opts.mois);
-    if (opts.programmeId) params = params.set('programmeId', opts.programmeId);
-    const data = await firstValueFrom(
-      this.http.get<unknown>(`/api/sites/${encodeURIComponent(siteId)}/piliers/p4`, { params }),
-    );
-    return validerReponse(detailP4ProduitsSchema, data);
-  }
-
   /**
    * Détail ligne à ligne d'un pilier, chargé à la demande au dépli de la carte.
-   * `code` en minuscules (`p1`..`p6`) ; servis à ce jour : `p1`, `p2`, `p3`, `p6`.
+   * `code` en minuscules (`p1`..`p6`) ; servis à ce jour : `p1`, `p2`, `p3`,
+   * `p4` (tableau produit P4 · P5 fusionné), `p6`. `p5` passe par la variante `p4`.
    */
   async detailPilier(
     siteId: string,

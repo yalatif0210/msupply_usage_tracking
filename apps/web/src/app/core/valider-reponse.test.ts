@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   compteAdminSchema,
-  detailP4ProduitsSchema,
   detailPilierSchema,
   detailSiteSchema,
   grilleDetailSchema,
@@ -321,54 +320,13 @@ describe('validerReponse (couture D)', () => {
     ecartPct: 6.7,
     conforme: false,
   };
-  const ligneP4 = (over: Record<string, unknown> = {}) => ({
+  const ligneP4P5 = (over: Record<string, unknown> = {}) => ({
     produitCode: 'T1',
     libelle: 'Traceur 1',
     sdu: { theorique: 100, comptee: 95, ecartPct: 5.3, conforme: false },
     consommation: consoEvaluable,
+    concordance: { tauxPct: 95, conforme: true },
     ...over,
-  });
-  const detailP4 = (ligneOver: Record<string, unknown> = {}) => ({
-    site,
-    moisPaqd: '2026-08',
-    moisDisponibles: ['2026-08'],
-    programmeId: null,
-    produits: [
-      ligneP4(),
-      ligneP4({
-        produitCode: 'T2',
-        consommation: { evaluable: false, raisonExclusion: 'un_seul_inventaire' },
-        ...ligneOver,
-      }),
-    ],
-  });
-
-  it('accepte un DetailP4Produits complet (produit évaluable + exclu)', () => {
-    const d = validerReponse(detailP4ProduitsSchema, detailP4());
-    expect(d.produits).toHaveLength(2);
-    expect(d.produits[1]?.consommation.evaluable).toBe(false);
-  });
-
-  it('rejette une raison d\'exclusion inconnue', () => {
-    expect(() =>
-      validerReponse(detailP4ProduitsSchema, detailP4({
-        consommation: { evaluable: false, raisonExclusion: 'autre_chose' },
-      })),
-    ).toThrow(/non conforme/i);
-  });
-
-  it('rejette un produit évaluable sans son statut', () => {
-    expect(() =>
-      validerReponse(detailP4ProduitsSchema, detailP4({
-        consommation: { ...consoEvaluable, conforme: undefined },
-      })),
-    ).toThrow(/non conforme/i);
-  });
-
-  it('rejette un sdu.conforme absent', () => {
-    expect(() =>
-      validerReponse(detailP4ProduitsSchema, detailP4({ sdu: { theorique: 1, comptee: 1, ecartPct: 0 } })),
-    ).toThrow(/non conforme/i);
   });
 
   const detailPilierBase = {
@@ -418,6 +376,19 @@ describe('validerReponse (couture D)', () => {
     nbMouvements: 4,
     ...over,
   });
+  const detailPilierP4 = (over: Record<string, unknown> = {}) => ({
+    ...detailPilierBase,
+    code: 'p4',
+    produits: [
+      ligneP4P5(),
+      ligneP4P5({
+        produitCode: 'T2',
+        consommation: { evaluable: false, raisonExclusion: 'un_seul_inventaire' },
+        concordance: { tauxPct: null, conforme: false },
+      }),
+    ],
+    ...over,
+  });
 
   it('accepte un DetailPilier variante p1 et variante p2', () => {
     const p1 = validerReponse(detailPilierSchema, detailPilierP1());
@@ -437,9 +408,25 @@ describe('validerReponse (couture D)', () => {
     if (p6.code === 'p6') expect(p6.nbMouvements).toBe(4);
   });
 
+  it('accepte un DetailPilier variante p4 : tableau produit P4 · P5 (évaluable + exclu)', () => {
+    const p4 = validerReponse(detailPilierSchema, detailPilierP4());
+    expect(p4.code).toBe('p4');
+    if (p4.code === 'p4') {
+      expect(p4.produits).toHaveLength(2);
+      expect(p4.produits[0]?.concordance.conforme).toBe(true);
+      expect(p4.produits[1]?.consommation.evaluable).toBe(false);
+    }
+  });
+
   it('rejette une variante p3 dont un jour n\'a pas de drapeau aSortie', () => {
     expect(() =>
       validerReponse(detailPilierSchema, detailPilierP3({ jours: [{ jour: '2026-08-01' }] })),
+    ).toThrow(/non conforme/i);
+  });
+
+  it('rejette une variante p4 dont une ligne produit n\'a pas de bloc concordance', () => {
+    expect(() =>
+      validerReponse(detailPilierSchema, detailPilierP4({ produits: [ligneP4P5({ concordance: undefined })] })),
     ).toThrow(/non conforme/i);
   });
 

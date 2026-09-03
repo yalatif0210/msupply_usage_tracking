@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-  detailP4ProduitsSchema,
+  detailPilierSchema,
   detailSiteSchema,
   historiqueSiteSchema,
   syntheseNationaleSchema,
@@ -234,25 +234,36 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(h.points.length).toBeGreaterThan(0);
   });
 
-  it('GET /api/sites/:id/piliers/p4 rend le détail par produit conforme au contrat', async () => {
+  it('GET /api/sites/:id/piliers/p4 rend la variante P4 (tableau produit P4 · P5) conforme au contrat', async () => {
     const a = await lecteur();
     const res = await a.get('/api/sites/SITE-1/piliers/p4');
     expect(res.status).toBe(200);
-    const d = detailP4ProduitsSchema.parse(res.body);
+    const d = detailPilierSchema.parse(res.body);
+    if (d.code !== 'p4') throw new Error('variante p4 attendue');
     expect(d.moisPaqd).toBe('2026-08');
     // un seul traceur inventorié (ARV001), un seul inventaire → conso non évaluable
     expect(d.produits).toHaveLength(1);
-    expect(d.produits[0]?.produitCode).toBe('ARV001');
-    expect(d.produits[0]?.sdu.conforme).toBe(true); // 300 = 300
-    expect(d.produits[0]?.consommation.evaluable).toBe(false);
-    expect(d.produits[0]?.consommation.raisonExclusion).toBe('un_seul_inventaire');
+    const ligne = d.produits[0]!;
+    expect(ligne.produitCode).toBe('ARV001');
+    expect(ligne.sdu.conforme).toBe(true); // 300 = 300
+    // concordance par produit = least/greatest = 100 % → conforme
+    expect(ligne.concordance.tauxPct).toBe(100);
+    expect(ligne.concordance.conforme).toBe(true);
+    expect(ligne.consommation.evaluable).toBe(false);
+    if (!ligne.consommation.evaluable) {
+      expect(ligne.consommation.raisonExclusion).toBe('un_seul_inventaire');
+    }
+    // la variante porte l'horodatage du gel et le drapeau de ré-import
+    expect(d.calculeLe).not.toBeNull();
+    expect(d.reimporteDepuisLeGel).toBe(false);
   });
 
   it('GET /api/sites/:id/piliers/p4 : 404 hors périmètre, filtre programme', async () => {
     const a = await lecteur();
     expect((await a.get('/api/sites/INCONNU/piliers/p4')).status).toBe(404);
     const res = await a.get('/api/sites/SITE-1/piliers/p4').query({ programmeId: 'PROG-1' });
-    const d = detailP4ProduitsSchema.parse(res.body);
+    const d = detailPilierSchema.parse(res.body);
+    if (d.code !== 'p4') throw new Error('variante p4 attendue');
     expect(d.programmeId).toBe('PROG-1');
     expect(d.produits).toHaveLength(1);
   });

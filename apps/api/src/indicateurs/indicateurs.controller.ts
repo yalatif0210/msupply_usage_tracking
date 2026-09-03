@@ -1,6 +1,5 @@
 import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
 import type {
-  DetailP4Produits,
   DetailPilier,
   DetailSite,
   HistoriqueSite,
@@ -12,7 +11,6 @@ import type {
 } from '@dqa/contracts';
 import {
   detailPilierQuerySchema,
-  detailSiteQuerySchema,
   filtreSitesSchema,
   historiqueQuerySchema,
   moisPaqdSchema,
@@ -53,21 +51,10 @@ export class IndicateursController {
     return h;
   }
 
-  @Get('sites/:id/piliers/p4')
-  async detailP4Produits(
-    @Param('id') id: string,
-    @Query() query: Record<string, string>,
-  ): Promise<DetailP4Produits> {
-    const q = detailSiteQuerySchema.parse(query);
-    const detail = await this.repo.detailP4Produits(id, q.mois, q.programmeId);
-    if (!detail) throw new NotFoundException('Site hors périmètre ou inconnu');
-    return detail;
-  }
-
   /**
    * Détail ligne à ligne d'un pilier, lu en direct du core. Variantes livrées :
-   * `p1`, `p2`, `p3`, `p6`. `p4` garde son handler dédié ci-dessus ; `p5` arrive
-   * à un ticket ultérieur.
+   * `p1`, `p2`, `p3`, `p4` (tableau produit P4 · P5 fusionné), `p6`. `p5` est
+   * servi par la variante `p4`.
    */
   @Get('sites/:id/piliers/:code')
   async detailPilier(
@@ -75,7 +62,7 @@ export class IndicateursController {
     @Param('code') code: string,
     @Query() query: Record<string, string>,
   ): Promise<DetailPilier> {
-    if (code !== 'p1' && code !== 'p2' && code !== 'p3' && code !== 'p6') {
+    if (code !== 'p1' && code !== 'p2' && code !== 'p3' && code !== 'p4' && code !== 'p6') {
       throw new NotFoundException(`Détail du pilier ${code} non disponible`);
     }
     const q = detailPilierQuerySchema.parse(query);

@@ -18,11 +18,11 @@ import {
   PILIER_DE_SOUS_COMPOSANTE,
   PILIERS,
   SOUS_COMPOSANTES_DU_PILIER,
-  type DetailP4Produits,
   type DetailPilier,
   type DetailPilierP1,
   type DetailPilierP2,
   type DetailPilierP3,
+  type DetailPilierP4,
   type DetailPilierP6,
   type DetailSite,
   type HistoriqueSite,
@@ -61,7 +61,6 @@ type FiltresFiche = {
 interface DonneesFiche {
   detail: DetailSite | null;
   historique: HistoriqueSite | null;
-  p4: DetailP4Produits | null;
 }
 
 /** Nombre de forces / faiblesses saillantes listées sous le radar. */
@@ -200,6 +199,14 @@ function reculerMois(mois: string, n: number): string {
                         </div>
                       }
                     </dl>
+                  }
+
+                  @if (pil.pilier === 'P4' || pil.pilier === 'P5') {
+                    <div class="border-t border-border pt-3 text-xs">
+                      <button type="button" class="cursor-pointer text-primary hover:underline" (click)="ouvrirTableauP4P5()">
+                        Voir le tableau P4 · P5 par produit traceur
+                      </button>
+                    </div>
                   }
 
                   @if (pil.pilier === 'P1' || pil.pilier === 'P2') {
@@ -390,36 +397,48 @@ function reculerMois(mois: string, n: number): string {
             }
           </div>
 
-          @if (p4Mesure() && p4Produits(); as p4) {
-            @if (p4.produits.length > 0) {
-              <details class="mt-6">
-                <summary class="cursor-pointer text-sm text-primary">P4 · détail par produit traceur ({{ p4.produits.length }})</summary>
+          <details class="mt-6" [open]="tableauP4P5Ouvert()" #dtP4 (toggle)="basculerTableauP4P5(dtP4.open)">
+            <summary class="cursor-pointer text-sm text-primary">
+              Tableau produit P4 · P5 (écart SDU, concordance, écart consommation)
+            </summary>
+            <div class="mt-3" [attr.aria-busy]="chargeP4P5() ? 'true' : null">
+              <dqa-barre-attente [actif]="chargeP4P5()" />
+              @if (reimportP4P5()) {
+                <p class="mt-2 text-xs text-alerte-texte">Données du core modifiées depuis le gel du mois : le détail ci-dessous peut différer des comptes figés.</p>
+              }
+              @if (produitsP4P5().length > 0) {
                 <div hlmTableContainer class="mt-3">
                   <table hlmTable>
                     <thead hlmTHead>
                       <tr hlmTr>
                         <th hlmTh>Produit</th>
-                        <th hlmTh class="text-right">Théo.</th>
-                        <th hlmTh class="text-right">Compté</th>
+                        <th hlmTh class="text-right">Stock théorique</th>
+                        <th hlmTh class="text-right">Stock physique compté</th>
                         <th hlmTh class="text-right">Écart SDU</th>
-                        <th hlmTh>SDU</th>
-                        <th hlmTh class="text-right">Début</th>
-                        <th hlmTh class="text-right">Récept.</th>
-                        <th hlmTh class="text-right">Fin</th>
-                        <th hlmTh class="text-right">Reconst.</th>
-                        <th hlmTh class="text-right">Déclarée</th>
-                        <th hlmTh class="text-right">Écart conso.</th>
-                        <th hlmTh>Conso.</th>
+                        <th hlmTh class="text-right">Concordance</th>
+                        <th hlmTh class="text-right">Stock début</th>
+                        <th hlmTh class="text-right">Réceptions</th>
+                        <th hlmTh class="text-right">Stock fin</th>
+                        <th hlmTh class="text-right">Consommation reconstituée</th>
+                        <th hlmTh class="text-right">Consommation déclarée</th>
+                        <th hlmTh class="text-right">Écart consommation</th>
+                        <th hlmTh>Statuts</th>
                       </tr>
                     </thead>
                     <tbody hlmTBody>
-                      @for (pr of p4.produits; track pr.produitCode) {
+                      @for (pr of produitsP4P5(); track pr.produitCode) {
                         <tr hlmTr>
-                          <td hlmTd>{{ pr.libelle ?? pr.produitCode }}</td>
+                          <td hlmTd>
+                            <a
+                              class="text-primary hover:underline"
+                              [routerLink]="['/sites', d.site.siteId, 'produits', pr.produitCode]"
+                              [queryParams]="{ mois: d.moisPaqd }"
+                            >{{ pr.libelle ?? pr.produitCode }}</a>
+                          </td>
                           <td hlmTd class="text-right tabular-nums">{{ pr.sdu.theorique === null ? absent : (pr.sdu.theorique | number: '1.0-0') }}</td>
                           <td hlmTd class="text-right tabular-nums">{{ pr.sdu.comptee === null ? absent : (pr.sdu.comptee | number: '1.0-0') }}</td>
                           <td hlmTd class="text-right tabular-nums">{{ pr.sdu.ecartPct === null ? '∞' : (pr.sdu.ecartPct | number: '1.0-1') + ' %' }}</td>
-                          <td hlmTd><dqa-badge-statut [statut]="pr.sdu.conforme ? 'CONFORME' : 'ALERTE'" /></td>
+                          <td hlmTd class="text-right tabular-nums">{{ pr.concordance.tauxPct === null ? absent : (pr.concordance.tauxPct | number: '1.0-1') + ' %' }}</td>
                           @if (pr.consommation; as c) {
                             @if (c.evaluable) {
                               <td hlmTd class="text-right tabular-nums">{{ c.stockDebut | number: '1.0-0' }}</td>
@@ -428,19 +447,29 @@ function reculerMois(mois: string, n: number): string {
                               <td hlmTd class="text-right tabular-nums">{{ c.reconstituee | number: '1.0-0' }}</td>
                               <td hlmTd class="text-right tabular-nums">{{ c.declaree | number: '1.0-0' }}</td>
                               <td hlmTd class="text-right tabular-nums">{{ c.ecartPct | number: '1.0-1' }} %</td>
-                              <td hlmTd><dqa-badge-statut [statut]="c.conforme ? 'CONFORME' : 'ALERTE'" /></td>
                             } @else {
-                              <td hlmTd class="text-muted-foreground" colspan="7">non évaluable : {{ raisonConso(c.raisonExclusion) }}</td>
+                              <td hlmTd class="text-muted-foreground" colspan="6">consommation non évaluable : {{ raisonConso(c.raisonExclusion) }}</td>
                             }
                           }
+                          <td hlmTd>
+                            <div class="flex flex-wrap items-center gap-2">
+                              <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="pr.sdu.conforme ? 'CONFORME' : 'ALERTE'" /> SDU</span>
+                              <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="pr.concordance.conforme ? 'CONFORME' : 'ALERTE'" /> concordance</span>
+                              @if (pr.consommation.evaluable) {
+                                <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="pr.consommation.conforme ? 'CONFORME' : 'ALERTE'" /> conso</span>
+                              }
+                            </div>
+                          </td>
                         </tr>
                       }
                     </tbody>
                   </table>
                 </div>
-              </details>
-            }
-          }
+              } @else if (!chargeP4P5()) {
+                <p class="mt-3 text-sm text-muted-foreground">Aucun produit traceur inventorié pour ce mois.</p>
+              }
+            </div>
+          </details>
 
           @if (d.sousComposantes.length > 0) {
             <section class="mt-8 border-t border-border pt-6" [attr.aria-busy]="res.enCours()">
@@ -596,13 +625,13 @@ export class DetailSitePage {
       });
       // le mois de la fiche suit la borne haute réellement servie par l'historique
       const moisFiche = h.points.at(-1)?.moisPaqd ?? (f.a || undefined);
-      const [d, p4] = await Promise.all([
-        this.service.detailSite(this.id(), { programmeId: f.programme || undefined, mois: moisFiche }),
-        this.service.p4Produits(this.id(), { programmeId: f.programme || undefined, mois: moisFiche }),
-      ]);
-      return { detail: d, historique: h, p4 };
+      const d = await this.service.detailSite(this.id(), {
+        programmeId: f.programme || undefined,
+        mois: moisFiche,
+      });
+      return { detail: d, historique: h };
     },
-    germe: { detail: null, historique: null, p4: null },
+    germe: { detail: null, historique: null },
     filtresInitiaux: { programme: '', de: '', a: '' },
     // aligne la plage sur ce que l'historique a réellement renvoyé
     apresChargement: (v) => {
@@ -613,7 +642,6 @@ export class DetailSitePage {
   });
 
   protected readonly historique = computed<HistoriqueSite | null>(() => this.res.valeur().historique);
-  protected readonly p4Produits = computed<DetailP4Produits | null>(() => this.res.valeur().p4);
   private readonly detail = computed<DetailSite | null>(() => this.res.valeur().detail);
 
   protected readonly moisDisponibles = computed(() => this.historique()?.moisDisponibles ?? []);
@@ -633,6 +661,8 @@ export class DetailSitePage {
       untracked(() => {
         if (cle === this.cleContexte) return;
         this.cleContexte = cle;
+        this.tableauP4P5.set(null);
+        if (this.tableauP4P5Ouvert()) void this.chargerP4P5();
         const ouverts = this.ouverts();
         if (ouverts.size === 0) return;
         this.detailsPilier.set({});
@@ -768,9 +798,42 @@ export class DetailSitePage {
   };
   protected raisonConso = (r: RaisonExclusionConso) => this.RAISONS_CONSO[r];
 
-  protected readonly p4Mesure = computed(
-    () => this.detail()?.piliers.find((p) => p.pilier === 'P4')?.score != null,
-  );
+  // ── Tableau produit P4 · P5 fusionné ─────────────────────────────────────
+  // Servi par la variante `p4` de /piliers/:code ; chargé au premier dépli,
+  // pas au chargement de la fiche. Les cartes P4 et P5 l'ouvrent toutes deux.
+  private readonly tableauP4P5 = signal<DetailPilierP4 | null>(null);
+  protected readonly chargeP4P5 = signal(false);
+  protected readonly tableauP4P5Ouvert = signal(false);
+
+  protected readonly produitsP4P5 = computed(() => this.tableauP4P5()?.produits ?? []);
+  protected readonly reimportP4P5 = computed(() => this.tableauP4P5()?.reimporteDepuisLeGel ?? false);
+
+  protected ouvrirTableauP4P5(): void {
+    this.tableauP4P5Ouvert.set(true);
+    void this.chargerP4P5();
+  }
+
+  protected basculerTableauP4P5(ouvert: boolean): void {
+    this.tableauP4P5Ouvert.set(ouvert);
+    if (ouvert) void this.chargerP4P5();
+  }
+
+  private async chargerP4P5(): Promise<void> {
+    if (this.tableauP4P5() || this.chargeP4P5()) return;
+    this.chargeP4P5.set(true);
+    try {
+      const f = this.res.filtres();
+      const d = await this.service.detailPilier(this.id(), 'p4', {
+        programmeId: f.programme || undefined,
+        mois: this.detail()?.moisPaqd ?? undefined,
+      });
+      if (d.code === 'p4') this.tableauP4P5.set(d);
+    } catch {
+      // échec non bloquant : un nouveau dépli retentera
+    } finally {
+      this.chargeP4P5.set(false);
+    }
+  }
 
   // tableau à plat
   protected trierSc(colonne: TriSc): void {

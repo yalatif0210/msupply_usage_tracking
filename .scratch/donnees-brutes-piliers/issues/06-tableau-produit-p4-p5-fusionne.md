@@ -9,21 +9,21 @@ code produit est un lien vers la fiche produit-mois (ticket 07).
 
 **Blocked by:** 04 (route `/piliers/:code` et union `DetailPilier`)
 
-**Status:** ready-for-agent
+**Status:** done (branche donnees-brutes-piliers)
 
-- [ ] `GET /api/sites/:id/piliers/p4` renvoie la variante P4 de `DetailPilier`
+- [x] `GET /api/sites/:id/piliers/p4` renvoie la variante P4 de `DetailPilier`
       au lieu de `DetailP4Produits` ; le type `DetailP4Produits` est retiré des
       contrats et l'écran mis à jour dans la même tranche.
-- [ ] La variante P4 porte, par produit traceur : stock théorique (mSupply),
+- [x] La variante P4 porte, par produit traceur : stock théorique (mSupply),
       stock physique compté, écart SDU et son statut ; concordance et son
       statut ; stock début / fin, réceptions, consommation déclarée,
       consommation reconstituée, écart consommation et son statut, ou une raison
       d'exclusion.
-- [ ] Sur la fiche site, un seul tableau produit rend ces colonnes, produits
+- [x] Sur la fiche site, un seul tableau produit rend ces colonnes, produits
       hors tolérance en tête ; le code produit est un lien vers
       `/sites/:id/produits/:code` pour le mois affiché.
-- [ ] Les cartes P4 et P5 pointent vers ce tableau commun.
-- [ ] Le tableau se réconcilie avec les taux agrégés de `mv_p4_ecart` et
+- [x] Les cartes P4 et P5 pointent vers ce tableau commun.
+- [x] Le tableau se réconcilie avec les taux agrégés de `mv_p4_ecart` et
       `mv_p5_concordance`.
-- [ ] Tests : lecture repository de la variante P4 (base éphémère), cohérence
+- [x] Tests : lecture repository de la variante P4 (base éphémère), cohérence
       avec les vues agrégées ; validation de contrat.

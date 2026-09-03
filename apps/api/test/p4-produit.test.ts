@@ -1,11 +1,13 @@
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { IndicateursRepository } from '../src/indicateurs/indicateurs.repository.js';
 import { demarrerBaseEphemere, type BaseEphemere } from './helpers/db.js';
 
 /**
  * Couture B — `mv_p4_ecart_produit` : détail par produit traceur des écarts
  * SDU / consommation, contre des données de core fabriquées à la main.
- * Vérifie aussi la cohérence avec les taux agrégés de `mv_p4_ecart`.
+ * Vérifie aussi la cohérence avec les taux agrégés de `mv_p4_ecart`, et la
+ * lecture repository de la variante `p4` de `DetailPilier` (tableau P4 · P5).
  */
 describe('vue mv_p4_ecart_produit', () => {
   let base: BaseEphemere;
@@ -22,7 +24,7 @@ describe('vue mv_p4_ecart_produit', () => {
 
   beforeEach(async () => {
     await db.query(`SET search_path TO dqa, public`);
-    await db.query(`TRUNCATE dqa.hist_score_site, dqa.fact_inventaire_ligne, dqa.fact_inventaire,
+    await db.query(`TRUNCATE dqa.hist_pilier_brut, dqa.hist_score_site, dqa.fact_inventaire_ligne, dqa.fact_inventaire,
       dqa.fact_ligne_transaction, dqa.fact_transaction, dqa.dim_site_programme,
       dqa.dim_produit_traceur, dqa.dim_produit, dqa.dim_programme, dqa.dim_site,
       dqa.import_lot RESTART IDENTITY CASCADE`);
@@ -191,5 +193,73 @@ describe('vue mv_p4_ecart_produit', () => {
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     // |100 − 50| / 50 = 100 % → hors tolérance
     expect((await prod())['T1']?.sdu_conforme).toBe(false);
+  });
+
+  // ── Variante `p4` de DetailPilier : tableau produit P4 · P5 fusionné ──────
+  describe('lecture repository detailPilier(p4)', () => {
+    let repo: IndicateursRepository;
+    beforeAll(() => {
+      repo = new IndicateursRepository(db);
+    });
+
+    it('rend la variante p4 : une ligne par produit traceur, SDU hors tolérance en tête', async () => {
+      await socle();
+      const d = await repo.detailPilier('S1', 'p4', {});
+      expect(d).not.toBeNull();
+      if (d === null || d.code !== 'p4') throw new Error('variante p4 attendue');
+
+      expect(d.moisPaqd).toBe('2026-08');
+      expect(d.produits.map((p) => p.produitCode)).toEqual(['T2', 'T5', 'T1', 'T4', 'T6', 'T7']);
+      // SDU hors tolérance (sdu_conforme = false) d'abord
+      expect(d.produits.slice(0, 2).every((p) => !p.sdu.conforme)).toBe(true);
+      expect(d.produits.slice(2).every((p) => p.sdu.conforme)).toBe(true);
+
+      const t1 = d.produits.find((p) => p.produitCode === 'T1')!;
+      expect(t1.consommation.evaluable).toBe(true);
+      if (t1.consommation.evaluable) expect(t1.consommation.conforme).toBe(false);
+      const t2 = d.produits.find((p) => p.produitCode === 'T2')!;
+      expect(t2.consommation.evaluable).toBe(false);
+      if (!t2.consommation.evaluable) expect(t2.consommation.raisonExclusion).toBe('un_seul_inventaire');
+
+      // comptes bruts figés du pilier P4 + horodatage du gel
+      expect(d.comptesBruts.some((c) => c.mesure === 'p4_ecart_sdu')).toBe(true);
+      expect(d.calculeLe).not.toBeNull();
+      expect(d.reimporteDepuisLeGel).toBe(false);
+    });
+
+    it('concordance par produit : seuil 100 → conforme si théorique = compté au dernier inventaire', async () => {
+      await socle();
+      const d = await repo.detailPilier('S1', 'p4', {});
+      if (d === null || d.code !== 'p4') throw new Error('variante p4 attendue');
+      const par = Object.fromEntries(d.produits.map((p) => [p.produitCode, p.concordance]));
+
+      // dernier inventaire B : T1 100/100, T4 0/0, T6 100/100, T7 50/50 → 100 % conforme
+      expect(par['T1']).toEqual({ tauxPct: 100, conforme: true });
+      expect(par['T4']).toEqual({ tauxPct: 100, conforme: true });
+      expect(par['T6']).toEqual({ tauxPct: 100, conforme: true });
+      // T2 100/90 → 90 % ; T5 5/0 → 0 % → non conformes
+      expect(par['T2']).toEqual({ tauxPct: 90, conforme: false });
+      expect(par['T5']).toEqual({ tauxPct: 0, conforme: false });
+    });
+
+    it('se réconcilie avec l’agrégat mv_p5_concordance', async () => {
+      await socle();
+      const d = await repo.detailPilier('S1', 'p4', {});
+      if (d === null || d.code !== 'p4') throw new Error('variante p4 attendue');
+      const conformes = d.produits.filter((p) => p.concordance.conforme).length;
+      const total = d.produits.length;
+
+      const { rows } = await db.query<{ nb_produits: number; nb_produits_conformes: number }>(
+        `SELECT nb_produits, nb_produits_conformes FROM dqa.mv_p5_concordance
+         WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+      );
+      expect(rows[0]).toMatchObject({ nb_produits: total, nb_produits_conformes: conformes });
+    });
+
+    it('404 (null) pour un site hors périmètre', async () => {
+      await socle();
+      expect(await repo.detailPilier('S9', 'p4', {})).toBeNull();
+      expect(await repo.detailPilier('INCONNU', 'p4', {})).toBeNull();
+    });
   });
 });

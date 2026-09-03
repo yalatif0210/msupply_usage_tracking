@@ -17,8 +17,7 @@ Emplacement : `apps/api/src/indicateurs/` (API) et `apps/web/src/app/pages/`
 | `GET` | `/api/sites` | `ScoreSite[]` | tout authentifié |
 | `GET` | `/api/sites/:id?mois=&programmeId=` | `DetailSite` | tout authentifié |
 | `GET` | `/api/sites/:id/historique?cycle=&de=&a=&programmeId=` | `HistoriqueSite` | tout authentifié |
-| `GET` | `/api/sites/:id/piliers/p4?mois=&programmeId=` | `DetailP4Produits` | tout authentifié |
-| `GET` | `/api/sites/:id/piliers/:code?mois=&programmeId=` | `DetailPilier` (union sur `code`) | tout authentifié |
+| `GET` | `/api/sites/:id/piliers/:code?mois=&programmeId=` | `DetailPilier` (union sur `code` ; `p4` = tableau produit P4 · P5) | tout authentifié |
 | `GET` | `/api/synthese?mois=&programmeId=&region=` | `SyntheseNationale` | tout authentifié |
 | `GET` | `/api/tableau-de-bord` | `TableauDeBord` | tout authentifié |
 | `GET` | `/api/referentiel/programmes` | `Programme[]` | tout authentifié |
@@ -35,7 +34,7 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 | `hist_score_site` | six scores de pilier + `score_composite` + `classification` gelés par (site, mois PAQD, programme) |
 | `v_mois_cycle` | rang M+1..M+4 de chaque mois PAQD dans son cycle (depuis `dim_temps`) |
 | `v_sous_composante_atteinte` | taux d'atteinte du seuil + statut par (site, mois, programme, sous-composante), depuis `hist_score_site.sc_*` |
-| `mv_p4_ecart_produit` | détail par produit traceur des écarts SDU / consommation de P4 |
+| `mv_p4_ecart_produit` | détail par produit traceur : écarts SDU / consommation (P4) + quantités du dernier inventaire dont se déduit la concordance par produit (P5) |
 | `mv_synthese_nationale` | agrégats nationaux / région / district / programme par mois PAQD |
 | `mv_synthese_sous_composante` | mêmes grains, par sous-composante : comptes de statut + taux d'atteinte moyen |
 | `mv_synthese_rapports` | comptes P1 / P2 des réquisitions et inventaires de fin de mois, agrégés par strate de structure (× région × programme) par mois PAQD |
@@ -115,13 +114,20 @@ simple des scores des deux sous-composantes calculables. Tolérance (2 %) et
 seuil de taux (90 %) viennent de `grille_seuil_sous_composante.tolerance` /
 `.seuil` — à confirmer avec la coordination PAQD.
 
-**Drill-down par produit** (`mv_p4_ecart_produit`,
-`GET /api/sites/:id/piliers/p4`) : une ligne par produit traceur inventorié,
-avec ses deux écarts (théorique / compté, stock début-fin / réceptions /
-déclarée / reconstituée), le statut par produit, ou « non évaluable » +
-raison pour l'écart consommation. Même logique que `mv_p4_ecart` sans agréger
-(doublon de CTE assumé, pas de cascade sur `mv_score_pilier`). Rendu dans un
-`<details>` sous les cartes de pilier de la fiche site.
+**Tableau produit P4 · P5** (`mv_p4_ecart_produit`, variante `p4` de
+`GET /api/sites/:id/piliers/:code`) : une ligne par produit traceur inventorié,
+avec l'écart SDU (théorique / compté au dernier inventaire, statut), l'écart
+consommation (stock début-fin / réceptions / déclarée / reconstituée, statut,
+ou « non évaluable » + raison) **et** la concordance P5 par produit
+(`least(|théo|, |compté|) / greatest(…) · 100`, comparée au seuil `concordance`
+de la grille du mois — même formule que `mv_p5_concordance`, calculée dans la
+requête du repository comme mise en forme de lecture, jamais une redéfinition du
+score P5). La route `/piliers/p4` a remplacé l'ancien endpoint
+`DetailP4Produits` : P4 et P5 partagent désormais ce tableau. Rendu dans un
+`<details>` sous les cartes de pilier ; les cartes P4 et P5 l'ouvrent toutes
+deux, le code produit est un lien vers la fiche produit-mois. Comme les autres
+variantes de `DetailPilier`, la réponse porte `comptesBruts`, `calculeLe`,
+`coreMajLe` et `reimporteDepuisLeGel`.
 
 **Détail ligne à ligne par pilier** (`GET /api/sites/:id/piliers/:code`,
 `DetailPilier` — union discriminée sur `code`). Lu **en direct du core**
@@ -133,13 +139,15 @@ Chaque réponse porte aussi les `comptesBruts` figés du pilier, `calculeLe`
 Variantes livrées : `p1` (inventaires / réquisitions / réceptions / factures du
 mois + état par programme géré), `p2` (inventaires avec « dans les 3 derniers
 jours », réquisitions avec date limite — règles de la migration 0020 — et « à
-l'heure »), `p3` (un item par jour calendaire du mois PAQD, `aSortie` = ≥ 1
-`dispensation` / `distribution` non annulée ce jour ; mêmes prédicats que
-`mv_p3_regularite`) et `p6` (les seuls mouvements d'ajustement — date, produit,
-quantité, sens — plus `nbMouvements`, le dénominateur de `mv_p6_ajustements` ;
-ajustement = ligne `issu_ajustement` ou nature `ajustement_*`). `p4` garde son
-handler dédié `piliers/p4` ; `p5` suit. Le filtre `programmeId` restreint les
-lignes de core au programme ; absent = tous programmes.
+l'heure »), `p3` (un item par jour calendaire du mois PAQD, `aSortie` = au moins
+une `dispensation` / `distribution` non annulée ce jour ; mêmes prédicats que
+`mv_p3_regularite`), `p4` (tableau produit P4 · P5 fusionné, lu de
+`mv_p4_ecart_produit` avec la concordance par produit) et `p6` (les seuls
+mouvements d'ajustement : date, produit, quantité, sens, plus `nbMouvements`, le
+dénominateur de `mv_p6_ajustements` ; ajustement = ligne `issu_ajustement` ou
+nature `ajustement_*`). `p5` est servi par la variante `p4`. Le filtre
+`programmeId` restreint les lignes de core au programme ; absent = tous
+programmes.
 
 - `piliersCouverts` = nombre de scores de pilier non nuls (2 aujourd'hui) ;
   `piliersTotal = 6`. L'écran affiche « Score calculé sur N piliers sur 6 »
