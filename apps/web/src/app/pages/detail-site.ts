@@ -22,6 +22,8 @@ import {
   type DetailPilier,
   type DetailPilierP1,
   type DetailPilierP2,
+  type DetailPilierP3,
+  type DetailPilierP6,
   type DetailSite,
   type HistoriqueSite,
   type Pilier,
@@ -44,6 +46,7 @@ import { BarreAttente } from '../ui/barre-attente';
 import { Coquille } from '../ui/coquille';
 import { GrapheCourbe, type SerieGrapheCourbe } from '../ui/graphe-courbe';
 import { GrapheRadar, type AxeGrapheRadar } from '../ui/graphe-radar';
+import { construireCalendrierP3, type CalendrierP3 } from './calendrier-p3';
 
 type Granularite = 'composite' | 'pilier' | 'sousComposante';
 type ModeRadar = '6' | '10';
@@ -296,6 +299,92 @@ function reculerMois(mois: string, n: number): string {
                       </div>
                     </details>
                   }
+
+                  @if (pil.pilier === 'P3' || pil.pilier === 'P6') {
+                    <details class="border-t border-border pt-3 text-xs" #dt (toggle)="basculerPilier(pil.pilier, dt.open)">
+                      <summary class="cursor-pointer text-primary">Détail ligne à ligne</summary>
+                      <div class="mt-2" [attr.aria-busy]="chargePilier(pil.pilier) ? 'true' : null">
+                        <dqa-barre-attente [actif]="chargePilier(pil.pilier)" />
+
+                        @if (p3De(pil.pilier); as dp) {
+                          @if (dp.reimporteDepuisLeGel) {
+                            <p class="mt-2 text-alerte-texte">Données du core modifiées depuis le gel du mois : le détail ci-dessous peut différer des comptes figés.</p>
+                          }
+                          @if (calendrierP3(dp); as cal) {
+                            <p class="mt-2 text-muted-foreground tabular-nums">
+                              {{ cal.nbJoursAvecSortie }} / {{ cal.nbJours }} jours avec au moins une sortie
+                            </p>
+                            <div class="mt-2 space-y-1">
+                              @for (semaine of cal.semaines; track $index) {
+                                <div class="flex gap-1">
+                                  @for (cellule of semaine; track $index) {
+                                    @if (cellule) {
+                                      <span
+                                        class="flex size-7 items-center justify-center rounded-xs border text-xs leading-none tabular-nums"
+                                        [class.bg-primary]="cellule.aSortie"
+                                        [class.text-primary-foreground]="cellule.aSortie"
+                                        [class.border-primary]="cellule.aSortie"
+                                        [class.border-border]="!cellule.aSortie"
+                                        [class.text-muted-foreground]="!cellule.aSortie"
+                                        [attr.title]="cellule.jour + (cellule.aSortie ? ' · sortie' : ' · sans sortie')"
+                                      >{{ cellule.numero }}</span>
+                                    } @else {
+                                      <span class="size-7"></span>
+                                    }
+                                  }
+                                </div>
+                              }
+                            </div>
+                            <p class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
+                              <span class="inline-flex items-center gap-1">
+                                <span class="inline-block size-3 rounded-xs bg-primary border border-primary"></span>
+                                jour avec au moins une sortie
+                              </span>
+                              <span class="inline-flex items-center gap-1">
+                                <span class="inline-block size-3 rounded-xs border border-border"></span>
+                                jour sans sortie
+                              </span>
+                            </p>
+                          }
+                        }
+
+                        @if (p6De(pil.pilier); as dp) {
+                          @if (dp.reimporteDepuisLeGel) {
+                            <p class="mt-2 text-alerte-texte">Données du core modifiées depuis le gel du mois : le détail ci-dessous peut différer des comptes figés.</p>
+                          }
+                          <p class="mt-2 text-muted-foreground tabular-nums">
+                            {{ dp.ajustements.length }} ajustement{{ dp.ajustements.length > 1 ? 's' : '' }} sur {{ dp.nbMouvements }} mouvement{{ dp.nbMouvements > 1 ? 's' : '' }}
+                          </p>
+                          @if (dp.ajustements.length) {
+                            <div hlmTableContainer class="mt-2">
+                              <table hlmTable>
+                                <thead hlmTHead>
+                                  <tr hlmTr>
+                                    <th hlmTh>Date</th>
+                                    <th hlmTh>Produit</th>
+                                    <th hlmTh class="text-right">Quantité</th>
+                                    <th hlmTh>Sens</th>
+                                  </tr>
+                                </thead>
+                                <tbody hlmTBody>
+                                  @for (aj of dp.ajustements; track $index) {
+                                    <tr hlmTr>
+                                      <td hlmTd class="tabular-nums">{{ aj.date }}</td>
+                                      <td hlmTd>{{ aj.produit }}</td>
+                                      <td hlmTd class="text-right tabular-nums">{{ aj.quantite | number: '1.0-3' }}</td>
+                                      <td hlmTd>{{ aj.sens === 'positif' ? 'positif' : 'négatif' }}</td>
+                                    </tr>
+                                  }
+                                </tbody>
+                              </table>
+                            </div>
+                          } @else {
+                            <p class="mt-1 text-muted-foreground">Aucun ajustement ce mois.</p>
+                          }
+                        }
+                      </div>
+                    </details>
+                  }
                 </div>
               </div>
             }
@@ -529,7 +618,7 @@ export class DetailSitePage {
 
   protected readonly moisDisponibles = computed(() => this.historique()?.moisDisponibles ?? []);
 
-  /** Détail ligne à ligne d'un pilier, chargé au dépli de sa carte (P1 / P2). */
+  /** Détail ligne à ligne d'un pilier, chargé au dépli de sa carte (P1 / P2 / P3 / P6). */
   private readonly detailsPilier = signal<Partial<Record<Pilier, DetailPilier>>>({});
   private readonly chargements = signal<Partial<Record<Pilier, boolean>>>({});
   private readonly ouverts = signal<ReadonlySet<Pilier>>(new Set());
@@ -563,6 +652,17 @@ export class DetailSitePage {
     const d = this.detailsPilier()[p];
     return d?.code === 'p2' ? d : undefined;
   };
+  protected p3De = (p: Pilier): DetailPilierP3 | undefined => {
+    const d = this.detailsPilier()[p];
+    return d?.code === 'p3' ? d : undefined;
+  };
+  protected p6De = (p: Pilier): DetailPilierP6 | undefined => {
+    const d = this.detailsPilier()[p];
+    return d?.code === 'p6' ? d : undefined;
+  };
+
+  /** Modèle du bandeau calendaire P3 (fonction pure `calendrier-p3`). */
+  protected calendrierP3 = (dp: DetailPilierP3): CalendrierP3 => construireCalendrierP3(dp.jours);
 
   protected basculerPilier(p: Pilier, ouvert: boolean): void {
     const s = new Set(this.ouverts());
@@ -576,7 +676,7 @@ export class DetailSitePage {
   }
 
   private async chargerPilier(p: Pilier): Promise<void> {
-    if (p !== 'P1' && p !== 'P2') return;
+    if (p !== 'P1' && p !== 'P2' && p !== 'P3' && p !== 'P6') return;
     if (this.detailsPilier()[p] || this.chargements()[p]) return;
     this.chargements.update((m) => ({ ...m, [p]: true }));
     try {

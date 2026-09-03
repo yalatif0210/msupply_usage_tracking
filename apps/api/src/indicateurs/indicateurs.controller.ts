@@ -66,8 +66,8 @@ export class IndicateursController {
 
   /**
    * Détail ligne à ligne d'un pilier, lu en direct du core. Variantes livrées :
-   * `p1`, `p2`. `p4` garde son handler dédié ci-dessus (unifié au ticket 06) ;
-   * `p3` / `p5` / `p6` arrivent aux tickets suivants.
+   * `p1`, `p2`, `p3`, `p6`. `p4` garde son handler dédié ci-dessus ; `p5` arrive
+   * à un ticket ultérieur.
    */
   @Get('sites/:id/piliers/:code')
   async detailPilier(
@@ -75,7 +75,7 @@ export class IndicateursController {
     @Param('code') code: string,
     @Query() query: Record<string, string>,
   ): Promise<DetailPilier> {
-    if (code !== 'p1' && code !== 'p2') {
+    if (code !== 'p1' && code !== 'p2' && code !== 'p3' && code !== 'p6') {
       throw new NotFoundException(`Détail du pilier ${code} non disponible`);
     }
     const q = detailPilierQuerySchema.parse(query);

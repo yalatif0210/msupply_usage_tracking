@@ -85,7 +85,7 @@ export class SitesService {
 
   /**
    * Détail ligne à ligne d'un pilier, chargé à la demande au dépli de la carte.
-   * `code` en minuscules (`p1`..`p6`) ; seuls `p1` / `p2` sont servis à ce jour.
+   * `code` en minuscules (`p1`..`p6`) ; servis à ce jour : `p1`, `p2`, `p3`, `p6`.
    */
   async detailPilier(
     siteId: string,

@@ -64,6 +64,16 @@ describe('détail ligne à ligne des piliers (P1, P2)', () => {
     db.query<{ id: number }>(`SELECT id FROM dqa.import_lot WHERE mois_paqd='2026-08'`).then((r) => r.rows[0]!.id);
   const geler = async () => db.query(`CALL dqa.rafraichir_et_geler($1)`, [await lotId()]);
 
+  const prod = (id: string, nom: string) =>
+    db.query(`INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom) VALUES ($1,$1,$2)`, [id, nom]);
+  /** Une ligne de transaction (mouvement) : `issuAjustement` pose le drapeau d'ajustement. */
+  const ligne = (id: string, txId: string, produitId: string, quantite: number, issuAjustement = false) =>
+    db.query(
+      `INSERT INTO dqa.fact_ligne_transaction (ligne_id, transaction_id, produit_id, quantite, issu_ajustement, lot_id_source)
+       VALUES ($1,$2,$3,$4,$5,1)`,
+      [id, txId, produitId, quantite, issuAjustement],
+    );
+
   // ── P1 ────────────────────────────────────────────────────────────────────
 
   it('P1 nominal : listes, manques par programme et comptes bruts figés', async () => {
@@ -170,9 +180,94 @@ describe('détail ligne à ligne des piliers (P1, P2)', () => {
     });
   });
 
+  // ── P3 ────────────────────────────────────────────────────────────────────
+
+  it('P3 nominal : bandeau calendaire, deux jours avec sortie sur 31', async () => {
+    await tx('D1', 'dispensation', '2026-08-03');
+    await tx('D2', 'dispensation', '2026-08-03'); // même jour
+    await tx('D3', 'dispensation', '2026-08-17');
+    await geler();
+
+    const d = await repo.detailPilier('S1', 'p3', {});
+    if (d === null || d.code !== 'p3') throw new Error('variante p3 attendue');
+
+    expect(d.moisPaqd).toBe('2026-08');
+    expect(d.jours).toHaveLength(31);
+    expect(d.jours[0]).toEqual({ jour: '2026-08-01', aSortie: false });
+    expect(d.jours.filter((j) => j.aSortie).map((j) => j.jour)).toEqual(['2026-08-03', '2026-08-17']);
+
+    expect(d.comptesBruts.find((c) => c.mesure === 'p3_regularite')).toMatchObject({
+      attendu: 31,
+      realise: 2,
+    });
+    expect(d.calculeLe).not.toBeNull();
+    expect(d.coreMajLe).not.toBeNull();
+    expect(d.reimporteDepuisLeGel).toBe(false);
+  });
+
+  it('P3 limite : une distribution compte, une transaction annulée est ignorée', async () => {
+    await tx('DI', 'distribution', '2026-08-10');
+    await db.query(
+      `INSERT INTO dqa.fact_transaction
+         (transaction_id, site_id, nature, programme_id, statut, date_confirmation, annulation, lot_id_source)
+       VALUES ('AN','S1','dispensation','VIH','fn','2026-08-20',true,1)`,
+    );
+    await geler();
+
+    const d = await repo.detailPilier('S1', 'p3', {});
+    if (d === null || d.code !== 'p3') throw new Error('variante p3 attendue');
+    expect(d.jours.filter((j) => j.aSortie).map((j) => j.jour)).toEqual(['2026-08-10']);
+  });
+
+  // ── P6 ────────────────────────────────────────────────────────────────────
+
+  it('P6 nominal : un ajustement sur trois mouvements, sens déduit du signe', async () => {
+    await prod('P-PARA', 'Paracétamol');
+    await tx('M1', 'dispensation', '2026-08-05');
+    await ligne('L1', 'M1', 'P-PARA', 10);
+    await tx('M2', 'dispensation', '2026-08-06');
+    await ligne('L2', 'M2', 'P-PARA', 5);
+    await tx('AJ', 'dispensation', '2026-08-09');
+    await ligne('L3', 'AJ', 'P-PARA', -8, true); // ligne issue d'un ajustement
+    await geler();
+
+    const d = await repo.detailPilier('S1', 'p6', {});
+    if (d === null || d.code !== 'p6') throw new Error('variante p6 attendue');
+
+    expect(d.nbMouvements).toBe(3);
+    expect(d.ajustements).toEqual([
+      { date: '2026-08-09', produit: 'Paracétamol', quantite: -8, sens: 'negatif' },
+    ]);
+    expect(d.comptesBruts.find((c) => c.mesure === 'p6_ajustements')).toMatchObject({
+      attendu: 3,
+      realise: 1,
+    });
+    expect(d.coreMajLe).not.toBeNull();
+  });
+
+  it('P6 limite : ligne issu_ajustement (signe) vs nature ajustement_negatif', async () => {
+    await prod('P-A', 'Produit A');
+    await tx('T1', 'dispensation', '2026-08-04');
+    await ligne('T1L', 'T1', 'P-A', 3, true); // pas de nature d'ajustement → sens du signe : positif
+    await tx('T2', 'ajustement_negatif', '2026-08-11');
+    await ligne('T2L', 'T2', 'P-A', 7); // la nature l'emporte → negatif
+    await geler();
+
+    const d = await repo.detailPilier('S1', 'p6', {});
+    if (d === null || d.code !== 'p6') throw new Error('variante p6 attendue');
+
+    expect(d.nbMouvements).toBe(2);
+    expect(d.ajustements.map((a) => ({ date: a.date, sens: a.sens }))).toEqual([
+      { date: '2026-08-04', sens: 'positif' },
+      { date: '2026-08-11', sens: 'negatif' },
+    ]);
+  });
+
   it('404 (null) pour un site hors périmètre', async () => {
     await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S9','Hors',false)`);
     expect(await repo.detailPilier('S9', 'p1', {})).toBeNull();
     expect(await repo.detailPilier('INCONNU', 'p2', {})).toBeNull();
+    expect(await repo.detailPilier('S9', 'p3', {})).toBeNull();
+    expect(await repo.detailPilier('INCONNU', 'p6', {})).toBeNull();
   });
 });

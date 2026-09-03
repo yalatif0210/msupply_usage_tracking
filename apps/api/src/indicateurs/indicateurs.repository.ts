@@ -18,7 +18,10 @@ import {
   type DetailPilier,
   type DetailPilierP1,
   type DetailPilierP2,
+  type DetailPilierP3,
+  type DetailPilierP6,
   type DetailPilierQuery,
+  type LigneAjustementP6,
   type DetailSite,
   type FiltreSites,
   type HistoriqueQuery,
@@ -1028,7 +1031,7 @@ export class IndicateursRepository {
    */
   async detailPilier(
     siteId: string,
-    code: Extract<CodePilier, 'p1' | 'p2'>,
+    code: Extract<CodePilier, 'p1' | 'p2' | 'p3' | 'p6'>,
     q: DetailPilierQuery,
   ): Promise<DetailPilier | null> {
     const pilier = PILIER_DE_CODE[code];
@@ -1065,9 +1068,16 @@ export class IndicateursRepository {
 
     if (!mois) {
       const vide = { ...commun, calculeLe: null, coreMajLe: null, reimporteDepuisLeGel: false };
-      return code === 'p1'
-        ? { ...vide, code: 'p1', inventaires: [], requisitions: [], receptions: [], factures: [], programmesGeres: [] }
-        : { ...vide, code: 'p2', inventaires: [], requisitions: [] };
+      switch (code) {
+        case 'p1':
+          return { ...vide, code, inventaires: [], requisitions: [], receptions: [], factures: [], programmesGeres: [] };
+        case 'p2':
+          return { ...vide, code, inventaires: [], requisitions: [] };
+        case 'p3':
+          return { ...vide, code, jours: [] };
+        case 'p6':
+          return { ...vide, code, ajustements: [], nbMouvements: 0 };
+      }
     }
 
     const calculeLe = await this.horodatageGel(siteId, mois, prog, pilier);
@@ -1080,10 +1090,18 @@ export class IndicateursRepository {
 
     if (code === 'p1') {
       const { coreMajLe, ...lignes } = await this.detailPilierP1(siteId, mois, prog);
-      return { ...commun, ...horo(coreMajLe), code: 'p1', ...lignes };
+      return { ...commun, ...horo(coreMajLe), code, ...lignes };
     }
-    const { coreMajLe, ...lignes } = await this.detailPilierP2(siteId, mois, prog);
-    return { ...commun, ...horo(coreMajLe), code: 'p2', ...lignes };
+    if (code === 'p2') {
+      const { coreMajLe, ...lignes } = await this.detailPilierP2(siteId, mois, prog);
+      return { ...commun, ...horo(coreMajLe), code, ...lignes };
+    }
+    if (code === 'p3') {
+      const { coreMajLe, ...lignes } = await this.detailPilierP3(siteId, mois, prog);
+      return { ...commun, ...horo(coreMajLe), code, ...lignes };
+    }
+    const { coreMajLe, ...lignes } = await this.detailPilierP6(siteId, mois, prog);
+    return { ...commun, ...horo(coreMajLe), code, ...lignes };
   }
 
   /** Horodatage du gel des comptes bruts du pilier, à défaut celui du score. */
@@ -1313,6 +1331,133 @@ export class IndicateursRepository {
         dateLimite: r.date_limite,
         aLHeure: r.a_lheure,
       })),
+      coreMajLe: maj.rows[0]?.core_maj_le ?? null,
+    };
+  }
+
+  /**
+   * Bandeau calendaire de P3 : un item par jour calendaire du mois PAQD
+   * (`dim_temps`), marqué s'il a porté ≥ 1 sortie de stock — mêmes prédicats que
+   * `mv_p3_regularite` (0024) : `nature ∈ {dispensation, distribution}`, non
+   * annulée, jour = `coalesce(date_confirmation, date_saisie)`.
+   */
+  private async detailPilierP3(
+    siteId: string,
+    mois: string,
+    prog: string | null,
+  ): Promise<Pick<DetailPilierP3, 'jours'> & { coreMajLe: Date | null }> {
+    const params = [siteId, mois, prog];
+
+    const jours = await this.pool.query<{ jour: string; a_sortie: boolean }>(
+      `SELECT to_char(t.jour, 'YYYY-MM-DD') AS jour,
+              EXISTS (
+                SELECT 1 FROM dqa.fact_transaction ft
+                WHERE ft.site_id = $1
+                  AND ft.nature IN ('dispensation', 'distribution')
+                  AND coalesce(ft.annulation, false) = false
+                  AND coalesce(ft.date_confirmation, ft.date_saisie) = t.jour
+                  AND ($3::text IS NULL OR ft.programme_id = $3)
+              ) AS a_sortie
+       FROM dqa.dim_temps t
+       WHERE t.mois_paqd = $2
+       ORDER BY t.jour`,
+      params,
+    );
+
+    const maj = await this.pool.query<{ core_maj_le: Date | null }>(
+      `SELECT max(ft.maj_le) AS core_maj_le
+       FROM dqa.fact_transaction ft
+       JOIN dqa.dim_temps t ON t.jour = coalesce(ft.date_confirmation, ft.date_saisie)
+       WHERE ft.site_id = $1 AND t.mois_paqd = $2
+         AND ft.nature IN ('dispensation', 'distribution')
+         AND coalesce(ft.annulation, false) = false
+         AND ($3::text IS NULL OR ft.programme_id = $3)`,
+      params,
+    );
+
+    return {
+      jours: jours.rows.map((r) => ({ jour: r.jour, aSortie: r.a_sortie })),
+      coreMajLe: maj.rows[0]?.core_maj_le ?? null,
+    };
+  }
+
+  /**
+   * Liste des seuls mouvements d'ajustement de P6, plus le dénominateur du
+   * ratio. Prédicat d'ajustement et dénominateur `nbMouvements` alignés sur
+   * `mv_p6_ajustements` (0012) : une ligne de transaction compte pour un
+   * mouvement ; ajustement = `issu_ajustement` OU nature `ajustement_*`. Le sens
+   * vient de la nature quand elle est explicite, sinon du signe de la quantité.
+   */
+  private async detailPilierP6(
+    siteId: string,
+    mois: string,
+    prog: string | null,
+  ): Promise<Pick<DetailPilierP6, 'ajustements' | 'nbMouvements'> & { coreMajLe: Date | null }> {
+    const params = [siteId, mois, prog];
+
+    const ajustements = await this.pool.query<{
+      date: string;
+      produit: string;
+      quantite: string;
+      sens: LigneAjustementP6['sens'];
+    }>(
+      `SELECT to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM-DD') AS date,
+              coalesce(nullif(dp.produit_nom, ''), dp.produit_code, fl.produit_id) AS produit,
+              fl.quantite_unitaire AS quantite,
+              CASE
+                WHEN ft.nature = 'ajustement_negatif' THEN 'negatif'
+                WHEN ft.nature = 'ajustement_positif' THEN 'positif'
+                WHEN fl.quantite_unitaire < 0 THEN 'negatif'
+                ELSE 'positif'
+              END AS sens
+       FROM dqa.fact_transaction ft
+       JOIN dqa.fact_ligne_transaction fl ON fl.transaction_id = ft.transaction_id
+       JOIN dqa.dim_produit dp ON dp.produit_id = fl.produit_id
+       WHERE ft.site_id = $1
+         AND coalesce(ft.annulation, false) = false
+         AND coalesce(ft.date_confirmation, ft.date_saisie) IS NOT NULL
+         AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $2
+         AND ($3::text IS NULL OR ft.programme_id = $3)
+         AND (fl.issu_ajustement OR ft.nature IN ('ajustement_positif', 'ajustement_negatif'))
+       ORDER BY coalesce(ft.date_confirmation, ft.date_saisie), produit`,
+      params,
+    );
+
+    const mouvements = await this.pool.query<{ nb: number }>(
+      `SELECT count(*)::int AS nb
+       FROM dqa.fact_transaction ft
+       JOIN dqa.fact_ligne_transaction fl ON fl.transaction_id = ft.transaction_id
+       WHERE ft.site_id = $1
+         AND coalesce(ft.annulation, false) = false
+         AND coalesce(ft.date_confirmation, ft.date_saisie) IS NOT NULL
+         AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $2
+         AND ($3::text IS NULL OR ft.programme_id = $3)`,
+      params,
+    );
+
+    const maj = await this.pool.query<{ core_maj_le: Date | null }>(
+      `SELECT GREATEST(
+         (SELECT max(ft.maj_le) FROM dqa.fact_transaction ft
+           WHERE ft.site_id = $1 AND coalesce(ft.annulation, false) = false
+             AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $2
+             AND ($3::text IS NULL OR ft.programme_id = $3)),
+         (SELECT max(fl.maj_le) FROM dqa.fact_ligne_transaction fl
+           JOIN dqa.fact_transaction ft ON ft.transaction_id = fl.transaction_id
+           WHERE ft.site_id = $1 AND coalesce(ft.annulation, false) = false
+             AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $2
+             AND ($3::text IS NULL OR ft.programme_id = $3))
+       ) AS core_maj_le`,
+      params,
+    );
+
+    return {
+      ajustements: ajustements.rows.map((r) => ({
+        date: r.date,
+        produit: r.produit,
+        quantite: Number(r.quantite),
+        sens: r.sens,
+      })),
+      nbMouvements: mouvements.rows[0]?.nb ?? 0,
       coreMajLe: maj.rows[0]?.core_maj_le ?? null,
     };
   }

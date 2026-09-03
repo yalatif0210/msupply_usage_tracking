@@ -402,6 +402,22 @@ describe('validerReponse (couture D)', () => {
     ],
     ...over,
   });
+  const detailPilierP3 = (over: Record<string, unknown> = {}) => ({
+    ...detailPilierBase,
+    code: 'p3',
+    jours: [
+      { jour: '2026-08-01', aSortie: false },
+      { jour: '2026-08-02', aSortie: true },
+    ],
+    ...over,
+  });
+  const detailPilierP6 = (over: Record<string, unknown> = {}) => ({
+    ...detailPilierBase,
+    code: 'p6',
+    ajustements: [{ date: '2026-08-03', produit: 'Paracétamol', quantite: -12, sens: 'negatif' }],
+    nbMouvements: 4,
+    ...over,
+  });
 
   it('accepte un DetailPilier variante p1 et variante p2', () => {
     const p1 = validerReponse(detailPilierSchema, detailPilierP1());
@@ -410,6 +426,30 @@ describe('validerReponse (couture D)', () => {
     const p2 = validerReponse(detailPilierSchema, detailPilierP2());
     expect(p2.code).toBe('p2');
     if (p2.code === 'p2') expect(p2.requisitions[0]?.aLHeure).toBe(true);
+  });
+
+  it('accepte un DetailPilier variante p3 et variante p6', () => {
+    const p3 = validerReponse(detailPilierSchema, detailPilierP3());
+    expect(p3.code).toBe('p3');
+    if (p3.code === 'p3') expect(p3.jours[1]?.aSortie).toBe(true);
+    const p6 = validerReponse(detailPilierSchema, detailPilierP6());
+    expect(p6.code).toBe('p6');
+    if (p6.code === 'p6') expect(p6.nbMouvements).toBe(4);
+  });
+
+  it('rejette une variante p3 dont un jour n\'a pas de drapeau aSortie', () => {
+    expect(() =>
+      validerReponse(detailPilierSchema, detailPilierP3({ jours: [{ jour: '2026-08-01' }] })),
+    ).toThrow(/non conforme/i);
+  });
+
+  it('rejette une variante p6 dont le sens d\'ajustement est inconnu', () => {
+    expect(() =>
+      validerReponse(
+        detailPilierSchema,
+        detailPilierP6({ ajustements: [{ date: '2026-08-03', produit: 'X', quantite: 1, sens: 'haut' }] }),
+      ),
+    ).toThrow(/non conforme/i);
   });
 
   it('rejette un DetailPilier au code inconnu', () => {

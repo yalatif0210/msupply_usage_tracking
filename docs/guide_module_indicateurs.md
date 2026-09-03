@@ -133,9 +133,13 @@ Chaque réponse porte aussi les `comptesBruts` figés du pilier, `calculeLe`
 Variantes livrées : `p1` (inventaires / réquisitions / réceptions / factures du
 mois + état par programme géré), `p2` (inventaires avec « dans les 3 derniers
 jours », réquisitions avec date limite — règles de la migration 0020 — et « à
-l'heure »). `p4` garde son handler dédié `piliers/p4` (unifié au ticket 06) ;
-`p3` / `p5` / `p6` suivent. Le filtre `programmeId` restreint les lignes de core
-au programme ; absent = tous programmes.
+l'heure »), `p3` (un item par jour calendaire du mois PAQD, `aSortie` = ≥ 1
+`dispensation` / `distribution` non annulée ce jour ; mêmes prédicats que
+`mv_p3_regularite`) et `p6` (les seuls mouvements d'ajustement — date, produit,
+quantité, sens — plus `nbMouvements`, le dénominateur de `mv_p6_ajustements` ;
+ajustement = ligne `issu_ajustement` ou nature `ajustement_*`). `p4` garde son
+handler dédié `piliers/p4` ; `p5` suit. Le filtre `programmeId` restreint les
+lignes de core au programme ; absent = tous programmes.
 
 - `piliersCouverts` = nombre de scores de pilier non nuls (2 aujourd'hui) ;
   `piliersTotal = 6`. L'écran affiche « Score calculé sur N piliers sur 6 »

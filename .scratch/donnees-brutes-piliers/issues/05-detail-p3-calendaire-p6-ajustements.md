@@ -7,7 +7,7 @@ nombre total de mouvements.
 
 **Blocked by:** 04 (route `/piliers/:code` et union `DetailPilier`)
 
-**Status:** ready-for-agent
+**Status:** done (branche donnees-brutes-piliers)
 
 - [ ] Variante P3 de `DetailPilier` : pour chaque jour calendaire du mois, s'il
       y a eu une sortie de stock (dispensation ou distribution).

@@ -563,14 +563,49 @@ export const detailPilierP2Schema = detailPilierBaseSchema.extend({
 });
 export type DetailPilierP2 = z.infer<typeof detailPilierP2Schema>;
 
+/** Un jour calendaire du mois affiché et s'il a porté au moins une sortie de stock (P3). */
+export const jourP3Schema = z.object({
+  jour: dateIsoSchema,
+  /** Vrai si le site a confirmé ce jour-là ≥ 1 sortie (`dispensation` ou `distribution`, non annulée). */
+  aSortie: z.boolean(),
+});
+export type JourP3 = z.infer<typeof jourP3Schema>;
+
+export const detailPilierP3Schema = detailPilierBaseSchema.extend({
+  code: z.literal('p3'),
+  /** Un item par jour calendaire du mois PAQD (28 à 31), dans l'ordre du calendrier. */
+  jours: z.array(jourP3Schema),
+});
+export type DetailPilierP3 = z.infer<typeof detailPilierP3Schema>;
+
+/** Un mouvement d'ajustement de stock du mois (P6). */
+export const ligneAjustementP6Schema = z.object({
+  date: dateIsoSchema,
+  produit: z.string(),
+  quantite: z.number(),
+  sens: z.enum(['positif', 'negatif']),
+});
+export type LigneAjustementP6 = z.infer<typeof ligneAjustementP6Schema>;
+
+export const detailPilierP6Schema = detailPilierBaseSchema.extend({
+  code: z.literal('p6'),
+  /** Seuls les mouvements d'ajustement du mois. */
+  ajustements: z.array(ligneAjustementP6Schema),
+  /** Dénominateur du ratio d'ajustements : nombre total de mouvements du mois (`mv_p6_ajustements`). */
+  nbMouvements: z.number().int().nonnegative(),
+});
+export type DetailPilierP6 = z.infer<typeof detailPilierP6Schema>;
+
 /**
  * Détail par pilier servi par `GET /api/sites/:id/piliers/:code`. Union
- * discriminée sur `code` : les tickets suivants ajoutent les variantes `p3`,
- * `p4` et `p6` au tableau, chacune sur son propre `const`.
+ * discriminée sur `code` : variantes livrées `p1`, `p2`, `p3`, `p6`. `p4` garde
+ * son handler dédié `piliers/p4` ; la variante `p5` suit à un ticket ultérieur.
  */
 export const detailPilierSchema = z.discriminatedUnion('code', [
   detailPilierP1Schema,
   detailPilierP2Schema,
+  detailPilierP3Schema,
+  detailPilierP6Schema,
 ]);
 export type DetailPilier = z.infer<typeof detailPilierSchema>;
 
