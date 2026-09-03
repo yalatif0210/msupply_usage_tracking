@@ -6,7 +6,7 @@ les six cartes de la fiche site portent leurs comptes bruts.
 
 **Blocked by:** 02 (mécanisme de gel + patron d'affichage P1)
 
-**Status:** ready-for-agent
+**Status:** done (branche `donnees-brutes-piliers`)
 
 - [ ] `rafraichir_et_geler` et le backfill couvrent les mesures P2
       (`p2_inventaires`, `p2_requisitions`), P3 (`p3_regularite`), P4

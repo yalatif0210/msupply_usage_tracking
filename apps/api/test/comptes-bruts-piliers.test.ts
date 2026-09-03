@@ -205,4 +205,54 @@ describe('vues de pilier : couples attendu / réalisé', () => {
       expect(await brut('p1_receptions')).toBeUndefined();
     });
   });
+
+  // ── Ticket 03 : gel des comptes bruts P2 à P6 ──────────────────────────
+  describe('gel des comptes bruts P2 à P6', () => {
+    const lot = () =>
+      db.query<{ id: number }>(`SELECT id FROM dqa.import_lot WHERE mois_paqd='2026-08'`).then((r) => r.rows[0]!.id);
+    const geler = async () => db.query(`CALL dqa.rafraichir_et_geler($1)`, [await lot()]);
+    const brut = (mesure: string) =>
+      db
+        .query<{ nb_attendu: number; nb_realise: number | null; nb_a_lheure: number | null }>(
+          `SELECT nb_attendu, nb_realise, nb_a_lheure FROM dqa.hist_pilier_brut
+           WHERE site_id='S1' AND mois_paqd='2026-08' AND programme_id IS NULL AND mesure=$1`,
+          [mesure],
+        )
+        .then((r) => r.rows[0]);
+
+    it('P2 : attendu et à l\'heure figés, réalisé nul (vient de P1)', async () => {
+      await inv('A', 'VIH', '2026-08-29'); // dans les 3 derniers jours
+      await inv('B', 'TB', '2026-08-10'); // hors délai
+      await geler();
+      expect(await brut('p2_inventaires')).toMatchObject({
+        nb_attendu: 2,
+        nb_a_lheure: 1,
+        nb_realise: null,
+      });
+    });
+
+    it('P3 : jours avec sortie / jours du mois', async () => {
+      await tx('D1', 'dispensation', '2026-08-03');
+      await tx('D2', 'dispensation', '2026-08-03'); // même jour
+      await tx('D3', 'dispensation', '2026-08-17');
+      await geler();
+      expect(await brut('p3_regularite')).toMatchObject({ nb_attendu: 31, nb_realise: 2 });
+    });
+
+    it('P6 : ajustements / mouvements', async () => {
+      await db.query(`INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom) VALUES ('x','X','X')`);
+      await tx('M1', 'reception', '2026-08-05');
+      await tx('M2', 'dispensation', '2026-08-06');
+      await tx('AJ', 'ajustement_positif', '2026-08-07');
+      for (const t of ['M1', 'M2', 'AJ']) {
+        await db.query(
+          `INSERT INTO dqa.fact_ligne_transaction (ligne_id, transaction_id, produit_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
+           VALUES ($1,$2,'x',1,1,$3,1)`,
+          [`${t}L`, t, t === 'AJ'],
+        );
+      }
+      await geler();
+      expect(await brut('p6_ajustements')).toMatchObject({ nb_attendu: 3, nb_realise: 1 });
+    });
+  });
 });
