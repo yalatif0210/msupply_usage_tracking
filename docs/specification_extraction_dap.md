@@ -1,7 +1,7 @@
-# Spécification d'extraction mSupply — Tableau de bord DQA
+# Spécification d'extraction mSupply · Tableau de bord DQA
 
 **Destinataire :** DAP / Nouvelle PSP-CI (extraction : Wilfried Akosso)
-**Version :** 2.0 — 2026-08-28
+**Version :** 2.0 (2026-08-28)
 **Objet :** contrat de données pour l'alimentation hebdomadaire du tableau de
 bord DQA (40 sites, six piliers PAQD).
 
@@ -17,7 +17,7 @@ semaine au tableau de bord.
 
 Pour produire son contenu, l'équipe tableau de bord fournit en parallèle un jeu
 de **vues SQL** prêtes à installer (`db/extraction/` dans le dépôt du tableau de
-bord — `00_README.md`, `01_config.sql`, `10_vues_extraction.sql`) : la DAP les
+bord : `00_README.md`, `01_config.sql`, `10_vues_extraction.sql`) : la DAP les
 installe sur sa base mSupply, met à jour une ligne de paramètres chaque semaine,
 et colle le résultat de chaque vue dans l'onglet correspondant, à partir de la
 ligne 6.
@@ -33,7 +33,7 @@ ligne 6.
 - **Période de calcul :** le **mois PAQD** en cours, déclaré dans METADATA. La
   fenêtre de 45 jours est volontairement plus large que le mois.
 - **Cycle PAQD :** 4 mois consécutifs, notés M+1 à M+4. Trois cycles par an sur
-  l'année civile (C1 = janvier–avril, C2 = mai–août, C3 = septembre–décembre).
+  l'année civile (C1 = janvier-avril, C2 = mai-août, C3 = septembre-décembre).
 
 ---
 
@@ -61,7 +61,7 @@ ligne 6.
 
 - **Compteurs METADATA bloquants :** pour chaque jeu, `nb_lignes_<JEU>` doit
   égaler le nombre de lignes réellement transmises (hors en-tête et hors ligne
-  d'exemple). Tout écart entraîne le **rejet du classeur entier** — un import
+  d'exemple). Tout écart entraîne le **rejet du classeur entier** : un import
   partiel produit des indicateurs faux d'apparence valide.
 - **Onglet ou colonne manquant :** un onglet obligatoire absent, ou un nom de
   colonne (ligne 5) modifié, entraîne le rejet.
@@ -69,7 +69,7 @@ ligne 6.
   `transaction_id`, `inventaire_id` cité dans un jeu doit exister dans le jeu de
   référence correspondant.
 - **Renvoi d'un classeur :** un classeur renvoyé, identique ou corrigé, pour le
-  même mois PAQD **remplace** les données de ce mois — pas de doublon, pas de
+  même mois PAQD **remplace** les données de ce mois : pas de doublon, pas de
   double comptage.
 
 ---
@@ -78,7 +78,7 @@ ligne 6.
 
 Légende « Requis » : ● obligatoire · ○ facultatif · ▶ obligatoire sous condition.
 
-### 4.1 METADATA — informations sur l'extraction (clé / valeur)
+### 4.1 METADATA · informations sur l'extraction (clé / valeur)
 
 | Champ | Type | Requis | Contenu |
 |---|---|---|---|
@@ -94,7 +94,7 @@ Légende « Requis » : ● obligatoire · ○ facultatif · ▶ obligatoire sou
 | `nb_lignes_SITES` … `nb_lignes_REQUISITIONS` | entier | ● | un compteur par jeu ci-dessous (9 compteurs) |
 | `observations` | texte | ○ | toute anomalie constatée pendant l'extraction |
 
-### 4.2 SITES — grain : un site
+### 4.2 SITES · grain : un site
 
 Tous les magasins actifs (pour résoudre les rattachements district), avec
 marquage du périmètre DQA.
@@ -106,12 +106,12 @@ marquage du périmètre DQA.
 | `site_nom` | texte | ● | `store.name` |
 | `district` | texte | ● | `store.name_id → name.category1_id → name_category1.description` |
 | `region` | texte | ● | remonter `name_category1 → name_category1_level1 → name_category1_level2.description` |
-| `type_structure` | texte | ● | `name.category3_id → name_category3.description` — voir §5.3 |
+| `type_structure` | texte | ● | `name.category3_id → name_category3.description` (voir §5.3) |
 | `actif` | OUI/NON | ● | `store.disabled = false` |
 | `dans_perimetre_dqa` | OUI/NON | ● | **liste fournie par la mission DQA** (annexe A) |
 | `jour_limite_requisition` | entier | ● | dérivé de `type_structure` : 5, 7 ou 10 (§5.3) |
 
-### 4.3 SITE_PROGRAMME — grain : (site, programme)
+### 4.3 SITE_PROGRAMME · grain : (site, programme)
 
 Quels programmes de santé chaque site gère. **Pilote le calcul du pilier P1**
 (nombre d'inventaires et de réquisitions attendus = nombre de programmes gérés).
@@ -124,7 +124,7 @@ Quels programmes de santé chaque site gère. **Pilote le calcul du pilier P1**
 | `programme_nom` | texte | ● | `list_master.description` |
 | `actif` | OUI/NON | ● | rattachement actif (`list_master_name_join`, `list_master.inactive = false`) |
 
-### 4.4 PRODUITS — grain : un produit
+### 4.4 PRODUITS · grain : un produit
 
 Tous les produits (le marquage « traceur » est géré côté tableau de bord).
 
@@ -136,7 +136,7 @@ Tous les produits (le marquage « traceur » est géré côté tableau de bord).
 | `unite` | texte | ○ | `item.unit_id` → libellé de l'unité |
 | `programmes` | texte | ○ | codes des programmes (`list_master` `isprogram`) contenant l'item via `list_master_line`, séparés par `;` |
 
-### 4.5 TRANSACTIONS — grain : une transaction
+### 4.5 TRANSACTIONS · grain : une transaction
 
 Transactions dont la `finalised_date` **ou** la `confirm_date` tombe dans la
 fenêtre d'extraction. Inclure les annulations (marquées), exclure les brouillons.
@@ -145,7 +145,7 @@ fenêtre d'extraction. Inclure les annulations (marquées), exclure les brouillo
 |---|---|---|---|
 | `transaction_id` | texte | ● | `transact.id` |
 | `site_id` | texte | ● | `transact.store_id` |
-| `nature` | texte | ● | **dérivée** — voir §5.1 |
+| `nature` | texte | ● | **dérivée** (voir §5.1) |
 | `programme_id` | texte | ▶ | `transact.programid` (obligatoire si présent dans mSupply) |
 | `type_transaction` | texte | ● | `transact.type` (`ci`, `si`, `sc`, `cc`, `rc`…) |
 | `mode` | texte | ● | `transact.mode` (`store`, `dispensary`…) |
@@ -153,12 +153,12 @@ fenêtre d'extraction. Inclure les annulations (marquées), exclure les brouillo
 | `annulation` | OUI/NON | ● | `transact.is_cancellation` |
 | `date_saisie` | date | ● | `transact.entry_date` |
 | `date_confirmation` | date | ○ | `transact.confirm_date` |
-| `date_livraison` | date | ▶ | `transact.ship_date` — obligatoire si `nature = reception` |
+| `date_livraison` | date | ▶ | `transact.ship_date` (obligatoire si `nature = reception`) |
 | `requisition_id` | texte | ○ | `transact.requisition_id` |
 | `goods_received_id` | texte | ○ | `transact.goods_received_id` |
-| `commentaire` | texte | ▶ | `transact.comment` — obligatoire si `nature` ∈ {`ajustement_positif`, `ajustement_negatif`} |
+| `commentaire` | texte | ▶ | `transact.comment` (obligatoire si `nature` ∈ {`ajustement_positif`, `ajustement_negatif`}) |
 
-### 4.6 LIGNES_TRANSACTIONS — grain : (transaction, produit, lot)
+### 4.6 LIGNES_TRANSACTIONS · grain : (transaction, produit, lot)
 
 **Restreint aux produits de la liste traceurs (annexe A).**
 
@@ -169,13 +169,13 @@ fenêtre d'extraction. Inclure les annulations (marquées), exclure les brouillo
 | `produit_id` | texte | ● | `trans_line.item_id` |
 | `programme_id` | texte | ○ | `trans_line.program_id` |
 | `lot` | texte | ○ | `trans_line.batch` |
-| `quantite` | nombre | ● | `trans_line.quantity` — quantité réelle en conditionnement |
-| `taille_conditionnement` | nombre | ● | `trans_line.pack_size` — unités de dispensation par conditionnement |
+| `quantite` | nombre | ● | `trans_line.quantity` (quantité réelle en conditionnement) |
+| `taille_conditionnement` | nombre | ● | `trans_line.pack_size` (unités de dispensation par conditionnement) |
 | `type_ligne` | texte | ● | `trans_line.type` (`stock_in`, `stock_out`, `service`…) |
 | `issu_ajustement` | OUI/NON | ● | `trans_line.is_from_inventory_adjustment` |
 | `date_peremption` | date | ○ | `trans_line.expiry_date` |
 
-### 4.7 STOCK_ACTUEL — grain : (site, produit, lot)
+### 4.7 STOCK_ACTUEL · grain : (site, produit, lot)
 
 Photographie du stock disponible à la date d'extraction. **Restreint aux
 traceurs (annexe A).**
@@ -189,7 +189,7 @@ traceurs (annexe A).**
 | `date_peremption` | date | ○ | `item_line.expiry_date` |
 | `date_photo` | date | ● | date d'extraction |
 
-### 4.8 INVENTAIRES — grain : un inventaire
+### 4.8 INVENTAIRES · grain : un inventaire
 
 Inventaires (`stock_take`) dont la `stock_take_date` tombe dans la fenêtre.
 
@@ -203,7 +203,7 @@ Inventaires (`stock_take`) dont la `stock_take_date` tombe dans la fenêtre.
 | `invad_additions_id` | texte | ○ | `stock_take.invad_additions_id` |
 | `invad_reductions_id` | texte | ○ | `stock_take.invad_reductions_id` |
 
-### 4.9 INVENTAIRE_LIGNES — grain : (inventaire, produit, lot)
+### 4.9 INVENTAIRE_LIGNES · grain : (inventaire, produit, lot)
 
 **Restreint aux traceurs (annexe A).** Une ligne par (inventaire, produit, lot),
 **sans doublon**.
@@ -216,7 +216,7 @@ Inventaires (`stock_take`) dont la `stock_take_date` tombe dans la fenêtre.
 | `quantite_theorique` | nombre | ● | `stock_take_lines.snapshot_qty × stock_take_lines.snapshot_packsize` |
 | `quantite_comptee` | nombre | ● | `stock_take_lines.stock_take_qty` |
 
-### 4.10 REQUISITIONS — grain : une réquisition
+### 4.10 REQUISITIONS · grain : une réquisition
 
 Réquisitions dont la `date_entered` **ou** la période couverte touche la fenêtre.
 
@@ -230,7 +230,7 @@ Réquisitions dont la `date_entered` **ou** la période couverte touche la fenê
 | `mois_couvert_fin` | date | ● | `period.enddate` ; à défaut, dernier jour du même mois |
 | `date_soumission` | date | ● | `requisition.date_entered` |
 | `date_inventaire_ref` | date | ○ | `requisition.date_stock_take` |
-| `date_reception` | date | ▶ | `requisition.date_order_received` — obligatoire si `statut` indique une réception |
+| `date_reception` | date | ▶ | `requisition.date_order_received` (obligatoire si `statut` indique une réception) |
 | `statut` | texte | ● | `requisition.status` |
 | `statut_autorisation` | texte | ○ | `requisition.authorisationstatus` |
 | `type_requisition` | texte | ● | `Urgente` si `requisition.is_emergency = true`, sinon `Ordinaire` |
@@ -239,13 +239,13 @@ Réquisitions dont la `date_entered` **ou** la période couverte touche la fenê
 
 ## 5. Vocabulaires contrôlés
 
-### 5.1 `nature` d'une transaction — règle de dérivation
+### 5.1 `nature` d'une transaction · règle de dérivation
 
 À évaluer **dans cet ordre**, la première règle qui s'applique gagne :
 
 | Ordre | `nature` | Condition |
 |---|---|---|
-| 1 | `ajustement_positif` / `ajustement_negatif` | la transaction est référencée par `stock_take.invad_additions_id` (positif) ou `invad_reductions_id` (négatif) ; **ou** toutes ses `trans_line` ont `is_from_inventory_adjustment = true`. Signe = celui de `Σ(stock_take_qty − snapshot_qty)`. |
+| 1 | `ajustement_positif` / `ajustement_negatif` | la transaction est référencée par `stock_take.invad_additions_id` (positif) ou `invad_reductions_id` (négatif) ; **ou** toutes ses `trans_line` ont `is_from_inventory_adjustment = true`. Signe = celui de `Σ(stock_take_qty - snapshot_qty)`. |
 | 2 | `dispensation` | `type = 'ci'` **et** `mode = 'dispensary'` |
 | 3 | `distribution` | `type = 'ci'` **et** `mode = 'store'` |
 | 4 | `facture_fournisseur` | `type = 'si'` |
@@ -254,7 +254,7 @@ Réquisitions dont la `date_entered` **ou** la période couverte touche la fenê
 | 7 | `retour_client` | `type = 'cc'` |
 | 8 | `autre` | tout le reste |
 
-### 5.2 `statut` — valeurs mSupply attendues
+### 5.2 `statut` · valeurs mSupply attendues
 
 `fn` (finalisé) · `cn` (confirmé) · `sg` (suggéré) · `nw` (nouveau). Le tableau
 de bord ne calcule que les `fn`.
@@ -272,18 +272,18 @@ correspondance ci-dessus sera ajustée si les libellés diffèrent.
 
 ---
 
-## 6. Annexe A — Éléments fournis par la mission DQA
+## 6. Annexe A · Éléments fournis par la mission DQA
 
-- **Liste des sites du périmètre DQA** (40 `site_id` / `site_code`) — pour la
+- **Liste des sites du périmètre DQA** (40 `site_id` / `site_code`), pour la
   colonne `dans_perimetre_dqa`.
-- **Liste des produits traceurs** (`produit_code`) — filtre des jeux
+- **Liste des produits traceurs** (`produit_code`), filtre des jeux
   LIGNES_TRANSACTIONS, STOCK_ACTUEL, INVENTAIRE_LIGNES. Révisée à chaque cycle.
 
 Ces deux listes sont transmises séparément et tenues à jour par la mission.
 
 ---
 
-## 7. Annexe B — Points à confirmer par la DAP
+## 7. Annexe B · Points à confirmer par la DAP
 
 1. **Périodes mSupply mensuelles :** existe-t-il un calendrier de périodes
    (`periodschedule` / `period`) où chaque période = un mois civil ? Sinon,
