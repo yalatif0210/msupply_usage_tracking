@@ -37,8 +37,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/journal-imports').then((m) => m.JournalImportsPage),
   },
   {
+    // Le référentiel des traceurs est une donnée (ADR 0005) : édition réservée à
+    // la coordination, comme la grille. L'admin ne touche pas aux données.
     path: 'admin/traceurs',
-    canActivate: [gardeAuthentifie, gardeRole(['coordination', 'admin'])],
+    canActivate: [gardeAuthentifie, gardeRole(['coordination'])],
     loadComponent: () => import('./pages/admin-traceurs').then((m) => m.AdminTraceursPage),
   },
   {

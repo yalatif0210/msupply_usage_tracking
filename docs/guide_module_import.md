@@ -35,6 +35,15 @@ POST /api/imports (multipart, rôle coordination)
 
 Réponse : `ResultatImport` (union discriminée `valide` / `rejete`).
 
+## Écran
+
+`pages/journal-imports.ts` (route `/imports`, visible tout rôle) : historique
+des lots — reçu le, fichier, mois PAQD, statut, compteurs, anomalies dépliables.
+Pour le rôle **coordination** uniquement, un champ de dépôt en tête de page
+(`<input type="file" accept=".xlsx">`) envoie le classeur à `POST /api/imports`
+et affiche le `ResultatImport` (validé + n avertissements, ou rejeté + motif).
+La liste se rafraîchit sans remontage.
+
 ## Données manipulées
 
 | Couche | Tables | Écrit par |

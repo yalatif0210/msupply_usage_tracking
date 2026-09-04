@@ -1,12 +1,15 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { toast } from '@spartan-ng/brain/sonner';
 import { HlmBadge, type BadgeVariants } from '@spartan-ng/helm/badge';
 import { HlmButton } from '@spartan-ng/helm/button';
+import { HlmInput } from '@spartan-ng/helm/input';
 import { HlmTableImports } from '@spartan-ng/helm/table';
-import type { AnomalieImport, Gravite, LotImport, StatutImport } from '@dqa/contracts';
+import type { AnomalieImport, Gravite, LotImport, ResultatImport, StatutImport } from '@dqa/contracts';
 import { VALEUR_ABSENTE } from '../core/affichage';
+import { AuthService } from '../core/auth.service';
 import { ImportService } from '../core/import.service';
+import { messageErreurHttp } from '../core/message-erreur';
 import { Coquille } from '../ui/coquille';
 
 type Variante = BadgeVariants['variant'];
@@ -20,7 +23,7 @@ type Variante = BadgeVariants['variant'];
 @Component({
   selector: 'dqa-journal-imports',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, Coquille, HlmTableImports, HlmBadge, HlmButton],
+  imports: [DatePipe, Coquille, HlmTableImports, HlmBadge, HlmButton, HlmInput],
   template: `
     <dqa-coquille />
     <main class="mx-auto max-w-6xl px-6 py-6">
@@ -28,6 +31,43 @@ type Variante = BadgeVariants['variant'];
       <p class="mt-1 max-w-2xl text-sm text-muted-foreground">
         Historique des fichiers hebdomadaires. Un lot rejeté n'a modifié aucune donnée.
       </p>
+
+      @if (peutImporter()) {
+        <div class="mt-5 rounded-lg border border-border p-4">
+          <div class="flex flex-wrap items-end gap-3">
+            <div class="flex flex-col gap-1.5">
+              <span class="text-sm font-medium">Déposer un classeur d'extraction</span>
+              <input
+                hlmInput
+                type="file"
+                accept=".xlsx"
+                class="w-80"
+                [disabled]="enCours()"
+                (change)="deposer($event)"
+              />
+            </div>
+            @if (enCours()) {
+              <span class="pb-2 text-sm text-muted-foreground">Import en cours…</span>
+            }
+          </div>
+
+          @if (dernierResultat(); as r) {
+            <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+              <span hlmBadge [variant]="r.statut === 'valide' ? 'default' : 'destructive'">
+                {{ r.statut === 'valide' ? 'Validé' : 'Rejeté' }}
+              </span>
+              @if (r.statut === 'valide') {
+                <span>
+                  Lot #{{ r.lot.id }} · mois {{ r.lot.moisPaqd ?? absent }} ·
+                  {{ r.anomalies.length }} avertissement(s)
+                </span>
+              } @else {
+                <span>{{ r.motif }} · {{ r.anomalies.length }} anomalie(s)</span>
+              }
+            </div>
+          }
+        </div>
+      }
 
       @if (chargement()) {
         <p class="mt-6 text-sm text-muted-foreground">Chargement…</p>
@@ -124,11 +164,17 @@ type Variante = BadgeVariants['variant'];
 export class JournalImportsPage {
   protected readonly absent = VALEUR_ABSENTE;
   private readonly service = inject(ImportService);
+  private readonly auth = inject(AuthService);
 
   protected readonly lots = signal<LotImport[]>([]);
   protected readonly chargement = signal(true);
   protected readonly ouvert = signal<number | null>(null);
   protected readonly anomalies = signal<AnomalieImport[]>([]);
+  protected readonly enCours = signal(false);
+  protected readonly dernierResultat = signal<ResultatImport | null>(null);
+
+  /** Le dépôt d'un classeur est réservé au rôle coordination (cf. API). */
+  protected readonly peutImporter = computed(() => this.auth.utilisateur()?.role === 'coordination');
 
   constructor() {
     void this.charger();
@@ -137,6 +183,28 @@ export class JournalImportsPage {
   private async charger(): Promise<void> {
     this.lots.set(await this.service.listerLots());
     this.chargement.set(false);
+  }
+
+  protected async deposer(evt: Event): Promise<void> {
+    const input = evt.target as HTMLInputElement;
+    const fichier = input.files?.[0];
+    if (!fichier) return;
+    this.enCours.set(true);
+    try {
+      const resultat = await this.service.deposer(fichier);
+      this.dernierResultat.set(resultat);
+      if (resultat.statut === 'valide') {
+        toast.success('Classeur importé et validé.');
+      } else {
+        toast.error('Classeur rejeté : ' + resultat.motif);
+      }
+      await this.charger();
+    } catch (err) {
+      toast.error(messageErreurHttp(err));
+    } finally {
+      this.enCours.set(false);
+      input.value = '';
+    }
   }
 
   protected async basculer(lotId: number): Promise<void> {
