@@ -9,10 +9,10 @@ libre, valeurs `im+`/`im-` inexistantes, `rc`/`cc` non documentées).
 
 **Décision.** L'extraction devient un **contrat de données typé**. Le format
 transmis chaque semaine au tableau de bord reste **un classeur Excel unique**
-(un onglet par jeu), conformément à `CLAUDE.md` §1. Pour en produire le contenu
-sans saisie manuelle, l'équipe fournit un jeu de **vues SQL versionnées** que la
-DAP installe, exécute, et dont elle colle le résultat dans chaque onglet. Le
-contrat :
+(un onglet par jeu), conformément à `CLAUDE.md` §1. La production du contenu
+(requêtes SQL exécutées sur mSupply, sans saisie manuelle) reste entièrement à
+la charge de la DAP ; le contrat fixe le résultat attendu par colonne, pas la
+façon de l'obtenir. Le contrat :
 
 - qualifie chaque transaction par une colonne `nature` à vocabulaire contrôlé,
   dérivée en SQL (`type` + `mode` + liens d'ajustement d'inventaire) ;
@@ -26,11 +26,12 @@ contrat :
 
 Détail dans `docs/canevas_extraction_v2.md`.
 
-**Pourquoi.** Générer les onglets par des vues versionnées supprime la classe
-d'erreurs « saisie manuelle » et fait porter la désambiguïsation métier
-(dispensation vs réception vs ajustement) par l'extraction, au plus près des
-données, plutôt que par des heuristiques fragiles côté tableau de bord. Garder
-le classeur Excel comme format de transmission préserve l'invariant de
+**Pourquoi.** Un contrat typé, généré par requête plutôt que saisi à la main,
+supprime la classe d'erreurs « saisie manuelle » et fait porter la
+désambiguïsation métier (dispensation vs réception vs ajustement) au plus près
+des données, plutôt que par des heuristiques fragiles côté tableau de bord.
+Garder le classeur Excel comme format de transmission préserve l'invariant de
 `CLAUDE.md` §1 (dépôt manuel d'un fichier, aucune connexion à mSupply) et reste
-exploitable hors ligne. Le coût est une coordination avec la DAP pour faire
-évoluer les requêtes ; il est assumé.
+exploitable hors ligne. La DAP reste seule responsable des requêtes qui
+produisent chaque onglet ; le coût de faire évoluer ces requêtes quand le
+contrat change lui incombe.

@@ -37,11 +37,10 @@ transmet le résultat.
 
 **Décision :** le format transmis chaque semaine reste **un classeur Excel
 unique** (un onglet par jeu), conformément à `CLAUDE.md` §1 — dépôt manuel d'un
-fichier, aucune connexion à mSupply, exploitable hors ligne. Pour produire les
-onglets sans saisie, l'équipe livre à la DAP un **jeu de vues SQL versionné**
-(un `.sql`, une vue par jeu, colonnes et types gelés) ; la DAP exécute et colle
-le résultat de chaque vue dans l'onglet correspondant. Le contrat de données
-ci-dessous vaut pour la vue comme pour l'onglet.
+fichier, aucune connexion à mSupply, exploitable hors ligne. La production du
+contenu (requêtes SQL exécutées sur mSupply) reste entièrement à la charge de
+la DAP ; le contrat de données ci-dessous fixe le résultat attendu par colonne,
+pas la façon de l'obtenir.
 
 ---
 

@@ -15,13 +15,6 @@ base mSupply.
 (ligne 6, à supprimer). C'est ce fichier, et lui seul, qui est transmis chaque
 semaine au tableau de bord.
 
-Pour produire son contenu, l'équipe tableau de bord fournit en parallèle un jeu
-de **vues SQL** prêtes à installer (`db/extraction/` dans le dépôt du tableau de
-bord : `00_README.md`, `01_config.sql`, `10_vues_extraction.sql`) : la DAP les
-installe sur sa base mSupply, met à jour une ligne de paramètres chaque semaine,
-et colle le résultat de chaque vue dans l'onglet correspondant, à partir de la
-ligne 6.
-
 ---
 
 ## 1. Cadence et fenêtre
