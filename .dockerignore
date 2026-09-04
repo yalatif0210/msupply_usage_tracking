@@ -15,4 +15,3 @@ docs/reference
 .env
 .env.*
 !.env.example
-Re_ SQL.zip

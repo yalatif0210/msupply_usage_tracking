@@ -66,6 +66,9 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      # attend le seed pour que les écrans ne soient pas vides au premier accès
+      seed:
+        condition: service_completed_successfully
 
 volumes:
   demo_db:

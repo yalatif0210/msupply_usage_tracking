@@ -214,6 +214,12 @@ describe('vue mv_synthese_nationale', () => {
 
   it('rafraichir_et_geler rafraîchit aussi la synthèse par sous-composante', async () => {
     // (retour de démo : la ligne REFRESH de 0026 avait été perdue par 0029.)
+    // On passe par le chemin normal de la procédure (lot avec un mois PAQD),
+    // pas la branche `v_mois IS NULL`.
+    await db.query(
+      `INSERT INTO dqa.import_lot (nom_fichier, mois_paqd, mois_debut, mois_fin, statut)
+       VALUES ('t.xlsx', '2026-08', '2026-08-01', '2026-08-31', 'valide')`,
+    );
     await site('S1', 'NORD', 'D1');
     await histSc('S1', null, '2026-08', { sc_regularite_saisie: 80 });
     await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_sous_composante`);
@@ -221,7 +227,7 @@ describe('vue mv_synthese_nationale', () => {
       `UPDATE dqa.hist_score_site SET sc_regularite_saisie = 40
        WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
     );
-    await db.query(`CALL dqa.rafraichir_et_geler(999)`);
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     const { rows } = await db.query<{ taux_atteinte_moyen: string | null }>(
       `SELECT taux_atteinte_moyen FROM dqa.mv_synthese_sous_composante
        WHERE mois_paqd = '2026-08' AND sous_composante = 'regularite_saisie'

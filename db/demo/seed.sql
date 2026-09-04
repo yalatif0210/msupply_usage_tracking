@@ -68,8 +68,8 @@ INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom, unite, lot_i
 
 -- ── Helpers d'insertion (inventaires, lignes, transactions) ───────────────
 -- Inventaire finalisé
-CREATE TEMP TABLE _inv (inv text, site text, prog text, jour date);
-INSERT INTO _inv VALUES
+CREATE TEMP TABLE _inventaire (inv text, site text, prog text, jour date);
+INSERT INTO _inventaire VALUES
     -- CHU : deux inventaires bornants (début + fin), fin dans les 3 derniers jours → P2 OK
     ('INV-CHU-1','SITE-CHU','PRG-VIH','2026-05-02'), ('INV-CHU-2','SITE-CHU','PRG-VIH','2026-05-30'),
     ('INV-CHU-3','SITE-CHU','PRG-PALU','2026-05-30'),
@@ -89,11 +89,11 @@ INSERT INTO _inv VALUES
     ('INV-RIM-1','SITE-REIMP','PRG-PALU','2026-05-30');
 
 INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
-SELECT inv, site, prog, jour, 'fn', 1 FROM _inv;
+SELECT inv, site, prog, jour, 'fn', 1 FROM _inventaire;
 
 -- Lignes d'inventaire : (inv, produit, théorique, compté). NULL = quantité absente.
-CREATE TEMP TABLE _invl (inv text, item text, theo numeric, cnt numeric);
-INSERT INTO _invl VALUES
+CREATE TEMP TABLE _inv_ligne (inv text, item text, theo numeric, cnt numeric);
+INSERT INTO _inv_ligne VALUES
     ('INV-CHU-1','ITM-ARV', 500, 500), ('INV-CHU-2','ITM-ARV', 420, 420),   -- conso reconstituée OK
     ('INV-CHU-1','ITM-HIV', 200, 198), ('INV-CHU-2','ITM-HIV', 150, 150),
     ('INV-CHU-3','ITM-ALU', 300, 285),                                       -- SDU 5 % → hors tolérance 2 %
@@ -109,22 +109,15 @@ INSERT INTO _invl VALUES
     ('INV-RIM-1','ITM-ALU', 130, 130),  ('INV-RIM-1','ITM-TDR', 55, 55);
 
 INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
-SELECT inv, item, 'L1', theo, cnt, 1 FROM _invl;
+SELECT inv, item, 'L1', theo, cnt, 1 FROM _inv_ligne;
 
 -- Transactions : dispensations (P3), réceptions (P1), factures (P1), ajustements (P6).
-CREATE TEMP TABLE _tx (id text, site text, prog text, nature text, jour date, item text, qte numeric, adj boolean);
-INSERT INTO _tx VALUES
-    -- CHU : dispensations sur 18 jours distincts → P3 élevé
-    ('TX-CHU-D1','SITE-CHU','PRG-VIH','dispensation','2026-05-04','ITM-ARV', 12, false),
-    ('TX-CHU-D2','SITE-CHU','PRG-VIH','dispensation','2026-05-06','ITM-ARV', 10, false),
-    ('TX-CHU-D3','SITE-CHU','PRG-VIH','dispensation','2026-05-09','ITM-ARV',  8, false),
+CREATE TEMP TABLE _transaction (id text, site text, prog text, nature text, jour date, item text, qte numeric, adj boolean);
+INSERT INTO _transaction VALUES
+    -- CHU : une réception, une facture, un ajustement. Les dispensations sont
+    -- ajoutées plus bas par generate_series (P3 conforme, ~24 jours / 31).
     ('TX-CHU-D4','SITE-CHU','PRG-VIH','dispensation','2026-05-11','ITM-HIV', 20, false),
-    ('TX-CHU-D5','SITE-CHU','PRG-VIH','dispensation','2026-05-13','ITM-ARV', 14, false),
-    ('TX-CHU-D6','SITE-CHU','PRG-VIH','dispensation','2026-05-15','ITM-ARV',  9, false),
-    ('TX-CHU-D7','SITE-CHU','PRG-VIH','dispensation','2026-05-18','ITM-ARV', 11, false),
     ('TX-CHU-D8','SITE-CHU','PRG-VIH','dispensation','2026-05-20','ITM-HIV', 12, false),
-    ('TX-CHU-D9','SITE-CHU','PRG-VIH','dispensation','2026-05-22','ITM-ARV', 13, false),
-    ('TX-CHU-D10','SITE-CHU','PRG-VIH','dispensation','2026-05-25','ITM-ARV', 7, false),
     ('TX-CHU-R1','SITE-CHU','PRG-VIH','reception','2026-05-10','ITM-ARV', 100, false),
     ('TX-CHU-F1','SITE-CHU','PRG-VIH','facture_fournisseur','2026-05-08', NULL, NULL, false),
     ('TX-CHU-A1','SITE-CHU','PRG-PALU','ajustement_negatif','2026-05-16','ITM-ALU', -15, true),
@@ -152,12 +145,27 @@ INSERT INTO _tx VALUES
 
 INSERT INTO dqa.fact_transaction
     (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation, lot_id_source)
-SELECT id, site, nature, prog, 'fn', jour, jour, 1 FROM _tx;
+SELECT id, site, nature, prog, 'fn', jour, jour, 1 FROM _transaction;
 
 INSERT INTO dqa.fact_ligne_transaction
     (ligne_id, transaction_id, produit_id, programme_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
 SELECT id || '-L', id, item, prog, qte, 1, adj, 1
-FROM _tx WHERE item IS NOT NULL;
+FROM _transaction WHERE item IS NOT NULL;
+
+-- CHU : dispensation d'ARV du lundi au samedi (24 jours de mai) → P3 conforme,
+-- le bandeau calendaire montre les week-ends creux.
+INSERT INTO dqa.fact_transaction
+    (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation, lot_id_source)
+SELECT 'TX-CHU-DA-' || to_char(j, 'DD'), 'SITE-CHU', 'dispensation', 'PRG-VIH', 'fn', j, j, 1
+FROM generate_series(DATE '2026-05-01', DATE '2026-05-31', INTERVAL '1 day') AS j
+WHERE extract(isodow FROM j) < 7;   -- exclut le dimanche
+
+INSERT INTO dqa.fact_ligne_transaction
+    (ligne_id, transaction_id, produit_id, programme_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
+SELECT 'TX-CHU-DA-' || to_char(j, 'DD') || '-L', 'TX-CHU-DA-' || to_char(j, 'DD'),
+       'ITM-ARV', 'PRG-VIH', 6 + (extract(day FROM j)::int % 5), 1, false, 1
+FROM generate_series(DATE '2026-05-01', DATE '2026-05-31', INTERVAL '1 day') AS j
+WHERE extract(isodow FROM j) < 7;
 
 -- ── Réquisitions (rapports mensuels) : à l'heure, en retard, manquantes ───
 --  Limite : mois M+1 + (jour_limite − 1). ESPC/CSU/... → 5, HG/CHR → 7, CHU/District → 10.

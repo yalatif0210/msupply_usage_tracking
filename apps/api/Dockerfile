@@ -21,6 +21,8 @@ RUN npm run build -w @dqa/contracts \
 
 # ── Runtime ───────────────────────────────────────────────────────────────
 FROM node:24-slim AS runtime
+# NODE_ENV volontairement vide : la démo tourne en HTTP, le cookie de session
+# ne doit pas être `secure` (cf. apps/api/src/auth/cookies.ts). La prod le fixera.
 ENV NODE_ENV=
 WORKDIR /app
 
@@ -36,6 +38,4 @@ RUN chmod +x /usr/local/bin/entrypoint
 
 WORKDIR /app/apps/api
 EXPOSE 3000
-# NODE_ENV volontairement vide : la démo tourne en http, le cookie de session
-# ne doit pas être `secure`. La prod le fixera.
 ENTRYPOINT ["sh", "/usr/local/bin/entrypoint"]

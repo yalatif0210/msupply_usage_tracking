@@ -44,8 +44,9 @@ docker compose -f docker-compose.demo.yml down -v
 - **`seed`** — `postgres:16-alpine` qui joue `db/demo/seed.sql` une fois l'API
   saine (donc les migrations passées). Purge le core, insère 8 sites de strates
   variées + un mois PAQD (2026-05) + inventaires / mouvements sur 4 traceurs,
-  puis `CALL dqa.rafraichir_et_geler(1)`. Rejouable :
-  `docker compose -f docker-compose.demo.yml run --rm seed`.
+  puis `CALL dqa.rafraichir_et_geler(1)`. `web` attend sa fin
+  (`service_completed_successfully`) : au premier accès les écrans sont déjà
+  peuplés. Rejouable : `docker compose -f docker-compose.demo.yml run --rm seed`.
 - **`web`** — build Angular (`@angular/build:application` → `dist/browser/`)
   servi par `nginx:1.27-alpine` ; `apps/web/nginx.conf` : `try_files` pour le
   routing SPA, `proxy_pass` de `/api` vers `api:3000`, `client_max_body_size 32m`
