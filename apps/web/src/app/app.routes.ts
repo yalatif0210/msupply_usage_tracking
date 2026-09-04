@@ -32,8 +32,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/fiche-produit').then((m) => m.FicheProduitPage),
   },
   {
+    // Le dépôt et le suivi des extractions mensuelles relèvent de la
+    // coordination (elle seule pilote le cycle PAQD ; l'API refuse le POST
+    // hors ce rôle).
     path: 'imports',
-    canActivate: [gardeAuthentifie],
+    canActivate: [gardeAuthentifie, gardeRole(['coordination'])],
     loadComponent: () => import('./pages/journal-imports').then((m) => m.JournalImportsPage),
   },
   {

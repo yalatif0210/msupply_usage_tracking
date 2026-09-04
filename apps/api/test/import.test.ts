@@ -42,6 +42,13 @@ describe('import du classeur jusqu\'au staging', () => {
     expect(res.status).toBe(403);
   });
 
+  it('refuse le journal à un lecteur (403)', async () => {
+    const a = request.agent(app.getHttpServer());
+    await a.post('/api/auth/connexion').send({ identifiant: 'lecteur', motDePasse: 'lecteur-2026' });
+    const res = await a.get('/api/imports');
+    expect(res.status).toBe(403);
+  });
+
   it('accepte un classeur propre : staging alimenté, lot « validé »', async () => {
     const a = await agentCoordination();
     const res = await a

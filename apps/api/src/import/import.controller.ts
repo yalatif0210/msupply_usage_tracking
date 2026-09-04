@@ -22,6 +22,10 @@ interface FichierTelecharge {
   size: number;
 }
 
+// Tout le module d'import relève de la coordination : elle seule pilote le
+// cycle PAQD (dépôt du classeur et suivi des lots). Les autres rôles n'ont pas
+// accès au journal.
+@Roles(['coordination'])
 @Controller('imports')
 export class ImportController {
   constructor(
@@ -29,7 +33,6 @@ export class ImportController {
     private readonly repo: ImportRepository,
   ) {}
 
-  @Roles(['coordination'])
   @Post()
   @HttpCode(200)
   @UseInterceptors(FileInterceptor('fichier', { limits: { fileSize: 50 * 1024 * 1024 } }))

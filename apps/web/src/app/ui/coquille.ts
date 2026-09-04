@@ -151,10 +151,10 @@ export class Coquille {
       { chemin: '/', libelle: 'Tableau de bord', icone: 'lucideLayoutDashboard', exact: true },
       { chemin: '/sites', libelle: 'Sites', icone: 'lucideBuilding2', exact: false },
       { chemin: '/synthese', libelle: 'Synthèse', icone: 'lucideChartColumn', exact: false },
-      { chemin: '/imports', libelle: 'Imports', icone: 'lucideUpload', exact: false },
     ];
 
     if (this.aAcces(u.role, ['coordination'])) {
+      sections.push({ chemin: '/imports', libelle: 'Imports', icone: 'lucideUpload', exact: false });
       sections.push({ chemin: '/admin/traceurs', libelle: 'Traceurs', icone: 'lucideTarget', exact: false });
       sections.push({ chemin: '/admin/grille', libelle: 'Grille', icone: 'lucideGrid3x3', exact: false });
     }
