@@ -1,0 +1,18 @@
+# Contexte de build Docker (racine du monorepo). Tout ce qui est reconstruit
+# dans l'image ou inutile au build en est exclu.
+**/node_modules
+**/dist
+**/.angular
+**/coverage
+**/*.tsbuildinfo
+.git
+.claude
+.scratch
+docs/reference
+*.log
+*.zip
+*.xlsx
+.env
+.env.*
+!.env.example
+Re_ SQL.zip

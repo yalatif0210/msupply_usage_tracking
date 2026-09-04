@@ -1,0 +1,71 @@
+# Pile complète pour tester la démo en local : base + API + front Nginx.
+#
+#   docker compose -f docker-compose.demo.yml up --build
+#   → http://localhost:8080   (coordination / coordination-2026)
+#
+# Le `docker-compose.yml` reste l'environnement de dev (base seule). Cette pile
+# est isolée : sa propre base éphémère, aucun port de base publié (l'API parle
+# à `db` sur le réseau du compose). `docker compose -f docker-compose.demo.yml down -v`
+# efface tout.
+name: dqa-demo
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dqa
+      POSTGRES_PASSWORD: dqa
+      POSTGRES_DB: dqa
+    volumes:
+      - demo_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U dqa -d dqa']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    image: dqa-demo-api:latest
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgres://dqa:dqa@db:5432/dqa
+      PORT: '3000'
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'node -e "fetch(\"http://localhost:3000/api/sante\").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # Jeu de démonstration : quelques sites de strates variées, un mois PAQD,
+  # traceurs inventoriés, passé par le vrai gel (`rafraichir_et_geler`).
+  # Rejouable : `docker compose -f docker-compose.demo.yml run --rm seed`.
+  seed:
+    image: postgres:16-alpine
+    environment:
+      PGPASSWORD: dqa
+    volumes:
+      - ./db/demo:/seed:ro
+    command: ['psql', '-h', 'db', '-U', 'dqa', '-d', 'dqa', '-v', 'ON_ERROR_STOP=1', '-f', '/seed/seed.sql']
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: 'no'
+
+  web:
+    image: dqa-demo-web:latest
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - '8080:8080'
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  demo_db:
