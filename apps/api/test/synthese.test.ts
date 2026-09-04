@@ -212,6 +212,25 @@ describe('vue mv_synthese_nationale', () => {
     expect((await syn(null, null, null))?.score_composite_moyen).toBe('86.0');
   });
 
+  it('rafraichir_et_geler rafraîchit aussi la synthèse par sous-composante', async () => {
+    // (retour de démo : la ligne REFRESH de 0026 avait été perdue par 0029.)
+    await site('S1', 'NORD', 'D1');
+    await histSc('S1', null, '2026-08', { sc_regularite_saisie: 80 });
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_sous_composante`);
+    await db.query(
+      `UPDATE dqa.hist_score_site SET sc_regularite_saisie = 40
+       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+    );
+    await db.query(`CALL dqa.rafraichir_et_geler(999)`);
+    const { rows } = await db.query<{ taux_atteinte_moyen: string | null }>(
+      `SELECT taux_atteinte_moyen FROM dqa.mv_synthese_sous_composante
+       WHERE mois_paqd = '2026-08' AND sous_composante = 'regularite_saisie'
+         AND region IS NULL AND district IS NULL AND programme_id IS NULL`,
+    );
+    // seuil régularité 65 ; taux d'atteinte = 40/65 ≈ 61.5 (et non l'ancien 100)
+    expect(Number(rows[0]?.taux_atteinte_moyen)).toBeCloseTo(61.5, 1);
+  });
+
   // ── mv_synthese_sous_composante ─────────────────────────────────────────
   type ColSc =
     | 'sc_regularite_saisie' | 'sc_ratio_ajustements' | 'sc_ecart_sdu' | 'sc_ecart_consommation';

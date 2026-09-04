@@ -171,12 +171,17 @@ function reculerMois(mois: string, n: number): string {
               <div hlmCard>
                 <div hlmCardHeader>
                   <h2 hlmCardTitle>{{ pil.pilier }} · {{ pil.libelle }}</h2>
+                  <p class="text-sm text-muted-foreground tabular-nums">
+                    Score du pilier {{ pil.score === null ? absent : (pil.score | number: '1.0-0') }} / 100
+                    <span class="text-xs">· poids {{ pil.poids | number: '1.0-0' }} %</span>
+                  </p>
                 </div>
                 <div hlmCardContent class="space-y-3">
                   @for (sc of pil.sousComposantes; track sc.sousComposante) {
                     <div class="flex items-start gap-3">
                       <dqa-badge-statut [statut]="sc.statut" />
                       <div>
+                        <div class="text-sm font-medium">{{ sc.libelle }}</div>
                         <div class="text-2xl leading-none tabular-nums">
                           {{ sc.valeur === null ? absent : (sc.valeur | number: '1.0-1') }} <span class="text-sm text-muted-foreground">%</span>
                         </div>
