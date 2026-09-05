@@ -70,7 +70,7 @@ d'extraction se répercute là.
 | `REFERENCE_CROISEE` | avertissement | `site_id` / `produit_id` / … cité mais absent du jeu de référence |
 | `DATE_MAL_FORMEE`, `NOMBRE_INVALIDE`, `BOOLEEN_INVALIDE`, `CHAMP_REQUIS_VIDE` | avertissement | format de champ |
 | `NATURE_INCONNUE` | avertissement | `nature` hors vocabulaire contrôlé |
-| `MOIS_COUVERT_INVALIDE` | avertissement | `mois_couvert_debut` d'une réquisition absent, mal formé ou hors du cycle PAQD déclaré — la réquisition est écartée de la promotion |
+| `MOIS_COUVERT_INVALIDE` | avertissement | `mois_couvert_debut` d'une réquisition absent, mal formé, postérieur au mois PAQD ou plus de 2 mois avant lui (au-delà de la fenêtre de 45 jours) ; seule une date mal formée écarte la ligne de la promotion |
 | `REFERENCE_NON_PROMUE` | avertissement | ligne non promue au core faute de dépendance |
 | `RAFRAICHISSEMENT_DIFFERE` | avertissement | lot promu, rafraîchissement des scores échoué |
 
@@ -106,8 +106,13 @@ règle — voir `test/import-validation.test.ts`.
 - **Mois couvert d'une réquisition dérivé à la promotion** : `fact_requisition.mois_couvert`
   = `to_char(mois_couvert_debut, 'YYYY-MM')`, jamais le mois de `date_soumission`.
   Une réquisition compte pour le mois de son inventaire de référence de fin de
-  mois. Un `mois_couvert_debut` mal formé écarte la ligne de la promotion (garde
-  regex) après l'avoir signalée (`MOIS_COUVERT_INVALIDE`) ; l'import reste valide.
+  mois. La validation accepte `mois_couvert_debut` dans `[mois PAQD - 2, mois
+  PAQD]` : la fenêtre de 45 jours déborde volontairement du mois mesuré et peut
+  ramener des réquisitions des deux mois précédents (rattrapage), y compris à
+  cheval sur deux cycles. En dehors de cette plage : `MOIS_COUVERT_INVALIDE`
+  (avertissement, non bloquant), mais la ligne est **quand même promue**. Seul
+  un `mois_couvert_debut` mal formé l'écarte réellement de la promotion (garde
+  regex côté SQL).
 
 ## Pièges connus
 

@@ -226,17 +226,20 @@ export class ValidationService {
 
   // ── R8 : mois couvert des réquisitions ──────────────────────────────────
   // Une réquisition couvre le mois de son inventaire de référence de fin de
-  // mois (`mois_couvert_debut`). Un mois absent, mal formé ou hors du cycle
-  // PAQD déclaré est signalé sans bloquer : la réquisition sera écartée de la
-  // promotion mais l'import reste valide.
+  // mois (`mois_couvert_debut`). La fenêtre d'extraction est glissante (45
+  // jours) et déborde volontairement du mois mesuré : un même classeur peut
+  // légitimement porter des réquisitions du mois PAQD et des deux mois
+  // précédents (rattrapage), y compris à cheval sur deux cycles. On accepte
+  // donc `mois_couvert_debut` dans [mois PAQD - 2, mois PAQD] ; en dehors (ou
+  // absent / mal formé), on signale sans bloquer : la ligne est écartée de la
+  // promotion, l'import reste valide.
   private reglesRequisitions(classeur: ClasseurLu): AnomalieImport[] {
     const onglet = classeur.onglets.get('REQUISITIONS');
     if (!onglet) return []; // absence d'onglet déjà signalée par R2
-    const cycle = classeur.metadata.get('cycle_paqd')?.trim() ?? '';
-    const cy = /^(\d{4})-C([123])$/.exec(cycle);
-    if (!cy) return []; // cycle lui-même invalide → déjà bloquant (R3)
-    const annee = Number(cy[1]);
-    const moisDuCycle = MOIS_CYCLE[cy[2] ?? ''] ?? [];
+    const moisDebut = classeur.metadata.get('mois_debut')?.trim() ?? '';
+    const md = /^(\d{4})-(\d{2})-\d{2}$/.exec(moisDebut);
+    if (!md) return []; // bornes du mois elles-mêmes invalides → déjà bloquant (R4)
+    const idxPaqd = Number(md[1]) * 12 + Number(md[2]) - 1;
     const out: AnomalieImport[] = [];
     for (const ligne of onglet.lignes) {
       const v = ligne.valeurs['mois_couvert_debut'] ?? '';
@@ -248,10 +251,11 @@ export class ValidationService {
           valeurBrute: v || null }));
         continue;
       }
-      if (Number(m[1]) !== annee || !moisDuCycle.includes(Number(m[2]))) {
+      const idxCouvert = Number(m[1]) * 12 + Number(m[2]) - 1;
+      if (idxCouvert > idxPaqd || idxCouvert < idxPaqd - 2) {
         out.push(ano({ onglet: 'REQUISITIONS', ligneSource: ligne.ligneSource, gravite: 'avertissement',
           code: 'MOIS_COUVERT_INVALIDE',
-          message: `mois_couvert_debut « ${v} » hors du cycle déclaré ${cycle}`,
+          message: `mois_couvert_debut « ${v} » hors de la fenêtre d'extraction (au plus 2 mois avant ${moisDebut.slice(0, 7)})`,
           valeurBrute: v }));
       }
     }

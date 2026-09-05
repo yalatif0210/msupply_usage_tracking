@@ -127,12 +127,39 @@ describe('ValidationService — un cas passant et un cas échouant par règle', 
   });
 
   // R8 — mois couvert des réquisitions
-  it('R8 passe quand mois_couvert_debut tombe dans le cycle déclaré', () => {
+  it('R8 passe quand mois_couvert_debut = mois PAQD', () => {
     expect(aCode(valider(), 'MOIS_COUVERT_INVALIDE')).toBe(false);
   });
-  it('R8 signale (avertissement) un mois_couvert_debut hors cycle sans bloquer', () => {
+  it('R8 passe pour un rattrapage : mois_couvert_debut jusqu\'à 2 mois avant le mois PAQD', () => {
+    // mois PAQD = août 2026 ; une réquisition de juin est dans la fenêtre de 45 j
+    const r = valider((o) => {
+      o.jeux.find((j) => j.nom === 'REQUISITIONS')!.lignes[0]!['mois_couvert_debut'] = '2026-06-01';
+    });
+    expect(aCode(r, 'MOIS_COUVERT_INVALIDE')).toBe(false);
+  });
+  it('R8 passe pour un rattrapage à cheval sur deux cycles', () => {
+    // extraction du 5 septembre, cycle C3, mois PAQD septembre ; une réquisition
+    // d'août (cycle C2) reste légitime (fenêtre de 45 jours)
+    const r = valider((o) => {
+      o.metadata['date_extraction'] = '2026-09-05';
+      o.metadata['cycle_paqd'] = '2026-C3';
+      o.metadata['mois_paqd'] = 'M+1';
+      o.metadata['mois_debut'] = '2026-09-01';
+      o.metadata['mois_fin'] = '2026-09-30';
+      o.jeux.find((j) => j.nom === 'REQUISITIONS')!.lignes[0]!['mois_couvert_debut'] = '2026-08-01';
+    });
+    expect(aCode(r, 'MOIS_COUVERT_INVALIDE')).toBe(false);
+  });
+  it('R8 signale (avertissement) un mois_couvert_debut plus de 2 mois avant le mois PAQD', () => {
     const r = valider((o) => {
       o.jeux.find((j) => j.nom === 'REQUISITIONS')!.lignes[0]!['mois_couvert_debut'] = '2026-01-01';
+    });
+    expect(aCode(r, 'MOIS_COUVERT_INVALIDE')).toBe(true);
+    expect(r.bloquant).toBe(false);
+  });
+  it('R8 signale (avertissement) un mois_couvert_debut postérieur au mois PAQD', () => {
+    const r = valider((o) => {
+      o.jeux.find((j) => j.nom === 'REQUISITIONS')!.lignes[0]!['mois_couvert_debut'] = '2026-09-01';
     });
     expect(aCode(r, 'MOIS_COUVERT_INVALIDE')).toBe(true);
     expect(r.bloquant).toBe(false);
