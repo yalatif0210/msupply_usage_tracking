@@ -8,6 +8,7 @@ import {
   lucideCircleDashed,
   lucideGauge,
 } from '@ng-icons/lucide';
+import { HlmBadge } from '@spartan-ng/helm/badge';
 import { HlmCard } from '@spartan-ng/helm/card';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { HlmSkeletonImports } from '@spartan-ng/helm/skeleton';
@@ -47,6 +48,7 @@ type FiltresTableauDeBord = {
     DecimalPipe,
     RouterLink,
     NgIcon,
+    HlmBadge,
     HlmCard,
     HlmSelectImports,
     HlmSkeletonImports,
@@ -79,19 +81,31 @@ type FiltresTableauDeBord = {
             Aucun mois n'a encore de score. Le tableau de bord s'alimentera au premier import traité.
           </p>
         } @else {
-          <label class="mt-4 grid gap-1.5 text-xs font-medium text-muted-foreground">
-            Mois affiché
-            <hlm-select class="w-44" [value]="res.filtres().mois" (valueChange)="majMois($event)">
-              <hlm-select-trigger class="w-44">
-                <hlm-select-value placeholder="Mois affiché" />
-              </hlm-select-trigger>
-              <hlm-select-content *hlmSelectPortal>
-                @for (m of moisDisponibles(); track m) {
-                  <hlm-select-item [value]="m">{{ m }}</hlm-select-item>
-                }
-              </hlm-select-content>
-            </hlm-select>
-          </label>
+          <div class="mt-4 flex flex-wrap items-end gap-3">
+            <label class="grid gap-1.5 text-xs font-medium text-muted-foreground">
+              Mois affiché
+              <hlm-select class="w-44" [value]="res.filtres().mois" (valueChange)="majMois($event)">
+                <hlm-select-trigger class="w-44">
+                  <hlm-select-value placeholder="Mois affiché" />
+                </hlm-select-trigger>
+                <hlm-select-content *hlmSelectPortal>
+                  @for (m of moisDisponibles(); track m) {
+                    <hlm-select-item [value]="m">{{ m }}</hlm-select-item>
+                  }
+                </hlm-select-content>
+              </hlm-select>
+            </label>
+            @if (!t.moisClos) {
+              <span
+                hlmBadge
+                variant="outline"
+                class="mb-2"
+                title="Le mois n'est pas encore terminé (délai de réquisition non expiré) : ce score peut encore évoluer."
+              >
+                Mois en cours · score provisoire
+              </span>
+            }
+          </div>
 
           <dqa-barre-attente class="mt-2 block" [actif]="res.enCours()" />
 
@@ -197,7 +211,7 @@ type FiltresTableauDeBord = {
 
           <p class="mt-4 text-sm">
             <a routerLink="/sites" class="font-medium text-primary hover:underline">
-              Voir les 40 sites
+              Voir les {{ t.national.nbSites }} sites
             </a>
           </p>
         }

@@ -258,4 +258,41 @@ describe('vues de pilier : couples attendu / réalisé', () => {
       expect(await brut('p6_ajustements')).toMatchObject({ nb_attendu: 3, nb_realise: 1 });
     });
   });
+
+  // ── Le gel reconstitue tous les mois trouvables dans le core, pas
+  // seulement celui déclaré par le lot en cours (migration 0035).
+  describe('le gel reconstitue tous les mois, pas seulement celui du lot', () => {
+    const lot = () =>
+      db.query<{ id: number }>(`SELECT id FROM dqa.import_lot WHERE mois_paqd='2026-08'`).then((r) => r.rows[0]!.id);
+    const geler = (idLot: number) => db.query(`CALL dqa.rafraichir_et_geler($1)`, [idLot]);
+    const moisGeles = () =>
+      db
+        .query<{ mois_paqd: string }>(`SELECT DISTINCT mois_paqd FROM dqa.hist_score_site ORDER BY mois_paqd`)
+        .then((r) => r.rows.map((x) => x.mois_paqd));
+
+    it('un import qui déclare août fige aussi septembre si des données de septembre sont déjà dans le core', async () => {
+      await inv('A', 'VIH', '2026-08-28'); // août : programme VIH couvert
+      await inv('B', 'VIH', '2026-09-05'); // septembre : arrivé en avance (fenêtre de 45 jours)
+      await geler(await lot());
+      expect(await moisGeles()).toEqual(['2026-08', '2026-09']);
+    });
+
+    it('un identifiant de lot inexistant ne fait pas échouer le gel (trace lot_id = NULL)', async () => {
+      await inv('A', 'VIH', '2026-08-28');
+      await geler(999999);
+      const { rows } = await db.query<{ lot_id: number | null }>(
+        `SELECT lot_id FROM dqa.hist_score_site WHERE site_id='S1' AND mois_paqd='2026-08' AND programme_id IS NULL`,
+      );
+      expect(rows[0]?.lot_id).toBeNull();
+    });
+
+    it('mois_est_clos : faux avant le 10 du mois suivant, vrai après', async () => {
+      const { rows } = await db.query<{ avant: boolean; limite: boolean; apres: boolean }>(
+        `SELECT dqa.mois_est_clos('2026-08', '2026-09-10'::date) AS avant,
+                dqa.mois_est_clos('2026-08', '2026-09-11'::date) AS limite,
+                dqa.mois_est_clos('2026-08', '2026-10-01'::date) AS apres`,
+      );
+      expect(rows[0]).toMatchObject({ avant: false, limite: true, apres: true });
+    });
+  });
 });

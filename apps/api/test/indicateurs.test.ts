@@ -281,19 +281,21 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect(await histSousComposantes()).toEqual(avant);
   });
 
-  it('un rafraîchissement pour un autre mois laisse les sc_* déjà gelés intacts', async () => {
+  it('un rafraîchissement déclenché par un autre lot reconstruit aussi les mois déjà gelés (ADR 0010)', async () => {
     await socle({
       comptee: 100, theorique: 100, nbMouvements: 10,
       sorties: joursAout.slice(0, 21).map((j) => ({ jour: j })),
     });
-    // valeur sentinelle : si le gel de 2026-08 était rejoué, elle serait écrasée
+    // valeur sentinelle, différente de ce que le core recalculerait (67.7 = 21/31)
     await db.query(`UPDATE dqa.hist_score_site SET sc_regularite_saisie = 42.0 WHERE mois_paqd = '2026-08'`);
     await db.query(
       `INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, statut)
        VALUES ('juillet.xlsx','2026-C2','2026-07','2026-07-01','2026-07-31','valide')`,
     );
     await db.query(`CALL dqa.rafraichir_et_geler(2)`); // lot 2 = 2026-07
-    expect((await histSousComposantes('2026-08'))?.sc_regularite_saisie).toBe('42.0');
+    // le gel reconstitue tous les mois trouvables dans le core, pas seulement
+    // celui du lot en cours : la sentinelle est écrasée par la vraie valeur.
+    expect((await histSousComposantes('2026-08'))?.sc_regularite_saisie).toBe('67.7');
   });
 
   // ── P4 — écart SDU et écart consommation ─────────────────────────────────

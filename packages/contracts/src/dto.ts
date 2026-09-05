@@ -168,6 +168,12 @@ export const detailSiteSchema = z.object({
   site: siteSchema,
   /** Mois PAQD affiché, ou `null` si le site n'a encore aucune mesure. */
   moisPaqd: moisPaqdSchema.nullable(),
+  /**
+   * `false` tant que le mois affiché peut encore recevoir des données (délai
+   * de réquisition non expiré) : le score est provisoire, pas un verdict
+   * final. `true` (ou `moisPaqd` nul) sinon. Cf. ADR 0010.
+   */
+  moisClos: z.boolean(),
   /** Mois PAQD pour lesquels le site a une mesure, du plus récent au plus ancien. */
   moisDisponibles: z.array(moisPaqdSchema),
   /** Filtre programme appliqué, ou `null` pour « tous programmes ». */
@@ -354,8 +360,14 @@ export const pointProgressionNationaleSchema = z.object({
 export type PointProgressionNationale = z.infer<typeof pointProgressionNationaleSchema>;
 
 export const tableauDeBordSchema = z.object({
-  /** Mois PAQD le plus récent présent dans l'historique gelé, ou `null` si aucun. */
+  /** Mois PAQD affiché (le plus récent par défaut, ou celui demandé s'il existe), ou `null` si aucun. */
   moisPaqd: moisPaqdSchema.nullable(),
+  /**
+   * `false` tant que le mois affiché peut encore recevoir des données (délai
+   * de réquisition non expiré) : le score national est provisoire. `true` (ou
+   * `moisPaqd` nul) sinon. Cf. ADR 0010.
+   */
+  moisClos: z.boolean(),
   /** État national du mois : `nbSites` = périmètre, `repartition.SANS_MESURE` = sites sans score. */
   national: blocSyntheseSchema,
   /** Score composite moyen national par mois PAQD, du plus ancien au plus récent. */

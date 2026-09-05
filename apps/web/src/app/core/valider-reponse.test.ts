@@ -50,6 +50,7 @@ const sc10 = () =>
 const detailSixPiliers = (opts: { scoreComposite: unknown; classification: unknown }) => ({
   site,
   moisPaqd: '2026-08',
+  moisClos: true,
   moisDisponibles: ['2026-08'],
   programmeId: null,
   piliersCouverts: 2,
@@ -217,6 +218,7 @@ describe('validerReponse (couture D)', () => {
 
   const tableauDeBord = (over: Record<string, unknown> = {}) => ({
     moisPaqd: '2026-08',
+    moisClos: true,
     national: { nbSites: 40, nbMesures: 38, scoreCompositeMoyen: 71.4, repartition },
     progression: [
       { moisPaqd: '2026-07', scoreCompositeMoyen: 68 },

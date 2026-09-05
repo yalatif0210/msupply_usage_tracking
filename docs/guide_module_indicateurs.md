@@ -20,7 +20,7 @@ Emplacement : `apps/api/src/indicateurs/` (API) et `apps/web/src/app/pages/`
 | `GET` | `/api/sites/:id/piliers/:code?mois=&programmeId=` | `DetailPilier` (union sur `code` ; `p4` = tableau produit P4 · P5) | tout authentifié |
 | `GET` | `/api/sites/:id/produits/:code?mois=&programmeId=` | `FicheProduitMois` (produits traceurs uniquement) | tout authentifié |
 | `GET` | `/api/synthese?mois=&programmeId=&region=` | `SyntheseNationale` | tout authentifié |
-| `GET` | `/api/tableau-de-bord` | `TableauDeBord` | tout authentifié |
+| `GET` | `/api/tableau-de-bord?mois=` | `TableauDeBord` | tout authentifié |
 | `GET` | `/api/referentiel/programmes` | `Programme[]` | tout authentifié |
 | `GET` | `/api/referentiel/districts` | `string[]` | tout authentifié |
 | `GET` | `/api/referentiel/regions` | `string[]` | tout authentifié |
@@ -264,14 +264,23 @@ onglet « Rapports & inventaires » de `/synthese` (tableau strate × { réquisi
 inventaires } × { attendu, réalisé, à l'heure }, ligne de total, `tabular-nums`),
 avec les mêmes sélecteurs mois / région / programme que les deux autres onglets.
 
-**Tableau de bord national.** `GET /api/tableau-de-bord` (`TableauDeBord`,
-sans paramètre) sert la page d'accueil `/` : `national` (bloc du mois le plus
-récent, lu sur `mv_synthese_nationale` au grain tous nuls), `progression`
-(score composite moyen national par mois PAQD, ordonné), et
-`sousComposantesEnDifficulte` (les `TOP_SOUS_COMPOSANTES_DIFFICULTE` = 5
-sous-composantes avec le plus de sites en ALERTE, depuis
-`mv_synthese_sous_composante`). Endpoint dédié plutôt qu'une extension de
+**Tableau de bord national.** `GET /api/tableau-de-bord?mois=` (`TableauDeBord`)
+sert la page d'accueil `/` : `national` (bloc du mois affiché, lu sur
+`mv_synthese_nationale` au grain tous nuls), `progression` (score composite
+moyen national par mois PAQD, ordonné), et `sousComposantesEnDifficulte` (les
+`TOP_SOUS_COMPOSANTES_DIFFICULTE` = 5 sous-composantes avec le plus de sites en
+ALERTE, depuis `mv_synthese_sous_composante`). `mois` par défaut le plus
+récent ; un mois demandé absent de `progression` retombe dessus (repli
+défensif, jamais d'erreur). Endpoint dédié plutôt qu'une extension de
 `/synthese` : la mini-série de progression n'a de sens que sur l'accueil.
+
+**Mois en cours vs mois clos.** Depuis l'ADR 0010, le gel reconstitue tous les
+mois trouvables dans le core à chaque import, y compris le mois en cours
+(encore incomplet). `TableauDeBord.moisClos` et `DetailSite.moisClos`
+(`dqa.mois_est_clos(mois_paqd)`, vrai après le 10 du mois suivant, l'échéance
+de réquisition la plus tardive) distinguent un score définitif d'un score
+encore provisoire ; l'écran affiche un repère « mois en cours » tant qu'il est
+faux, pour qu'une valeur partielle ne soit pas lue comme un verdict final.
 
 Écran `pages/synthese.ts` (route `/synthese`) : deux onglets. « Par pilier » :
 bloc national (score moyen en grand, barre de répartition à quatre segments

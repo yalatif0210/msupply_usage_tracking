@@ -12,8 +12,10 @@ formule, avec un exemple chiffré réel repris du jeu de démonstration.
 
 ## 1. Ce que fait l'application
 
-Le tableau de bord suit la qualité des données saisies dans mSupply par 40
-sites sanitaires. Chaque semaine, la DAP transmet un classeur Excel extrait de
+Le tableau de bord suit la qualité des données saisies dans mSupply par les
+sites sanitaires de son périmètre (40 actuellement, une liste tenue par la
+mission DQA et amenée à évoluer). Chaque semaine, la DAP transmet un classeur
+Excel extrait de
 mSupply ; l'application le valide, l'intègre, puis calcule un **score
 composite sur 100** pour chaque site, décomposé en **six piliers** appelés
 PAQD (Plan d'Amélioration de la Qualité des Données).
@@ -33,11 +35,29 @@ avril), C2 (mai à août), C3 (septembre à décembre).
 
 ### Les scores sont figés, pas recalculés
 
-Une fois qu'un mois est calculé, son score **ne bouge plus**, même si la
-grille de poids et de seuils change ensuite : un score de conformité doit
-rester défendable en audit (« le score de juin a été calculé avec la grille en
+Une fois qu'un mois est **clos**, son score ne bouge plus, même si la grille de
+poids et de seuils change ensuite : un score de conformité doit rester
+défendable en audit (« le score de juin a été calculé avec la grille en
 vigueur en juin »). Une modification de la grille par la coordination ne
 s'applique donc jamais rétroactivement, seulement aux mois futurs.
+
+### Le tableau de bord n'est pas un cliché mensuel
+
+Le mois en cours n'attend pas d'être terminé pour apparaître : chaque import
+hebdomadaire recalcule et met à jour le score de **tous** les mois pour
+lesquels il existe des données dans mSupply, y compris le mois qui n'est pas
+encore fini. L'objectif est de repérer un mauvais usage de mSupply au fil de
+l'eau (aucune saisie depuis plusieurs jours, inventaire toujours pas
+enregistré alors que le mois avance), pas seulement de constater après coup
+qu'un mois s'est mal passé.
+
+Un score affiché pour le mois en cours reste **provisoire** : il évoluera
+encore à mesure que le mois se remplit. Un repère « Mois en cours · score
+provisoire » apparaît alors à côté du sélecteur de mois, sur le tableau de
+bord national comme sur la fiche site. Il disparaît une fois le mois
+**clos** : passé le 10 du mois suivant (l'échéance de réquisition la plus
+tardive), plus aucune donnée ne peut encore arriver pour ce mois, et le score
+affiché est définitif.
 
 ---
 
@@ -67,7 +87,7 @@ le plus de sites en alerte.
 
 ### Sites (`/sites`)
 
-Liste des 40 sites du périmètre, triés du score le plus faible au plus élevé
+Liste des sites du périmètre, triés du score le plus faible au plus élevé
 (les sites en difficulté remontent en tête). Filtres par district et par
 programme de santé. Chaque ligne mène à la fiche du site.
 
@@ -355,6 +375,8 @@ principe des scores immuables, section 1).
   précédent disponible pour le site (ou national, sur le tableau de bord),
   vert si le score progresse, rouge s'il recule, gris si l'historique est
   trop court pour comparer.
+- **« Mois en cours · score provisoire »** : le mois affiché n'est pas encore
+  clos (section 1) ; le score continuera d'évoluer aux prochains imports.
 
 ---
 

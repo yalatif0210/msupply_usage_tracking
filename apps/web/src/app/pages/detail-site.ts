@@ -32,6 +32,7 @@ import {
   type SousComposante,
   type SousComposanteBref,
 } from '@dqa/contracts';
+import { HlmBadge } from '@spartan-ng/helm/badge';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmCardImports } from '@spartan-ng/helm/card';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
@@ -96,6 +97,7 @@ function reculerMois(mois: string, n: number): string {
     BarreAttente,
     GrapheRadar,
     GrapheCourbe,
+    HlmBadge,
     HlmButton,
     HlmSkeleton,
     ...HlmCardImports,
@@ -160,6 +162,16 @@ function reculerMois(mois: string, n: number): string {
               </hlm-select-content>
             </hlm-select>
           </div>
+          @if (!d.moisClos) {
+            <span
+              hlmBadge
+              variant="outline"
+              class="mb-2"
+              title="Le mois n'est pas encore terminé (délai de réquisition non expiré) : ce score peut encore évoluer."
+            >
+              Mois en cours · score provisoire
+            </span>
+          }
         </div>
 
         @if (d.piliers.length === 0) {

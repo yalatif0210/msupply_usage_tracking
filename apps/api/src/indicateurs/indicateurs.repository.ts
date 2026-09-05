@@ -450,7 +450,13 @@ export class IndicateursRepository {
     const mois = moisValide ?? points.at(-1)?.moisPaqd ?? null;
 
     if (mois === null) {
-      return { moisPaqd: null, national: versBloc(undefined), progression: [], sousComposantesEnDifficulte: [] };
+      return {
+        moisPaqd: null,
+        moisClos: true,
+        national: versBloc(undefined),
+        progression: [],
+        sousComposantesEnDifficulte: [],
+      };
     }
 
     const national = await this.pool.query<LigneSynthese>(
@@ -474,10 +480,21 @@ export class IndicateursRepository {
 
     return {
       moisPaqd: mois,
+      moisClos: await this.moisEstClos(mois),
       national: versBloc(national.rows[0]),
       progression: points,
       sousComposantesEnDifficulte: difficulte.rows.map(versLigneSousComposante),
     };
+  }
+
+  /**
+   * `false` tant que le mois peut encore recevoir des données (délai de
+   * réquisition non expiré, ADR 0010) : un score gelé sur ce mois est
+   * provisoire, pas un verdict final.
+   */
+  private async moisEstClos(mois: string): Promise<boolean> {
+    const { rows } = await this.pool.query<{ clos: boolean }>('SELECT dqa.mois_est_clos($1) AS clos', [mois]);
+    return rows[0]?.clos ?? true;
   }
 
   async listerSites(filtres: FiltreSites): Promise<ScoreSite[]> {
@@ -571,6 +588,7 @@ export class IndicateursRepository {
       return {
         site: versSite(siteRow),
         moisPaqd: null,
+        moisClos: true,
         moisDisponibles: [],
         programmeId: prog,
         piliersCouverts: 0,
@@ -703,6 +721,7 @@ export class IndicateursRepository {
     return {
       site: versSite(siteRow),
       moisPaqd: mois,
+      moisClos: await this.moisEstClos(mois),
       moisDisponibles,
       programmeId: prog,
       piliersCouverts: h?.piliers_couverts ?? 0,

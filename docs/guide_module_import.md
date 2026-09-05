@@ -96,7 +96,10 @@ règle — voir `test/import-validation.test.ts`.
   `mois_debut`. `import_lot.mois_paqd` stocke la forme `AAAA-MM`.
 - **Immutabilité des cycles clos** : assurée en amont par la règle
   `MOIS_PAQD_TROP_ANCIEN` — un mois de cycle clos est rejeté avant d'atteindre le
-  gel. Le gel lui-même ne touche qu'un seul mois.
+  gel. Le gel lui-même reconstitue **tous** les mois trouvables dans le core à
+  l'instant de l'appel, pas seulement celui déclaré par le lot (ADR 0010) :
+  des données arrivées en avance via la fenêtre de 45 jours sont figées dès
+  qu'elles apparaissent, sans attendre qu'un futur import redéclare leur mois.
 - **Promotion tout-ou-rien** dans la transaction du lot ; le rafraîchissement est
   volontairement **hors** transaction (ADR 0003) pour qu'un `REFRESH` lent ou
   fautif ne perde pas un lot déjà promu.
