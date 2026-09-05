@@ -672,6 +672,83 @@ CALL dqa.rafraichir_et_geler(5);
 
 COMMIT;
 
+-- ═══════════════════════════════════════════════════════════════════════════
+--  Zone du district de Man : trois sites rattachés qui adressent des
+--  réquisitions au District. P3 du District (ADR 0011) mesure sa capacité à y
+--  répondre par des distributions (liées par requisition_id) dans le mois.
+--
+--   P3(District, M) = réquisitions de la zone couvrant M-1 servies dans M
+--                     ─────────────────────────────────────────────────────
+--                     réquisitions de la zone couvrant M-1
+--
+--  Trajectoire : juin 2/3 (alerte), juillet 3/3 (conforme), août 2/3
+--  (alerte), septembre 1/3 (provisoire, réponses en cours). Seuil 80 %.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+BEGIN;
+
+INSERT INTO dqa.dim_site
+    (site_id, site_code, site_nom, district, region, type_structure, dans_perimetre_dqa, jour_limite_requisition, lot_id_source)
+VALUES
+    ('SITE-MAN1', 'C-MAN1', 'CSU de Man centre',   'MAN', 'TONKPI', 'CSU',  true, 5, 1),
+    ('SITE-MAN2', 'C-MAN2', 'CSR de Fagnampleu',   'MAN', 'TONKPI', 'CSR',  true, 5, 1),
+    ('SITE-MAN3', 'C-MAN3', 'ESPC de Gbangbégouiné','MAN', 'TONKPI', 'ESPC', true, 5, 1);
+
+INSERT INTO dqa.dim_site_programme (site_id, programme_id, actif, lot_id_source)
+VALUES
+    ('SITE-MAN1', 'PRG-PALU', true, 1),
+    ('SITE-MAN2', 'PRG-PALU', true, 1),
+    ('SITE-MAN3', 'PRG-PALU', true, 1);
+
+-- Réquisitions de la zone : 3 par mois couvert (mai à août), lot du mois suivant.
+INSERT INTO dqa.fact_requisition
+    (requisition_id, site_id, programme_id, mois_couvert, date_soumission, date_inventaire_ref, statut, lot_id_source)
+VALUES
+    ('REQ-MAN1-05','SITE-MAN1','PRG-PALU','2026-05','2026-06-04','2026-05-30','fn',2),
+    ('REQ-MAN2-05','SITE-MAN2','PRG-PALU','2026-05','2026-06-05','2026-05-30','fn',2),
+    ('REQ-MAN3-05','SITE-MAN3','PRG-PALU','2026-05','2026-06-05','2026-05-30','fn',2),
+    ('REQ-MAN1-06','SITE-MAN1','PRG-PALU','2026-06','2026-07-04','2026-06-29','fn',3),
+    ('REQ-MAN2-06','SITE-MAN2','PRG-PALU','2026-06','2026-07-05','2026-06-29','fn',3),
+    ('REQ-MAN3-06','SITE-MAN3','PRG-PALU','2026-06','2026-07-05','2026-06-29','fn',3),
+    ('REQ-MAN1-07','SITE-MAN1','PRG-PALU','2026-07','2026-08-04','2026-07-30','fn',4),
+    ('REQ-MAN2-07','SITE-MAN2','PRG-PALU','2026-07','2026-08-05','2026-07-30','fn',4),
+    ('REQ-MAN3-07','SITE-MAN3','PRG-PALU','2026-07','2026-08-05','2026-07-30','fn',4),
+    ('REQ-MAN1-08','SITE-MAN1','PRG-PALU','2026-08','2026-09-03','2026-08-29','fn',5),
+    ('REQ-MAN2-08','SITE-MAN2','PRG-PALU','2026-08','2026-09-04','2026-08-29','fn',5),
+    ('REQ-MAN3-08','SITE-MAN3','PRG-PALU','2026-08','2026-09-04','2026-08-29','fn',5);
+
+-- Distributions du District en réponse (nature 'distribution', requisition_id
+-- renseigné), datées dans le mois PAQD = mois couvert + 1.
+INSERT INTO dqa.fact_transaction
+    (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation, requisition_id, lot_id_source)
+VALUES
+    -- juin : répond à MAN1 et MAN2 (2/3)
+    ('TX-DIST-R05-1','SITE-DIST','distribution','PRG-PALU','fn','2026-06-10','2026-06-10','REQ-MAN1-05',2),
+    ('TX-DIST-R05-2','SITE-DIST','distribution','PRG-PALU','fn','2026-06-18','2026-06-18','REQ-MAN2-05',2),
+    -- juillet : répond aux trois (3/3)
+    ('TX-DIST-R06-1','SITE-DIST','distribution','PRG-PALU','fn','2026-07-09','2026-07-09','REQ-MAN1-06',3),
+    ('TX-DIST-R06-2','SITE-DIST','distribution','PRG-PALU','fn','2026-07-11','2026-07-11','REQ-MAN2-06',3),
+    ('TX-DIST-R06-3','SITE-DIST','distribution','PRG-PALU','fn','2026-07-19','2026-07-19','REQ-MAN3-06',3),
+    -- août : répond à MAN1 et MAN3 (2/3)
+    ('TX-DIST-R07-1','SITE-DIST','distribution','PRG-PALU','fn','2026-08-08','2026-08-08','REQ-MAN1-07',4),
+    ('TX-DIST-R07-2','SITE-DIST','distribution','PRG-PALU','fn','2026-08-20','2026-08-20','REQ-MAN3-07',4),
+    -- septembre (en cours) : n'a répondu qu'à MAN1 pour l'instant (1/3)
+    ('TX-DIST-R08-1','SITE-DIST','distribution','PRG-PALU','fn','2026-09-03','2026-09-03','REQ-MAN1-08',5);
+
+INSERT INTO dqa.fact_ligne_transaction
+    (ligne_id, transaction_id, produit_id, programme_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
+SELECT id || '-L', id, 'ITM-ALU', 'PRG-PALU', 40, 1, false, 5
+FROM (VALUES
+    ('TX-DIST-R05-1'),('TX-DIST-R05-2'),
+    ('TX-DIST-R06-1'),('TX-DIST-R06-2'),('TX-DIST-R06-3'),
+    ('TX-DIST-R07-1'),('TX-DIST-R07-2'),
+    ('TX-DIST-R08-1')
+) AS t(id);
+
+CALL dqa.rafraichir_et_geler(5);
+
+COMMIT;
+
 -- ── Ré-import « après le gel » de SITE-REIMP : bouge le core sans regeler ──
 --  Simule un correctif d'extraction postérieur au gel : le détail live du
 --  pilier changera, l'avertissement « données modifiées depuis le gel »
@@ -683,4 +760,4 @@ UPDATE dqa.fact_inventaire
    SET maj_le = now() + interval '1 day'
  WHERE site_id = 'SITE-REIMP';
 
-\echo 'Seed de démonstration appliqué : 8 sites, 2026-05 à 2026-09 (fin C2 + début C3). Août et septembre en cours.'
+\echo 'Seed de démonstration appliqué : 11 sites (dont la zone du District de Man), 2026-05 à 2026-09. Août et septembre en cours.'

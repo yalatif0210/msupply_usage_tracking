@@ -174,6 +174,12 @@ export const detailSiteSchema = z.object({
    * final. `true` (ou `moisPaqd` nul) sinon. Cf. ADR 0010.
    */
   moisClos: z.boolean(),
+  /**
+   * Vrai si le site est un district (`strate_de(type_structure) = 'District'`) :
+   * P3 y mesure la réponse aux réquisitions de la zone, pas la dispensation
+   * quotidienne (ADR 0011). Sert au front à adapter le libellé de P3.
+   */
+  estDistrict: z.boolean(),
   /** Mois PAQD pour lesquels le site a une mesure, du plus récent au plus ancien. */
   moisDisponibles: z.array(moisPaqdSchema),
   /** Filtre programme appliqué, ou `null` pour « tous programmes ». */
@@ -593,10 +599,26 @@ export const jourP3Schema = z.object({
 });
 export type JourP3 = z.infer<typeof jourP3Schema>;
 
+/**
+ * Détail P3 d'un district (ADR 0011) : au lieu du bandeau calendaire, le couple
+ * réquisitions de la zone (couvrant M-1) / servies dans M par une distribution.
+ */
+export const reponseZoneP3Schema = z.object({
+  /** Mois couvert des réquisitions évaluées (M-1 du mois PAQD affiché). */
+  moisCouvert: moisPaqdSchema,
+  /** Réquisitions DISTINCTES de la zone du district couvrant ce mois. */
+  nbRequisitions: z.number().int().nonnegative(),
+  /** Parmi elles, celles servies dans le mois PAQD par une distribution du district. */
+  nbRepondues: z.number().int().nonnegative(),
+});
+export type ReponseZoneP3 = z.infer<typeof reponseZoneP3Schema>;
+
 export const detailPilierP3Schema = detailPilierBaseSchema.extend({
   code: z.literal('p3'),
-  /** Un item par jour calendaire du mois PAQD (28 à 31), dans l'ordre du calendrier. */
+  /** Un item par jour calendaire du mois PAQD (28 à 31) ; vide pour un district. */
   jours: z.array(jourP3Schema),
+  /** Renseigné pour un district : remplace le bandeau calendaire. `null` sinon. */
+  reponseZone: reponseZoneP3Schema.nullable(),
 });
 export type DetailPilierP3 = z.infer<typeof detailPilierP3Schema>;
 
@@ -843,6 +865,8 @@ export const seuilSousComposanteSchema = z.object({
   sens: sensSeuilSchema,
   /** Non nul seulement pour `ecart_sdu` / `ecart_consommation`. */
   tolerance: z.number().nullable(),
+  /** Non nul seulement pour `regularite_saisie` : seuil appliqué aux districts (ADR 0011). */
+  seuilDistrict: z.number().nullable(),
 });
 export type SeuilSousComposante = z.infer<typeof seuilSousComposanteSchema>;
 
@@ -860,6 +884,11 @@ const tolerancesCoherentes = (seuils: SeuilSousComposante[]): boolean =>
     SOUS_COMPOSANTES_AVEC_TOLERANCE.includes(s.sousComposante)
       ? s.tolerance !== null
       : s.tolerance === null,
+  );
+
+const seuilsDistrictCoherents = (seuils: SeuilSousComposante[]): boolean =>
+  seuils.every((s) =>
+    s.sousComposante === 'regularite_saisie' ? s.seuilDistrict !== null : s.seuilDistrict === null,
   );
 
 const couvreToutesLesSousComposantes = (seuils: SeuilSousComposante[]): boolean => {
@@ -881,6 +910,10 @@ export const entreeGrilleSchema = z
   })
   .refine((g) => tolerancesCoherentes(g.seuils), {
     message: 'Tolérance requise pour écart SDU / consommation, interdite ailleurs',
+    path: ['seuils'],
+  })
+  .refine((g) => seuilsDistrictCoherents(g.seuils), {
+    message: 'Seuil district requis pour régularité de saisie, interdit ailleurs',
     path: ['seuils'],
   });
 export type EntreeGrille = z.infer<typeof entreeGrilleSchema>;

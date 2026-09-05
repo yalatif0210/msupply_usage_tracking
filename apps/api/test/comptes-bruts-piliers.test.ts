@@ -295,4 +295,70 @@ describe('vues de pilier : couples attendu / réalisé', () => {
       expect(rows[0]).toMatchObject({ avant: false, limite: true, apres: true });
     });
   });
+
+  // ── P3 pour un district : réponse aux réquisitions de la zone (ADR 0011) ───
+  describe('P3 district : réponse aux réquisitions de la zone', () => {
+    const geler = () => db.query(`CALL dqa.rafraichir_et_geler(NULL)`);
+    const p3 = (siteId: string) =>
+      db
+        .query<{ nb_jours: number; nb_jours_avec_sortie: number; taux_regularite_pct: string | null; est_district: boolean }>(
+          `SELECT nb_jours, nb_jours_avec_sortie, taux_regularite_pct, est_district
+           FROM dqa.mv_p3_regularite
+           WHERE site_id = $1 AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+          [siteId],
+        )
+        .then((r) => r.rows[0]);
+
+    beforeEach(async () => {
+      // un district et deux sites de sa zone (district 'ZONE-X')
+      await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa, type_structure, district)
+        VALUES ('DIST-T','District test',true,'District sanitaire','ZONE-X'),
+               ('ZS1','Zone site 1',true,'CSU','ZONE-X'),
+               ('ZS2','Zone site 2',true,'CSU','ZONE-X')`);
+      // réquisitions de la zone couvrant juillet → comptent pour le P3 d'août
+      await db.query(`INSERT INTO dqa.fact_requisition
+        (requisition_id, site_id, programme_id, mois_couvert, date_soumission, statut, lot_id_source)
+        VALUES ('RZ1','ZS1','VIH','2026-07','2026-08-03','fn',1),
+               ('RZ2','ZS2','VIH','2026-07','2026-08-04','fn',1),
+               ('RZ3','ZS1','TB', '2026-07','2026-08-05','fn',1)`);
+    });
+
+    it('taux = réquisitions servies dans le mois / réquisitions de la zone (seuil 80)', async () => {
+      // le district sert RZ1 (dans août) et RZ2 (dans août) ; RZ3 non servie
+      await db.query(`INSERT INTO dqa.fact_transaction
+        (transaction_id, site_id, nature, programme_id, statut, date_confirmation, requisition_id, lot_id_source)
+        VALUES ('DTX1','DIST-T','distribution','VIH','fn','2026-08-10','RZ1',1),
+               ('DTX2','DIST-T','distribution','VIH','fn','2026-08-15','RZ2',1)`);
+      await geler();
+      const row = await p3('DIST-T');
+      expect(row?.est_district).toBe(true);
+      expect(Number(row?.nb_jours)).toBe(3);
+      expect(Number(row?.nb_jours_avec_sortie)).toBe(2);
+      expect(Number(row!.taux_regularite_pct)).toBeCloseTo(66.7, 1);
+    });
+
+    it('une distribution hors du mois PAQD ne compte pas', async () => {
+      // servie en septembre → hors de la fenêtre du P3 d'août
+      await db.query(`INSERT INTO dqa.fact_transaction
+        (transaction_id, site_id, nature, programme_id, statut, date_confirmation, requisition_id, lot_id_source)
+        VALUES ('DTX1','DIST-T','distribution','VIH','fn','2026-09-02','RZ1',1)`);
+      await geler();
+      const row = await p3('DIST-T');
+      expect(row?.est_district).toBe(true);
+      expect(Number(row?.nb_jours)).toBe(3);
+      expect(Number(row?.nb_jours_avec_sortie)).toBe(0);
+    });
+
+    it('le district n\'apparaît pas dans la branche dispensation', async () => {
+      // même si le district a des distributions, sa ligne P3 est est_district
+      await db.query(`INSERT INTO dqa.fact_transaction
+        (transaction_id, site_id, nature, programme_id, statut, date_confirmation, lot_id_source)
+        VALUES ('DTX9','DIST-T','distribution','VIH','fn','2026-08-12',1)`);
+      await geler();
+      const { rows } = await db.query(
+        `SELECT count(*)::int AS n FROM dqa.mv_p3_regularite WHERE site_id = 'DIST-T' AND NOT est_district`,
+      );
+      expect(rows[0]).toMatchObject({ n: 0 });
+    });
+  });
 });

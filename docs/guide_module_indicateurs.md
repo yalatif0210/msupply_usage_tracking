@@ -107,13 +107,29 @@ jamais NON_CALCULABLE : ne rien soumettre pénalise P2. NON_CALCULABLE seulement
 si le site n'a aucun programme géré déclaré. Score de pilier P2 = moyenne
 simple des deux sous-composantes.
 
-**P3 — régularité de saisie** (`mv_p3_regularite`) : jours du mois PAQD avec au
-moins une sortie de stock (`nature ∈ {dispensation, distribution}`) ÷ jours
-calendaires du mois. Aucun jour n'est retranché — en milieu hospitalier la
-dispensation a lieu 7 j/7, le PAQD ne défalque ni week-ends ni fériés (arbitrage
-coordination du 2026-08-31, migration 0024). Sous-composante unique
-`regularite_saisie`, seuil grille 65 %. NON_CALCULABLE si le site n'a aucune
-sortie exploitable → pas de ligne dans la vue.
+**P3 — régularité de saisie** (`mv_p3_regularite`, branche `UNION ALL`) :
+
+- **Sites qui dispensent** : jours du mois PAQD avec au moins une sortie de
+  stock (`nature ∈ {dispensation, distribution}`) ÷ jours calendaires du mois.
+  Aucun jour n'est retranché — en milieu hospitalier la dispensation a lieu
+  7 j/7, le PAQD ne défalque ni week-ends ni fériés (arbitrage coordination du
+  2026-08-31, migration 0024). Seuil grille `regularite_saisie` = 65 %.
+- **Districts** (`strate_de(type_structure) = 'District'`, ADR 0011, migration
+  0036) : réquisitions DISTINCTES de la zone (sites du périmètre du même
+  `dim_site.district`, hors le district lui-même) couvrant M-1, servies dans le
+  mois PAQD M par une distribution du district liée (`fact_transaction.requisition_id`,
+  date entre le 1er et le dernier jour de M) ÷ réquisitions DISTINCTES de la
+  zone couvrant M-1. Plusieurs distributions pour une réquisition comptent
+  pour une. Seuil grille `regularite_saisie.seuil_district` = 80 %.
+
+Sous-composante unique `regularite_saisie` : calcul, seuil et libellé
+(« (dispensation) » vs « (distribution) ») s'adaptent au type de site. La
+colonne `est_district` de `mv_p3_regularite` dit quelle branche a produit la
+valeur ; `mv_score_pilier` et `v_sous_composante_atteinte` choisissent le
+seuil en conséquence, la synthèse en hérite. NON_CALCULABLE si aucune donnée
+exploitable (aucune sortie, ou aucune réquisition de zone) → pas de ligne.
+`DetailSite.estDistrict` sert au front pour le libellé ; le détail P3 d'un
+district porte `reponseZone` (le couple de comptes) au lieu de `jours`.
 
 **P4 · Taux de conformité** (`mv_p4_ecart`) : libellé de pilier « Taux de
 conformité » ; deux sous-composantes (`ecart_sdu`, `ecart_consommation`) en

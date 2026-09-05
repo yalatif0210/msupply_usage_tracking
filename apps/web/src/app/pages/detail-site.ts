@@ -358,6 +358,15 @@ function reculerMois(mois: string, n: number): string {
                           @if (dp.reimporteDepuisLeGel) {
                             <p class="mt-2 text-alerte-texte">Données du core modifiées depuis le gel du mois : le détail ci-dessous peut différer des comptes figés.</p>
                           }
+                          @if (dp.reponseZone; as rz) {
+                            <p class="mt-2 text-muted-foreground tabular-nums">
+                              {{ rz.nbRepondues }} / {{ rz.nbRequisitions }} réquisitions de la zone (couvrant {{ rz.moisCouvert }})
+                              servies par une distribution dans {{ d.moisPaqd }}
+                            </p>
+                            @if (rz.nbRequisitions === 0) {
+                              <p class="mt-1 text-muted-foreground">Aucune réquisition de la zone à évaluer ce mois.</p>
+                            }
+                          }
                           @if (calendrierP3(dp); as cal) {
                             <p class="mt-2 text-muted-foreground tabular-nums">
                               {{ cal.nbJoursAvecSortie }} / {{ cal.nbJours }} jours avec au moins une sortie
@@ -734,7 +743,8 @@ export class DetailSitePage {
   };
 
   /** Modèle du bandeau calendaire P3 (fonction pure `calendrier-p3`). */
-  protected calendrierP3 = (dp: DetailPilierP3): CalendrierP3 => construireCalendrierP3(dp.jours);
+  protected calendrierP3 = (dp: DetailPilierP3): CalendrierP3 | null =>
+    dp.jours.length === 0 ? null : construireCalendrierP3(dp.jours);
 
   protected basculerPilier(p: Pilier, ouvert: boolean): void {
     const s = new Set(this.ouverts());
@@ -806,8 +816,17 @@ export class DetailSitePage {
     }
   }
 
-  protected libellePilier = (p: Pilier) => LIBELLES_PILIER[p];
-  protected libelleSc = (sc: SousComposante) => LIBELLES_SOUS_COMPOSANTE[sc];
+  /** Suffixe P3 selon le type de site (ADR 0011) : dispensation vs distribution. */
+  private suffixeP3(): string {
+    return this.detail()?.estDistrict ? ' (distribution)' : ' (dispensation)';
+  }
+
+  protected libellePilier = (p: Pilier) =>
+    p === 'P3' ? LIBELLES_PILIER.P3 + this.suffixeP3() : LIBELLES_PILIER[p];
+  protected libelleSc = (sc: SousComposante) =>
+    sc === 'regularite_saisie'
+      ? LIBELLES_SOUS_COMPOSANTE.regularite_saisie + this.suffixeP3()
+      : LIBELLES_SOUS_COMPOSANTE[sc];
   protected pilierDe = (sc: SousComposante) => PILIER_DE_SOUS_COMPOSANTE[sc];
 
   /** Libellé de série pour le `<hlm-select>` de programme (l'`itemToString` reçoit une chaîne). */

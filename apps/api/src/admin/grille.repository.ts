@@ -77,8 +77,9 @@ export class GrilleRepository {
       seuil: string;
       sens: SeuilSousComposante['sens'];
       tolerance: string | null;
+      seuil_district: string | null;
     }>(
-      `SELECT sous_composante, seuil, sens, tolerance
+      `SELECT sous_composante, seuil, sens, tolerance, seuil_district
        FROM dqa.grille_seuil_sous_composante WHERE grille_id = $1 ORDER BY sous_composante`,
       [id],
     );
@@ -91,6 +92,7 @@ export class GrilleRepository {
         seuil: Number(r.seuil),
         sens: r.sens,
         tolerance: r.tolerance === null ? null : Number(r.tolerance),
+        seuilDistrict: r.seuil_district === null ? null : Number(r.seuil_district),
       })),
     };
   }
@@ -158,9 +160,9 @@ export class GrilleRepository {
     for (const s of e.seuils) {
       await client.query(
         `INSERT INTO dqa.grille_seuil_sous_composante
-           (grille_id, sous_composante, seuil, sens, unite, tolerance)
-         VALUES ($1, $2, $3, $4, 'pct', $5)`,
-        [id, s.sousComposante, s.seuil, s.sens, s.tolerance],
+           (grille_id, sous_composante, seuil, sens, unite, tolerance, seuil_district)
+         VALUES ($1, $2, $3, $4, 'pct', $5, $6)`,
+        [id, s.sousComposante, s.seuil, s.sens, s.tolerance, s.seuilDistrict],
       );
     }
   }

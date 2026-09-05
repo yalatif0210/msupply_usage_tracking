@@ -51,6 +51,7 @@ const detailSixPiliers = (opts: { scoreComposite: unknown; classification: unkno
   site,
   moisPaqd: '2026-08',
   moisClos: true,
+  estDistrict: false,
   moisDisponibles: ['2026-08'],
   programmeId: null,
   piliersCouverts: 2,
@@ -370,6 +371,7 @@ describe('validerReponse (couture D)', () => {
       { jour: '2026-08-01', aSortie: false },
       { jour: '2026-08-02', aSortie: true },
     ],
+    reponseZone: null,
     ...over,
   });
   const detailPilierP6 = (over: Record<string, unknown> = {}) => ({
@@ -466,7 +468,13 @@ describe('validerReponse (couture D)', () => {
     statut: 'en_vigueur',
     modifiable: false,
     poids: (['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as Pilier[]).map((pilier) => ({ pilier, poidsPct: 100 / 6 })),
-    seuils: SOUS_COMPOSANTES.map((sc) => ({ sousComposante: sc, seuil: 90, sens: 'sup', tolerance: null })),
+    seuils: SOUS_COMPOSANTES.map((sc) => ({
+      sousComposante: sc,
+      seuil: 90,
+      sens: 'sup',
+      tolerance: null,
+      seuilDistrict: sc === 'regularite_saisie' ? 80 : null,
+    })),
     ...over,
   });
 

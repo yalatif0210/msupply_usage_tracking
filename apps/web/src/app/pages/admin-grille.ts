@@ -182,6 +182,17 @@ const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant'
                       [ngModel]="s.tolerance"
                       (ngModelChange)="majTolerance(s, $event)"
                     />
+                  } @else if (s.sousComposante === 'regularite_saisie') {
+                    <input
+                      hlmInput
+                      class="w-full text-right"
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      placeholder="seuil district %"
+                      [ngModel]="s.seuilDistrict"
+                      (ngModelChange)="majSeuilDistrict(s, $event)"
+                    />
                   } @else {
                     <span class="text-center text-sm text-muted-foreground">{{ sansObjet }}</span>
                   }
@@ -228,9 +239,13 @@ const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant'
                   <span>{{ libelleSousComposante(se.sousComposante) }}</span>
                   <span class="tabular-nums">
                     <b class="font-semibold">{{ se.sens === 'sup' ? '≥' : '≤' }} {{ se.seuil }}</b>
-                    <span class="text-muted-foreground">
-                      · tolérance {{ se.tolerance !== null ? se.tolerance + ' %' : sansObjet }}
-                    </span>
+                    @if (se.seuilDistrict !== null) {
+                      <span class="text-muted-foreground">&nbsp;· district ≥ {{ se.seuilDistrict }}</span>
+                    } @else {
+                      <span class="text-muted-foreground">
+                        · tolérance {{ se.tolerance !== null ? se.tolerance + ' %' : sansObjet }}
+                      </span>
+                    }
                   </span>
                 </li>
               }
@@ -309,6 +324,11 @@ export class AdminGrillePage {
 
   protected majTolerance(s: SeuilSousComposante, v: number | null): void {
     s.tolerance = v;
+    this.rejouer();
+  }
+
+  protected majSeuilDistrict(s: SeuilSousComposante, v: number | null): void {
+    s.seuilDistrict = v;
     this.rejouer();
   }
 

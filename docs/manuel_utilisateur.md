@@ -154,7 +154,7 @@ pilier. Chaque pilier a un poids fixe et un seuil de conformité :
 |---|---|---|---|
 | P1 | Complétude des transactions | 10 % | 100 % |
 | P2 | Promptitude des transactions | 15 % | = 100 % |
-| P3 | Régularité de saisie | 15 % | ≥ 65 % |
+| P3 | Régularité de saisie | 15 % | ≥ 65 % (≥ 80 % pour un district) |
 | P4 | Taux de conformité | 25 % | tolérance produit 2 % |
 | P5 | Concordance physique / théorique | 25 % | = 100 % |
 | P6 | Ratio d'ajustements | 10 % | ≤ 5 % |
@@ -224,16 +224,36 @@ ne rien transmettre pénalise ce pilier.
 2026-07-10 (CHU → 10 jours) : à l'heure. Les 2 inventaires et les 2
 réquisitions du site sont à l'heure : **score P2 = 100**.
 
-### P3 · Régularité de saisie (poids 15 %, seuil ≥ 65 %)
+### P3 · Régularité de saisie (poids 15 %)
 
-Une seule sous-composante : **jours du mois PAQD avec au moins une sortie de
-stock (dispensation ou distribution) ÷ jours calendaires du mois**. Aucun jour
-n'est retranché : la dispensation a lieu 7 jours sur 7 en milieu hospitalier,
-ni les week-ends ni les jours fériés ne sont défalqués.
+Une seule sous-composante, mais elle se mesure différemment selon le type de
+site.
 
-**Exemple :** juin compte 30 jours ; le CHU a enregistré une dispensation sur
-26 d'entre eux → 26 / 30 = **86,7 %**, au-dessus du seuil de 65 % : **score
+**Sites qui dispensent (seuil ≥ 65 %).** **Jours du mois PAQD avec au moins une
+sortie de stock (dispensation ou distribution) ÷ jours calendaires du mois.**
+Aucun jour n'est retranché : la dispensation a lieu 7 jours sur 7 en milieu
+hospitalier, ni les week-ends ni les jours fériés ne sont défalqués.
+
+*Exemple :* juin compte 30 jours ; le CHU a enregistré une dispensation sur 26
+d'entre eux → 26 / 30 = **86,7 %**, au-dessus du seuil de 65 % : **score
 P3 = 100**.
+
+**Districts (seuil ≥ 80 %).** Un district ne dispense pas ; sa régularité, c'est
+répondre aux réquisitions de ses sites rattachés. Pour le mois PAQD M :
+**réquisitions distinctes de la zone couvrant le mois M-1, servies dans M par
+une distribution du district, ÷ réquisitions distinctes de la zone couvrant
+M-1.** La « zone » est l'ensemble des sites du périmètre du même district.
+Plusieurs distributions pour une réquisition comptent pour une. NON_CALCULABLE
+si la zone n'a aucune réquisition à évaluer.
+
+*Exemple :* pour le P3 de juillet, on regarde les réquisitions de juin. Trois
+sites de la zone en ont soumis une ; le district a servi les trois avant fin
+juillet → 3 / 3 = **100 %**, au-dessus de 80 % : **score P3 = 100**. Le mois
+suivant il n'en sert que 2 sur 3 → 66,7 % → **ALERTE**.
+
+Sur les écrans, le libellé du pilier s'adapte : « Régularité de saisie
+(dispensation) » pour un centre de santé, « (distribution) » pour un district.
+Le seuil district (80 %) est modifiable dans la grille de paramètres.
 
 ### P4 · Taux de conformité (poids 25 %, tolérance produit 2 %)
 

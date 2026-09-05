@@ -565,13 +565,15 @@ export class IndicateursRepository {
     moisDemande: string | undefined,
     programmeId: string | undefined,
   ): Promise<DetailSite | null> {
-    const site = await this.pool.query<LigneSite>(
-      `SELECT site_id, site_code, site_nom, district, region, type_structure
+    const site = await this.pool.query<LigneSite & { est_district: boolean }>(
+      `SELECT site_id, site_code, site_nom, district, region, type_structure,
+              dqa.strate_de(type_structure) = 'District' AS est_district
        FROM dqa.dim_site WHERE site_id = $1 AND dans_perimetre_dqa`,
       [siteId],
     );
     if (site.rowCount === 0) return null;
     const siteRow = site.rows[0]!;
+    const estDistrict = siteRow.est_district;
 
     const prog = programmeId ?? null;
     const moisRows = await this.pool.query<{ mois_paqd: string }>(
@@ -589,6 +591,7 @@ export class IndicateursRepository {
         site: versSite(siteRow),
         moisPaqd: null,
         moisClos: true,
+        estDistrict,
         moisDisponibles: [],
         programmeId: prog,
         piliersCouverts: 0,
@@ -622,6 +625,7 @@ export class IndicateursRepository {
       p2_score_inventaires: string | null;
       p2_score_requisitions: string | null;
       taux_regularite_pct: string | null;
+      est_district: boolean;
       taux_sdu_pct: string | null;
       taux_conso_pct: string | null;
       score_sdu: string | null;
@@ -645,12 +649,13 @@ export class IndicateursRepository {
               p2.promptitude_inventaires_pct, p2.promptitude_requisitions_pct,
               p2.score_inventaires AS p2_score_inventaires,
               p2.score_requisitions AS p2_score_requisitions,
-              p3.taux_regularite_pct,
+              p3.taux_regularite_pct, coalesce(p3.est_district, false) AS est_district,
               p4.taux_sdu_pct, p4.taux_conso_pct, p4.score_sdu, p4.score_conso,
               p5.taux_concordance_pct, p6.ratio_ajustements_pct,
               sc1.seuil AS seuil_completude,
               sc2.seuil AS seuil_promptitude,
-              sc3.seuil AS seuil_regularite,
+              CASE WHEN coalesce(p3.est_district, false) AND sc3.seuil_district IS NOT NULL
+                   THEN sc3.seuil_district ELSE sc3.seuil END AS seuil_regularite,
               sc4s.seuil AS seuil_ecart_sdu, sc4c.seuil AS seuil_ecart_conso,
               sc5.seuil AS seuil_concordance, sc6.seuil AS seuil_ajustements
        FROM dqa.hist_score_site h
@@ -703,7 +708,7 @@ export class IndicateursRepository {
         req: brute(h?.promptitude_requisitions_pct, h?.p2_score_requisitions),
       }),
       this.pilierP3(h?.p_regularite ?? null, h?.seuil_regularite ?? null,
-        brute(h?.taux_regularite_pct, h?.p_regularite)),
+        brute(h?.taux_regularite_pct, h?.p_regularite), estDistrict),
       this.pilierP4(h?.p_ecart_sdu ?? null, {
         sdu: brute(h?.taux_sdu_pct, h?.score_sdu),
         seuilSdu: h?.seuil_ecart_sdu ?? null,
@@ -716,12 +721,13 @@ export class IndicateursRepository {
         brute(h?.ratio_ajustements_pct, h?.p_ajustements)),
     ];
 
-    const comptesParPilier = await this.comptesBrutsParPilier(siteId, mois, prog);
+    const comptesParPilier = await this.comptesBrutsParPilier(siteId, mois, prog, estDistrict);
 
     return {
       site: versSite(siteRow),
       moisPaqd: mois,
       moisClos: await this.moisEstClos(mois),
+      estDistrict,
       moisDisponibles,
       programmeId: prog,
       piliersCouverts: h?.piliers_couverts ?? 0,
@@ -869,10 +875,37 @@ export class IndicateursRepository {
     ]);
   }
 
-  private pilierP3(score: string | null, seuil: string | null, m: ValeurBrute): ScorePilier {
-    return this.envelopper('P3', score, [
-      this.mesure('regularite_saisie', m, seuil, 'Aucune sortie de stock exploitable sur le mois'),
+  private pilierP3(
+    score: string | null,
+    seuil: string | null,
+    m: ValeurBrute,
+    estDistrict: boolean,
+  ): ScorePilier {
+    const p = this.envelopper('P3', score, [
+      this.mesure(
+        'regularite_saisie',
+        m,
+        seuil,
+        estDistrict
+          ? 'Aucune réquisition de la zone du district à évaluer ce mois'
+          : 'Aucune sortie de stock exploitable sur le mois',
+      ),
     ]);
+    // Libellé adaptatif (ADR 0011) : la sous-composante est unique, l'écran
+    // distingue le district par le suffixe.
+    return {
+      ...p,
+      libelle: estDistrict ? 'Régularité de saisie (distribution)' : 'Régularité de saisie (dispensation)',
+    };
+  }
+
+  /** `strate_de(type_structure) = 'District'` : P3 mesuré autrement (ADR 0011). */
+  private async estSiteDistrict(siteId: string): Promise<boolean> {
+    const { rows } = await this.pool.query<{ d: boolean }>(
+      `SELECT dqa.strate_de(type_structure) = 'District' AS d FROM dqa.dim_site WHERE site_id = $1`,
+      [siteId],
+    );
+    return rows[0]?.d ?? false;
   }
 
   private pilierP4(
@@ -921,6 +954,7 @@ export class IndicateursRepository {
     siteId: string,
     mois: string,
     prog: string | null,
+    estDistrict = false,
   ): Promise<Map<Pilier, CompteBrut[]>> {
     const { rows } = await this.pool.query<{
       mesure: CompteBrut['mesure'];
@@ -943,7 +977,10 @@ export class IndicateursRepository {
       const liste = parPilier.get(pilier) ?? [];
       liste.push({
         mesure,
-        libelle: LIBELLES_MESURE_BRUTE[mesure],
+        libelle:
+          estDistrict && mesure === 'p3_regularite'
+            ? 'réquisitions de la zone servies dans le mois'
+            : LIBELLES_MESURE_BRUTE[mesure],
         attendu: r.nb_attendu,
         realise: r.nb_realise,
         aLHeure: r.nb_a_lheure,
@@ -969,13 +1006,15 @@ export class IndicateursRepository {
   ): Promise<DetailPilier | null> {
     const pilier = PILIER_DE_CODE[code];
 
-    const site = await this.pool.query<LigneSite>(
-      `SELECT site_id, site_code, site_nom, district, region, type_structure
+    const site = await this.pool.query<LigneSite & { est_district: boolean }>(
+      `SELECT site_id, site_code, site_nom, district, region, type_structure,
+              dqa.strate_de(type_structure) = 'District' AS est_district
        FROM dqa.dim_site WHERE site_id = $1 AND dans_perimetre_dqa`,
       [siteId],
     );
     if (site.rowCount === 0) return null;
     const siteRow = site.rows[0]!;
+    const estDistrict = siteRow.est_district;
     const prog = q.programmeId ?? null;
 
     const moisRows = await this.pool.query<{ mois_paqd: string }>(
@@ -988,7 +1027,7 @@ export class IndicateursRepository {
     const mois = q.mois && moisDisponibles.includes(q.mois) ? q.mois : moisDisponibles[0];
 
     const comptesBruts = mois
-      ? (await this.comptesBrutsParPilier(siteId, mois, prog)).get(pilier) ?? []
+      ? (await this.comptesBrutsParPilier(siteId, mois, prog, estDistrict)).get(pilier) ?? []
       : [];
 
     const commun = {
@@ -1007,7 +1046,7 @@ export class IndicateursRepository {
         case 'p2':
           return { ...vide, code, inventaires: [], requisitions: [] };
         case 'p3':
-          return { ...vide, code, jours: [] };
+          return { ...vide, code, jours: [], reponseZone: null };
         case 'p4':
           return { ...vide, code, produits: [] };
         case 'p6':
@@ -1032,7 +1071,7 @@ export class IndicateursRepository {
       return { ...commun, ...horo(coreMajLe), code, ...lignes };
     }
     if (code === 'p3') {
-      const { coreMajLe, ...lignes } = await this.detailPilierP3(siteId, mois, prog);
+      const { coreMajLe, ...lignes } = await this.detailPilierP3(siteId, mois, prog, estDistrict);
       return { ...commun, ...horo(coreMajLe), code, ...lignes };
     }
     if (code === 'p4') {
@@ -1270,16 +1309,19 @@ export class IndicateursRepository {
 
 
   /**
-   * Bandeau calendaire de P3 : un item par jour calendaire du mois PAQD
-   * (`dim_temps`), marqué s'il a porté ≥ 1 sortie de stock — mêmes prédicats que
-   * `mv_p3_regularite` (0024) : `nature ∈ {dispensation, distribution}`, non
-   * annulée, jour = `coalesce(date_confirmation, date_saisie)`.
+   * Détail de P3. Pour un district (ADR 0011) : le couple réquisitions de la
+   * zone couvrant M-1 / servies dans M par une distribution liée. Sinon : le
+   * bandeau calendaire (un item par jour du mois PAQD, marqué s'il a porté ≥ 1
+   * sortie de stock — mêmes prédicats que `mv_p3_regularite`).
    */
   private async detailPilierP3(
     siteId: string,
     mois: string,
     prog: string | null,
-  ): Promise<Pick<DetailPilierP3, 'jours'> & { coreMajLe: Date | null }> {
+    estDistrict: boolean,
+  ): Promise<Pick<DetailPilierP3, 'jours' | 'reponseZone'> & { coreMajLe: Date | null }> {
+    if (estDistrict) return this.detailP3District(siteId, mois, prog);
+
     const params = [siteId, mois, prog];
 
     const jours = await this.pool.query<{ jour: string; a_sortie: boolean }>(
@@ -1311,6 +1353,80 @@ export class IndicateursRepository {
 
     return {
       jours: jours.rows.map((r) => ({ jour: r.jour, aSortie: r.a_sortie })),
+      reponseZone: null,
+      coreMajLe: maj.rows[0]?.core_maj_le ?? null,
+    };
+  }
+
+  /**
+   * Détail P3 d'un district : réquisitions DISTINCTES de sa zone (sites du
+   * périmètre du même district) couvrant M-1, et celles servies dans M par une
+   * distribution du district liée par `requisition_id`. Aligné sur la branche
+   * district de `mv_p3_regularite` (migration 0036).
+   */
+  private async detailP3District(
+    siteId: string,
+    mois: string,
+    prog: string | null,
+  ): Promise<Pick<DetailPilierP3, 'jours' | 'reponseZone'> & { coreMajLe: Date | null }> {
+    const [annee, moisNum] = mois.split('-').map(Number) as [number, number];
+    const moisCouvert =
+      moisNum === 1
+        ? `${annee - 1}-12`
+        : `${annee}-${String(moisNum - 1).padStart(2, '0')}`;
+    const debutM = `${mois}-01`;
+    const finM = `${mois}-${String(new Date(Date.UTC(annee, moisNum, 0)).getUTCDate()).padStart(2, '0')}`;
+    const params = [siteId, moisCouvert, prog, debutM, finM];
+
+    const { rows } = await this.pool.query<{ nb_requisitions: number; nb_repondues: number }>(
+      `WITH zone AS (
+         SELECT sreq.site_id
+         FROM dqa.dim_site d
+         JOIN dqa.dim_site sreq
+           ON sreq.district = d.district AND sreq.dans_perimetre_dqa
+          AND sreq.site_id <> d.site_id
+          AND dqa.strate_de(sreq.type_structure) <> 'District'
+         WHERE d.site_id = $1
+       ),
+       reqs AS (
+         SELECT DISTINCT fr.requisition_id
+         FROM dqa.fact_requisition fr
+         JOIN zone z ON z.site_id = fr.site_id
+         WHERE fr.mois_couvert = $2 AND ($3::text IS NULL OR fr.programme_id = $3)
+       )
+       SELECT
+         count(*)::int AS nb_requisitions,
+         count(*) FILTER (WHERE EXISTS (
+           SELECT 1 FROM dqa.fact_transaction ft
+           WHERE ft.site_id = $1 AND ft.nature = 'distribution'
+             AND ft.requisition_id = reqs.requisition_id
+             AND coalesce(ft.annulation, false) = false
+             AND coalesce(ft.date_confirmation, ft.date_saisie) BETWEEN $4::date AND $5::date
+         ))::int AS nb_repondues
+       FROM reqs`,
+      params,
+    );
+
+    const maj = await this.pool.query<{ core_maj_le: Date | null }>(
+      `SELECT greatest(
+         (SELECT max(fr.maj_le) FROM dqa.fact_requisition fr
+          JOIN dqa.dim_site sreq ON sreq.site_id = fr.site_id
+          JOIN dqa.dim_site d ON d.district = sreq.district AND d.site_id = $1
+          WHERE fr.mois_couvert = $2 AND ($3::text IS NULL OR fr.programme_id = $3)),
+         (SELECT max(ft.maj_le) FROM dqa.fact_transaction ft
+          WHERE ft.site_id = $1 AND ft.nature = 'distribution'
+            AND coalesce(ft.date_confirmation, ft.date_saisie) BETWEEN $4::date AND $5::date)
+       ) AS core_maj_le`,
+      params,
+    );
+
+    return {
+      jours: [],
+      reponseZone: {
+        moisCouvert,
+        nbRequisitions: rows[0]?.nb_requisitions ?? 0,
+        nbRepondues: rows[0]?.nb_repondues ?? 0,
+      },
       coreMajLe: maj.rows[0]?.core_maj_le ?? null,
     };
   }

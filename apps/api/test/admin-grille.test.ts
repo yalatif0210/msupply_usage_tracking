@@ -41,6 +41,7 @@ describe('administration de la grille de paramètres', () => {
     seuil: sc === 'ratio_ajustements' ? 5 : sc === 'regularite_saisie' ? 65 : 90,
     sens: sc === 'ratio_ajustements' ? ('inf' as const) : ('sup' as const),
     tolerance: sc === 'ecart_sdu' || sc === 'ecart_consommation' ? 2 : null,
+    seuilDistrict: sc === 'regularite_saisie' ? 80 : null,
   }));
   const POIDS = [
     { pilier: 'P1' as const, poidsPct: 10 },

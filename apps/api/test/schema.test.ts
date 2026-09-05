@@ -70,6 +70,12 @@ describe('socle base de données DQA', () => {
        WHERE sous_composante IN ('ecart_sdu', 'ecart_consommation') AND tolerance = 2.00`,
     );
     expect(tol.rows[0]?.n).toBe('2');
+    // seuil district (ADR 0011) : sur régularité de saisie uniquement
+    const sd = await db.query<{ sous_composante: string; seuil_district: string | null }>(
+      `SELECT sous_composante, seuil_district FROM dqa.grille_seuil_sous_composante
+       WHERE seuil_district IS NOT NULL`,
+    );
+    expect(sd.rows).toEqual([{ sous_composante: 'regularite_saisie', seuil_district: '80.00' }]);
   });
 
   it('seede le calendrier (jours calendaires, mois et cycles PAQD)', async () => {

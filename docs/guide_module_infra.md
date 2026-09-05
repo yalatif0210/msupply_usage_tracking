@@ -42,8 +42,9 @@ docker compose -f docker-compose.demo.yml down -v
   `NODE_ENV` est laissé vide : la démo est en HTTP, le cookie de session ne
   doit pas être `secure`.
 - **`seed`** — `postgres:16-alpine` qui joue `db/demo/seed.sql` une fois l'API
-  saine (donc les migrations passées). Purge le core, insère 8 sites de strates
-  variées + la fin du cycle C2 (2026-05 à 2026-08) et le début du C3 (2026-09) +
+  saine (donc les migrations passées). Purge le core, insère 11 sites de strates
+  variées (dont un district et sa zone de trois sites rattachés) + la fin du
+  cycle C2 (2026-05 à 2026-08) et le début du C3 (2026-09) +
   inventaires / mouvements sur 4 traceurs, un lot d'import par mois plus un
   cinquième lot « extraction du 5 septembre » à fenêtre de 45 jours qui
   chevauche août et septembre : il apporte les premiers jours de septembre ET
@@ -69,6 +70,7 @@ piliers » :
 | Tableau de bord | courbe de progression nationale sur 5 points (34 → 46,6 → 66,4 → 60,1 → 49,3 ; les deux derniers provisoires) |
 | Fiche site (`/sites/SITE-CHU`), plage « Tout » | « Progression (score composite) » 42,5 → 62,5 → 87,5 → 62,5 → 66,7 : août est passé de 51,7 (réquisitions manquantes) à 62,5 quand le lot du 5 septembre les a rapportées, sans redéclarer août |
 | Fiche site 2026-09 | mois à 5 jours de données : score volatil, repère « Mois en cours », historique qui démarre au cycle C3 (bouton « Tout » pour voir les 5 mois) |
+| Fiche site (`/sites/SITE-DIST`) | district : P3 « Régularité de saisie (distribution) », seuil 80 %, mesure la réponse aux réquisitions de la zone (juin 2/3, juillet 3/3, août 2/3, sept 1/3) ; détail P3 = le couple réquisitions de zone / servies au lieu du bandeau calendaire (ADR 0011) |
 | Fiche site (`/sites/SITE-REIMP`) | avertissement « données du core modifiées depuis le gel » |
 | Fiche site (`/sites/SITE-CSU`) | réquisition et inventaire manquants pour le mois |
 | `/synthese` onglet « Rapports & inventaires » | strates CHU / CHR / HG / ESPC / CS / District ; « Non classé » pour l'Institut |
