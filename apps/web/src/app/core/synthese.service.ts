@@ -41,8 +41,9 @@ export class SyntheseService {
     return validerReponse(syntheseRapportsSchema, data);
   }
 
-  async tableauDeBord(): Promise<TableauDeBord> {
-    const data = await firstValueFrom(this.http.get<unknown>('/api/tableau-de-bord'));
+  async tableauDeBord(mois?: string): Promise<TableauDeBord> {
+    const params = mois ? new HttpParams().set('mois', mois) : undefined;
+    const data = await firstValueFrom(this.http.get<unknown>('/api/tableau-de-bord', { params }));
     return validerReponse(tableauDeBordSchema, data);
   }
 }

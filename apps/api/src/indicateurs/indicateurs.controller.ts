@@ -105,8 +105,9 @@ export class IndicateursController {
   }
 
   @Get('tableau-de-bord')
-  tableauDeBord(): Promise<TableauDeBord> {
-    return this.repo.tableauDeBord();
+  tableauDeBord(@Query('mois') mois?: string): Promise<TableauDeBord> {
+    const moisValide = mois ? moisPaqdSchema.parse(mois) : undefined;
+    return this.repo.tableauDeBord(moisValide);
   }
 
   @Get('referentiel/programmes')

@@ -56,6 +56,8 @@ type FiltresFiche = {
   programme: string;
   de: string;
   a: string;
+  /** Mois affiché explicitement choisi ; vide = suit la borne haute de `a`/l'historique. */
+  mois: string;
 }
 
 interface DonneesFiche {
@@ -143,7 +145,21 @@ function reculerMois(mois: string, n: number): string {
               </hlm-select-content>
             </hlm-select>
           </div>
-          <span class="text-sm text-muted-foreground">Mois affiché : {{ d.moisPaqd ?? absent }}</span>
+          <div class="grid gap-1.5">
+            <span class="text-sm font-medium">Mois affiché</span>
+            <hlm-select
+              class="w-40"
+              [ngModel]="res.filtres().mois || d.moisPaqd"
+              (ngModelChange)="res.definir({ mois: versChaine($event) })"
+            >
+              <hlm-select-trigger class="w-40"><hlm-select-value placeholder="n/d" /></hlm-select-trigger>
+              <hlm-select-content *hlmSelectPortal>
+                @for (m of moisDisponibles(); track m) {
+                  <hlm-select-item [value]="m">{{ m }}</hlm-select-item>
+                }
+              </hlm-select-content>
+            </hlm-select>
+          </div>
         </div>
 
         @if (d.piliers.length === 0) {
@@ -161,6 +177,14 @@ function reculerMois(mois: string, n: number): string {
                   <span class="text-sm text-muted-foreground">
                     Score calculé sur {{ d.piliersCouverts }} pilier{{ d.piliersCouverts > 1 ? 's' : '' }} sur {{ d.piliersTotal }}
                   </span>
+                }
+              </div>
+              <div class="grid gap-1.5">
+                <span class="text-sm font-medium text-muted-foreground">Progression (score composite)</span>
+                @if (progressionComposite(); as p) {
+                  <span class="text-sm" [class]="p.classe">{{ p.texte }}</span>
+                } @else {
+                  <span class="text-sm text-muted-foreground">{{ absent }}</span>
                 }
               </div>
             </div>
@@ -628,8 +652,9 @@ export class DetailSitePage {
         de: f.de || undefined,
         a: f.a || undefined,
       });
-      // le mois de la fiche suit la borne haute réellement servie par l'historique
-      const moisFiche = h.points.at(-1)?.moisPaqd ?? (f.a || undefined);
+      // le mois affiché suit un choix explicite (sélecteur du haut), sinon la
+      // borne haute réellement servie par l'historique
+      const moisFiche = f.mois || h.points.at(-1)?.moisPaqd || (f.a || undefined);
       const d = await this.service.detailSite(this.id(), {
         programmeId: f.programme || undefined,
         mois: moisFiche,
@@ -637,7 +662,7 @@ export class DetailSitePage {
       return { detail: d, historique: h };
     },
     germe: { detail: null, historique: null },
-    filtresInitiaux: { programme: '', de: '', a: '' },
+    filtresInitiaux: { programme: '', de: '', a: '', mois: '' },
     // aligne la plage sur ce que l'historique a réellement renvoyé
     apresChargement: (v) => {
       const points = v.historique?.points ?? [];
@@ -946,5 +971,24 @@ export class DetailSitePage {
     const v = Math.round((m.at(-1)!.scoreComposite - m[0]!.scoreComposite) * 10) / 10;
     const signe = v > 0 ? `+${v}` : String(v);
     return `${m[0]!.moisPaqd} → ${m.at(-1)!.moisPaqd} : ${signe} pts`;
+  });
+
+  /** Écart du mois affiché sur le mois précédent (dans l'historique chargé) ; `null` si l'un des deux manque. */
+  protected readonly progressionComposite = computed<{ texte: string; classe: string } | null>(() => {
+    const d = this.detail();
+    const points = this.historique()?.points ?? [];
+    if (!d || d.scoreComposite === null) return null;
+    const i = points.findIndex((p) => p.moisPaqd === d.moisPaqd);
+    const precedent = i > 0 ? points[i - 1] : undefined;
+    if (!precedent || precedent.scoreComposite === null) return null;
+    const ecart = Math.round((d.scoreComposite - precedent.scoreComposite) * 10) / 10;
+    if (ecart === 0) {
+      return { texte: `stable depuis ${precedent.moisPaqd}`, classe: 'text-muted-foreground' };
+    }
+    const signe = ecart > 0 ? '+' : '';
+    return {
+      texte: `${signe}${ecart} pts depuis ${precedent.moisPaqd}`,
+      classe: ecart > 0 ? 'text-conforme-texte' : 'text-alerte-texte',
+    };
   });
 }

@@ -67,7 +67,7 @@ type FiltresProduit = {
 
         <div class="mt-5 flex flex-wrap items-end gap-6" [attr.aria-busy]="res.enCours() ? 'true' : null">
           <div class="grid gap-1.5">
-            <span class="text-sm font-medium">Mois PAQD</span>
+            <span class="text-sm font-medium">Mois affiché</span>
             @if (f.moisDisponibles.length > 0) {
               <hlm-select
                 class="w-40"

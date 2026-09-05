@@ -426,7 +426,12 @@ export class IndicateursRepository {
   }
 
   /** Agrégat de la page d'accueil : état national du dernier mois, courbe et sous-composantes en difficulté. */
-  async tableauDeBord(): Promise<TableauDeBord> {
+  /**
+   * @param moisDemande Mois PAQD explicitement demandé (navigation vers le
+   *   passé). Ignoré s'il ne figure pas dans l'historique gelé : on retombe
+   *   alors sur le dernier mois disponible, jamais sur une page vide.
+   */
+  async tableauDeBord(moisDemande?: string): Promise<TableauDeBord> {
     // Les deux vues n'agrègent que les sites `dans_perimetre_dqa` (cf. 0021, 0026) ;
     // le grain national = programme / région / district tous nuls.
     const NATIONAL = `programme_id IS NULL AND region IS NULL AND district IS NULL`;
@@ -441,7 +446,8 @@ export class IndicateursRepository {
       moisPaqd: r.mois_paqd,
       scoreCompositeMoyen: nombreOuNull(r.score_composite_moyen),
     }));
-    const mois = points.at(-1)?.moisPaqd ?? null;
+    const moisValide = moisDemande && points.some((p) => p.moisPaqd === moisDemande) ? moisDemande : null;
+    const mois = moisValide ?? points.at(-1)?.moisPaqd ?? null;
 
     if (mois === null) {
       return { moisPaqd: null, national: versBloc(undefined), progression: [], sousComposantesEnDifficulte: [] };

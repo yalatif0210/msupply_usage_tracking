@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
@@ -9,10 +9,14 @@ import {
   lucideGauge,
 } from '@ng-icons/lucide';
 import { HlmCard } from '@spartan-ng/helm/card';
+import { HlmSelectImports } from '@spartan-ng/helm/select';
+import { HlmSkeletonImports } from '@spartan-ng/helm/skeleton';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { LIBELLES_SOUS_COMPOSANTE, type SousComposante, type TableauDeBord } from '@dqa/contracts';
-import { VALEUR_ABSENTE } from '../core/affichage';
+import { VALEUR_ABSENTE, versChaine } from '../core/affichage';
+import { ressource } from '../core/ressource';
 import { SyntheseService } from '../core/synthese.service';
+import { BarreAttente } from '../ui/barre-attente';
 import { Coquille } from '../ui/coquille';
 import { GrapheCourbe, type SerieGrapheCourbe } from '../ui/graphe-courbe';
 import { RepartitionClassificationComponent } from '../ui/repartition-classification';
@@ -25,9 +29,14 @@ interface CarteKpi {
   readonly delta: { readonly texte: string; readonly classe: string } | null;
 }
 
+type FiltresTableauDeBord = {
+  mois: string;
+}
+
 /**
- * Page d'accueil : état national du dernier mois PAQD, sans aucun filtre
- * (agrégat fixe, comportement inchangé). Registre shadcn-admin : cartes de
+ * Page d'accueil : état national du mois PAQD affiché (le dernier par défaut,
+ * navigable vers un mois passé : les scores historisés sont consultés en
+ * reporting de conformité, cf. ADR 0003). Registre shadcn-admin : cartes de
  * statistiques, courbe de progression en vrai graphe, tableau des
  * sous-composantes en difficulté.
  */
@@ -39,7 +48,10 @@ interface CarteKpi {
     RouterLink,
     NgIcon,
     HlmCard,
+    HlmSelectImports,
+    HlmSkeletonImports,
     HlmTableImports,
+    BarreAttente,
     Coquille,
     GrapheCourbe,
     RepartitionClassificationComponent,
@@ -50,15 +62,40 @@ interface CarteKpi {
     <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
       <h1 class="text-2xl font-bold tracking-tight">Tableau de bord national</h1>
 
-      @if (tdb(); as t) {
+      @switch (res.phase()) {
+      @case ('squelette') {
+        <div class="mt-6 flex flex-col gap-4" aria-hidden="true">
+          <div hlmSkeleton class="h-9 w-44"></div>
+          <div hlmSkeleton class="h-32 w-full"></div>
+        </div>
+      }
+      @case ('echec') {
+        <p class="mt-4 text-sm text-muted-foreground">Le tableau de bord est indisponible.</p>
+      }
+      @default {
+      @if (res.valeur(); as t) {
         @if (t.moisPaqd === null) {
           <p class="mt-4 text-sm text-muted-foreground">
             Aucun mois n'a encore de score. Le tableau de bord s'alimentera au premier import traité.
           </p>
         } @else {
-          <p class="mt-1 text-sm text-muted-foreground">Mois PAQD : {{ t.moisPaqd }}</p>
+          <label class="mt-4 grid gap-1.5 text-xs font-medium text-muted-foreground">
+            Mois affiché
+            <hlm-select class="w-44" [value]="res.filtres().mois" (valueChange)="majMois($event)">
+              <hlm-select-trigger class="w-44">
+                <hlm-select-value placeholder="Mois affiché" />
+              </hlm-select-trigger>
+              <hlm-select-content *hlmSelectPortal>
+                @for (m of moisDisponibles(); track m) {
+                  <hlm-select-item [value]="m">{{ m }}</hlm-select-item>
+                }
+              </hlm-select-content>
+            </hlm-select>
+          </label>
 
-          <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <dqa-barre-attente class="mt-2 block" [actif]="res.enCours()" />
+
+          <div class="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             @for (c of cartes(); track c.libelle) {
               <div hlmCard>
                 <div class="flex flex-col gap-2 px-4">
@@ -164,10 +201,8 @@ interface CarteKpi {
             </a>
           </p>
         }
-      } @else if (chargement()) {
-        <p class="mt-4 text-sm text-muted-foreground">Chargement…</p>
-      } @else {
-        <p class="mt-4 text-sm text-muted-foreground">Le tableau de bord est indisponible.</p>
+      }
+      }
       }
     </main>
   `,
@@ -179,27 +214,46 @@ export class TableauDeBordPage {
   private readonly service = inject(SyntheseService);
   private readonly nb = inject(DecimalPipe);
 
-  protected readonly tdb = signal<TableauDeBord | null>(null);
-  protected readonly chargement = signal(true);
+  protected readonly res = ressource<TableauDeBord | null, FiltresTableauDeBord>({
+    charger: (f) => this.service.tableauDeBord(f.mois || undefined),
+    germe: null,
+    filtresInitiaux: { mois: '' },
+    // aligne le mois affiché sur celui que le serveur a réellement servi
+    apresChargement: (t) => (t?.moisPaqd ? { mois: t.moisPaqd } : undefined),
+  });
 
-  protected readonly assezDHistorique = computed(() => (this.tdb()?.progression.length ?? 0) > 1);
+  /** Tous les mois PAQD historisés, du plus ancien au plus récent (sélecteur). */
+  protected readonly moisDisponibles = computed(() => this.res.valeur()?.progression.map((p) => p.moisPaqd) ?? []);
+
+  protected readonly assezDHistorique = computed(() => (this.res.valeur()?.progression.length ?? 0) > 1);
 
   protected readonly etiquettesProgression = computed(
-    () => this.tdb()?.progression.map((p) => p.moisPaqd) ?? [],
+    () => this.res.valeur()?.progression.map((p) => p.moisPaqd) ?? [],
   );
 
   protected readonly seriesProgression = computed<SerieGrapheCourbe[]>(() => [
     {
       nom: 'Score composite moyen',
-      points: this.tdb()?.progression.map((p) => p.scoreCompositeMoyen) ?? [],
+      points: this.res.valeur()?.progression.map((p) => p.scoreCompositeMoyen) ?? [],
     },
   ]);
 
-  /** Écart du dernier mois PAQD sur le précédent, en points de score ; `null` si l'un des deux manque. */
+  constructor() {
+    void this.res.demarrer();
+  }
+
+  /** `valueChange` d'un `hlm-select` : la valeur d'un item est toujours une chaîne. */
+  protected majMois(valeur: unknown): void {
+    this.res.definir({ mois: versChaine(valeur) });
+  }
+
+  /** Écart du mois affiché sur le précédent, en points de score ; `null` si l'un des deux manque. */
   private readonly deltaScore = computed<CarteKpi['delta']>(() => {
-    const progression = this.tdb()?.progression ?? [];
-    const dernier = progression.at(-1);
-    const precedent = progression.at(-2);
+    const t = this.res.valeur();
+    const progression = t?.progression ?? [];
+    const i = progression.findIndex((p) => p.moisPaqd === t?.moisPaqd);
+    const dernier = i >= 0 ? progression[i] : undefined;
+    const precedent = i > 0 ? progression[i - 1] : undefined;
     if (
       !dernier ||
       !precedent ||
@@ -221,7 +275,7 @@ export class TableauDeBordPage {
   });
 
   protected readonly cartes = computed<readonly CarteKpi[]>(() => {
-    const t = this.tdb();
+    const t = this.res.valeur();
     if (!t || t.moisPaqd === null) return [];
     const n = t.national;
     return [
@@ -258,19 +312,6 @@ export class TableauDeBordPage {
       },
     ];
   });
-
-  constructor() {
-    void this.charger();
-  }
-
-  private async charger(): Promise<void> {
-    try {
-      this.tdb.set(await this.service.tableauDeBord());
-    } catch {
-      this.tdb.set(null);
-    }
-    this.chargement.set(false);
-  }
 
   protected libelleSc(sc: SousComposante): string {
     return LIBELLES_SOUS_COMPOSANTE[sc];

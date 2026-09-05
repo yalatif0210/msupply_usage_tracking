@@ -77,12 +77,12 @@ const TH = 'text-xs font-medium text-muted-foreground';
       @default {
       @if (res.valeur(); as s) {
         <div class="mt-4 mb-6 flex flex-wrap items-end gap-4">
-          @if (s.moisDisponibles.length > 1) {
+          @if (s.moisDisponibles.length > 0) {
             <label class="grid gap-1.5 text-xs font-medium text-muted-foreground">
-              Mois PAQD
+              Mois affiché
               <hlm-select [value]="res.filtres().mois" (valueChange)="majMois($event)">
                 <hlm-select-trigger class="w-44">
-                  <hlm-select-value placeholder="Mois PAQD" />
+                  <hlm-select-value placeholder="Mois affiché" />
                 </hlm-select-trigger>
                 <hlm-select-content *hlmSelectPortal>
                   @for (m of s.moisDisponibles; track m) {
@@ -92,7 +92,7 @@ const TH = 'text-xs font-medium text-muted-foreground';
               </hlm-select>
             </label>
           } @else {
-            <p class="text-sm text-muted-foreground">Mois PAQD : {{ s.moisPaqd ?? absent }}</p>
+            <p class="text-sm text-muted-foreground">Mois affiché : {{ absent }}</p>
           }
 
           <label class="grid gap-1.5 text-xs font-medium text-muted-foreground">

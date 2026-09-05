@@ -410,6 +410,30 @@ describe('vue mv_synthese_nationale', () => {
     expect(t.sousComposantesEnDifficulte[1]?.nbAlerte).toBe(1);
   });
 
+  it('tableau de bord : un mois passé demandé explicitement est servi', async () => {
+    await site('S1', 'NORD', 'D1');
+    await histTdb('S1', '2026-07', 60, 'NON_CONFORME', 65, 0);
+    await histTdb('S1', '2026-08', 80, 'PARTIELLEMENT_CONFORME', 40, 10);
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_nationale`);
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_sous_composante`);
+
+    const t = await new IndicateursRepository(db).tableauDeBord('2026-07');
+    expect(t.moisPaqd).toBe('2026-07');
+    expect(t.national.scoreCompositeMoyen).toBe(60);
+    // la progression reste toujours complète : seul le mois affiché change
+    expect(t.progression.map((p) => p.moisPaqd)).toEqual(['2026-07', '2026-08']);
+  });
+
+  it('tableau de bord : un mois demandé absent de l\'historique retombe sur le dernier', async () => {
+    await site('S1', 'NORD', 'D1');
+    await histTdb('S1', '2026-08', 80, 'PARTIELLEMENT_CONFORME', 40, 10);
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_nationale`);
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_sous_composante`);
+
+    const t = await new IndicateursRepository(db).tableauDeBord('2026-01');
+    expect(t.moisPaqd).toBe('2026-08');
+  });
+
   it('tableau de bord : aucun mois mesuré', async () => {
     // le beforeEach vide les tables mais pas les vues matérialisées
     await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_nationale`);
