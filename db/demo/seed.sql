@@ -1,14 +1,17 @@
 -- ═══════════════════════════════════════════════════════════════════════════
---  Jeu de démonstration — chantier « données brutes des piliers »
+--  Jeu de démonstration · chantier « données brutes des piliers »
 --
---  Six sites de strates variées, un mois PAQD (2026-05), des inventaires et
---  mouvements sur quatre produits traceurs, puis le vrai gel
---  (`rafraichir_et_geler`). Rejouable : purge le core avant d'insérer.
+--  Huit sites de strates variées, deux mois PAQD consécutifs (2026-05 puis
+--  2026-06), des inventaires et mouvements sur quatre produits traceurs,
+--  puis le vrai gel (`rafraichir_et_geler`) pour chaque mois. Rejouable :
+--  purge le core avant d'insérer.
 --
 --  Ce qu'on peut voir après le seed (connexion coordination / coordination-2026) :
+--   - sélecteur « Mois affiché » (tableau de bord, synthèse, fiches site et
+--     produit) : deux mois réels à naviguer, pas un seul figé ;
 --   - fiche site : couples attendu/réalisé dans les cartes, dépliants P1..P6,
 --     bandeau calendaire P3, tableau produit P4·P5, avertissement ré-import
---     (SITE-REIMP) ;
+--     (SITE-REIMP), « Progression (score composite) » entre mai et juin ;
 --   - /synthese onglet « Rapports & inventaires » : strates CHU/CHR/HG/ESPC/CS/District ;
 --   - /admin/strates : "Institut" non classé ;
 --   - fiche produit-mois : depuis un code produit du tableau P4·P5.
@@ -196,6 +199,133 @@ CALL dqa.rafraichir_et_geler(1);
 
 COMMIT;
 
+-- ═══════════════════════════════════════════════════════════════════════════
+--  Second mois PAQD (2026-06, M+2 du cycle C2) — pour que le sélecteur
+--  « Mois affiché » (tableau de bord, synthèse, fiches site/produit) ait
+--  vraiment un mois passé à montrer, et que la « Progression (score
+--  composite) » affiche un écart réel. Narratif : la plupart des sites
+--  progressent (SDU rentré dans la tolérance, réquisitions à l'heure) ;
+--  CHR et CSU restent des points de vigilance (persistants d'un mois à
+--  l'autre), pour un tableau de bord qui ne soit pas uniformément vert.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+BEGIN;
+
+INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, statut, importe_le)
+VALUES ('demo_2026-06.xlsx', '2026-C2', '2026-06', '2026-06-01', '2026-06-30', 'valide', now());
+
+CREATE TEMP TABLE _inventaire2 (inv text, site text, prog text, jour date);
+INSERT INTO _inventaire2 VALUES
+    ('INV2-CHU-1','SITE-CHU','PRG-VIH','2026-06-02'),  ('INV2-CHU-2','SITE-CHU','PRG-VIH','2026-06-29'),
+    ('INV2-CHU-3','SITE-CHU','PRG-PALU','2026-06-29'),
+    ('INV2-CHR-1','SITE-CHR','PRG-PALU','2026-06-11'), -- toujours hors des 3 derniers jours
+    ('INV2-HG-1','SITE-HG','PRG-VIH','2026-06-03'),    ('INV2-HG-2','SITE-HG','PRG-VIH','2026-06-28'),
+    ('INV2-ESPC-1','SITE-ESPC','PRG-PALU','2026-06-30'),
+    ('INV2-CSU-1','SITE-CSU','PRG-PALU','2026-06-27'), -- réquisition toujours absente
+    ('INV2-DIST-1','SITE-DIST','PRG-PALU','2026-06-28'),
+    ('INV2-INST-1','SITE-INST','PRG-VIH','2026-06-29'),
+    ('INV2-RIM-1','SITE-REIMP','PRG-PALU','2026-06-29');
+
+INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
+SELECT inv, site, prog, jour, 'fn', 2 FROM _inventaire2;
+
+-- Lignes d'inventaire : écarts SDU resserrés dans la tolérance pour CHU, HG,
+-- DIST (amélioration vs mai) ; CHR reste hors tolérance.
+CREATE TEMP TABLE _inv_ligne2 (inv text, item text, theo numeric, cnt numeric);
+INSERT INTO _inv_ligne2 VALUES
+    ('INV2-CHU-1','ITM-ARV', 520, 520), ('INV2-CHU-2','ITM-ARV', 440, 440),
+    ('INV2-CHU-1','ITM-HIV', 205, 204), ('INV2-CHU-2','ITM-HIV', 155, 155),
+    ('INV2-CHU-3','ITM-ALU', 300, 297),                                      -- 1 % : rentré dans la tolérance
+    ('INV2-CHU-3','ITM-TDR', 100, 99),
+    ('INV2-CHR-1','ITM-ALU', 250, 235),                                      -- 6 % : toujours hors tolérance
+    ('INV2-CHR-1','ITM-TDR', 80, 79),
+    ('INV2-HG-1','ITM-ARV', 310, 310),  ('INV2-HG-2','ITM-ARV', 305, 300),   -- 1,6 % : rentré dans la tolérance
+    ('INV2-HG-1','ITM-HIV', 125, 125),  ('INV2-HG-2','ITM-HIV', 95, 95),
+    ('INV2-ESPC-1','ITM-ALU', 145, 144), ('INV2-ESPC-1','ITM-TDR', 62, 62),
+    ('INV2-CSU-1','ITM-ALU', 72, 70),
+    ('INV2-DIST-1','ITM-ALU', 95, 95),   ('INV2-DIST-1','ITM-TDR', 45, 45),  -- écart résorbé
+    ('INV2-INST-1','ITM-ARV', 215, 214),
+    ('INV2-INST-1','ITM-HIV', 78, 78),
+    ('INV2-RIM-1','ITM-ALU', 132, 132), ('INV2-RIM-1','ITM-TDR', 56, 56);
+
+INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
+SELECT inv, item, 'L1', theo, cnt, 2 FROM _inv_ligne2;
+
+-- Transactions : mêmes rôles qu'en mai (réceptions, factures, ajustements),
+-- dispensations toujours faibles pour CHR (P3 reste en alerte).
+CREATE TEMP TABLE _transaction2 (id text, site text, prog text, nature text, jour date, item text, qte numeric, adj boolean);
+INSERT INTO _transaction2 VALUES
+    ('TX2-CHU-R1','SITE-CHU','PRG-VIH','reception','2026-06-09','ITM-ARV', 110, false),
+    ('TX2-CHU-F1','SITE-CHU','PRG-VIH','facture_fournisseur','2026-06-07', NULL, NULL, false),
+    ('TX2-CHU-A1','SITE-CHU','PRG-PALU','ajustement_negatif','2026-06-15','ITM-ALU', -12, true),
+    ('TX2-CHR-D1','SITE-CHR','PRG-PALU','dispensation','2026-06-06','ITM-ALU', 18, false),
+    ('TX2-CHR-D2','SITE-CHR','PRG-PALU','dispensation','2026-06-18','ITM-TDR', 14, false),
+    ('TX2-CHR-R1','SITE-CHR','PRG-PALU','reception','2026-06-13','ITM-ALU', 65, false),
+    ('TX2-CHR-F1','SITE-CHR','PRG-PALU','facture_fournisseur','2026-06-11', NULL, NULL, false),
+    ('TX2-HG-D1','SITE-HG','PRG-VIH','dispensation','2026-06-04','ITM-ARV', 11, false),
+    ('TX2-HG-D2','SITE-HG','PRG-VIH','dispensation','2026-06-13','ITM-HIV', 9, false),
+    ('TX2-HG-D3','SITE-HG','PRG-VIH','dispensation','2026-06-20','ITM-ARV', 13, false),
+    ('TX2-HG-R1','SITE-HG','PRG-VIH','reception','2026-06-10','ITM-ARV', 42, false),
+    ('TX2-HG-A1','SITE-HG','PRG-VIH','ajustement_positif','2026-06-16','ITM-ARV', 4, true),
+    ('TX2-ESPC-D1','SITE-ESPC','PRG-PALU','dispensation','2026-06-07','ITM-ALU', 7, false),
+    ('TX2-ESPC-D2','SITE-ESPC','PRG-PALU','dispensation','2026-06-21','ITM-TDR', 6, false),
+    ('TX2-DIST-D1','SITE-DIST','PRG-PALU','distribution','2026-06-09','ITM-ALU', 32, false),
+    ('TX2-DIST-D2','SITE-DIST','PRG-PALU','distribution','2026-06-22','ITM-TDR', 13, false),
+    ('TX2-INST-D1','SITE-INST','PRG-VIH','dispensation','2026-06-14','ITM-HIV', 10, false),
+    ('TX2-RIM-D1','SITE-REIMP','PRG-PALU','dispensation','2026-06-08','ITM-ALU', 8, false),
+    ('TX2-RIM-D2','SITE-REIMP','PRG-PALU','dispensation','2026-06-17','ITM-TDR', 5, false);
+
+INSERT INTO dqa.fact_transaction
+    (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation, lot_id_source)
+SELECT id, site, nature, prog, 'fn', jour, jour, 2 FROM _transaction2;
+
+INSERT INTO dqa.fact_ligne_transaction
+    (ligne_id, transaction_id, produit_id, programme_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
+SELECT id || '-L', id, item, prog, qte, 1, adj, 2
+FROM _transaction2 WHERE item IS NOT NULL;
+
+-- CHU : dispensation d'ARV du lundi au samedi sur tout juin → P3 conforme.
+INSERT INTO dqa.fact_transaction
+    (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation, lot_id_source)
+SELECT 'TX2-CHU-DA-' || to_char(j, 'DD'), 'SITE-CHU', 'dispensation', 'PRG-VIH', 'fn', j, j, 2
+FROM generate_series(DATE '2026-06-01', DATE '2026-06-30', INTERVAL '1 day') AS j
+WHERE extract(isodow FROM j) < 7;
+
+INSERT INTO dqa.fact_ligne_transaction
+    (ligne_id, transaction_id, produit_id, programme_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
+SELECT 'TX2-CHU-DA-' || to_char(j, 'DD') || '-L', 'TX2-CHU-DA-' || to_char(j, 'DD'),
+       'ITM-ARV', 'PRG-VIH', 7 + (extract(day FROM j)::int % 4), 1, false, 2
+FROM generate_series(DATE '2026-06-01', DATE '2026-06-30', INTERVAL '1 day') AS j
+WHERE extract(isodow FROM j) < 7;
+
+-- Réquisitions : la plupart passent à l'heure ce mois-ci (CHU-PALU, HG-PALU,
+-- INST rattrapent leur retard de mai) ; CHR reste en retard, CSU toujours
+-- sans réquisition.
+INSERT INTO dqa.fact_requisition
+    (requisition_id, site_id, programme_id, mois_couvert, date_soumission, date_inventaire_ref, statut, lot_id_source)
+VALUES
+    ('REQ2-CHU-VIH',  'SITE-CHU', 'PRG-VIH',  '2026-06', '2026-07-08', '2026-06-29', 'fn', 2),   -- à l'heure (≤ 10)
+    ('REQ2-CHU-PALU', 'SITE-CHU', 'PRG-PALU', '2026-06', '2026-07-05', '2026-06-29', 'fn', 2),   -- à l'heure (amélioration)
+    ('REQ2-CHR-PALU', 'SITE-CHR', 'PRG-PALU', '2026-06', '2026-07-09', '2026-06-11', 'fn', 2),   -- toujours en retard
+    ('REQ2-HG-VIH',   'SITE-HG',  'PRG-VIH',  '2026-06', '2026-07-03', '2026-06-28', 'fn', 2),   -- à l'heure
+    ('REQ2-HG-PALU',  'SITE-HG',  'PRG-PALU', '2026-06', '2026-07-04', NULL,         'fn', 2),   -- à l'heure (amélioration)
+    ('REQ2-ESPC',     'SITE-ESPC','PRG-PALU', '2026-06', '2026-07-04', '2026-06-30', 'fn', 2),   -- à l'heure (= 5)
+    -- CSU : toujours pas de réquisition → manquante
+    ('REQ2-DIST',     'SITE-DIST','PRG-PALU', '2026-06', '2026-07-08', '2026-06-28', 'fn', 2),   -- à l'heure
+    ('REQ2-INST',     'SITE-INST','PRG-VIH',  '2026-06', '2026-07-03', NULL,         'fn', 2),   -- à l'heure (amélioration)
+    ('REQ2-RIM',      'SITE-REIMP','PRG-PALU','2026-06', '2026-07-02', '2026-06-29', 'fn', 2);
+
+INSERT INTO dqa.fact_stock_snapshot (date_photo, site_id, produit_id, lot, quantite_disponible, lot_id_source)
+VALUES
+    ('2026-06-08', 'SITE-CHU', 'ITM-ARV', 'L1', 490, 2),
+    ('2026-06-15', 'SITE-CHU', 'ITM-ARV', 'L1', 465, 2),
+    ('2026-06-22', 'SITE-CHU', 'ITM-ARV', 'L1', 450, 2),
+    ('2026-06-15', 'SITE-CHU', 'ITM-HIV', 'L1', 180, 2);
+
+CALL dqa.rafraichir_et_geler(2);
+
+COMMIT;
+
 -- ── Ré-import « après le gel » de SITE-REIMP : bouge le core sans regeler ──
 --  Simule un correctif d'extraction postérieur au gel : le détail live du
 --  pilier changera, l'avertissement « données modifiées depuis le gel »
@@ -207,4 +337,4 @@ UPDATE dqa.fact_inventaire
    SET maj_le = now() + interval '1 day'
  WHERE site_id = 'SITE-REIMP';
 
-\echo 'Seed de démonstration appliqué : 8 sites, mois PAQD 2026-05.'
+\echo 'Seed de démonstration appliqué : 8 sites, mois PAQD 2026-05 et 2026-06.'
