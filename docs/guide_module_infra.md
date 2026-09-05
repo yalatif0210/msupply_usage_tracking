@@ -43,11 +43,13 @@ docker compose -f docker-compose.demo.yml down -v
   doit pas être `secure`.
 - **`seed`** — `postgres:16-alpine` qui joue `db/demo/seed.sql` une fois l'API
   saine (donc les migrations passées). Purge le core, insère 8 sites de strates
-  variées + deux mois PAQD consécutifs (2026-05, 2026-06) + inventaires /
-  mouvements sur 4 traceurs, puis `CALL dqa.rafraichir_et_geler(...)` pour
-  chaque mois. `web` attend sa fin (`service_completed_successfully`) : au
-  premier accès les écrans sont déjà peuplés. Rejouable :
-  `docker compose -f docker-compose.demo.yml run --rm seed`.
+  variées + un cycle PAQD complet (C2 : 2026-05 à 2026-08, M+1 à M+4) +
+  inventaires / mouvements sur 4 traceurs, un lot d'import et un
+  `CALL dqa.rafraichir_et_geler(...)` par mois. 2026-08 est le mois en cours au
+  regard de la date du jour : deux réquisitions d'août ne sont pas encore
+  soumises, le score d'août est provisoire. `web` attend sa fin
+  (`service_completed_successfully`) : au premier accès les écrans sont déjà
+  peuplés. Rejouable : `docker compose -f docker-compose.demo.yml run --rm seed`.
 - **`web`** — build Angular (`@angular/build:application` → `dist/browser/`)
   servi par `nginx:1.27-alpine` ; `apps/web/nginx.conf` : `try_files` pour le
   routing SPA, `proxy_pass` de `/api` vers `api:3000`, `client_max_body_size 32m`
@@ -60,8 +62,9 @@ piliers » :
 
 | Écran | À regarder |
 |---|---|
-| Tableau de bord, `/synthese`, fiches site et produit | sélecteur « Mois affiché » : 2026-05 et 2026-06 |
-| Fiche site (`/sites/SITE-CHU`) | couples attendu/réalisé dans les cartes ; dépliants P1..P6 ; bandeau calendaire P3 ; tableau produit P4·P5 ; « Progression (score composite) » 42,5 → 62,5 |
+| Tableau de bord, `/synthese`, fiches site et produit | sélecteur « Mois affiché » : 2026-05 à 2026-08 ; repère « Mois en cours · score provisoire » sur 2026-08 |
+| Tableau de bord | courbe de progression nationale sur 4 points (34 → 46,6 → 66,4 → 58,8, le dernier provisoire) |
+| Fiche site (`/sites/SITE-CHU`) | couples attendu/réalisé dans les cartes ; dépliants P1..P6 ; bandeau calendaire P3 ; tableau produit P4·P5 ; « Progression (score composite) » (42,5 → 62,5 → 87,5 → 51,7, la dernière valeur provisoire, réquisitions d'août pas encore soumises) |
 | Fiche site (`/sites/SITE-REIMP`) | avertissement « données du core modifiées depuis le gel » |
 | Fiche site (`/sites/SITE-CSU`) | réquisition et inventaire manquants pour le mois |
 | `/synthese` onglet « Rapports & inventaires » | strates CHU / CHR / HG / ESPC / CS / District ; « Non classé » pour l'Institut |
