@@ -1,27 +1,29 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 --  Jeu de démonstration · chantier « données brutes des piliers »
 --
---  Huit sites de strates variées, un cycle PAQD complet (C2 : 2026-05 à
---  2026-08, M+1 à M+4), des inventaires et mouvements sur quatre produits
---  traceurs, un lot d'import et un gel (`rafraichir_et_geler`) par mois.
+--  Huit sites de strates variées, la fin du cycle C2 (2026-05 à 2026-08,
+--  M+1 à M+4) et le tout début du cycle C3 (2026-09, M+1), des inventaires
+--  et mouvements sur quatre produits traceurs, un lot d'import par mois plus
+--  un cinquième lot « extraction du 5 septembre » à fenêtre de 45 jours.
 --  Rejouable : purge le core avant d'insérer.
 --
 --  Narratif : la plupart des sites progressent de mois en mois (écarts SDU
 --  résorbés, réquisitions rattrapées). CHR (réquisition longtemps en retard,
 --  P3 faible) et CSU (réquisition jamais soumise) restent des points de
---  vigilance chroniques. Août est le mois **en cours** au regard de la date
---  du jour : deux sites (CHU, District) n'ont pas encore soumis leur
---  réquisition d'août (échéance au 10 septembre), le score d'août est donc
---  provisoire : le repère « Mois en cours » s'affiche à l'écran.
+--  vigilance chroniques. Août et septembre sont **en cours** au regard de la
+--  date du jour (2026-09-05). Le lot du 5 septembre chevauche deux mois : il
+--  apporte les premiers jours de septembre ET les réquisitions d'août de CHU
+--  et District, enfin soumises. Le gel corrige alors le score d'août (encore
+--  ouvert) à la hausse, sans que le lot ait à redéclarer août (ADR 0010).
 --
 --  Ce qu'on peut voir après le seed (connexion coordination / coordination-2026) :
---   - sélecteur « Mois affiché » (tableau de bord, synthèse, fiches site et
---     produit) : quatre mois réels à naviguer ;
---   - repère « Mois en cours · score provisoire » sur 2026-08 ;
+--   - sélecteur « Mois affiché » : cinq mois (2026-05 à 2026-09) ;
+--   - repère « Mois en cours · score provisoire » sur 2026-08 et 2026-09 ;
+--   - septembre : score très bas (5 jours seulement), qui n'est pas un verdict ;
 --   - fiche site : couples attendu/réalisé dans les cartes, dépliants P1..P6,
 --     bandeau calendaire P3, tableau produit P4·P5, avertissement ré-import
 --     (SITE-REIMP), « Progression (score composite) » d'un mois à l'autre ;
---   - courbe de progression nationale sur quatre points ;
+--   - courbe de progression nationale sur cinq points ;
 --   - /synthese onglet « Rapports & inventaires » : strates CHU/CHR/HG/ESPC/CS/District ;
 --   - /admin/strates : "Institut" non classé ;
 --   - fiche produit-mois : depuis un code produit du tableau P4·P5.
@@ -548,13 +550,12 @@ SELECT 'TX4-CHU-DA-' || to_char(j, 'DD') || '-L', 'TX4-CHU-DA-' || to_char(j, 'D
 FROM generate_series(DATE '2026-08-01', DATE '2026-08-31', INTERVAL '1 day') AS j
 WHERE extract(isodow FROM j) < 7;
 
--- Réquisitions d'août : CHU et District n'ont pas encore soumis (échéance au
--- 10 septembre, pas encore atteinte) → score d'août provisoire. CHR retombe
--- en retard, CSU toujours absente.
+-- Réquisitions d'août telles que connues à la clôture du lot d'août : CHU et
+-- District n'ont pas encore soumis (elles arriveront dans le lot de septembre,
+-- plus bas) → score d'août provisoire. CHR en retard, CSU toujours absente.
 INSERT INTO dqa.fact_requisition
     (requisition_id, site_id, programme_id, mois_couvert, date_soumission, date_inventaire_ref, statut, lot_id_source)
 VALUES
-    -- CHU : réquisitions d'août pas encore soumises (2 programmes)
     ('REQ4-CHR-PALU', 'SITE-CHR', 'PRG-PALU', '2026-08', '2026-09-09', '2026-08-11', 'fn', 4),   -- en retard (> 7)
     ('REQ4-HG-VIH',   'SITE-HG',  'PRG-VIH',  '2026-08', '2026-09-03', '2026-08-28', 'fn', 4),   -- à l'heure
     ('REQ4-HG-PALU',  'SITE-HG',  'PRG-PALU', '2026-08', '2026-09-04', NULL,         'fn', 4),   -- à l'heure
@@ -575,6 +576,102 @@ CALL dqa.rafraichir_et_geler(4);
 
 COMMIT;
 
+-- ═══════════════════════════════════════════════════════════════════════════
+--  Cinquième lot : extraction du 2026-09-05, fenêtre de 45 jours
+--  (2026-07-22 → 2026-09-05), cycle C3, mois PAQD déclaré 2026-09 (M+1).
+--
+--  Ce lot illustre la fenêtre glissante qui chevauche deux mois :
+--   - il apporte les premières données de septembre (5 jours) : le mois
+--     apparaît, gelé mais très partiel (P3 ~4/30 jours), moisClos = faux ;
+--   - dans la même fenêtre, les réquisitions d'août de CHU et District,
+--     enfin soumises (2026-09-04 / 2026-09-05, avant l'échéance du 10),
+--     remontent : au prochain gel, le score d'août (encore ouvert) se
+--     corrige à la hausse. Le gel reconstitue les deux mois d'un coup
+--     (ADR 0010), sans que le lot ait à redéclarer août.
+--
+--  Les données de juillet/août déjà dans le core ne sont pas ré-insérées
+--  ici : un vrai import les re-porterait, la promotion en upsert les
+--  écraserait à l'identique. On ne simule que le delta réel.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+BEGIN;
+
+INSERT INTO dqa.import_lot
+    (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, fenetre_debut, fenetre_fin, statut, importe_le)
+VALUES ('demo_2026-09.xlsx', '2026-C3', '2026-09', '2026-09-01', '2026-09-30',
+        '2026-07-22', '2026-09-05', 'valide', now());
+
+-- Réquisitions d'août rattrapées, apportées par le lot de septembre (dans la
+-- fenêtre de 45 jours). Soumises avant l'échéance du 10 → à l'heure.
+INSERT INTO dqa.fact_requisition
+    (requisition_id, site_id, programme_id, mois_couvert, date_soumission, date_inventaire_ref, statut, lot_id_source)
+VALUES
+    ('REQ4-CHU-VIH',  'SITE-CHU', 'PRG-VIH',  '2026-08', '2026-09-04', '2026-08-29', 'fn', 5),   -- à l'heure (≤ 10)
+    ('REQ4-CHU-PALU', 'SITE-CHU', 'PRG-PALU', '2026-08', '2026-09-04', '2026-08-29', 'fn', 5),   -- à l'heure
+    ('REQ4-DIST',     'SITE-DIST','PRG-PALU', '2026-08', '2026-09-05', '2026-08-29', 'fn', 5);   -- à l'heure
+
+-- Septembre : cinq premiers jours seulement. Un inventaire de début de mois
+-- pour le CHU, quelques dispensations. Aucune réquisition (échéance en octobre).
+CREATE TEMP TABLE _inventaire5 (inv text, site text, prog text, jour date);
+INSERT INTO _inventaire5 VALUES
+    ('INV5-CHU-1','SITE-CHU','PRG-VIH','2026-09-02'),
+    ('INV5-CHU-2','SITE-CHU','PRG-PALU','2026-09-03'),
+    ('INV5-HG-1','SITE-HG','PRG-VIH','2026-09-02');
+
+INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
+SELECT inv, site, prog, jour, 'fn', 5 FROM _inventaire5;
+
+CREATE TEMP TABLE _inv_ligne5 (inv text, item text, theo numeric, cnt numeric);
+INSERT INTO _inv_ligne5 VALUES
+    ('INV5-CHU-1','ITM-ARV', 545, 545), ('INV5-CHU-1','ITM-HIV', 218, 218),
+    ('INV5-CHU-2','ITM-ALU', 312, 312), ('INV5-CHU-2','ITM-TDR', 106, 106),
+    ('INV5-HG-1','ITM-ARV', 322, 322),  ('INV5-HG-1','ITM-HIV', 132, 132);
+
+INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
+SELECT inv, item, 'L1', theo, cnt, 5 FROM _inv_ligne5;
+
+CREATE TEMP TABLE _transaction5 (id text, site text, prog text, nature text, jour date, item text, qte numeric, adj boolean);
+INSERT INTO _transaction5 VALUES
+    ('TX5-CHU-R1','SITE-CHU','PRG-VIH','reception','2026-09-03','ITM-ARV', 90, false),
+    ('TX5-CHU-F1','SITE-CHU','PRG-VIH','facture_fournisseur','2026-09-02', NULL, NULL, false),
+    ('TX5-CHR-D1','SITE-CHR','PRG-PALU','dispensation','2026-09-03','ITM-ALU', 15, false),
+    ('TX5-HG-D1','SITE-HG','PRG-VIH','dispensation','2026-09-04','ITM-ARV', 12, false),
+    ('TX5-ESPC-D1','SITE-ESPC','PRG-PALU','dispensation','2026-09-04','ITM-ALU', 8, false),
+    ('TX5-DIST-D1','SITE-DIST','PRG-PALU','distribution','2026-09-03','ITM-ALU', 28, false);
+
+INSERT INTO dqa.fact_transaction
+    (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation, lot_id_source)
+SELECT id, site, nature, prog, 'fn', jour, jour, 5 FROM _transaction5;
+
+INSERT INTO dqa.fact_ligne_transaction
+    (ligne_id, transaction_id, produit_id, programme_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
+SELECT id || '-L', id, item, prog, qte, 1, adj, 5
+FROM _transaction5 WHERE item IS NOT NULL;
+
+-- CHU : dispensation d'ARV les jours ouvrés du 1er au 5 septembre.
+INSERT INTO dqa.fact_transaction
+    (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation, lot_id_source)
+SELECT 'TX5-CHU-DA-' || to_char(j, 'DD'), 'SITE-CHU', 'dispensation', 'PRG-VIH', 'fn', j, j, 5
+FROM generate_series(DATE '2026-09-01', DATE '2026-09-05', INTERVAL '1 day') AS j
+WHERE extract(isodow FROM j) < 7;
+
+INSERT INTO dqa.fact_ligne_transaction
+    (ligne_id, transaction_id, produit_id, programme_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
+SELECT 'TX5-CHU-DA-' || to_char(j, 'DD') || '-L', 'TX5-CHU-DA-' || to_char(j, 'DD'),
+       'ITM-ARV', 'PRG-VIH', 8, 1, false, 5
+FROM generate_series(DATE '2026-09-01', DATE '2026-09-05', INTERVAL '1 day') AS j
+WHERE extract(isodow FROM j) < 7;
+
+INSERT INTO dqa.fact_stock_snapshot (date_photo, site_id, produit_id, lot, quantite_disponible, lot_id_source)
+VALUES
+    ('2026-09-02', 'SITE-CHU', 'ITM-ARV', 'L1', 530, 5),
+    ('2026-09-05', 'SITE-CHU', 'ITM-ARV', 'L1', 512, 5);
+
+-- Un seul appel reconstitue mai à septembre (ADR 0010).
+CALL dqa.rafraichir_et_geler(5);
+
+COMMIT;
+
 -- ── Ré-import « après le gel » de SITE-REIMP : bouge le core sans regeler ──
 --  Simule un correctif d'extraction postérieur au gel : le détail live du
 --  pilier changera, l'avertissement « données modifiées depuis le gel »
@@ -586,4 +683,4 @@ UPDATE dqa.fact_inventaire
    SET maj_le = now() + interval '1 day'
  WHERE site_id = 'SITE-REIMP';
 
-\echo 'Seed de démonstration appliqué : 8 sites, cycle C2 complet (2026-05 à 2026-08), août en cours.'
+\echo 'Seed de démonstration appliqué : 8 sites, 2026-05 à 2026-09 (fin C2 + début C3). Août et septembre en cours.'

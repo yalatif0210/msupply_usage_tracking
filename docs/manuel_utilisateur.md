@@ -324,14 +324,16 @@ pèsent à eux seuls la moitié du score (25 % + 25 %), et une seule
 sous-composante en alerte sur P5 (99,5 % de concordance, sous le seuil de
 100 %) suffit à faire basculer tout le pilier à 0.
 
-Sur le cycle de démonstration (mai à août 2026), le score composite moyen
-national suit **34 puis 46,6 puis 66,4 puis 58,8** : une progression nette
-jusqu'en juillet, portée par plusieurs sites qui ont resserré leurs écarts SDU
-dans la tolérance et soumis leurs réquisitions à l'heure, puis un recul
-**provisoire** en août parce que deux sites (dont le CHU) n'ont pas encore
-soumis leur réquisition du mois. Deux sites restent des points de vigilance
-d'un mois à l'autre : le CHR de Bouaké (réquisition souvent en retard,
-régularité de saisie faible) et le CSU de Korhogo (réquisition jamais soumise).
+Sur le jeu de démonstration (mai à septembre 2026), le score composite moyen
+national suit **34 puis 46,6 puis 66,4 puis 60,1 puis 49,3** : une progression
+nette jusqu'en juillet, portée par plusieurs sites qui ont resserré leurs
+écarts SDU dans la tolérance et soumis leurs réquisitions à l'heure. Août et
+septembre sont **provisoires** : une extraction du 5 septembre a fait remonter
+les réquisitions d'août du CHU et du District (le score d'août est passé de
+58,8 à 60,1 sans nouvel import d'août), et septembre ne compte encore que cinq
+jours de données. Deux sites restent des points de vigilance d'un mois à
+l'autre : le CHR de Bouaké (réquisition souvent en retard, régularité de saisie
+faible) et le CSU de Korhogo (réquisition jamais soumise).
 
 ---
 
