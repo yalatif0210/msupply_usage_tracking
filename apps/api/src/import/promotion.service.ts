@@ -22,9 +22,9 @@ const ETAPES: { nom: string; sql: string }[] = [
     sql: `
       INSERT INTO dqa.dim_site
         (site_id, site_code, site_nom, district, region, type_structure,
-         actif, dans_perimetre_dqa, jour_limite_requisition, lot_id_source, maj_le)
+         actif, dans_perimetre_dqa, lot_id_source, maj_le)
       SELECT site_id, site_code, coalesce(site_nom, ''), district, region, type_structure,
-             ${B('actif')}, ${B('dans_perimetre_dqa')}, ${N('jour_limite_requisition')}::int,
+             ${B('actif')}, ${B('dans_perimetre_dqa')},
              $1, now()
       FROM dqa.stg_sites WHERE lot_id = $1 AND site_id IS NOT NULL
       ON CONFLICT (site_id) DO UPDATE SET
@@ -32,7 +32,6 @@ const ETAPES: { nom: string; sql: string }[] = [
         district = EXCLUDED.district, region = EXCLUDED.region,
         type_structure = EXCLUDED.type_structure, actif = EXCLUDED.actif,
         dans_perimetre_dqa = EXCLUDED.dans_perimetre_dqa,
-        jour_limite_requisition = EXCLUDED.jour_limite_requisition,
         lot_id_source = EXCLUDED.lot_id_source, maj_le = now()`,
   },
   {

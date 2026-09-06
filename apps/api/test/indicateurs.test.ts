@@ -706,11 +706,11 @@ describe('vue P2 — promptitude des transactions', () => {
     );
   });
 
-  const site = async (typeStructure: string, jourLimite: number | null = null, programmes = ['VIH']) => {
+  const site = async (typeStructure: string, programmes = ['VIH']) => {
     await db.query(
-      `INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa, type_structure, jour_limite_requisition)
-       VALUES ('S1','CSU',true,$1,$2)`,
-      [typeStructure, jourLimite],
+      `INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa, type_structure)
+       VALUES ('S1','CSU',true,$1)`,
+      [typeStructure],
     );
     for (const p of programmes) {
       await db.query(`INSERT INTO dqa.dim_programme (programme_id, programme_nom) VALUES ($1,$1)`, [p]);
@@ -777,18 +777,23 @@ describe('vue P2 — promptitude des transactions', () => {
     expect((await p2())?.promptitude_requisitions_pct).toBe('0.0');
   });
 
-  it('promptitude réquisitions : jour limite 7 pour un hôpital général', async () => {
+  it('promptitude réquisitions : jour limite 7 pour un hôpital de référence', async () => {
     // dénominateur = programmes gérés : VIH servi à l'heure, TB non → 1 / 2
-    await site('HG', null, ['VIH', 'TB']); // limite = 7
+    await site('Hôpital de référence', ['VIH', 'TB']); // limite = 7
     await requisition('R1', '2026-09-07', 'VIH');
     await requisition('R2', '2026-09-08', 'TB'); // en retard
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     expect((await p2())?.promptitude_requisitions_pct).toBe('50.0');
   });
 
-  it('promptitude réquisitions : dim_site.jour_limite_requisition prime sur le type', async () => {
-    await site('HG', 10); // override explicite → limite = 10
-    await requisition('R1', '2026-09-09');
+  it('promptitude réquisitions : le jour limite vient du référentiel des structures', async () => {
+    // un type ajouté dans la console avec une échéance au 12 (ADR 0013)
+    await db.query(
+      `INSERT INTO dqa.strate_structure (type_structure, strate, jour_limite_requisition, est_district)
+       VALUES ('Polyclinique', 'Polyclinique', 12, false)`,
+    );
+    await site('Polyclinique');
+    await requisition('R1', '2026-09-12'); // le 12 ≤ 12 → à l'heure
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     expect((await p2())?.promptitude_requisitions_pct).toBe('100.0');
   });

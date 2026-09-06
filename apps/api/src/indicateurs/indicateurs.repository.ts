@@ -568,7 +568,7 @@ export class IndicateursRepository {
   ): Promise<DetailSite | null> {
     const site = await this.pool.query<LigneSite & { est_district: boolean }>(
       `SELECT site_id, site_code, site_nom, district, region, type_structure,
-              dqa.strate_de(type_structure) = 'District' AS est_district
+              dqa.est_district(type_structure) AS est_district
        FROM dqa.dim_site WHERE site_id = $1 AND dans_perimetre_dqa`,
       [siteId],
     );
@@ -899,10 +899,10 @@ export class IndicateursRepository {
     return { ...p, libelle: libelleSousComposante('regularite_saisie', estDistrict) };
   }
 
-  /** `strate_de(type_structure) = 'District'` : P3 mesuré autrement (ADR 0011). */
+  /** Régime district (`dqa.est_district`) : P3 mesuré autrement (ADR 0011, ADR 0013). */
   private async estSiteDistrict(siteId: string): Promise<boolean> {
     const { rows } = await this.pool.query<{ d: boolean }>(
-      `SELECT dqa.strate_de(type_structure) = 'District' AS d FROM dqa.dim_site WHERE site_id = $1`,
+      `SELECT dqa.est_district(type_structure) AS d FROM dqa.dim_site WHERE site_id = $1`,
       [siteId],
     );
     return rows[0]?.d ?? false;
@@ -1016,7 +1016,7 @@ export class IndicateursRepository {
 
     const site = await this.pool.query<LigneSite & { est_district: boolean }>(
       `SELECT site_id, site_code, site_nom, district, region, type_structure,
-              dqa.strate_de(type_structure) = 'District' AS est_district
+              dqa.est_district(type_structure) AS est_district
        FROM dqa.dim_site WHERE site_id = $1 AND dans_perimetre_dqa`,
       [siteId],
     );
@@ -1263,8 +1263,8 @@ export class IndicateursRepository {
       params,
     );
 
-    // Date limite : `dqa.jour_limite_requisition` (fonction unique, migration
-    // 0033) — mois couvert + 1 mois + (jour limite − 1) jours.
+    // Date limite : `dqa.jour_limite_requisition` lit le référentiel des
+    // structures (ADR 0013) — mois couvert + 1 mois + (jour limite - 1) jours.
     const requisitions = await this.pool.query<{
       programme: string;
       date_soumission: string | null;
@@ -1280,7 +1280,7 @@ export class IndicateursRepository {
        LEFT JOIN dqa.dim_programme dp ON dp.programme_id = fr.programme_id
        CROSS JOIN LATERAL (
          SELECT (date_trunc('month', (fr.mois_couvert || '-01')::date) + interval '1 month')::date
-                + (dqa.jour_limite_requisition(ds.type_structure, ds.jour_limite_requisition) - 1) AS date_limite
+                + (dqa.jour_limite_requisition(ds.type_structure) - 1) AS date_limite
        ) lim
        WHERE fr.site_id = $1 AND fr.mois_couvert = $2
          AND ($3::text IS NULL OR fr.programme_id = $3)
@@ -1395,7 +1395,7 @@ export class IndicateursRepository {
          JOIN dqa.dim_site sreq
            ON sreq.district = d.district AND sreq.dans_perimetre_dqa
           AND sreq.site_id <> d.site_id
-          AND dqa.strate_de(sreq.type_structure) <> 'District'
+          AND NOT dqa.est_district(sreq.type_structure)
          WHERE d.site_id = $1
        ),
        reqs AS (

@@ -79,25 +79,27 @@ INSERT INTO dqa.dim_programme (programme_id, programme_code, programme_nom, lot_
     ('PRG-PALU', 'PALU', 'Paludisme', 1);
 
 -- ── Sites réels ─────────────────────────────────────────────────────────
+-- `type_structure` = le palier `name_category3` ; l'échéance de réquisition et
+-- le régime de scoring viennent du référentiel administré (ADR 0013).
 INSERT INTO dqa.dim_site
-    (site_id, site_code, site_nom, district, region, type_structure, dans_perimetre_dqa, jour_limite_requisition, lot_id_source)
+    (site_id, site_code, site_nom, district, region, type_structure, dans_perimetre_dqa, lot_id_source)
 VALUES
-    (:'d_bdk','50800010',    'DISTRICT SANITAIRE de BONDOUKOU',       'BONDOUKOU',       'GONTOUGO',       'District sanitaire',   true, 10, 1),
-    (:'d_dal','51600010',    'DISTRICT SANITAIRE de DALOA',           'DALOA',           'HAUT-SASSANDRA', 'District sanitaire',   true, 10, 1),
-    (:'d_gag','51300010',    'DISTRICT SANITAIRE de GAGNOA 1',        'GAGNOA 1',        'GOH',            'District sanitaire',   true, 10, 1),
-    (:'d_nia','51500030',    'DISTRICT SANITAIRE de NIAKARAMADOUGOU', 'NIAKARAMADOUGOU', 'HAMBOL',         'District sanitaire',   true, 10, 1),
-    (:'h_bdk','30800010',    'CHR PUBLIC de BONDOUKOU',               'BONDOUKOU',       'GONTOUGO',       'Hôpital de référence', true, 7,  1),
-    (:'h_dal','31600010',    'CHR PUBLIC de DALOA',                   'DALOA',           'HAUT-SASSANDRA', 'Hôpital de référence', true, 7,  1),
-    (:'h_gag','31300010',    'CHR PUBLIC de GAGNOA',                  'GAGNOA 1',        'GOH',            'Hôpital de référence', true, 7,  1),
-    (:'h_nia','41500020',    'HG PUBLIC de NIAKARAMADOUGOU',          'NIAKARAMADOUGOU', 'HAMBOL',         'Hôpital de référence', true, 7,  1),
-    (:'e_tam','14048CSR0031','CSR TAMBI',                             'BONDOUKOU',       'GONTOUGO',       'ESPC',                 true, 5,  1),
-    (:'e_lao','14048CSU0005','CSU LAOUDIBA',                          'BONDOUKOU',       'GONTOUGO',       'ESPC',                 true, 5,  1),
-    (:'e_bed','18063CSU0001','CSU BEDIALA',                           'DALOA',           'HAUT-SASSANDRA', 'ESPC',                 true, 5,  1),
-    (:'e_gon','18063CSU0005','CSU GONATE',                            'DALOA',           'HAUT-SASSANDRA', 'ESPC',                 true, 5,  1),
-    (:'e_bob','13045CSR0024','CSR-DM PUBLIC de BOBIA',                'GAGNOA 1',        'GOH',            'ESPC',                 true, 5,  1),
-    (:'e_gue','13045CSR0031','CSR-DM PUBLIC de GUEMENEDOU',           'GAGNOA 1',        'GOH',            'ESPC',                 true, 5,  1),
-    (:'e_taf','17061CSU0002','CSU TAFIRE',                            'NIAKARAMADOUGOU', 'HAMBOL',         'ESPC',                 true, 5,  1),
-    (:'e_tor','17061CSU0001','CSU TORTIYA',                           'NIAKARAMADOUGOU', 'HAMBOL',         'ESPC',                 true, 5,  1);
+    (:'d_bdk','50800010',    'DISTRICT SANITAIRE de BONDOUKOU',       'BONDOUKOU',       'GONTOUGO',       'District sanitaire',   true, 1),
+    (:'d_dal','51600010',    'DISTRICT SANITAIRE de DALOA',           'DALOA',           'HAUT-SASSANDRA', 'District sanitaire',   true, 1),
+    (:'d_gag','51300010',    'DISTRICT SANITAIRE de GAGNOA 1',        'GAGNOA 1',        'GOH',            'District sanitaire',   true, 1),
+    (:'d_nia','51500030',    'DISTRICT SANITAIRE de NIAKARAMADOUGOU', 'NIAKARAMADOUGOU', 'HAMBOL',         'District sanitaire',   true, 1),
+    (:'h_bdk','30800010',    'CHR PUBLIC de BONDOUKOU',               'BONDOUKOU',       'GONTOUGO',       'Hôpital de référence', true, 1),
+    (:'h_dal','31600010',    'CHR PUBLIC de DALOA',                   'DALOA',           'HAUT-SASSANDRA', 'Hôpital de référence', true, 1),
+    (:'h_gag','31300010',    'CHR PUBLIC de GAGNOA',                  'GAGNOA 1',        'GOH',            'Hôpital de référence', true, 1),
+    (:'h_nia','41500020',    'HG PUBLIC de NIAKARAMADOUGOU',          'NIAKARAMADOUGOU', 'HAMBOL',         'Hôpital de référence', true, 1),
+    (:'e_tam','14048CSR0031','CSR TAMBI',                             'BONDOUKOU',       'GONTOUGO',       'ESPC',                 true, 1),
+    (:'e_lao','14048CSU0005','CSU LAOUDIBA',                          'BONDOUKOU',       'GONTOUGO',       'ESPC',                 true, 1),
+    (:'e_bed','18063CSU0001','CSU BEDIALA',                           'DALOA',           'HAUT-SASSANDRA', 'ESPC',                 true, 1),
+    (:'e_gon','18063CSU0005','CSU GONATE',                            'DALOA',           'HAUT-SASSANDRA', 'ESPC',                 true, 1),
+    (:'e_bob','13045CSR0024','CSR-DM PUBLIC de BOBIA',                'GAGNOA 1',        'GOH',            'ESPC',                 true, 1),
+    (:'e_gue','13045CSR0031','CSR-DM PUBLIC de GUEMENEDOU',           'GAGNOA 1',        'GOH',            'ESPC',                 true, 1),
+    (:'e_taf','17061CSU0002','CSU TAFIRE',                            'NIAKARAMADOUGOU', 'HAMBOL',         'ESPC',                 true, 1),
+    (:'e_tor','17061CSU0001','CSU TORTIYA',                           'NIAKARAMADOUGOU', 'HAMBOL',         'ESPC',                 true, 1);
 
 INSERT INTO dqa.dim_site_programme (site_id, programme_id, actif, lot_id_source)
 SELECT s, 'PRG-VIH', true, 1  FROM (VALUES (:'h_bdk'),(:'h_dal'),(:'h_gag'),(:'h_nia')) AS v(s)
@@ -311,7 +313,7 @@ FROM (VALUES ('2026-05',1),('2026-06',2),('2026-07',3),('2026-08',4)) AS m(mois,
 
 -- ── Réquisitions (rapports mensuels) : à l'heure, en retard, manquantes ──
 --  Limite : mois M+1 + (jour_limite - 1). ESPC -> 5, Hôpital de référence -> 7,
---  District sanitaire -> 10 (migration 0038).
+--  District sanitaire -> 10 (référentiel des structures, ADR 0013).
 --
 --  Chaque site de la zone d'un district (hôpital + ESPC du même `district`)
 --  soumet une réquisition couvrant M ; elle sert P1/P2 ET le P3 du district

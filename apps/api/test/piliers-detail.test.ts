@@ -35,7 +35,7 @@ describe('détail ligne à ligne des piliers (P1, P2)', () => {
        VALUES ('t.xlsx','2026-C2','2026-08','2026-08-01','2026-08-31','valide')`,
     );
     await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa, type_structure, district, region)
-      VALUES ('S1','Site 1',true,'CSU','D1','R1')`);
+      VALUES ('S1','Site 1',true,'ESPC','D1','R1')`);
     await db.query(`INSERT INTO dqa.dim_programme (programme_id, programme_nom) VALUES ('VIH','VIH'),('TB','TB')`);
     await db.query(`INSERT INTO dqa.dim_site_programme (site_id, programme_id, actif)
       VALUES ('S1','VIH',true),('S1','TB',true)`);
@@ -135,7 +135,7 @@ describe('détail ligne à ligne des piliers (P1, P2)', () => {
   it('P2 nominal : 3 derniers jours et date limite de réquisition', async () => {
     await inv('A', 'VIH', '2026-08-29'); // dans les 3 derniers jours (août : 29-31)
     await inv('B', 'TB', '2026-08-10'); // hors délai
-    await req('R1', 'VIH', '2026-08-31'); // limite CSU = 2026-09-05 → à l'heure
+    await req('R1', 'VIH', '2026-08-31'); // limite ESPC = 2026-09-05 → à l'heure
     await req('R2', 'TB', '2026-09-30'); // en retard
     await geler();
 
@@ -166,7 +166,7 @@ describe('détail ligne à ligne des piliers (P1, P2)', () => {
 
   it('P2 limite : réquisition soumise pile le jour limite, inventaire pile au 1er des 3 derniers jours', async () => {
     await inv('A', 'VIH', '2026-08-29'); // premier jour de la fenêtre des 3 derniers
-    await req('R1', 'VIH', '2026-09-05'); // pile la date limite CSU
+    await req('R1', 'VIH', '2026-09-05'); // pile la date limite ESPC
     await geler();
 
     const d = await repo.detailPilier('S1', 'p2', {});

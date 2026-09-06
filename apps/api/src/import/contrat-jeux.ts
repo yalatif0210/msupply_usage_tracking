@@ -22,11 +22,10 @@ export const JEUX: readonly DefinitionJeu[] = [
     table: 'stg_sites',
     colonnes: [
       'site_id', 'site_code', 'site_nom', 'district', 'region',
-      'type_structure', 'actif', 'dans_perimetre_dqa', 'jour_limite_requisition',
+      'type_structure', 'actif', 'dans_perimetre_dqa',
     ],
     requis: ['site_id', 'site_nom', 'actif', 'dans_perimetre_dqa'],
     booleens: ['actif', 'dans_perimetre_dqa'],
-    nombres: ['jour_limite_requisition'],
   },
   {
     onglet: 'SITE_PROGRAMME',

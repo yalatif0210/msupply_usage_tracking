@@ -116,7 +116,7 @@ export function construireClasseur(opts: OptionsClasseur): Buffer {
 // ── Fixture cohérente : 9 jeux, 1 ligne chacun, références croisées valides ──
 
 export const COLONNES: Record<string, string[]> = {
-  SITES: ['site_id', 'site_code', 'site_nom', 'district', 'region', 'type_structure', 'actif', 'dans_perimetre_dqa', 'jour_limite_requisition'],
+  SITES: ['site_id', 'site_code', 'site_nom', 'district', 'region', 'type_structure', 'actif', 'dans_perimetre_dqa'],
   SITE_PROGRAMME: ['site_id', 'programme_id', 'programme_code', 'programme_nom', 'actif'],
   PRODUITS: ['produit_id', 'produit_code', 'produit_nom', 'unite', 'programmes'],
   TRANSACTIONS: ['transaction_id', 'site_id', 'nature', 'programme_id', 'type_transaction', 'mode', 'statut', 'annulation', 'date_saisie', 'date_confirmation', 'date_livraison', 'requisition_id', 'goods_received_id', 'commentaire'],
@@ -134,7 +134,7 @@ export function optionsValides(): OptionsClasseur {
   const T = 'TX-1';
   const INV = 'INV-1';
   const jeux: JeuTest[] = [
-    { nom: 'SITES', colonnes: COLONNES.SITES!, lignes: [{ site_id: S, site_code: 'C1', site_nom: 'CSU Test', district: 'BONDOUKOU', region: 'GONTOUGO', type_structure: 'ESPC', actif: 'OUI', dans_perimetre_dqa: 'OUI', jour_limite_requisition: '5' }] },
+    { nom: 'SITES', colonnes: COLONNES.SITES!, lignes: [{ site_id: S, site_code: 'C1', site_nom: 'CSU Test', district: 'BONDOUKOU', region: 'GONTOUGO', type_structure: 'ESPC', actif: 'OUI', dans_perimetre_dqa: 'OUI' }] },
     { nom: 'SITE_PROGRAMME', colonnes: COLONNES.SITE_PROGRAMME!, lignes: [{ site_id: S, programme_id: P, programme_code: 'VIH', programme_nom: 'VIH', actif: 'OUI' }] },
     { nom: 'PRODUITS', colonnes: COLONNES.PRODUITS!, lignes: [{ produit_id: I, produit_code: 'ARV001', produit_nom: 'TDF/3TC/DTG', unite: 'comprimé', programmes: 'VIH' }] },
     { nom: 'TRANSACTIONS', colonnes: COLONNES.TRANSACTIONS!, lignes: [{ transaction_id: T, site_id: S, nature: 'dispensation', programme_id: P, type_transaction: 'ci', mode: 'dispensary', statut: 'fn', annulation: 'NON', date_saisie: '2026-08-10', date_confirmation: '2026-08-10', date_livraison: '', requisition_id: '', goods_received_id: '', commentaire: '' }] },

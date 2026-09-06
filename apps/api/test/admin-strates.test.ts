@@ -23,7 +23,7 @@ describe('administration des strates de structure', () => {
     await base.pool.query(
       `INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa, type_structure)
        VALUES ('S-INST', 'Institut X', true, 'Institut'),
-              ('S-CSU',  'CSU Y',      true, 'CSU'),
+              ('S-ESPC', 'ESPC Y',     true, 'ESPC'),
               ('S-HORS', 'Hors zone',  false, 'Clinique privée')`,
     );
   }, 120_000);
@@ -46,14 +46,14 @@ describe('administration des strates de structure', () => {
     expect(res.status).toBe(200);
     const vue = vueStratesSchema.parse(res.body);
 
-    expect(vue.mappings).toHaveLength(8); // + « Hôpital de référence » (migration 0038)
-    expect(vue.mappings.find((m) => m.typeStructure === 'CSU')?.strate).toBe('CS');
+    expect(vue.mappings).toHaveLength(5); // référentiel consolidé (ADR 0013)
+    expect(vue.mappings.find((m) => m.typeStructure === 'ESPC')?.strate).toBe('ESPC');
     expect(vue.mappings.find((m) => m.typeStructure === 'Hôpital de référence')?.strate).toBe('Hôpital de référence');
 
     // « Institut » est présent dans un site du périmètre, sans correspondance.
     expect(vue.nonClasses).toContain('Institut');
-    // « CSU » est mappé : jamais listé comme non classé.
-    expect(vue.nonClasses).not.toContain('CSU');
+    // « ESPC » est mappé : jamais listé comme non classé.
+    expect(vue.nonClasses).not.toContain('ESPC');
     // Site hors périmètre : son type n'entre pas dans la liste.
     expect(vue.nonClasses).not.toContain('Clinique privée');
   });
@@ -96,8 +96,8 @@ describe('administration des strates de structure', () => {
 
   it('strate_de : correspondance seedée, sinon « Non classé »', async () => {
     // fonction SQL résolue en direct (consommée par les lectures nationales).
-    const seede = await base.pool.query<{ s: string }>(`SELECT dqa.strate_de('CSR') AS s`);
-    expect(seede.rows[0]?.s).toBe('CS');
+    const seede = await base.pool.query<{ s: string }>(`SELECT dqa.strate_de('ESPC') AS s`);
+    expect(seede.rows[0]?.s).toBe('ESPC');
 
     const inconnu = await base.pool.query<{ s: string }>(`SELECT dqa.strate_de('Institut') AS s`);
     expect(inconnu.rows[0]?.s).toBe('Non classé');

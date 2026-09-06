@@ -8,6 +8,10 @@
 
 -- ── SITES ──────────────────────────────────────────────────────────────────
 -- Tous les magasins actifs. `dans_perimetre_dqa` = présence dans dqa_perimetre.
+-- `type_structure` = le palier `name_category3.description` (ESPC, Hôpital de
+-- référence, District sanitaire, CHU, INSTITUT...). L'échéance de réquisition
+-- et le régime de scoring en sont dérivés côté tableau de bord, dans le
+-- référentiel administré `strate_structure` (ADR 0013) — plus dans ce contrat.
 CREATE OR REPLACE VIEW v_dqa_sites AS
 SELECT
     s.id                              AS site_id,
@@ -17,12 +21,7 @@ SELECT
     NULLIF(reg.description, '')        AS region,
     NULLIF(ts.description, '')         AS type_structure,
     CASE WHEN s.disabled THEN 'NON' ELSE 'OUI' END           AS actif,
-    CASE WHEN pm.site_code IS NOT NULL THEN 'OUI' ELSE 'NON' END AS dans_perimetre_dqa,
-    CASE NULLIF(ts.description, '')
-        WHEN 'CSU'  THEN 5 WHEN 'CSR' THEN 5 WHEN 'ESPC' THEN 5
-        WHEN 'HG'   THEN 7 WHEN 'CHR' THEN 7
-        ELSE 10
-    END                               AS jour_limite_requisition
+    CASE WHEN pm.site_code IS NOT NULL THEN 'OUI' ELSE 'NON' END AS dans_perimetre_dqa
 FROM store s
 JOIN name n                        ON n.id = s.name_id
 LEFT JOIN name_category1 d         ON d.id  = NULLIF(n.category1_id, '')
