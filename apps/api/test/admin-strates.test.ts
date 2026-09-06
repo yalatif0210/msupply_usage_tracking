@@ -46,8 +46,9 @@ describe('administration des strates de structure', () => {
     expect(res.status).toBe(200);
     const vue = vueStratesSchema.parse(res.body);
 
-    expect(vue.mappings).toHaveLength(7);
+    expect(vue.mappings).toHaveLength(8); // + « Hôpital de référence » (migration 0038)
     expect(vue.mappings.find((m) => m.typeStructure === 'CSU')?.strate).toBe('CS');
+    expect(vue.mappings.find((m) => m.typeStructure === 'Hôpital de référence')?.strate).toBe('Hôpital de référence');
 
     // « Institut » est présent dans un site du périmètre, sans correspondance.
     expect(vue.nonClasses).toContain('Institut');

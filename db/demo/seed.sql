@@ -1,93 +1,113 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 --  Jeu de démonstration · tableau de bord DQA mSupply
 --
---  11 sites de strates variées (dont un district et sa zone de trois sites),
---  la fin du cycle C2 (2026-05 à 2026-08, M+1 à M+4) et le début du cycle C3
---  (2026-09, M+1). Un lot d'import par mois, plus un cinquième « extraction du
---  5 septembre » à fenêtre de 45 jours qui chevauche août et septembre.
+--  16 sites RÉELS repris de la feuille SITES du canevas d'extraction
+--  (`Canevas_Extraction_mSupply_DQA.xlsx`) : 4 districts sanitaires, chacun
+--  avec son hôpital de référence et 2 ESPC de sa zone. `site_id` = le
+--  `store.id` mSupply réel ; `type_structure` = les trois valeurs réelles du
+--  référentiel (`District sanitaire`, `Hôpital de référence`, `ESPC`).
 --
---  Les trajectoires de stock des quatre produits traceurs sont générées pour
---  se réconcilier sur des fenêtres d'un mois complet (bornes inter-mois de
---  l'écart consommation, ADR 0012) : chaque site fait deux inventaires en mai
---  (borne d'ouverture intra-mois) puis un inventaire de fin de mois, et
---  `compté(M) = compté(M-1) + réceptions(M) − sorties(M)` (± bruit pour les
---  cas ALERTE désignés).
+--  Fin du cycle C2 (2026-05 à 2026-08) et début du C3 (2026-09). Les
+--  trajectoires de stock des 4 traceurs sont générées (bloc `DO` + table
+--  `_plan`) pour se réconcilier sur des fenêtres d'un mois : deux inventaires
+--  en mai (borne d'ouverture intra-mois), un inventaire de fin de mois
+--  ensuite, `compté(M) = compté(M-1) + réceptions - sorties`.
+--
+--  Un lot d'import par mois plus un cinquième « extraction du 5 septembre » à
+--  fenêtre de 45 jours qui chevauche août et septembre : il apporte les
+--  premiers jours de septembre ET des réquisitions d'août rattrapées ; le gel
+--  corrige alors le score d'août (encore ouvert) sans redéclaration (ADR 0010).
+--  2026-08 et 2026-09 sont les mois en cours, leur score est provisoire.
 --
 --  Narratif :
---   - CHU : réquisitions d'août soumises en retard, rapportées par le lot du
---     5 septembre → le gel corrige le score d'août (encore ouvert) à la hausse
---     sans redéclaration (ADR 0010).
---   - CHR : P3 faible (peu de jours de dispensation), écart SDU sur l'ALU hors
---     tolérance en mai-juin puis résorbé.
---   - CSU : réquisition jamais soumise → « rapport manquant ».
---   - District de Man : P3 « distribution » (ADR 0011), réponse aux
---     réquisitions de sa zone (juin 2/3, juillet 3/3, août 2/3, septembre 1/3) ;
---     écart « distribution » sur l'ALU et le TDR.
---   - Institut Pasteur : strate « Non classé ».
---   - SITE-REIMP : core modifié après le gel → avertissement « données
+--   - CHR PUBLIC de DALOA : exemple du manuel (P1/P2/P3/P6 à 100, P4 à 50 —
+--     1 produit SDU hors tolérance sur 2 —, P5 à 0 — concordance sous 100 % —
+--     → composite 62,5 NON CONFORME).
+--   - CHR PUBLIC de BONDOUKOU : vigilance chronique (P3 faible, écart SDU hors
+--     tolérance mai-juin, réquisition en retard, ajustements).
+--   - CSR-DM PUBLIC de BOBIA : réquisition jamais soumise → « rapport manquant ».
+--   - CSU GONATE : core modifié après le gel → avertissement « données
 --     modifiées depuis le gel ».
---   - Août et septembre sont les mois en cours (date du jour 2026-09-05) :
---     repère « Mois en cours · score provisoire ». P3 y est mesuré sur les
---     jours écoulés (ADR 0012).
+--   - DISTRICT SANITAIRE de NIAKARAMADOUGOU : P3 « distribution » (ADR 0011),
+--     réponse aux réquisitions de sa zone (juin 2/3, juillet 3/3, août 2/3,
+--     septembre 1/3). Les trois autres districts répondent bien.
+--   - `/admin/strates` : les trois `type_structure` réels sont mappés (migration
+--     0038) ; aucun « Non classé » dans ce jeu.
 --
 --  Rejouable : purge le core avant d'insérer.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 SET search_path TO dqa, public;
 
+-- ── Identifiants réels (store.id mSupply) ─────────────────────────────────
+\set d_bdk  '2C9D4FBD2B33F848BC3BA96DC0F0D120'
+\set d_dal  '83313AC498EE094390691B9367D76D31'
+\set d_gag  '0669E7D0A097B946B4ADD02A4DF4F4EE'
+\set d_nia  'F7DAD29666D2BD4682A6F7DAD9BCDE52'
+\set h_bdk  '2BDAD2F787F1C045A28E2A35277F5184'
+\set h_dal  'AB256D09C93B3E4F970CE4E309F2D476'
+\set h_gag  '36E8D6F20911964DA45689A89CF077EE'
+\set h_nia  'AE3A0E11FFFA7C45A9BBC79715557E49'
+\set e_tam  '54C8A3C005D2804DB4C1BE28FFD39928'
+\set e_lao  'CEAE5C4E588FAA4B8FA73E0D2501B7B5'
+\set e_bed  'A16C83E11D68604E8AABBBE1AD075DE8'
+\set e_gon  '1E46EAD4C18A9D4D91077E7B53EF7592'
+\set e_bob  '2742438AB5CE71448A8E41561E6D1851'
+\set e_gue  'C18F82F669232948B3FA7F716337BEFE'
+\set e_taf  '449CF4BC72A90F4480A745BC1979F64D'
+\set e_tor  'D04EB0CDDB54E943917C4AAABDF040B2'
+
 BEGIN;
 
 TRUNCATE dqa.import_lot, dqa.dim_site, dqa.dim_programme, dqa.dim_produit
     RESTART IDENTITY CASCADE;
 
--- ── Lots d'import ─────────────────────────────────────────────────────────
+-- ── Lots d'import ────────────────────────────────────────────────────────
 INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, statut, importe_le) VALUES
     ('demo_2026-05.xlsx', '2026-C2', '2026-05', '2026-05-01', '2026-05-31', 'valide', now()),
     ('demo_2026-06.xlsx', '2026-C2', '2026-06', '2026-06-01', '2026-06-30', 'valide', now()),
     ('demo_2026-07.xlsx', '2026-C2', '2026-07', '2026-07-01', '2026-07-31', 'valide', now()),
     ('demo_2026-08.xlsx', '2026-C2', '2026-08', '2026-08-01', '2026-08-31', 'valide', now());
-
 INSERT INTO dqa.import_lot
     (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, fenetre_debut, fenetre_fin, statut, importe_le)
 VALUES ('demo_2026-09.xlsx', '2026-C3', '2026-09', '2026-09-01', '2026-09-30',
         '2026-07-22', '2026-09-05', 'valide', now());
 
--- ── Programmes ───────────────────────────────────────────────────────────
+-- ── Programmes ──────────────────────────────────────────────────────────
 INSERT INTO dqa.dim_programme (programme_id, programme_code, programme_nom, lot_id_source) VALUES
     ('PRG-VIH',  'VIH',  'VIH',       1),
     ('PRG-PALU', 'PALU', 'Paludisme', 1);
 
--- ── Sites (une strate chacun ; « Institut » restera « Non classé ») ───────
+-- ── Sites réels ─────────────────────────────────────────────────────────
 INSERT INTO dqa.dim_site
     (site_id, site_code, site_nom, district, region, type_structure, dans_perimetre_dqa, jour_limite_requisition, lot_id_source)
 VALUES
-    ('SITE-CHU',   'C-CHU',  'CHU de Treichville',                 'ABIDJAN 1',   'ABIDJAN',          'CHU',                true, 10, 1),
-    ('SITE-CHR',   'C-CHR',  'CHR de Bouaké',                      'BOUAKE NORD', 'GBEKE',            'CHR',                true, 7,  1),
-    ('SITE-HG',    'C-HG',   'HG d''Abengourou',                   'ABENGOUROU',  'INDENIE-DJUABLIN', 'HG',                 true, 7,  1),
-    ('SITE-ESPC',  'C-ESPC', 'ESPC de Yamoussoukro',               'YAMOUSSOUKRO','BELIER',           'ESPC',               true, 5,  1),
-    ('SITE-CSU',   'C-CSU',  'CSU de Korhogo',                     'KORHOGO',     'PORO',             'CSU',                true, 5,  1),
-    ('SITE-DIST',  'C-DIST', 'District sanitaire de Man',          'MAN',         'TONKPI',           'District sanitaire', true, 10, 1),
-    ('SITE-INST',  'C-INST', 'Institut Pasteur de Côte d''Ivoire', 'ABIDJAN 2',   'ABIDJAN',          'Institut',           true, 10, 1),
-    ('SITE-REIMP', 'C-RIM',  'CSU de Daloa (ré-importé)',          'DALOA',       'HAUT-SASSANDRA',   'CSU',                true, 5,  1),
-    ('SITE-MAN1',  'C-MAN1', 'CSU de Man centre',                  'MAN',         'TONKPI',           'CSU',                true, 5,  1),
-    ('SITE-MAN2',  'C-MAN2', 'CSR de Fagnampleu',                  'MAN',         'TONKPI',           'CSR',                true, 5,  1),
-    ('SITE-MAN3',  'C-MAN3', 'ESPC de Gbangbégouiné',              'MAN',         'TONKPI',           'ESPC',               true, 5,  1);
+    (:'d_bdk','50800010',    'DISTRICT SANITAIRE de BONDOUKOU',       'BONDOUKOU',       'GONTOUGO',       'District sanitaire',   true, 10, 1),
+    (:'d_dal','51600010',    'DISTRICT SANITAIRE de DALOA',           'DALOA',           'HAUT-SASSANDRA', 'District sanitaire',   true, 10, 1),
+    (:'d_gag','51300010',    'DISTRICT SANITAIRE de GAGNOA 1',        'GAGNOA 1',        'GOH',            'District sanitaire',   true, 10, 1),
+    (:'d_nia','51500030',    'DISTRICT SANITAIRE de NIAKARAMADOUGOU', 'NIAKARAMADOUGOU', 'HAMBOL',         'District sanitaire',   true, 10, 1),
+    (:'h_bdk','30800010',    'CHR PUBLIC de BONDOUKOU',               'BONDOUKOU',       'GONTOUGO',       'Hôpital de référence', true, 7,  1),
+    (:'h_dal','31600010',    'CHR PUBLIC de DALOA',                   'DALOA',           'HAUT-SASSANDRA', 'Hôpital de référence', true, 7,  1),
+    (:'h_gag','31300010',    'CHR PUBLIC de GAGNOA',                  'GAGNOA 1',        'GOH',            'Hôpital de référence', true, 7,  1),
+    (:'h_nia','41500020',    'HG PUBLIC de NIAKARAMADOUGOU',          'NIAKARAMADOUGOU', 'HAMBOL',         'Hôpital de référence', true, 7,  1),
+    (:'e_tam','14048CSR0031','CSR TAMBI',                             'BONDOUKOU',       'GONTOUGO',       'ESPC',                 true, 5,  1),
+    (:'e_lao','14048CSU0005','CSU LAOUDIBA',                          'BONDOUKOU',       'GONTOUGO',       'ESPC',                 true, 5,  1),
+    (:'e_bed','18063CSU0001','CSU BEDIALA',                           'DALOA',           'HAUT-SASSANDRA', 'ESPC',                 true, 5,  1),
+    (:'e_gon','18063CSU0005','CSU GONATE',                            'DALOA',           'HAUT-SASSANDRA', 'ESPC',                 true, 5,  1),
+    (:'e_bob','13045CSR0024','CSR-DM PUBLIC de BOBIA',                'GAGNOA 1',        'GOH',            'ESPC',                 true, 5,  1),
+    (:'e_gue','13045CSR0031','CSR-DM PUBLIC de GUEMENEDOU',           'GAGNOA 1',        'GOH',            'ESPC',                 true, 5,  1),
+    (:'e_taf','17061CSU0002','CSU TAFIRE',                            'NIAKARAMADOUGOU', 'HAMBOL',         'ESPC',                 true, 5,  1),
+    (:'e_tor','17061CSU0001','CSU TORTIYA',                           'NIAKARAMADOUGOU', 'HAMBOL',         'ESPC',                 true, 5,  1);
 
 INSERT INTO dqa.dim_site_programme (site_id, programme_id, actif, lot_id_source)
-SELECT site_id, programme_id, true, 1
-FROM (VALUES
-    ('SITE-CHU','PRG-VIH'), ('SITE-CHU','PRG-PALU'),
-    ('SITE-CHR','PRG-PALU'),
-    ('SITE-HG','PRG-VIH'),
-    ('SITE-ESPC','PRG-PALU'),
-    ('SITE-CSU','PRG-PALU'),
-    ('SITE-DIST','PRG-PALU'),
-    ('SITE-INST','PRG-VIH'),
-    ('SITE-REIMP','PRG-PALU'),
-    ('SITE-MAN1','PRG-PALU'), ('SITE-MAN2','PRG-PALU'), ('SITE-MAN3','PRG-PALU')
-) AS s(site_id, programme_id);
+SELECT s, 'PRG-VIH', true, 1  FROM (VALUES (:'h_bdk'),(:'h_dal'),(:'h_gag'),(:'h_nia')) AS v(s)
+UNION ALL
+SELECT s, 'PRG-PALU', true, 1 FROM (VALUES
+    (:'d_bdk'),(:'d_dal'),(:'d_gag'),(:'d_nia'),
+    (:'e_tam'),(:'e_lao'),(:'e_bed'),(:'e_gon'),(:'e_bob'),(:'e_gue'),(:'e_taf'),(:'e_tor')
+) AS v(s);
 
--- ── Produits (4 traceurs de la liste réelle, migration 0013) ─────────────
+-- ── Produits (4 traceurs de la liste réelle, migration 0013) ────────────
 INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom, unite, lot_id_source) VALUES
     ('ITM-ARV', '3100014-ARV',  'DOLUTEGRAVIR/LAMIVUDINE/TENOFOVIR 50/300/300 mg comp. BTE/90', 'BTE', 1),
     ('ITM-ALU', '3050064-PNLP', 'ARTEMETHER/LUMEFANTRINE 20/120 mg ADULTE BTE/30',              'BTE', 1),
@@ -98,50 +118,50 @@ INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom, unite, lot_i
 --  Générateur des trajectoires de traceurs
 --
 --  `_plan` : par (site, produit, programme, nature de sortie), le stock
---  d'ouverture, la réception mensuelle, la sortie mensuelle et un bruit SDU
---  (théorique = compté + bruit) mois par mois. La procédure ci-dessous
---  déroule mai → septembre et insère :
---    - inventaires (2 en mai, 1 fin de mois ensuite) avec leurs lignes ;
---    - une réception mensuelle datée dans la fenêtre (borne M-1, borne M] ;
---    - ~22 sorties (jours ouvrés) réparties pour sommer la sortie mensuelle,
---      moins pour les sites en alerte P3.
---  `jours_sortie` : nombre de jours distincts avec sortie (P3).
+--  d'ouverture, la réception mensuelle, la sortie mensuelle, le nombre de
+--  jours de sortie (P3) et un bruit SDU (théorique = compté + bruit) mois par
+--  mois. Contraintes : sortie_mois >= jours_sortie ; rec_mois ~ sortie_mois + 2
+--  (le stock monte doucement). Sites réguliers : 22 jours de sortie / mois ;
+--  CHR de Bondoukou et les districts : 7 (P3 en alerte).
 -- ═══════════════════════════════════════════════════════════════════════════
 
 CREATE TEMP TABLE _plan (
     site text, produit text, prog text, nature text,
     stock_ouv numeric, rec_mois numeric, sortie_mois numeric,
     jours_sortie int,
-    sdu_bruit int[]   -- bruit théorique par mois [mai..sept] ; NULL → 0
+    sdu_bruit int[]   -- bruit théorique par mois [mai..sept] ; NULL -> 0
 );
---  Contraintes : sortie_mois >= jours_sortie (chaque jour de sortie porte >= 1
---  unité) ; rec_mois ~ sortie_mois + 2 (le stock monte doucement). Sites
---  réguliers : 22 jours de sortie / mois ; CHR et le district : 7 (P3 en alerte).
 INSERT INTO _plan VALUES
-    -- VIH — ARV
-    ('SITE-CHU','ITM-ARV','PRG-VIH','dispensation', 520, 54, 52, 22, NULL),
-    ('SITE-HG', 'ITM-ARV','PRG-VIH','dispensation', 380, 46, 44, 22, ARRAY[0,0,0,14,14]),  -- SDU HG hors tol. août-sept
-    ('SITE-INST','ITM-ARV','PRG-VIH','dispensation',220, 28, 26, 22, NULL),
-    -- VIH — HIV
-    ('SITE-CHU','ITM-HIV','PRG-VIH','dispensation', 210, 28, 26, 22, NULL),
-    ('SITE-HG', 'ITM-HIV','PRG-VIH','dispensation', 130, 26, 24, 22, NULL),
-    ('SITE-INST','ITM-HIV','PRG-VIH','dispensation', 95, 26, 24, 22, NULL),
-    -- PALU — ALU
-    ('SITE-CHU','ITM-ALU','PRG-PALU','dispensation', 320, 30, 28, 22, NULL),
-    ('SITE-CHR','ITM-ALU','PRG-PALU','dispensation', 260, 26, 24, 7,  ARRAY[9,8,2,1,1]),  -- CHR : P3 faible, SDU alerte mai-juin
-    ('SITE-ESPC','ITM-ALU','PRG-PALU','dispensation',150, 28, 26, 22, NULL),
-    ('SITE-CSU','ITM-ALU','PRG-PALU','dispensation', 80, 28, 26, 22, NULL),
-    ('SITE-REIMP','ITM-ALU','PRG-PALU','dispensation',140, 28, 26, 22, NULL),
-    ('SITE-MAN1','ITM-ALU','PRG-PALU','dispensation', 95, 28, 26, 22, NULL),
-    ('SITE-MAN2','ITM-ALU','PRG-PALU','dispensation', 85, 26, 24, 22, NULL),
-    ('SITE-MAN3','ITM-ALU','PRG-PALU','dispensation', 80, 26, 24, 22, NULL),
-    ('SITE-DIST','ITM-ALU','PRG-PALU','distribution', 120, 30, 28, 7,  NULL),  -- district : distributions
-    -- PALU — TDR
-    ('SITE-CHU','ITM-TDR','PRG-PALU','dispensation', 110, 28, 26, 22, NULL),
-    ('SITE-CHR','ITM-TDR','PRG-PALU','dispensation', 90, 28, 26, 7,  NULL),
-    ('SITE-ESPC','ITM-TDR','PRG-PALU','dispensation', 70, 26, 24, 22, NULL),
-    ('SITE-REIMP','ITM-TDR','PRG-PALU','dispensation',60, 26, 24, 22, NULL),
-    ('SITE-DIST','ITM-TDR','PRG-PALU','distribution', 55, 16, 15, 7,  NULL);
+    -- Hôpitaux de référence : VIH (ARV + test HIV)
+    (:'h_bdk','ITM-ARV','PRG-VIH','dispensation', 380, 46, 44, 7,  ARRAY[12,10,3,2,2]),  -- CHR Bondoukou : P3 faible, SDU alerte mai-juin
+    (:'h_bdk','ITM-HIV','PRG-VIH','dispensation', 130, 26, 24, 7,  NULL),
+    (:'h_dal','ITM-ARV','PRG-VIH','dispensation', 380, 46, 44, 22, ARRAY[0,0,0,14,14]),  -- CHR Daloa : SDU ARV hors tol. août-sept (exemple manuel)
+    (:'h_dal','ITM-HIV','PRG-VIH','dispensation', 130, 26, 24, 22, NULL),
+    (:'h_gag','ITM-ARV','PRG-VIH','dispensation', 400, 48, 46, 22, NULL),
+    (:'h_gag','ITM-HIV','PRG-VIH','dispensation', 140, 28, 26, 22, NULL),
+    (:'h_nia','ITM-ARV','PRG-VIH','dispensation', 320, 42, 40, 22, NULL),
+    (:'h_nia','ITM-HIV','PRG-VIH','dispensation', 110, 24, 22, 22, NULL),
+    -- ESPC : Paludisme (ALU + certains TDR)
+    (:'e_tam','ITM-ALU','PRG-PALU','dispensation', 150, 28, 26, 22, NULL),
+    (:'e_tam','ITM-TDR','PRG-PALU','dispensation', 70,  26, 24, 22, NULL),
+    (:'e_lao','ITM-ALU','PRG-PALU','dispensation', 90,  26, 24, 22, NULL),
+    (:'e_bed','ITM-ALU','PRG-PALU','dispensation', 130, 28, 26, 22, NULL),
+    (:'e_gon','ITM-ALU','PRG-PALU','dispensation', 140, 28, 26, 22, NULL),   -- CSU Gonate : ré-import après gel
+    (:'e_gon','ITM-TDR','PRG-PALU','dispensation', 60,  26, 24, 22, NULL),
+    (:'e_bob','ITM-ALU','PRG-PALU','dispensation', 110, 26, 24, 22, NULL),   -- CSR Bobia : réquisition jamais soumise
+    (:'e_gue','ITM-ALU','PRG-PALU','dispensation', 120, 28, 26, 22, NULL),
+    (:'e_gue','ITM-TDR','PRG-PALU','dispensation', 55,  26, 24, 22, NULL),
+    (:'e_taf','ITM-ALU','PRG-PALU','dispensation', 100, 26, 24, 22, NULL),
+    (:'e_tor','ITM-ALU','PRG-PALU','dispensation', 95,  26, 24, 22, NULL),
+    -- Districts : distributions vers la zone (ALU + TDR)
+    (:'d_bdk','ITM-ALU','PRG-PALU','distribution', 120, 30, 28, 7,  NULL),
+    (:'d_bdk','ITM-TDR','PRG-PALU','distribution', 55,  16, 15, 7,  NULL),
+    (:'d_dal','ITM-ALU','PRG-PALU','distribution', 130, 32, 30, 7,  NULL),
+    (:'d_dal','ITM-TDR','PRG-PALU','distribution', 60,  16, 15, 7,  NULL),
+    (:'d_gag','ITM-ALU','PRG-PALU','distribution', 125, 30, 28, 7,  NULL),
+    (:'d_gag','ITM-TDR','PRG-PALU','distribution', 58,  16, 15, 7,  NULL),
+    (:'d_nia','ITM-ALU','PRG-PALU','distribution', 120, 30, 28, 7,  NULL),
+    (:'d_nia','ITM-TDR','PRG-PALU','distribution', 55,  16, 15, 7,  NULL);
 
 DO $gen$
 DECLARE
@@ -149,8 +169,8 @@ DECLARE
     m           int;
     mois        text;
     lot         int;
-    d_clot      date;   -- date inventaire de fin de mois M
-    d_rec       date;   -- date de la réception du mois
+    d_clot      date;
+    d_rec       date;
     stock       numeric;
     stock_prec  numeric;
     theo        numeric;
@@ -163,7 +183,6 @@ DECLARE
     q           numeric;
     q_cumul     numeric;
     bruit       int;
-    -- fins de mois (dans les 3 derniers jours) et débuts
     fin_mois    date[] := ARRAY['2026-05-30','2026-06-29','2026-07-30','2026-08-29','2026-09-30']::date[];
     deb_mois    date[] := ARRAY['2026-05-01','2026-06-01','2026-07-01','2026-08-01','2026-09-01']::date[];
     rec_jour    date[] := ARRAY['2026-05-12','2026-06-10','2026-07-10','2026-08-11','2026-09-03']::date[];
@@ -175,9 +194,9 @@ FOR p IN SELECT * FROM _plan LOOP
         lot        := m;
         stock_prec := stock;
 
-        -- septembre : mois partiel (5 jours ouvrés), une sortie par jour,
-        -- pas de réception → la reconstituée du mois en cours vaut le total
-        -- des sorties écoulées.
+        -- septembre : mois partiel (5 jours ouvrés), une sortie par jour, pas
+        -- de réception -> la reconstituée du mois en cours vaut le total des
+        -- sorties écoulées.
         IF m = 5 THEN
             q_cumul := 5;
             stock   := stock_prec - 5;
@@ -189,9 +208,7 @@ FOR p IN SELECT * FROM _plan LOOP
         bruit := COALESCE(p.sdu_bruit[m], 0);
         theo  := stock + bruit;
 
-        -- ── Inventaire de fin de mois (pour septembre : le dernier jour de
-        --    données, pour que toutes les sorties du mois tiennent dans la
-        --    fenêtre de l'écart consommation) ──
+        -- inventaire de fin de mois (septembre : le dernier jour de données)
         d_clot   := CASE WHEN m = 5 THEN DATE '2026-09-05' ELSE fin_mois[m] END;
         inv_clot := format('INV-%s-%s-%s', p.site, replace(p.produit,'ITM-',''), mois);
         INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
@@ -200,7 +217,7 @@ FOR p IN SELECT * FROM _plan LOOP
         INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
         VALUES (inv_clot, p.produit, 'L1', theo, stock, lot);
 
-        -- ── En mai : un second inventaire, le 1er du mois (borne d'ouverture) ──
+        -- en mai : un second inventaire, le 1er du mois (borne d'ouverture)
         IF m = 1 THEN
             inv_ouv := format('INV-%s-%s-%s-ouv', p.site, replace(p.produit,'ITM-',''), mois);
             INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
@@ -210,7 +227,7 @@ FOR p IN SELECT * FROM _plan LOOP
             VALUES (inv_ouv, p.produit, 'L1', p.stock_ouv, p.stock_ouv, lot);
         END IF;
 
-        -- ── Réception mensuelle (sauf septembre) ──
+        -- réception mensuelle (sauf septembre)
         IF m < 5 AND p.rec_mois > 0 THEN
             d_rec := rec_jour[m];
             INSERT INTO dqa.fact_transaction
@@ -224,11 +241,8 @@ FOR p IN SELECT * FROM _plan LOOP
                     p.produit, p.prog, p.rec_mois, 1, false, lot);
         END IF;
 
-        -- ── Sorties : les `jours_sortie` premiers jours ouvrés du mois ──
-        --  q_cumul est réparti exactement (split entier par la fonction floor)
-        --  sur les n_jours jours retenus. En mai on démarre le 2 : le 1er porte
-        --  l'inventaire d'ouverture et les sorties doivent tomber après lui pour
-        --  entrer dans la fenêtre de l'écart consommation.
+        -- sorties : les `jours_sortie` premiers jours ouvrés du mois ;
+        -- q_cumul réparti exactement (split entier). En mai on démarre le 2.
         jours := ARRAY(
             SELECT g::date FROM generate_series(
                 CASE WHEN m = 5 THEN DATE '2026-09-01'
@@ -245,7 +259,7 @@ FOR p IN SELECT * FROM _plan LOOP
         FOR k IN 1..COALESCE(n_jours, 0) LOOP
             j := jours[k];
             q := floor(q_cumul::numeric * k / n_jours) - floor(q_cumul::numeric * (k - 1) / n_jours);
-            IF q <= 0 THEN CONTINUE; END IF;   -- q_cumul < n_jours : jour sans sortie
+            IF q <= 0 THEN CONTINUE; END IF;
 
             INSERT INTO dqa.fact_transaction
                 (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation, lot_id_source)
@@ -262,159 +276,142 @@ END LOOP;
 END
 $gen$;
 
--- ── Ajustements de stock (P6) : quelques mouvements, peu d'ajustements ────
+-- ── Ajustements de stock (P6) : quelques mouvements, peu d'ajustements ───
 INSERT INTO dqa.fact_transaction
     (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation, lot_id_source)
 VALUES
-    ('AJ-CHU-06','SITE-CHU','ajustement_negatif','PRG-PALU','fn','2026-06-16','2026-06-16',2),
-    ('AJ-HG-07', 'SITE-HG', 'ajustement_positif','PRG-VIH', 'fn','2026-07-15','2026-07-15',3),
-    ('AJ-CHR-08','SITE-CHR','ajustement_negatif','PRG-PALU','fn','2026-08-14','2026-08-14',4),
-    ('AJ-CHR-06','SITE-CHR','ajustement_negatif','PRG-PALU','fn','2026-06-12','2026-06-12',2),
-    ('AJ-CHR-07','SITE-CHR','ajustement_negatif','PRG-PALU','fn','2026-07-19','2026-07-19',3);
+    ('AJ-BDK-06', :'h_bdk','ajustement_negatif','PRG-VIH', 'fn','2026-06-16','2026-06-16',2),
+    ('AJ-BDK-07', :'h_bdk','ajustement_negatif','PRG-VIH', 'fn','2026-07-19','2026-07-19',3),
+    ('AJ-BDK-08', :'h_bdk','ajustement_negatif','PRG-VIH', 'fn','2026-08-14','2026-08-14',4),
+    ('AJ-GAG-07', :'h_gag','ajustement_positif','PRG-VIH', 'fn','2026-07-15','2026-07-15',3);
 INSERT INTO dqa.fact_ligne_transaction
     (ligne_id, transaction_id, produit_id, programme_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
 VALUES
-    ('AJ-CHU-06-L','AJ-CHU-06','ITM-ALU','PRG-PALU',-6,1,true,2),
-    ('AJ-HG-07-L', 'AJ-HG-07', 'ITM-ARV','PRG-VIH',  4,1,true,3),
-    ('AJ-CHR-08-L','AJ-CHR-08','ITM-ALU','PRG-PALU',-5,1,true,4),
-    ('AJ-CHR-06-L','AJ-CHR-06','ITM-ALU','PRG-PALU',-4,1,true,2),
-    ('AJ-CHR-07-L','AJ-CHR-07','ITM-TDR','PRG-PALU',-3,1,true,3);
+    ('AJ-BDK-06-L','AJ-BDK-06','ITM-ARV','PRG-VIH',-6,1,true,2),
+    ('AJ-BDK-07-L','AJ-BDK-07','ITM-HIV','PRG-VIH',-4,1,true,3),
+    ('AJ-BDK-08-L','AJ-BDK-08','ITM-ARV','PRG-VIH',-5,1,true,4),
+    ('AJ-GAG-07-L','AJ-GAG-07','ITM-ARV','PRG-VIH', 4,1,true,3);
 
 -- ── Factures fournisseur (dénominateur de la complétude des réceptions P1) ─
---  Une facture par réception de traceur pour CHU / HG / ESPC (ratio 100 %) ;
---  pour CHR, une facture de plus que les réceptions chaque mois → alerte.
+--  Une facture par réception de traceur pour les hôpitaux + BEDIALA / GUEMENEDOU
+--  (ratio 100 %) ; pour CHR Bondoukou, une facture de plus par mois -> alerte.
 INSERT INTO dqa.fact_transaction
     (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation, lot_id_source)
 SELECT 'FA-' || rc.transaction_id, rc.site_id, 'facture_fournisseur', rc.programme_id, 'fn',
        rc.date_confirmation, rc.date_confirmation, rc.lot_id_source
 FROM dqa.fact_transaction rc
 WHERE rc.nature = 'reception'
-  AND rc.site_id IN ('SITE-CHU','SITE-HG','SITE-ESPC','SITE-CHR');
+  AND rc.site_id IN (:'h_bdk',:'h_dal',:'h_gag',:'h_nia',:'e_bed',:'e_gue');
 
 INSERT INTO dqa.fact_transaction
     (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation, lot_id_source)
-VALUES
-    ('FA-CHR-EXTRA-05','SITE-CHR','facture_fournisseur','PRG-PALU','fn','2026-05-06','2026-05-06',1),
-    ('FA-CHR-EXTRA-06','SITE-CHR','facture_fournisseur','PRG-PALU','fn','2026-06-06','2026-06-06',2),
-    ('FA-CHR-EXTRA-07','SITE-CHR','facture_fournisseur','PRG-PALU','fn','2026-07-06','2026-07-06',3),
-    ('FA-CHR-EXTRA-08','SITE-CHR','facture_fournisseur','PRG-PALU','fn','2026-08-06','2026-08-06',4);
+SELECT format('FA-BDK-EXTRA-%s', m.mois), :'h_bdk', 'facture_fournisseur', 'PRG-VIH', 'fn',
+       (m.mois || '-06')::date, (m.mois || '-06')::date, m.lot
+FROM (VALUES ('2026-05',1),('2026-06',2),('2026-07',3),('2026-08',4)) AS m(mois, lot);
 
 -- ── Réquisitions (rapports mensuels) : à l'heure, en retard, manquantes ──
---  Limite de soumission : mois M+1 + (jour_limite − 1).
---  CSU/ESPC/MAN* → 5, CHR/HG → 7, CHU/DIST → 10.
+--  Limite : mois M+1 + (jour_limite - 1). ESPC -> 5, Hôpital de référence -> 7,
+--  District sanitaire -> 10 (migration 0038).
+--
+--  Chaque site de la zone d'un district (hôpital + ESPC du même `district`)
+--  soumet une réquisition couvrant M ; elle sert P1/P2 ET le P3 du district
+--  (réquisitions de la zone couvrant M-1). Le district soumet aussi la sienne.
+INSERT INTO dqa.fact_requisition
+    (requisition_id, site_id, programme_id, mois_couvert, date_soumission, date_inventaire_ref, statut, lot_id_source)
+SELECT format('REQ-%s-%s', s.tag, m.mc), s.sid, s.prg, m.mc,
+       (to_char((m.mc || '-01')::date + interval '1 month', 'YYYY-MM') || '-' || s.jj)::date,
+       (m.mc || '-28')::date, 'fn', m.lot
+FROM (VALUES
+    -- (tag, site, programme, jour de soumission dans M+1)
+    ('DBDK', :'d_bdk','PRG-PALU','09'), ('DDAL', :'d_dal','PRG-PALU','09'),
+    ('DGAG', :'d_gag','PRG-PALU','09'), ('DNIA', :'d_nia','PRG-PALU','09'),
+    ('HDAL', :'h_dal','PRG-VIH','03'),  ('HGAG', :'h_gag','PRG-VIH','04'),
+    ('HNIA', :'h_nia','PRG-VIH','04'),
+    ('ETAM', :'e_tam','PRG-PALU','04'), ('ELAO', :'e_lao','PRG-PALU','04'),
+    ('EBED', :'e_bed','PRG-PALU','04'), ('EGON', :'e_gon','PRG-PALU','04'),
+    ('EGUE', :'e_gue','PRG-PALU','04'), ('ETAF', :'e_taf','PRG-PALU','04'),
+    ('ETOR', :'e_tor','PRG-PALU','04')
+) AS s(tag, sid, prg, jj)
+CROSS JOIN (VALUES ('2026-05',1),('2026-06',2),('2026-07',3),('2026-08',4)) AS m(mc, lot)
+-- CHR de Daloa et district de Daloa : leur réquisition d'août n'est PAS dans le
+-- lot d'août, elle arrive par le lot du 5 septembre (bloc « rattrapées »).
+WHERE NOT (s.tag IN ('HDAL','DDAL') AND m.mc = '2026-08');
+
+-- CHR de Bondoukou : réquisition chroniquement en retard (soumise le 9-11 du
+-- mois suivant, limite le 7).
 INSERT INTO dqa.fact_requisition
     (requisition_id, site_id, programme_id, mois_couvert, date_soumission, date_inventaire_ref, statut, lot_id_source)
 VALUES
-    -- CHU : mai-juillet à l'heure ; août soumis en retard, rapporté par le lot de septembre (plus bas)
-    ('REQ-CHU-VIH-05', 'SITE-CHU','PRG-VIH', '2026-05','2026-06-08','2026-05-30','fn',1),
-    ('REQ-CHU-PALU-05','SITE-CHU','PRG-PALU','2026-05','2026-06-15','2026-05-30','fn',1),  -- en retard (> 10)
-    ('REQ-CHU-VIH-06', 'SITE-CHU','PRG-VIH', '2026-06','2026-07-07','2026-06-29','fn',2),
-    ('REQ-CHU-PALU-06','SITE-CHU','PRG-PALU','2026-06','2026-07-06','2026-06-29','fn',2),  -- rattrapé
-    ('REQ-CHU-VIH-07', 'SITE-CHU','PRG-VIH', '2026-07','2026-08-07','2026-07-30','fn',3),
-    ('REQ-CHU-PALU-07','SITE-CHU','PRG-PALU','2026-07','2026-08-06','2026-07-30','fn',3),
-    -- CHR : réquisition chroniquement en retard (limite 7)
-    ('REQ-CHR-05','SITE-CHR','PRG-PALU','2026-05','2026-06-11','2026-05-30','fn',1),  -- en retard
-    ('REQ-CHR-06','SITE-CHR','PRG-PALU','2026-06','2026-07-10','2026-06-29','fn',2),  -- en retard
-    ('REQ-CHR-07','SITE-CHR','PRG-PALU','2026-07','2026-08-06','2026-07-30','fn',3),  -- à l'heure
-    ('REQ-CHR-08','SITE-CHR','PRG-PALU','2026-08','2026-09-09','2026-08-29','fn',4),  -- en retard
-    -- HG : VIH à l'heure
-    ('REQ-HG-VIH-05','SITE-HG','PRG-VIH','2026-05','2026-06-04','2026-05-30','fn',1),
-    ('REQ-HG-VIH-06','SITE-HG','PRG-VIH','2026-06','2026-07-03','2026-06-29','fn',2),
-    ('REQ-HG-VIH-07','SITE-HG','PRG-VIH','2026-07','2026-08-03','2026-07-30','fn',3),
-    ('REQ-HG-VIH-08','SITE-HG','PRG-VIH','2026-08','2026-09-03','2026-08-29','fn',4),
-    -- ESPC : à l'heure (= 5)
-    ('REQ-ESPC-05','SITE-ESPC','PRG-PALU','2026-05','2026-06-05','2026-05-30','fn',1),
-    ('REQ-ESPC-06','SITE-ESPC','PRG-PALU','2026-06','2026-07-04','2026-06-29','fn',2),
-    ('REQ-ESPC-07','SITE-ESPC','PRG-PALU','2026-07','2026-08-05','2026-07-30','fn',3),
-    ('REQ-ESPC-08','SITE-ESPC','PRG-PALU','2026-08','2026-09-04','2026-08-29','fn',4),
-    -- CSU : aucune réquisition → « rapport manquant » chronique
-    -- District : mai-juillet à l'heure ; août rapporté par le lot de septembre
-    ('REQ-DIST-05','SITE-DIST','PRG-PALU','2026-05','2026-06-09','2026-05-30','fn',1),
-    ('REQ-DIST-06','SITE-DIST','PRG-PALU','2026-06','2026-07-08','2026-06-29','fn',2),
-    ('REQ-DIST-07','SITE-DIST','PRG-PALU','2026-07','2026-08-08','2026-07-30','fn',3),
-    -- Institut : en retard (limite 10)
-    ('REQ-INST-05','SITE-INST','PRG-VIH','2026-05','2026-06-20',NULL,'fn',1),
-    ('REQ-INST-06','SITE-INST','PRG-VIH','2026-06','2026-07-03',NULL,'fn',2),
-    ('REQ-INST-07','SITE-INST','PRG-VIH','2026-07','2026-08-04',NULL,'fn',3),
-    ('REQ-INST-08','SITE-INST','PRG-VIH','2026-08','2026-09-03',NULL,'fn',4),
-    -- REIMP : à l'heure
-    ('REQ-RIM-05','SITE-REIMP','PRG-PALU','2026-05','2026-06-03','2026-05-30','fn',1),
-    ('REQ-RIM-06','SITE-REIMP','PRG-PALU','2026-06','2026-07-02','2026-06-29','fn',2),
-    ('REQ-RIM-07','SITE-REIMP','PRG-PALU','2026-07','2026-08-03','2026-07-30','fn',3),
-    ('REQ-RIM-08','SITE-REIMP','PRG-PALU','2026-08','2026-09-02','2026-08-29','fn',4);
+    ('REQ-HBDK-2026-05', :'h_bdk','PRG-VIH','2026-05','2026-06-11','2026-05-28','fn',1),
+    ('REQ-HBDK-2026-06', :'h_bdk','PRG-VIH','2026-06','2026-07-10','2026-06-28','fn',2),
+    ('REQ-HBDK-2026-07', :'h_bdk','PRG-VIH','2026-07','2026-08-06','2026-07-28','fn',3),  -- à l'heure
+    ('REQ-HBDK-2026-08', :'h_bdk','PRG-VIH','2026-08','2026-09-09','2026-08-28','fn',4);  -- en retard
 
--- ── Zone du district de Man : réquisitions des trois sites rattachés ─────
---  P3(District, M) = réquisitions de la zone couvrant M-1 servies dans M
---                    ÷ réquisitions de la zone couvrant M-1. Seuil 80 %.
-INSERT INTO dqa.fact_requisition
-    (requisition_id, site_id, programme_id, mois_couvert, date_soumission, date_inventaire_ref, statut, lot_id_source)
-VALUES
-    ('REQ-MAN1-05','SITE-MAN1','PRG-PALU','2026-05','2026-06-04','2026-05-30','fn',2),
-    ('REQ-MAN2-05','SITE-MAN2','PRG-PALU','2026-05','2026-06-05','2026-05-30','fn',2),
-    ('REQ-MAN3-05','SITE-MAN3','PRG-PALU','2026-05','2026-06-05','2026-05-30','fn',2),
-    ('REQ-MAN1-06','SITE-MAN1','PRG-PALU','2026-06','2026-07-04','2026-06-29','fn',3),
-    ('REQ-MAN2-06','SITE-MAN2','PRG-PALU','2026-06','2026-07-05','2026-06-29','fn',3),
-    ('REQ-MAN3-06','SITE-MAN3','PRG-PALU','2026-06','2026-07-05','2026-06-29','fn',3),
-    ('REQ-MAN1-07','SITE-MAN1','PRG-PALU','2026-07','2026-08-04','2026-07-30','fn',4),
-    ('REQ-MAN2-07','SITE-MAN2','PRG-PALU','2026-07','2026-08-05','2026-07-30','fn',4),
-    ('REQ-MAN3-07','SITE-MAN3','PRG-PALU','2026-07','2026-08-05','2026-07-30','fn',4),
-    ('REQ-MAN1-08','SITE-MAN1','PRG-PALU','2026-08','2026-09-03','2026-08-29','fn',5),
-    ('REQ-MAN2-08','SITE-MAN2','PRG-PALU','2026-08','2026-09-04','2026-08-29','fn',5),
-    ('REQ-MAN3-08','SITE-MAN3','PRG-PALU','2026-08','2026-09-04','2026-08-29','fn',5);
+-- CSR-DM PUBLIC de BOBIA : aucune réquisition -> « rapport manquant » chronique.
+-- (rien à insérer)
 
--- Distributions du District en réponse (requisition_id renseigné), datées
--- dans le mois PAQD = mois couvert + 1. Trajectoire : juin 2/3, juillet 3/3,
--- août 2/3, septembre 1/3 (en cours). Ces distributions portent l'ALU et
--- s'ajoutent au flux de distribution du district généré plus haut.
+-- ── Réponses des districts aux réquisitions de leur zone ────────────────
+--  Distribution (nature 'distribution', requisition_id renseigné), datée dans
+--  le mois PAQD = mois couvert + 1. NIAKARAMADOUGOU répond partiellement
+--  (juin 2/3, juillet 3/3, août 2/3, septembre 1/3) ; les autres répondent à
+--  toute leur zone.
 INSERT INTO dqa.fact_transaction
     (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation, requisition_id, lot_id_source)
-VALUES
-    ('TX-DIST-RZ-1','SITE-DIST','distribution','PRG-PALU','fn','2026-06-10','2026-06-10','REQ-MAN1-05',2),
-    ('TX-DIST-RZ-2','SITE-DIST','distribution','PRG-PALU','fn','2026-06-18','2026-06-18','REQ-MAN2-05',2),
-    ('TX-DIST-RZ-3','SITE-DIST','distribution','PRG-PALU','fn','2026-07-09','2026-07-09','REQ-MAN1-06',3),
-    ('TX-DIST-RZ-4','SITE-DIST','distribution','PRG-PALU','fn','2026-07-11','2026-07-11','REQ-MAN2-06',3),
-    ('TX-DIST-RZ-5','SITE-DIST','distribution','PRG-PALU','fn','2026-07-19','2026-07-19','REQ-MAN3-06',3),
-    ('TX-DIST-RZ-6','SITE-DIST','distribution','PRG-PALU','fn','2026-08-08','2026-08-08','REQ-MAN1-07',4),
-    ('TX-DIST-RZ-7','SITE-DIST','distribution','PRG-PALU','fn','2026-08-20','2026-08-20','REQ-MAN3-07',4),
-    ('TX-DIST-RZ-8','SITE-DIST','distribution','PRG-PALU','fn','2026-09-03','2026-09-03','REQ-MAN1-08',5);
+SELECT format('RZ-%s', r.requisition_id), r.district_id, 'distribution', 'PRG-PALU', 'fn',
+       r.jour, r.jour, r.requisition_id, r.lot
+FROM (
+    -- toutes les réquisitions de zone (sites du même district que le district),
+    -- avec la date de service = 13-19 du mois PAQD
+    SELECT fr.requisition_id, fr.site_id, fr.mois_couvert,
+           dd.site_id AS district_id,
+           (to_char((fr.mois_couvert || '-01')::date + interval '1 month', 'YYYY-MM')
+             || '-' || lpad((10 + (row_number() OVER (PARTITION BY dd.site_id, fr.mois_couvert))*3)::text, 2, '0'))::date AS jour,
+           (extract(month FROM (fr.mois_couvert || '-01')::date)::int - 3) AS lot
+    FROM dqa.fact_requisition fr
+    JOIN dqa.dim_site s   ON s.site_id = fr.site_id
+    JOIN dqa.dim_site dd  ON dd.district = s.district AND dqa.strate_de(dd.type_structure) = 'District'
+    WHERE s.site_id <> dd.site_id
+      AND dqa.strate_de(s.type_structure) <> 'District'
+) r
+-- NIAKARAMADOUGOU : on retire une réquisition servie en juin, une en août, deux
+-- en septembre pour obtenir 2/3, 2/3, 1/3.
+WHERE NOT (
+    r.district_id = :'d_nia' AND (
+        (r.mois_couvert = '2026-05' AND r.site_id = :'e_tor') OR   -- juin 2/3
+        (r.mois_couvert = '2026-07' AND r.site_id = :'e_tor') OR   -- août 2/3
+        (r.mois_couvert = '2026-08' AND r.site_id IN (:'h_nia', :'e_tor'))  -- sept 1/3
+    )
+);
 INSERT INTO dqa.fact_ligne_transaction
     (ligne_id, transaction_id, produit_id, programme_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
-SELECT id || '-L', id, 'ITM-ALU', 'PRG-PALU', 25, 1, false, 5
-FROM (VALUES ('TX-DIST-RZ-1'),('TX-DIST-RZ-2'),('TX-DIST-RZ-3'),('TX-DIST-RZ-4'),
-             ('TX-DIST-RZ-5'),('TX-DIST-RZ-6'),('TX-DIST-RZ-7'),('TX-DIST-RZ-8')) AS t(id);
+SELECT transaction_id || '-L', transaction_id, 'ITM-ALU', 'PRG-PALU', 20, 1, false, lot_id_source
+FROM dqa.fact_transaction WHERE nature = 'distribution' AND requisition_id IS NOT NULL;
 
--- ── Photos de stock (fiche produit-mois) ───────────────────────────────
+-- ── Photos de stock (fiche produit-mois du CHR de Daloa) ────────────────
 INSERT INTO dqa.fact_stock_snapshot (date_photo, site_id, produit_id, lot, quantite_disponible, lot_id_source)
 VALUES
-    ('2026-08-08', 'SITE-HG',  'ITM-ARV', 'L1', 384, 4),
-    ('2026-08-18', 'SITE-HG',  'ITM-ARV', 'L1', 372, 4),
-    ('2026-08-28', 'SITE-HG',  'ITM-ARV', 'L1', 389, 4),
-    ('2026-09-03', 'SITE-HG',  'ITM-ARV', 'L1', 380, 5),
-    ('2026-08-08', 'SITE-CHU', 'ITM-ARV', 'L1', 520, 4),
-    ('2026-08-18', 'SITE-CHU', 'ITM-ARV', 'L1', 512, 4),
-    ('2026-08-28', 'SITE-CHU', 'ITM-ARV', 'L1', 525, 4);
+    ('2026-08-08', :'h_dal', 'ITM-ARV', 'L1', 384, 4),
+    ('2026-08-18', :'h_dal', 'ITM-ARV', 'L1', 372, 4),
+    ('2026-08-28', :'h_dal', 'ITM-ARV', 'L1', 389, 4),
+    ('2026-09-03', :'h_dal', 'ITM-ARV', 'L1', 380, 5);
 
 -- ── Réquisitions d'août rattrapées, apportées par le lot de septembre ───
---  Dans la fenêtre de 45 jours (2026-07-22 → 2026-09-05), soumises avant
---  l'échéance du 10 → à l'heure. Le gel du lot 5 reconstitue août (encore
---  ouvert) et le score remonte, sans que le lot ait à redéclarer août.
+--  Dans la fenêtre de 45 jours, soumises avant l'échéance -> à l'heure. Le gel
+--  du lot 5 reconstitue août (encore ouvert), le score remonte, sans
+--  redéclarer août (ADR 0010).
 INSERT INTO dqa.fact_requisition
     (requisition_id, site_id, programme_id, mois_couvert, date_soumission, date_inventaire_ref, statut, lot_id_source)
 VALUES
-    ('REQ-CHU-VIH-08', 'SITE-CHU','PRG-VIH', '2026-08','2026-09-04','2026-08-29','fn',5),
-    ('REQ-CHU-PALU-08','SITE-CHU','PRG-PALU','2026-08','2026-09-04','2026-08-29','fn',5),
-    ('REQ-DIST-08',    'SITE-DIST','PRG-PALU','2026-08','2026-09-05','2026-08-29','fn',5);
+    ('REQ-HDAL-2026-08', :'h_dal','PRG-VIH', '2026-08','2026-09-04','2026-08-28','fn',5),
+    ('REQ-DDAL-2026-08', :'d_dal','PRG-PALU','2026-08','2026-09-05','2026-08-28','fn',5);
 
 -- ── Gel : un seul appel reconstitue mai à septembre (ADR 0010) ──────────
 CALL dqa.rafraichir_et_geler(5);
 
 COMMIT;
 
--- ── Ré-import « après le gel » de SITE-REIMP : bouge le core sans regeler ─
---  Simule un correctif d'extraction postérieur au gel : le détail live d'un
---  pilier changera, l'avertissement « données modifiées depuis le gel »
---  apparaîtra sur la fiche de SITE-REIMP.
-UPDATE dqa.fact_transaction SET maj_le = now() + interval '1 day' WHERE site_id = 'SITE-REIMP';
-UPDATE dqa.fact_inventaire  SET maj_le = now() + interval '1 day' WHERE site_id = 'SITE-REIMP';
+-- ── Ré-import « après le gel » de CSU GONATE : bouge le core sans regeler ─
+UPDATE dqa.fact_transaction SET maj_le = now() + interval '1 day' WHERE site_id = :'e_gon';
+UPDATE dqa.fact_inventaire  SET maj_le = now() + interval '1 day' WHERE site_id = :'e_gon';
 
-\echo 'Seed de démonstration appliqué : 11 sites (dont la zone du District de Man), 2026-05 à 2026-09. Août et septembre en cours.'
+\echo 'Seed de démonstration appliqué : 16 sites réels (4 districts + zones), 2026-05 à 2026-09. Août et septembre en cours.'

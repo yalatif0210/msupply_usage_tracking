@@ -135,7 +135,7 @@ Trois onglets, filtrables par mois, programme et région :
   d'atteinte moyen et leurs comptes de statut ;
 - **Rapports & inventaires** : réquisitions et inventaires de fin de mois
   attendus, réalisés et réalisés dans les délais, agrégés par strate de
-  structure (CHU, CHR, HG, ESPC, CS, District, Non classé).
+  structure (District sanitaire, Hôpital de référence, ESPC — plus « Non classé » pour un type non mappé).
 
 ### Imports (`/imports`, coordination uniquement)
 
@@ -191,7 +191,7 @@ score du pilier est la moyenne simple de ses sous-composantes calculables.
 ## 5. Le calcul, pilier par pilier
 
 Les six formules ci-dessous sont illustrées par le même exemple réel :
-**l'hôpital général d'Abengourou (SITE-HG), mois d'août 2026**, tel qu'il
+**le CHR public de Daloa (`31600010`), mois d'août 2026**, tel qu'il
 apparaît dans le jeu de démonstration. Score composite du site ce mois-là :
 **62,5 / 100**, classé **NON CONFORME** — alors que quatre piliers sur six sont
 parfaitement conformes. Le calcul complet est repris section 6.
@@ -211,7 +211,7 @@ attendue ÷ programmes gérés** :
 - **Complétude des réceptions** : réceptions finalisées ce mois ÷ factures
   fournisseur du mois (non calculable si aucune facture).
 
-**Exemple (SITE-HG, août 2026) :** l'hôpital gère 1 programme (VIH). 1
+**Exemple (CHR de Daloa, août 2026) :** l'hôpital gère 1 programme (VIH). 1
 inventaire finalisé le 29 août (dans les 3 derniers jours) sur 1 attendu
 → 100 %. 1 réquisition sur 1 attendue → 100 %. 2 réceptions sur 2 factures
 fournisseur → 100 %. Les trois sous-composantes sont CONFORME (seuil 100 %) :
@@ -226,16 +226,17 @@ compte cette fois ceux dont l'activité est arrivée **à temps** :
   derniers jours du mois**.
 - **Promptitude des réquisitions** : réquisition soumise au plus tard le
   **jour limite** du mois suivant. Ce jour limite dépend du type de
-  structure : le 5 pour un centre de santé (CSU, CSR, ESPC), le 7 pour un
-  hôpital général ou régional (HG, CHR), le 10 pour les autres (CHU, district
-  sanitaire).
+  structure : le 5 pour un ESPC, le 7 pour un hôpital de référence, le 10 pour
+  un district sanitaire.
 
 Un programme géré qui n'a rien soumis compte 0, jamais « non calculable » :
 ne rien transmettre pénalise ce pilier.
 
-**Exemple :** la réquisition VIH de SITE-HG couvrant août est soumise le
-2026-09-03, limite le 2026-09-07 (HG → 7 jours) : à l'heure. L'inventaire du
-29 août est dans les 3 derniers jours. Inventaire et réquisition à l'heure :
+**Exemple :** la réquisition VIH du CHR de Daloa couvrant août est soumise le
+2026-09-04, limite le 2026-09-07 (hôpital de référence → 7 jours) : à l'heure —
+elle est arrivée par l'extraction du 5 septembre, dans la fenêtre de 45 jours.
+L'inventaire du 29 août est dans les 3 derniers jours. Inventaire et réquisition
+à l'heure :
 **score P2 = 100**.
 
 ### P3 · Régularité de saisie (poids 15 %)
@@ -256,7 +257,7 @@ P3 est **toujours calculable** pour un site de soins : aucune sortie sur les
 jours écoulés vaut **0 %** / ALERTE, jamais « non calculable ». Un hôpital qui
 ne dispense rien est un signal, pas une absence de données.
 
-*Exemple :* août compte 31 jours ; SITE-HG a enregistré une dispensation sur 22
+*Exemple :* août compte 31 jours ; le CHR public de Daloa a enregistré une dispensation sur 22
 d'entre eux → 22 / 31 = **71,0 %**, au-dessus du seuil de 65 % : **score
 P3 = 100**.
 
@@ -300,7 +301,7 @@ amplitude d'écart moyenne.
   calculable » seulement si des bornes existent mais qu'aucune consommation
   reconstituée n'est positive.
 
-**Exemple, écart SDU (SITE-HG, août 2026) :** sur le DTG/3TC/TDF (ARV),
+**Exemple, écart SDU (le CHR de Daloa, août 2026) :** sur le DTG/3TC/TDF (ARV),
 théorique 402, compté 388 → écart |402 - 388| / 388 = **3,6 %**, au-dessus de
 la tolérance de 2 % : non conforme. Sur le test VIH (WONDFO), 138 / 138 → 0 %,
 conforme. 1 produit conforme sur 2 → **taux écart SDU = 50 %**, sous le seuil
@@ -324,7 +325,7 @@ moyenné sur tous les produits inventoriés du site. **0 %** si le site n'a fait
 aucun inventaire du mois (ne pas inventorier est un manquement, pas une absence
 de données).
 
-**Exemple :** sur les 2 produits traceurs de SITE-HG en août, la concordance
+**Exemple :** sur les 2 produits traceurs du CHR de Daloa en août, la concordance
 moyenne est **98,3 %** (96,5 % sur l'ARV, 100 % sur le test VIH). Le seuil de
 cette sous-composante est **= 100 %** exactement (contrairement à P4, aucune
 tolérance n'est admise) : un écart de 1,7 % suffit à placer la sous-composante
@@ -341,14 +342,14 @@ mSupply), soit par le indicateur ligne à ligne `is_from_inventory_adjustment`.
 Plus ce ratio est bas, mieux c'est : un ajustement corrige un défaut de
 traçabilité, il ne devrait pas être le mode normal de gestion du stock.
 
-**Exemple :** SITE-HG a enregistré 46 mouvements de stock en août, dont aucun
+**Exemple :** le CHR de Daloa a enregistré 46 mouvements de stock en août, dont aucun
 ajustement → 0 / 46 = **0 %**, sous le seuil de 5 % : **score P6 = 100**.
 
 ---
 
 ## 6. Le score composite, pas à pas
 
-Reprenons l'exemple complet de SITE-HG, août 2026 :
+Reprenons l'exemple complet du CHR de Daloa, août 2026 :
 
 | Pilier | Score | Poids |
 |---|---|---|
@@ -375,15 +376,15 @@ sous-composante en alerte sur P5 (98,3 % de concordance, sous le seuil de
 100 %) suffit à faire basculer tout le pilier à 0.
 
 Sur le jeu de démonstration (mai à septembre 2026), le score composite moyen
-national suit **91,7 puis 89,7 puis 92,9 puis 87,4 puis 66,8**. Août et
+national suit **95,3 puis 90,6 puis 92,8 puis 89,0 puis 69,2**. Août et
 septembre sont **provisoires** : une extraction du 5 septembre a fait remonter
-les réquisitions d'août du CHU et du District, et septembre ne compte encore
-que cinq jours de données — aucun site n'y a fait son inventaire de fin de mois,
-d'où la chute. Points de vigilance d'un mois à l'autre : le CHR de Bouaké
-(réquisition en retard, régularité de saisie faible, écarts SDU) qui reste NON
-CONFORME, le district de Man (réponse partielle aux réquisitions de sa zone —
-P3 « distribution » à 2/3 puis 3/3 puis 2/3), et le CSU de Korhogo (réquisition
-jamais soumise).
+les réquisitions d'août du CHR de Daloa et du district de Daloa, et septembre ne
+compte encore que cinq jours de données — aucun site n'y a fait son inventaire
+de fin de mois, d'où la chute. Points de vigilance d'un mois à l'autre : le CHR
+public de Bondoukou (réquisition en retard, régularité de saisie faible, écarts
+SDU) qui reste NON CONFORME, le district de Niakaramadougou (réponse partielle
+aux réquisitions de sa zone — P3 « distribution » à 2/3 puis 3/3 puis 2/3), et
+le CSR-DM public de Bobia (réquisition jamais soumise).
 
 ---
 
@@ -446,4 +447,4 @@ principe des scores immuables, section 1).
 | Grille de paramètres | Le jeu daté des poids de pilier et des seuils de sous-composante, éditable par la coordination, effectif au cycle suivant seulement |
 | Produit traceur | Un produit suivi de près pour les piliers P4, P5 et P6 ; la liste est administrée par la coordination |
 | Programme de santé | Un programme vertical géré par un site (VIH, paludisme, etc.) ; le nombre de programmes gérés détermine le nombre d'inventaires et de réquisitions attendus chaque mois |
-| Strate de structure | Le regroupement de type de structure (CHU, CHR, HG, ESPC, CS, District, Non classé) utilisé pour la synthèse « Rapports & inventaires » |
+| Strate de structure | Le regroupement de type de structure (District sanitaire, Hôpital de référence, ESPC — plus « Non classé » pour un type non mappé) utilisé pour la synthèse « Rapports & inventaires » |

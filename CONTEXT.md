@@ -214,12 +214,15 @@ par la DAP dans l'extraction. Seuls ces sites entrent dans les scores nationaux.
 _Éviter_ : sites suivis, sites cibles
 
 **Strate de structure** :
-Regroupement administré des `type_structure` du référentiel DAP
-(`name_category3.description`) : CS regroupe CSU et CSR, les autres restent
-distincts (ESPC, HG, CHR, CHU, District, Institut). Axe des lectures nationales
-« rapports & inventaires ». La correspondance `type_structure → strate` est
-éditée dans la console, comme les traceurs ou la grille — une valeur nouvelle
-du référentiel se rattache sans migration.
+Regroupement administré des `type_structure` du référentiel mSupply
+(`name_category3.description`). Le référentiel réel n'a que trois valeurs —
+`District sanitaire`, `Hôpital de référence`, `ESPC` — chacune sa propre strate
+(migrations 0031 et 0038). Les correspondances CHU / CHR / HG / CSU / CSR de la
+migration 0031 restent, inertes, pour un référentiel plus fin. Un
+`type_structure` non mappé tombe dans « Non classé » (jamais ignoré). Axe des
+lectures nationales « rapports & inventaires ». La correspondance
+`type_structure → strate` est éditée dans la console, comme les traceurs ou la
+grille — une valeur nouvelle du référentiel se rattache sans migration.
 _Éviter_ : catégorie de site, niveau, type d'établissement (réservé à la valeur brute)
 
 **Coordination** :

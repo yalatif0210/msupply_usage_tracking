@@ -67,19 +67,23 @@ docker compose -f docker-compose.demo.yml down -v
 `db/demo/seed.sql` illustre les écrans du chantier « données brutes des
 piliers » :
 
+Sites : 16 sites RÉELS repris de la feuille SITES du canevas d'extraction
+(`store.id` mSupply, 3 `type_structure` réels) — 4 districts sanitaires, chacun
+avec son hôpital de référence et 2 ESPC de sa zone.
+
 | Écran | À regarder |
 |---|---|
 | Tableau de bord, `/synthese`, fiches site et produit | sélecteur « Mois affiché » : 2026-05 à 2026-09 ; repère « Mois en cours · score provisoire » sur 2026-08 et 2026-09 |
-| Tableau de bord | courbe de progression nationale sur 5 points (91,7 → 89,7 → 92,9 → 87,4 → 66,8 ; les deux derniers provisoires — septembre chute car aucun site n'y a fait son inventaire de fin de mois) |
-| Fiche site (`/sites/SITE-HG`), mois d'août | exemple du manuel : P1/P2/P3/P6 à 100, P4 à 50 (1 produit SDU hors tolérance sur 2), P5 à 0 (concordance 98,3 % sous le seuil de 100 %) → composite 62,5 NON CONFORME |
-| Fiche site (`/sites/SITE-DIST`) | district : P3 « Régularité de saisie (distribution) », seuil 80 %, réponse aux réquisitions de la zone (juin 2/3, juillet 3/3, août 2/3, sept 1/3) ; détail P3 = le couple réquisitions de zone / servies au lieu du bandeau calendaire (ADR 0011) ; « Écart distribution » à la place de « Écart consommation » |
+| Tableau de bord | courbe de progression nationale sur 5 points (95,3 → 90,6 → 92,8 → 89,0 → 69,2 ; les deux derniers provisoires — septembre chute car aucun site n'y a fait son inventaire de fin de mois) |
+| Fiche site — CHR PUBLIC de DALOA (`31600010`), mois d'août | exemple du manuel : P1/P2/P3/P6 à 100, P4 à 50 (1 produit SDU hors tolérance sur 2), P5 à 0 (concordance 98,3 % sous le seuil de 100 %) → composite 62,5 NON CONFORME |
+| Fiche site — DISTRICT de NIAKARAMADOUGOU | P3 « Régularité de saisie (distribution) », seuil 80 %, réponse aux réquisitions de la zone (juin 2/3, juillet 3/3, août 2/3, sept 1/3) ; détail P3 = le couple réquisitions de zone / servies au lieu du bandeau calendaire (ADR 0011) ; « Écart distribution » à la place de « Écart consommation » |
 | Fiche site 2026-09 | mois à 5 jours de données : P3 mesuré sur les jours écoulés (~100 % pour un site régulier), P1/P2 à 0 faute d'inventaire de fin de mois → composite ~75, repère « Mois en cours » |
-| Fiche site (`/sites/SITE-CHR`) | vigilance chronique : P3 faible, écart SDU hors tolérance mai-juin, réquisition en retard, ajustements → NON CONFORME tous les mois |
-| Fiche site (`/sites/SITE-REIMP`) | avertissement « données du core modifiées depuis le gel » |
-| Fiche site (`/sites/SITE-CSU`) | réquisition jamais soumise → « rapport manquant », PARTIELLEMENT CONFORME |
-| `/synthese` onglet « Rapports & inventaires » | strates CHU / CHR / HG / ESPC / CS / District ; « Non classé » pour l'Institut |
-| `/admin/strates` | `Institut` sans correspondance |
-| Fiche produit-mois | depuis un code produit du tableau P4·P5 de `SITE-HG` (ARV : bornes inter-mois, photos de stock) |
+| Fiche site — CHR PUBLIC de BONDOUKOU | vigilance chronique : P3 faible, écart SDU hors tolérance mai-juin, réquisition en retard, ajustements → NON CONFORME tous les mois |
+| Fiche site — CSU GONATE | avertissement « données du core modifiées depuis le gel » |
+| Fiche site — CSR-DM PUBLIC de BOBIA | réquisition jamais soumise → « rapport manquant », PARTIELLEMENT CONFORME |
+| `/synthese` onglet « Rapports & inventaires » | trois strates : District, Hôpital de référence, ESPC |
+| `/admin/strates` | les trois `type_structure` réels sont mappés (migration 0038) |
+| Fiche produit-mois | depuis un code produit du tableau P4·P5 du CHR de Daloa (ARV : bornes inter-mois, photos de stock) |
 
 Pour tester l'import réel : se connecter en `coordination`, écran
 **Imports**, déposer un classeur au format du canevas
