@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import {
   strateStructureSchema,
   vueStratesSchema,
+  type EntreeStrate,
   type StrateStructure,
   type VueStrates,
 } from '@dqa/contracts';
@@ -19,11 +20,11 @@ export class AdminStratesService {
     return validerReponse(vueStratesSchema, await firstValueFrom(this.http.get<unknown>(API)));
   }
 
-  async enregistrer(typeStructure: string, strate: string): Promise<StrateStructure> {
+  async enregistrer(typeStructure: string, entree: EntreeStrate): Promise<StrateStructure> {
     return validerReponse(
       strateStructureSchema,
       await firstValueFrom(
-        this.http.put<unknown>(`${API}/${encodeURIComponent(typeStructure)}`, { strate }),
+        this.http.put<unknown>(`${API}/${encodeURIComponent(typeStructure)}`, entree),
       ),
     );
   }

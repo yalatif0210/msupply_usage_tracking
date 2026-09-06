@@ -7,7 +7,7 @@ pointent le référentiel comme source unique.
 
 **Blocked by:** 01, 02
 
-**Status:** ready-for-agent
+**Status:** done (branche `donnees-brutes-piliers`)
 
 - [ ] `docs/canevas_extraction_v2.md` :
   - en-tête de la colonne F du modèle SITES : `District sanitaire`,

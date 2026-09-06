@@ -193,8 +193,9 @@ de données). Pour un **district**, qui ne dispense pas, P3 mesure autre chose
 (voir *Régularité de saisie — district*).
 
 **Régularité de saisie — district (P3)** :
-Pour un district (`strate_de = 'District'`), P3 mesure sa capacité à honorer
-les réquisitions de sa zone : réquisitions DISTINCTES de la zone couvrant M-1,
+Pour un district (`est_district`, voir *Régime de scoring*), P3 mesure sa
+capacité à honorer les réquisitions de sa zone : réquisitions DISTINCTES de la
+zone couvrant M-1,
 servies dans M par une distribution du district, sur le total de ces
 réquisitions. Seuil ≥ 80 %. NON_CALCULABLE si aucune réquisition de zone à
 évaluer (ADR 0011).
@@ -213,17 +214,33 @@ L'ensemble des sites sanitaires retenus pour la mission (40 à ce jour), déclar
 par la DAP dans l'extraction. Seuls ces sites entrent dans les scores nationaux.
 _Éviter_ : sites suivis, sites cibles
 
-**Strate de structure** :
-Regroupement administré des `type_structure` du référentiel mSupply
-(`name_category3.description`). Le référentiel réel n'a que trois valeurs —
-`District sanitaire`, `Hôpital de référence`, `ESPC` — chacune sa propre strate
-(migrations 0031 et 0038). Les correspondances CHU / CHR / HG / CSU / CSR de la
-migration 0031 restent, inertes, pour un référentiel plus fin. Un
-`type_structure` non mappé tombe dans « Non classé » (jamais ignoré). Axe des
-lectures nationales « rapports & inventaires ». La correspondance
-`type_structure → strate` est éditée dans la console, comme les traceurs ou la
-grille — une valeur nouvelle du référentiel se rattache sans migration.
-_Éviter_ : catégorie de site, niveau, type d'établissement (réservé à la valeur brute)
+**Type de structure** :
+Le `name_category3.description` d'un site dans mSupply — le palier de la
+pyramide sanitaire, pas le sous-type. Le référentiel réel n'a que trois valeurs
+présentes (`District sanitaire`, `Hôpital de référence`, `ESPC`) ; `CHU` et
+`INSTITUT` sont prêts. Le sous-type (CSU vs CSR, CHR vs HG) n'est pas un champ :
+il vit dans `site_nom` et l'infixe de `site_code`.
+Chaque `type_structure` est administré dans la console (écran « Types de
+structure », table `strate_structure`, ADR 0013) et porte trois attributs :
+la **strate** d'affichage, le **jour limite** de soumission d'une réquisition
+et le **régime de scoring** (`est_district`). Un `type_structure` non mappé
+tombe dans « Non classé » / échéance 10 / site de soins (jamais ignoré). Édité
+comme les traceurs ou la grille : une valeur nouvelle se rattache sans
+migration, non historisé (effet au rafraîchissement suivant).
+_Éviter_ : catégorie de site, niveau, type d'établissement (réservé à la valeur brute), strate de structure (la strate n'est qu'un des trois attributs)
+
+**Strate** :
+Un des trois attributs d'un *type de structure* : le regroupement d'affichage
+des lectures nationales « rapports & inventaires ». Distincte de la valeur
+brute `type_structure` et du *régime de scoring*.
+
+**Régime de scoring** :
+Booléen `est_district` porté par le référentiel des *types de structure*. Un
+district (`est_district = true`) mesure P3 sur les réquisitions de sa zone
+servies et P4 sur les quantités distribuées ; un site de soins mesure P3 sur
+ses dispensations et P4 sur sa consommation. Seule différence de calcul entre
+les deux. Repli : site de soins.
+_Éviter_ : type de site district (le régime, pas le type)
 
 **Coordination** :
 Rôle de la coordination nationale dans l'application : consulte tous les écrans,

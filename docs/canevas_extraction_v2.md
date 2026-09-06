@@ -78,10 +78,9 @@ dimension `programme` ajoutée partout où c'est utile)
 | `site_nom` | `store.name` | |
 | `district` | `store.name_id → name.category1_id → name_category1.description` | |
 | `region` | `name_category1 → name_category1_level1 → name_category1_level2.description` | grand-parent de `name_category1` |
-| `type_structure` | `name.category3_id → name_category3.description` | vocabulaire contrôlé (D3) |
+| `type_structure` | `name.category3_id → name_category3.description` | le palier : `ESPC`, `Hôpital de référence`, `District sanitaire`, `CHU`, `INSTITUT` (D3) |
 | `actif` | `store.disabled = false` | |
 | `dans_perimetre_dqa` | **hors mSupply** — liste DAP | OUI / NON |
-| `jour_limite_requisition` | dérivé de `type_structure` | CS {CSU, CSR, ESPC} → 5 ; {HG, CHR} → 7 ; {CHU, District} → 10 |
 
 ### 4.3 SITE_PROGRAMME — grain : (site, programme)
 
@@ -230,7 +229,7 @@ Toutes déclinables par programme pour la vue dédiée (P3, P4, P5, P6 via
 |---|---|---|
 | **D1** | Mois d'une réquisition = mois **couvert** (`periodid`→`period`, sinon mois de `date_stock_take`), pas le mois de soumission. Périodes mSupply = mois civils. | **tranché** |
 | **D2** | Vocabulaire `programme` = enum ouvert, normalisé au 1ᵉʳ import depuis `list_master` où `isprogram`. | **tranché** |
-| **D3** | `type_structure` = `name_category3.description`. Délais : CS {CSU, CSR, ESPC} → 5 ; {HG, CHR} → 7 ; {CHU, District} → 10. District dans le périmètre : P3 = distributions, P4 calculé. | **tranché** |
+| **D3** | `type_structure` = `name_category3.description`, le **palier** (`ESPC`, `Hôpital de référence`, `District sanitaire`, `CHU`, `INSTITUT`), pas le sous-type. L'échéance de réquisition (5 / 7 / 10) et le régime de scoring district viennent du référentiel administré `strate_structure` (ADR 0013), plus du contrat. Un palier inconnu tombe sur les replis (« Non classé » / 10 / site de soins) et remonte dans l'écran « Types de structure ». | **tranché** |
 | **D4** | P1c sur transactions réelles (option b). **`si` = facture fournisseur adressée** (dénominateur) ; **`rc` = réception enregistrée** (numérateur). | **tranché** |
 | **D5** | Statut sous-composante binaire CONFORME / ALERTE. | **tranché** |
 | **D6** | `district` = `name_category1.description` ; `region` = `name_category1_level2.description` (grand-parent). | **tranché** |

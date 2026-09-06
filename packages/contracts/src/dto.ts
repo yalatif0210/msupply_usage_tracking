@@ -64,18 +64,25 @@ export const entreeProduitTraceurSchema = z.object({
 export type EntreeProduitTraceur = z.infer<typeof entreeProduitTraceurSchema>;
 
 /**
- * Correspondance `type_structure → strate` d'affichage des lectures nationales
- * (voir CONTEXT.md « Strate de structure »). Administrée dans la console, pas
- * historisée : un changement prend effet à la consultation suivante.
+ * Référentiel d'un `type_structure` (voir CONTEXT.md « Type de structure »,
+ * ADR 0013). Administré dans la console, pas historisé : un changement prend
+ * effet à la consultation / au rafraîchissement suivant.
+ *  - `strate` : regroupement d'affichage des lectures nationales.
+ *  - `jourLimiteRequisition` : jour de M+1 (inclus) où la réquisition couvrant
+ *    M doit être soumise (P2, `mois_est_clos`).
+ *  - `estDistrict` : régime de scoring (P3 sur les réquisitions de zone
+ *    servies, P4 sur les quantités distribuées, ADR 0011).
  */
 export const strateStructureSchema = z.object({
   typeStructure: z.string(),
   strate: z.string().min(1),
+  jourLimiteRequisition: z.number().int().min(1).max(28),
+  estDistrict: z.boolean(),
 });
 export type StrateStructure = z.infer<typeof strateStructureSchema>;
 
 /** Corps d'un `PUT /api/admin/strates/:typeStructure`. */
-export const entreeStrateSchema = strateStructureSchema.pick({ strate: true });
+export const entreeStrateSchema = strateStructureSchema.omit({ typeStructure: true });
 export type EntreeStrate = z.infer<typeof entreeStrateSchema>;
 
 /**

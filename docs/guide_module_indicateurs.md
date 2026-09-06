@@ -99,10 +99,10 @@ sous-composantes, **seuil grille 100 %**, dénominateur = **programmes gérés**
   daté dans les trois derniers jours du mois ÷ programmes gérés.
 - `promptitude_requisitions` : programmes gérés avec ≥ 1 réquisition couvrant
   le mois soumise au plus tard le jour limite du mois suivant ÷ programmes
-  gérés. Jour limite = `dqa.jour_limite_requisition(type_structure,
-  jour_limite_requisition)` (fonction unique, migration 0033) :
-  `dim_site.jour_limite_requisition`, à défaut 5 (CSU/CSR/ESPC), 7 (HG/CHR),
-  10 (autres). Le détail P2 ligne à ligne réutilise cette fonction.
+  gérés. Jour limite = `dqa.jour_limite_requisition(type_structure)` (ADR 0013,
+  migration 0040) : la valeur du référentiel des types de structure (`ESPC` 5,
+  `Hôpital de référence` 7, `District sanitaire` / `CHU` / `INSTITUT` 10), à
+  défaut 10. Le détail P2 ligne à ligne réutilise cette fonction.
 
 Un programme géré sans inventaire (ou sans réquisition) du mois compte **0**,
 jamais NON_CALCULABLE : ne rien soumettre pénalise P2. NON_CALCULABLE seulement
@@ -121,8 +121,8 @@ simple des deux sous-composantes.
   chaque `(site non-district, mois couvert par un import)`, 0 sortie ⇒ 0 %
   (ADR 0012, migration 0037), plus jamais NON_CALCULABLE. Seuil grille
   `regularite_saisie` = 65 %.
-- **Districts** (`strate_de(type_structure) = 'District'`, ADR 0011, migration
-  0036) : réquisitions DISTINCTES de la zone (sites du périmètre du même
+- **Districts** (`dqa.est_district(type_structure)`, ADR 0011 et 0013) :
+  réquisitions DISTINCTES de la zone (sites du périmètre du même
   `dim_site.district`, hors le district lui-même) couvrant M-1, servies dans le
   mois PAQD M par une distribution du district liée (`fact_transaction.requisition_id`,
   date entre le 1er et le dernier jour de M) ÷ réquisitions DISTINCTES de la

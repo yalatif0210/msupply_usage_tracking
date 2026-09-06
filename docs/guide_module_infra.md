@@ -42,18 +42,18 @@ docker compose -f docker-compose.demo.yml down -v
   `NODE_ENV` est laissé vide : la démo est en HTTP, le cookie de session ne
   doit pas être `secure`.
 - **`seed`** — `postgres:16-alpine` qui joue `db/demo/seed.sql` une fois l'API
-  saine (donc les migrations passées). Purge le core, insère 11 sites de strates
-  variées (dont un district et sa zone de trois sites rattachés) + la fin du
-  cycle C2 (2026-05 à 2026-08) et le début du C3 (2026-09). Les trajectoires de
-  stock des 4 traceurs sont **générées** (bloc `DO` + table `_plan`) pour se
-  réconcilier sur des fenêtres d'un mois : deux inventaires en mai (borne
-  d'ouverture intra-mois), un inventaire de fin de mois ensuite, réception et
-  dispensations mensuelles calées sur `compté(M) = compté(M-1) + réceptions -
-  sorties`. Un lot d'import par mois plus un cinquième « extraction du 5
-  septembre » à fenêtre de 45 jours qui chevauche août et septembre : il apporte
-  les premiers jours de septembre ET les réquisitions d'août du CHU et du
-  District, et le gel corrige alors le score d'août (encore ouvert) sans
-  redéclaration (ADR 0010). 2026-08 et 2026-09 sont les mois en cours au regard
+  saine (donc les migrations passées). Purge le core, insère 16 sites réels du
+  canevas (4 districts, chacun son hôpital de référence et 2 ESPC de zone) + la
+  fin du cycle C2 (2026-05 à 2026-08) et le début du C3 (2026-09). Les
+  trajectoires de stock des 4 traceurs sont **générées** (bloc `DO` + table
+  `_plan`) pour se réconcilier sur des fenêtres d'un mois : deux inventaires en
+  mai (borne d'ouverture intra-mois), un inventaire de fin de mois ensuite,
+  réception et dispensations mensuelles calées sur `compté(M) = compté(M-1) +
+  réceptions - sorties`. Un lot d'import par mois plus un cinquième « extraction
+  du 5 septembre » à fenêtre de 45 jours qui chevauche août et septembre : il
+  apporte les premiers jours de septembre ET les réquisitions d'août du CHR et
+  du district de Daloa, et le gel corrige alors le score d'août (encore ouvert)
+  sans redéclaration (ADR 0010). 2026-08 et 2026-09 sont les mois en cours au regard
   de la date du jour, leur score est provisoire. `web` attend sa fin
   (`service_completed_successfully`). Rejouable :
   `docker compose -f docker-compose.demo.yml run --rm seed`.
@@ -82,7 +82,7 @@ avec son hôpital de référence et 2 ESPC de sa zone.
 | Fiche site — CSU GONATE | avertissement « données du core modifiées depuis le gel » |
 | Fiche site — CSR-DM PUBLIC de BOBIA | réquisition jamais soumise → « rapport manquant », PARTIELLEMENT CONFORME |
 | `/synthese` onglet « Rapports & inventaires » | trois strates : District, Hôpital de référence, ESPC |
-| `/admin/strates` | les trois `type_structure` réels sont mappés (migration 0038) |
+| `/admin/strates` (« Types de structure ») | les trois `type_structure` réels + `CHU` / `INSTITUT` sont mappés avec strate, jour limite (5 / 7 / 10) et régime (ADR 0013) |
 | Fiche produit-mois | depuis un code produit du tableau P4·P5 du CHR de Daloa (ARV : bornes inter-mois, photos de stock) |
 
 Pour tester l'import réel : se connecter en `coordination`, écran

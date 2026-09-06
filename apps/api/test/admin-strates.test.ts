@@ -47,8 +47,10 @@ describe('administration des strates de structure', () => {
     const vue = vueStratesSchema.parse(res.body);
 
     expect(vue.mappings).toHaveLength(5); // référentiel consolidé (ADR 0013)
-    expect(vue.mappings.find((m) => m.typeStructure === 'ESPC')?.strate).toBe('ESPC');
-    expect(vue.mappings.find((m) => m.typeStructure === 'Hôpital de référence')?.strate).toBe('Hôpital de référence');
+    const espc = vue.mappings.find((m) => m.typeStructure === 'ESPC');
+    expect(espc).toMatchObject({ strate: 'ESPC', jourLimiteRequisition: 5, estDistrict: false });
+    const district = vue.mappings.find((m) => m.typeStructure === 'District sanitaire');
+    expect(district).toMatchObject({ strate: 'District', jourLimiteRequisition: 10, estDistrict: true });
 
     // « Institut » est présent dans un site du périmètre, sans correspondance.
     expect(vue.nonClasses).toContain('Institut');
@@ -58,25 +60,39 @@ describe('administration des strates de structure', () => {
     expect(vue.nonClasses).not.toContain('Clinique privée');
   });
 
-  it('un lecteur ne peut pas modifier (403)', async () => {
-    const a = await agent('lecteur');
-    await a.put('/api/admin/strates/Institut').send({ strate: 'Institut' }).expect(403);
-    await a.delete('/api/admin/strates/CSU').expect(403);
+  const corps = (over: Record<string, unknown> = {}) => ({
+    strate: 'Institut',
+    jourLimiteRequisition: 10,
+    estDistrict: false,
+    ...over,
   });
 
-  it('la coordination classe un type, le reclasse, puis le retire', async () => {
+  it('un lecteur ne peut pas modifier (403)', async () => {
+    const a = await agent('lecteur');
+    await a.put('/api/admin/strates/Institut').send(corps()).expect(403);
+    await a.delete('/api/admin/strates/ESPC').expect(403);
+  });
+
+  it('la coordination classe un type (strate + échéance + régime), le reclasse, puis le retire', async () => {
     const a = await agent('coordination');
 
-    const ajout = await a.put('/api/admin/strates/Institut').send({ strate: 'Institut' });
+    const ajout = await a.put('/api/admin/strates/Institut').send(corps({ jourLimiteRequisition: 8 }));
     expect(ajout.status).toBe(200);
-    expect(ajout.body).toEqual({ typeStructure: 'Institut', strate: 'Institut' });
+    expect(ajout.body).toEqual({
+      typeStructure: 'Institut',
+      strate: 'Institut',
+      jourLimiteRequisition: 8,
+      estDistrict: false,
+    });
 
     const apresAjout = await (await agent('lecteur')).get('/api/admin/strates');
     expect(apresAjout.body.nonClasses).not.toContain('Institut');
 
-    // Upsert : la même clé écrase la strate.
-    const reclasse = await a.put('/api/admin/strates/Institut').send({ strate: 'Non classé' });
-    expect(reclasse.body.strate).toBe('Non classé');
+    // Upsert : la même clé écrase la strate, l'échéance et le régime.
+    const reclasse = await a
+      .put('/api/admin/strates/Institut')
+      .send(corps({ strate: 'Non classé', estDistrict: true }));
+    expect(reclasse.body).toMatchObject({ strate: 'Non classé', estDistrict: true });
 
     await a.delete('/api/admin/strates/Institut').expect(204);
     const apresRetrait = await (await agent('lecteur')).get('/api/admin/strates');
@@ -88,10 +104,12 @@ describe('administration des strates de structure', () => {
     await a.delete('/api/admin/strates/JAMAIS-VU').expect(404);
   });
 
-  it('un corps sans strate valide est refusé (400)', async () => {
+  it('un corps invalide est refusé (400)', async () => {
     const a = await agent('coordination');
-    await a.put('/api/admin/strates/Institut').send({ strate: '' }).expect(400);
+    await a.put('/api/admin/strates/Institut').send(corps({ strate: '' })).expect(400);
     await a.put('/api/admin/strates/Institut').send({}).expect(400);
+    await a.put('/api/admin/strates/Institut').send(corps({ jourLimiteRequisition: 0 })).expect(400);
+    await a.put('/api/admin/strates/Institut').send(corps({ jourLimiteRequisition: 40 })).expect(400);
   });
 
   it('strate_de : correspondance seedée, sinon « Non classé »', async () => {

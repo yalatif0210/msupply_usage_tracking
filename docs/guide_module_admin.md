@@ -4,7 +4,7 @@
 
 Édition « dans l'app » de référentiels qui, avant, ne changeaient que par
 migration : la **grille de paramètres** (rôle `coordination`), les **comptes**
-(rôle `admin`) et la correspondance **strate de structure** (lecture tout rôle,
+(rôle `admin`) et le **référentiel des types de structure** (lecture tout rôle,
 écriture `coordination`). Emplacement : `apps/api/src/admin/` (module
 `AdminModule`, partagé avec les traceurs) et `apps/web/src/app/pages/admin-*.ts`.
 
@@ -22,7 +22,7 @@ migration : la **grille de paramètres** (rôle `coordination`), les **comptes**
 | `PUT` | `/api/admin/comptes/:id` | admin | `CompteAdmin` |
 | `POST` | `/api/admin/comptes/:id/mot-de-passe` | admin | 204 |
 | `GET` | `/api/admin/strates` | tout rôle authentifié | `VueStrates` (`{ mappings, nonClasses }`) |
-| `PUT` | `/api/admin/strates/:typeStructure` | coordination | `StrateStructure` (upsert) |
+| `PUT` | `/api/admin/strates/:typeStructure` | coordination | `StrateStructure` (upsert : `strate` + `jourLimiteRequisition` + `estDistrict`) |
 | `DELETE` | `/api/admin/strates/:typeStructure` | coordination | 204 (404 si inconnu) |
 
 ## Grille de paramètres (ADR 0003)
@@ -67,23 +67,34 @@ total des poids est affiché en direct.
 interdites pour l'utilisateur courant sont désactivées côté front en plus du
 refus serveur.
 
-## Strates de structure (chantier « données brutes des piliers »)
+## Types de structure (ADR 0013)
 
-- Table `dqa.strate_structure (type_structure PK → strate)`, seed :
-  `CSU`/`CSR` → `CS` ; `ESPC`, `HG`, `CHR`, `CHU` → strate homonyme ;
-  `District sanitaire` → `District`. Migration `0031`.
-- **Aucun gel** : la strate est un regroupement d'affichage. Un changement
-  prend effet à la consultation suivante, sans ré-import (contrairement à la
-  grille dont chaque score référence une version). Table non historisée.
-- `dqa.strate_de(p_type text)` (SQL, `STABLE`) résout la strate d'un
-  `type_structure` : correspondance administrée, sinon `'Non classé'` (le NULL
-  y tombe aussi). C'est la porte d'entrée des lectures nationales — jamais un
-  site rangé nulle part.
+- Table `dqa.strate_structure (type_structure PK, strate, jour_limite_requisition,
+  est_district)`. Le `type_structure` est le palier `name_category3` ; chaque
+  ligne porte **trois** attributs administrés :
+  - `strate` : regroupement d'affichage des lectures nationales ;
+  - `jour_limite_requisition` (1 à 28) : jour de M+1 où la réquisition
+    couvrant M doit être soumise (P2, `mois_est_clos`) ;
+  - `est_district` : régime de scoring (district vs site de soins).
+- Seed (migration `0040`) : `ESPC` 5/ESPC/soins, `Hôpital de référence`
+  7/homonyme/soins, `District sanitaire` 10/District/district, `CHU` 10/CHU/soins,
+  `INSTITUT` 10/Institut/soins.
+- **Aucun gel** : un changement prend effet au rafraîchissement suivant, sans
+  ré-import (contrairement à la grille dont chaque score référence une version).
+  Table non historisée.
+- Trois résolveuses SQL `STABLE` lisent la table avec repli :
+  `dqa.strate_de(type)` → strate, sinon `'Non classé'` ;
+  `dqa.jour_limite_requisition(type)` → échéance, sinon `10` ;
+  `dqa.est_district(type)` → régime, sinon `false`. Le NULL tombe sur les
+  replis. Ce sont les portes d'entrée des vues (`mv_p2`, `mv_p3`, `mv_p4`) et
+  des lectures nationales — jamais un site rangé nulle part.
 - `GET` renvoie aussi `nonClasses` : les `type_structure` présents dans
   `dim_site` (périmètre DQA) sans correspondance, pour que l'écran montre ce
-  qu'il reste à classer. L'écran `pages/admin-strates.ts` les liste en tête,
-  surlignés ; `lecteur` a la vue en lecture seule (contrôles masqués, refus
-  serveur en doublure).
+  qu'il reste à classer. L'écran `pages/admin-strates.ts` (« Types de
+  structure ») les liste en tête, surlignés ; `lecteur` a la vue en lecture
+  seule (contrôles masqués, refus serveur en doublure).
+- `dim_site.jour_limite_requisition` (ancien override par site) a été retiré du
+  contrat d'extraction : l'échéance ne dépend plus que du `type_structure`.
 
 ## Pièges connus
 

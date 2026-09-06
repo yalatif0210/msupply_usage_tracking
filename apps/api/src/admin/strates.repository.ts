@@ -6,11 +6,15 @@ import { PG_POOL } from '../database/database.module.js';
 interface Ligne {
   type_structure: string;
   strate: string;
+  jour_limite_requisition: number;
+  est_district: boolean;
 }
 
 const vers = (r: Ligne): StrateStructure => ({
   typeStructure: r.type_structure,
   strate: r.strate,
+  jourLimiteRequisition: Number(r.jour_limite_requisition),
+  estDistrict: r.est_district,
 });
 
 @Injectable()
@@ -24,7 +28,7 @@ export class StratesRepository {
    */
   async etat(): Promise<VueStrates> {
     const mappings = await this.pool.query<Ligne>(
-      `SELECT type_structure, strate
+      `SELECT type_structure, strate, jour_limite_requisition, est_district
        FROM dqa.strate_structure ORDER BY type_structure`,
     );
     const nonClasses = await this.pool.query<{ type_structure: string }>(
@@ -43,16 +47,22 @@ export class StratesRepository {
     };
   }
 
-  /** Crée ou met à jour une correspondance (clé : type_structure). */
-  async enregistrer(typeStructure: string, strate: string): Promise<StrateStructure> {
+  /** Crée ou met à jour un type de structure (clé : type_structure). */
+  async enregistrer(
+    typeStructure: string,
+    entree: { strate: string; jourLimiteRequisition: number; estDistrict: boolean },
+  ): Promise<StrateStructure> {
     const { rows } = await this.pool.query<Ligne>(
-      `INSERT INTO dqa.strate_structure (type_structure, strate, maj_le)
-       VALUES ($1, $2, now())
+      `INSERT INTO dqa.strate_structure
+         (type_structure, strate, jour_limite_requisition, est_district, maj_le)
+       VALUES ($1, $2, $3, $4, now())
        ON CONFLICT (type_structure) DO UPDATE SET
          strate = EXCLUDED.strate,
+         jour_limite_requisition = EXCLUDED.jour_limite_requisition,
+         est_district = EXCLUDED.est_district,
          maj_le = now()
-       RETURNING type_structure, strate`,
-      [typeStructure, strate],
+       RETURNING type_structure, strate, jour_limite_requisition, est_district`,
+      [typeStructure, entree.strate, entree.jourLimiteRequisition, entree.estDistrict],
     );
     return vers(rows[0]!);
   }

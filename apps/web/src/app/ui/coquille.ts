@@ -161,9 +161,9 @@ export class Coquille {
     if (this.aAcces(u.role, ['admin'])) {
       sections.push({ chemin: '/admin/comptes', libelle: 'Comptes', icone: 'lucideUsers', exact: false });
     }
-    // Strates : lecture ouverte à tout rôle (le lecteur la consulte en seule
-    // lecture), écriture réservée à la coordination côté API.
-    sections.push({ chemin: '/admin/strates', libelle: 'Strates', icone: 'lucideLayers', exact: false });
+    // Types de structure : lecture ouverte à tout rôle (le lecteur la consulte
+    // en seule lecture), écriture réservée à la coordination côté API.
+    sections.push({ chemin: '/admin/strates', libelle: 'Types', icone: 'lucideLayers', exact: false });
 
     return sections;
   });

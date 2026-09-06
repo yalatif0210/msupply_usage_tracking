@@ -99,10 +99,9 @@ marquage du périmètre DQA.
 | `site_nom` | texte | ● | `store.name` |
 | `district` | texte | ● | `store.name_id → name.category1_id → name_category1.description` |
 | `region` | texte | ● | remonter `name_category1 → name_category1_level1 → name_category1_level2.description` |
-| `type_structure` | texte | ● | `name.category3_id → name_category3.description` (voir §5.3) |
+| `type_structure` | texte | ● | `name.category3_id → name_category3.description` — le palier (voir §5.3) |
 | `actif` | OUI/NON | ● | `store.disabled = false` |
 | `dans_perimetre_dqa` | OUI/NON | ● | **liste fournie par la mission DQA** (annexe A) |
-| `jour_limite_requisition` | entier | ● | dérivé de `type_structure` : 5, 7 ou 10 (§5.3) |
 
 ### 4.3 SITE_PROGRAMME · grain : (site, programme)
 
@@ -252,16 +251,27 @@ Réquisitions dont la `date_entered` **ou** la période couverte touche la fenê
 `fn` (finalisé) · `cn` (confirmé) · `sg` (suggéré) · `nw` (nouveau). Le tableau
 de bord ne calcule que les `fn`.
 
-### 5.3 `type_structure` et échéance de réquisition
+### 5.3 `type_structure` : le palier, pas le sous-type
 
-| `type_structure` (valeurs de `name_category3.description`) | `jour_limite_requisition` |
-|---|---|
-| CSU, CSR, ESPC | 5 |
-| HG, CHR | 7 |
-| CHU, District sanitaire | 10 |
+`type_structure` porte la valeur de `name_category3.description` **telle
+quelle** — le palier de la pyramide sanitaire. Sur le jeu réel, trois valeurs :
+`ESPC`, `Hôpital de référence`, `District sanitaire`. Le sous-type (CSU vs CSR,
+CHR vs HG) n'est **pas** demandé : il reste lisible dans `site_nom` et le code.
 
-Fournir les libellés exacts tels qu'ils apparaissent dans `name_category3` ; la
-correspondance ci-dessus sera ajustée si les libellés diffèrent.
+L'échéance de réquisition et le régime de scoring district ne sont plus dans
+l'extraction : ils sont administrés côté tableau de bord, dans le référentiel
+`strate_structure` (ADR 0013). Valeurs par défaut de ce référentiel :
+
+| `type_structure` | jour limite de réquisition | régime |
+|---|---|---|
+| `ESPC` | 5 | site de soins |
+| `Hôpital de référence` | 7 | site de soins |
+| `District sanitaire` | 10 | district |
+| `CHU`, `INSTITUT` | 10 | site de soins |
+| (palier inconnu) | 10 | site de soins |
+
+Fournir les libellés exacts tels qu'ils apparaissent dans `name_category3` ; un
+libellé nouveau se rattache dans la console, sans nouvelle livraison.
 
 ---
 

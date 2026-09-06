@@ -7,7 +7,7 @@ le jour limite de réquisition et le régime district / soins. L'onglet
 
 **Blocked by:** 01 (les colonnes doivent exister)
 
-**Status:** ready-for-agent
+**Status:** done (branche `donnees-brutes-piliers`)
 
 - [ ] `packages/contracts/src/dto.ts` :
   - `strateStructureSchema` gagne `jourLimiteRequisition: z.number().int().min(1).max(28)`

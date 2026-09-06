@@ -34,7 +34,7 @@ export class StratesController {
     @Param('typeStructure') typeStructure: string,
     @Body(new ZodValidationPipe(entreeStrateSchema)) corps: EntreeStrate,
   ): Promise<StrateStructure> {
-    return this.repo.enregistrer(typeStructure, corps.strate);
+    return this.repo.enregistrer(typeStructure, corps);
   }
 
   @Roles(['coordination'])

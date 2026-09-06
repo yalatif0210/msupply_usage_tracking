@@ -7,7 +7,7 @@ est retiré du contrat d'extraction. Sur le périmètre réel, aucun score ne bo
 
 **Blocked by:** — (peut démarrer)
 
-**Status:** ready-for-agent
+**Status:** done (commit 205415d, branche `donnees-brutes-piliers`)
 
 - [ ] Migration `00NN_referentiel_structures.sql` :
   - `ALTER TABLE dqa.strate_structure ADD COLUMN jour_limite_requisition int NOT NULL DEFAULT 10`,
