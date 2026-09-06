@@ -437,8 +437,12 @@ export class IndicateursRepository {
     // le grain national = programme / région / district tous nuls.
     const NATIONAL = `programme_id IS NULL AND region IS NULL AND district IS NULL`;
 
-    const progression = await this.pool.query<{ mois_paqd: string; score_composite_moyen: string | null }>(
-      `SELECT mois_paqd, score_composite_moyen
+    const progression = await this.pool.query<{
+      mois_paqd: string;
+      score_composite_moyen: string | null;
+      mois_clos: boolean;
+    }>(
+      `SELECT mois_paqd, score_composite_moyen, dqa.mois_est_clos(mois_paqd) AS mois_clos
        FROM dqa.mv_synthese_nationale
        WHERE ${NATIONAL}
        ORDER BY mois_paqd`,
@@ -446,6 +450,7 @@ export class IndicateursRepository {
     const points = progression.rows.map((r) => ({
       moisPaqd: r.mois_paqd,
       scoreCompositeMoyen: nombreOuNull(r.score_composite_moyen),
+      moisClos: r.mois_clos,
     }));
     const moisValide = moisDemande && points.some((p) => p.moisPaqd === moisDemande) ? moisDemande : null;
     const mois = moisValide ?? points.at(-1)?.moisPaqd ?? null;
@@ -697,6 +702,7 @@ export class IndicateursRepository {
       [siteId, mois, prog],
     );
     const h = rows[0];
+    const moisClos = await this.moisEstClos(mois);
 
     const piliers: ScorePilier[] = [
       this.pilierP1(h?.p_completude ?? null, h?.seuil_completude ?? null, {
@@ -715,9 +721,9 @@ export class IndicateursRepository {
         seuilSdu: h?.seuil_ecart_sdu ?? null,
         conso: brute(h?.taux_conso_pct, h?.score_conso),
         seuilConso: h?.seuil_ecart_conso ?? null,
-      }, estDistrict),
+      }, estDistrict, moisClos),
       this.pilierP5(h?.p_concordance ?? null, h?.seuil_concordance ?? null,
-        brute(h?.taux_concordance_pct, h?.p_concordance)),
+        brute(h?.taux_concordance_pct, h?.p_concordance), moisClos),
       this.pilierP6(h?.p_ajustements ?? null, h?.seuil_ajustements ?? null,
         brute(h?.ratio_ajustements_pct, h?.p_ajustements)),
     ];
@@ -727,7 +733,7 @@ export class IndicateursRepository {
     return {
       site: versSite(siteRow),
       moisPaqd: mois,
-      moisClos: await this.moisEstClos(mois),
+      moisClos,
       estDistrict,
       moisDisponibles,
       programmeId: prog,
@@ -798,12 +804,14 @@ export class IndicateursRepository {
         score_composite: string | null;
         classification: Classification | null;
         piliers_couverts: number;
+        mois_clos: boolean;
         sc: AtteintesParSc | null;
       }
     >(
       `SELECT h.mois_paqd, vmc.rang,
               h.score_composite, h.classification,
               ${COMPTE_PILIERS_SQL} AS piliers_couverts,
+              dqa.mois_est_clos(h.mois_paqd) AS mois_clos,
               h.p_completude, h.p_promptitude, h.p_regularite,
               h.p_ecart_sdu, h.p_concordance, h.p_ajustements,
               vsc.sc
@@ -827,6 +835,7 @@ export class IndicateursRepository {
         piliersCouverts: r.piliers_couverts,
         scoresPiliers: scoresPiliers(r),
         sousComposantes: dixSousComposantes(r.sc),
+        moisClos: r.mois_clos,
       })),
     };
   }
@@ -910,32 +919,48 @@ export class IndicateursRepository {
     return rows[0]?.d ?? false;
   }
 
+  // Mois en cours (ADR 0014) : l'inventaire de fin de mois n'est pas encore
+  // attendu, donc P4 et P5 sont non calculables plutôt que réputés à 0 %.
+  private static readonly RAISON_MOIS_EN_COURS =
+    'Inventaire de fin de mois pas encore attendu (mois en cours)';
+
   private pilierP4(
     score: string | null,
     m: { sdu: ValeurBrute; seuilSdu: string | null; conso: ValeurBrute; seuilConso: string | null },
     estDistrict: boolean,
+    moisClos: boolean,
   ): ScorePilier {
     // Pour un district, l'écart consommation se lit « écart distribution » :
     // la consommation déclarée compte les quantités distribuées (ADR 0012).
     const flux = estDistrict ? 'distribution' : 'consommation';
+    const raisonSdu = moisClos
+      ? 'Un inventaire du mois est présent mais sans produit traceur exploitable'
+      : IndicateursRepository.RAISON_MOIS_EN_COURS;
+    const raisonConso = moisClos
+      ? `Les inventaires bornants existent mais aucune ${flux} reconstituée n'est positive`
+      : IndicateursRepository.RAISON_MOIS_EN_COURS;
     return this.envelopper('P4', score, [
-      this.mesure('ecart_sdu', m.sdu, m.seuilSdu,
-        'Un inventaire du mois est présent mais sans produit traceur exploitable'),
+      this.mesure('ecart_sdu', m.sdu, m.seuilSdu, raisonSdu),
       this.mesure(
         'ecart_consommation',
         m.conso,
         m.seuilConso,
-        `Les inventaires bornants existent mais aucune ${flux} reconstituée n'est positive`,
+        raisonConso,
         libelleSousComposante('ecart_consommation', estDistrict),
       ),
     ]);
   }
 
-  private pilierP5(score: string | null, seuil: string | null, m: ValeurBrute): ScorePilier {
-    return this.envelopper('P5', score, [
-      this.mesure('concordance', m, seuil,
-        'Un inventaire du mois est présent mais sans produit traceur exploitable'),
-    ]);
+  private pilierP5(
+    score: string | null,
+    seuil: string | null,
+    m: ValeurBrute,
+    moisClos: boolean,
+  ): ScorePilier {
+    const raison = moisClos
+      ? 'Un inventaire du mois est présent mais sans produit traceur exploitable'
+      : IndicateursRepository.RAISON_MOIS_EN_COURS;
+    return this.envelopper('P5', score, [this.mesure('concordance', m, seuil, raison)]);
   }
 
   private pilierP6(score: string | null, seuil: string | null, m: ValeurBrute): ScorePilier {

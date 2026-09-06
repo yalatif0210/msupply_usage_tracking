@@ -636,9 +636,15 @@ function reculerMois(mois: string, n: number): string {
                       [etiquettes]="etiquettesCourbe()"
                       [series]="seriesCourbe()"
                       [seuils]="granularite() === 'composite' ? [75, 90] : [65, 75, 90]"
+                      [pointilleDepuis]="pointilleDepuisCourbe()"
                     />
                     @if (granularite() === 'composite') {
                       <p class="mt-2 text-sm text-muted-foreground">{{ deltaComposite() }}</p>
+                      @if (pointilleDepuisCourbe() !== null) {
+                        <p class="mt-1 text-xs text-muted-foreground">
+                          Segment en pointillé : mois en cours, score encore provisoire.
+                        </p>
+                      }
                     }
                   </div>
                 }
@@ -1026,6 +1032,18 @@ export class DetailSitePage {
       nom: this.libelleSc(sc),
       points: points.map((p) => p.sousComposantes.find((s) => s.sousComposante === sc)?.tauxAtteinte ?? null),
     }));
+  });
+
+  /**
+   * Index du premier mois non clos de la fenêtre affichée (score provisoire) :
+   * la courbe du score composite passe en pointillé à partir de ce point.
+   * `null` hors granularité composite ou si tous les mois sont clos.
+   */
+  protected readonly pointilleDepuisCourbe = computed<number | null>(() => {
+    if (this.granularite() !== 'composite') return null;
+    const points = this.historique()?.points ?? [];
+    const i = points.findIndex((p) => !p.moisClos);
+    return i > 0 ? i : null;
   });
 
   protected readonly deltaComposite = computed(() => {

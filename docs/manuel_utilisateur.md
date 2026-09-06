@@ -2,7 +2,7 @@
 
 **Destinataires :** toute personne autorisée à consulter le tableau de bord
 (équipes district, coordination nationale, DAP).
-**Version :** 1.1 (2026-09).
+**Version :** 1.2 (2026-09).
 
 Ce manuel explique ce que montre l'application, comment naviguer d'un écran à
 l'autre, et surtout comment chaque chiffre affiché est calculé, formule par
@@ -61,11 +61,13 @@ affiché est définitif.
 
 La régularité de saisie (P3) est un **compteur au fil de l'eau** : sur un mois
 en cours, elle est mesurée sur les jours déjà écoulés (un site qui dispense
-chaque jour ouvré reste proche de 100 %), pas sur le mois entier. Les autres
-piliers, eux, partent bas tant que l'inventaire et la réquisition de fin de
-mois ne sont pas arrivés : un mois en cours affiche donc presque toujours un
-score plus faible que le mois précédent clos, sans que ce soit un mauvais
-signe en soi.
+chaque jour reste proche de 100 %), pas sur le mois entier. Les piliers qui
+dépendent de l'inventaire ou de la réquisition de fin de mois (P1, P2, P4, P5)
+sont **non calculables** tant que ces échéances ne sont pas arrivées : ils
+sortent du calcul, et le score d'un mois en cours ne porte que sur P3 et P6.
+Il peut donc **paraître élevé** alors qu'il ne reflète qu'une partie du
+tableau : c'est pour cela qu'il est marqué « provisoire » et que la courbe de
+progression le relie **en pointillé**.
 
 ---
 
@@ -289,7 +291,9 @@ amplitude d'écart moyenne.
 - **Écart SDU (stock disponible utilisable)** : au dernier inventaire
   finalisé du mois, pour chaque produit traceur,
   `|théorique - compté| / compté`. En dessous de la tolérance (2 %) : le
-  produit est conforme. **0 %** si le site n'a fait aucun inventaire du mois.
+  produit est conforme. Si le site n'a fait aucun inventaire du mois : **0 %**
+  une fois le mois **clos**, mais **non calculable** tant qu'il est **en
+  cours** (l'inventaire de fin de mois n'est pas encore attendu).
 - **Écart consommation** : on compare la consommation **déclarée**
   (dispensations enregistrées ; pour un district, quantités **distribuées**,
   la sous-composante se lit alors « écart distribution ») à la consommation
@@ -299,9 +303,9 @@ amplitude d'écart moyenne.
   de fin de mois par mois suffit donc. À défaut d'inventaire le mois précédent,
   on retombe sur le premier et le dernier inventaire du mois (s'il y en a deux).
   Écart `|déclarée - reconstituée| / reconstituée` en dessous de la tolérance :
-  conforme. **0 %** si aucune borne d'ouverture n'est exploitable ; « non
-  calculable » seulement si des bornes existent mais qu'aucune consommation
-  reconstituée n'est positive.
+  conforme. Sans aucune borne d'ouverture exploitable : **0 %** si le mois est
+  clos, **non calculable** s'il est en cours. « Non calculable » aussi quand
+  des bornes existent mais qu'aucune consommation reconstituée n'est positive.
 
 **Exemple, écart SDU (le CHR de Daloa, août 2026) :** sur le DTG/3TC/TDF (ARV),
 théorique 402, compté 388 → écart |402 - 388| / 388 = **3,6 %**, au-dessus de
@@ -323,9 +327,11 @@ CONFORME.
 
 Une sous-composante : au dernier inventaire finalisé du mois, pour chaque
 produit traceur, `min(|théorique|, |compté|) / max(|théorique|, |compté|)`,
-moyenné sur tous les produits inventoriés du site. **0 %** si le site n'a fait
-aucun inventaire du mois (ne pas inventorier est un manquement, pas une absence
-de données).
+moyenné sur tous les produits inventoriés du site. Si le site n'a fait aucun
+inventaire du mois : **0 %** une fois le mois clos (ne pas inventorier est
+alors un manquement, pas une absence de données), mais **non calculable** tant
+que le mois est en cours. P5 n'ayant qu'une sous-composante, le pilier entier
+suit.
 
 **Exemple :** sur les 2 produits traceurs du CHR de Daloa en août, la concordance
 moyenne est **98,3 %** (96,5 % sur l'ARV, 100 % sur le test VIH). Le seuil de
@@ -378,14 +384,16 @@ sous-composante en alerte sur P5 (98,3 % de concordance, sous le seuil de
 100 %) suffit à faire basculer tout le pilier à 0.
 
 Sur le jeu de démonstration (mai à septembre 2026), le score composite moyen
-national suit **95,3 puis 90,6 puis 92,8 puis 89,0 puis 30,8**. Août et
+national suit **95,3 puis 90,6 puis 92,8 puis 89,0 puis 92,5**. Août et
 septembre sont **provisoires** : une extraction du 5 septembre a fait remonter
 les réquisitions d'août du CHR de Daloa et du district de Daloa, et septembre ne
 compte encore que cinq jours de données. Aucun site n'y a fait d'inventaire ni
-soumis de réquisition : P4 (écart SDU et consommation) et P5 (concordance)
-valent alors 0 (ADR 0012, section 5), P1 et P2 ne sont pas encore calculables
-(inventaire et réquisition de fin de mois pas dus), seuls P3 et P6 portent la
-note. D'où la chute, attendue tant que le mois n'a pas avancé. Points de
+soumis de réquisition : P1, P2 (inventaire et réquisition de fin de mois pas
+dus), P4 (écart SDU et consommation) et P5 (concordance) sont tous **non
+calculables** tant que le mois est en cours (ADR 0014). Le score de septembre
+ne porte donc que sur P3 et P6 : il reste élevé, mais **provisoire**. Sur la
+courbe de progression, le segment qui mène à un mois en cours est tracé **en
+pointillé** pour rappeler qu'il n'est pas comparable aux mois clos. Points de
 vigilance d'un mois à l'autre : le CHR public de Bondoukou (réquisition en
 retard, régularité de saisie faible, écarts SDU) qui reste NON CONFORME, le
 district de Niakaramadougou (réponse partielle aux réquisitions de sa zone,
@@ -422,13 +430,17 @@ principe des scores immuables, section 1).
 
 - **Badge de statut** (CONFORME / ALERTE / NON CALCULABLE) sur chaque
   sous-composante : NON CALCULABLE porte toujours une raison explicite (aucune
-  facture reçue, réquisitions de zone absentes pour un district, etc.). Il se
-  réserve aux vrais trous de données : le **silence** d'un site attendu actif
-  (aucune sortie de stock, aucun inventaire de fin de mois) est rendu par un
-  **0 % / ALERTE**, pas par NON CALCULABLE.
+  facture reçue, réquisitions de zone absentes pour un district, inventaire de
+  fin de mois pas encore attendu, etc.). Sur un mois **clos**, le **silence**
+  d'un site attendu actif (aucune sortie de stock, aucun inventaire de fin de
+  mois) est rendu par un **0 % / ALERTE**, pas par NON CALCULABLE. Sur un mois
+  **en cours**, en revanche, une échéance non encore arrivée (inventaire ou
+  réquisition de fin de mois) reste NON CALCULABLE : on ne pénalise pas un
+  retard qui n'existe pas encore.
 - **« Score calculé sur N piliers sur 6 »** : apparaît quand au moins un
   pilier est NON CALCULABLE ce mois ; les poids des piliers restants ont été
-  renormalisés (section 4).
+  renormalisés (section 4). Un mois en cours est souvent noté sur 2 piliers
+  seulement (P3, P6).
 - **Avertissement « données modifiées depuis le gel »** : le détail ligne à
   ligne d'un pilier est toujours lu en direct des données du core, jamais
   figé. Si ces données ont été corrigées après le calcul du mois (un
@@ -439,7 +451,9 @@ principe des scores immuables, section 1).
   vert si le score progresse, rouge s'il recule, gris si l'historique est
   trop court pour comparer.
 - **« Mois en cours · score provisoire »** : le mois affiché n'est pas encore
-  clos (section 1) ; le score continuera d'évoluer aux prochains imports.
+  clos (section 1) ; le score continuera d'évoluer aux prochains imports. Sur
+  la courbe de progression, le segment qui mène à ce mois est tracé **en
+  pointillé** : provisoire, non comparable aux points pleins des mois clos.
 
 ---
 

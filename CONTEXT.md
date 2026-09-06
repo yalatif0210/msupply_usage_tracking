@@ -97,6 +97,17 @@ Le mois calendaire sur lequel porte une extraction et pour lequel les scores son
 calculés, noté M+1 à M+4 selon son rang dans le cycle.
 _Éviter_ : période, mois de mesure
 
+**Mois clos / mois en cours** :
+Un mois PAQD est **clos** une fois passée l'échéance de réquisition la plus
+tardive du référentiel des structures (par défaut le 10 de M+1) : plus aucune
+soumission ne peut arriver « à l'heure », le score gelé devient définitif.
+Avant cette date le mois est **en cours** : son score reste **provisoire**
+(repère à l'écran, segment de courbe en pointillé). Fonction `dqa.mois_est_clos`.
+Discriminant de plusieurs règles : P4 et P5 valent 0 % pour un site sans
+inventaire seulement une fois le mois clos, NON_CALCULABLE tant qu'il est en
+cours (l'échéance n'est pas arrivée).
+_Éviter_ : mois terminé, mois figé
+
 **Ajustement d'inventaire (INVAD)** :
 Un mouvement de stock, positif ou négatif, créé par un inventaire pour aligner le
 stock théorique sur le stock compté. Identifié sans ambiguïté dans mSupply par
@@ -141,9 +152,10 @@ Part des produits traceurs dont le stock physiquement compté au dernier
 inventaire du mois est **dans la tolérance** de la quantité théorique mSupply :
 `|théorique − compté| / compté ≤ tolérance` (le compté, la réalité, au
 dénominateur). Statut CONFORME si ce taux atteint le seuil de la grille.
-Tolérance et seuil viennent de la grille. **0 %** (ALERTE) si le site n'a aucun
-inventaire finalisé daté dans le mois : ne pas inventorier est un manquement,
-pas une absence de données.
+Tolérance et seuil viennent de la grille. Si le site n'a aucun inventaire
+finalisé daté dans le mois : **0 %** (ALERTE) une fois le mois clos (ne pas
+inventorier est alors un manquement), **NON_CALCULABLE** tant qu'il est en
+cours (l'inventaire de fin de mois n'est pas encore dû).
 
 **Écart consommation (P4)** :
 Part des produits traceurs dont la consommation *déclarée* (somme des
@@ -155,10 +167,10 @@ deux inventaires bornants : **ouverture** = dernier inventaire finalisé du mois
 **M-1** (le stock de clôture de M-1 est le stock d'entrée de M) ; **clôture** =
 dernier inventaire finalisé du mois M. À défaut d'inventaire en M-1, on retombe
 sur le premier et le dernier inventaire de M (s'il y en a deux). Un produit sans
-borne d'ouverture exploitable ou dont la reconstituée est ≤ 0 est exclu. **0 %**
-(ALERTE) si aucune borne d'ouverture n'est exploitable pour le site ;
-NON_CALCULABLE seulement si des bornes existent mais qu'aucune reconstituée
-n'est positive.
+borne d'ouverture exploitable ou dont la reconstituée est ≤ 0 est exclu. Sans
+aucune borne d'ouverture exploitable pour le site : **0 %** (ALERTE) si le mois
+est clos, **NON_CALCULABLE** s'il est en cours. NON_CALCULABLE aussi si des
+bornes existent mais qu'aucune reconstituée n'est positive.
 _Éviter_ : écart SDU (réservé à la sous-composante ci-dessus)
 
 **Écart distribution (P4)** :
@@ -169,7 +181,9 @@ distribuées (et non dispensées). Un district ne dispense pas.
 **Concordance physique / théorique (P5)** :
 Rapport moyen entre stock compté et stock théorique au dernier inventaire du
 mois, sur les produits traceurs. Statut binaire selon le seuil de la grille.
-**0 %** (ALERTE) si le site n'a aucun inventaire finalisé daté dans le mois.
+Si le site n'a aucun inventaire finalisé daté dans le mois : **0 %** (ALERTE)
+une fois le mois clos, **NON_CALCULABLE** tant qu'il est en cours. P5 n'ayant
+qu'une sous-composante, le pilier entier suit.
 
 **Réquisition** :
 Une commande mensuelle de réapprovisionnement, par programme, adressée par un
@@ -203,10 +217,12 @@ réquisitions. Seuil ≥ 80 %. NON_CALCULABLE si aucune réquisition de zone à
 **Statut d'une sous-composante** :
 Binaire : CONFORME si le seuil du pilier est atteint, ALERTE sinon. Ou
 NON_CALCULABLE quand les données ne permettent pas de trancher — exclu des
-agrégats. NON_CALCULABLE se réserve aux vrais trous de données ; le silence d'un
-site attendu actif (aucune sortie, aucun inventaire de fin de mois) est rendu
-par un **0 %** ALERTE, pas par NON_CALCULABLE. Il n'y a pas d'état intermédiaire
-au niveau sous-composante.
+agrégats. Sur un **mois clos**, le silence d'un site attendu actif (aucune
+sortie, aucun inventaire de fin de mois) est rendu par un **0 %** ALERTE, pas
+par NON_CALCULABLE. Sur un **mois en cours**, une échéance non encore arrivée
+(inventaire ou réquisition de fin de mois) reste NON_CALCULABLE : pas de
+pénalité pour un retard qui n'existe pas encore. Il n'y a pas d'état
+intermédiaire au niveau sous-composante.
 _Éviter_ : statut d'indicateur, PARTIEL, état, résultat
 
 **Périmètre DQA** :

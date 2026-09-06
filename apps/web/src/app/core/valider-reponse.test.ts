@@ -222,8 +222,8 @@ describe('validerReponse (couture D)', () => {
     moisClos: true,
     national: { nbSites: 40, nbMesures: 38, scoreCompositeMoyen: 71.4, repartition },
     progression: [
-      { moisPaqd: '2026-07', scoreCompositeMoyen: 68 },
-      { moisPaqd: '2026-08', scoreCompositeMoyen: 71.4 },
+      { moisPaqd: '2026-07', scoreCompositeMoyen: 68, moisClos: true },
+      { moisPaqd: '2026-08', scoreCompositeMoyen: 71.4, moisClos: true },
     ],
     sousComposantesEnDifficulte: SOUS_COMPOSANTES.slice(0, 5).map((sousComposante) => ({
       sousComposante,
@@ -264,6 +264,7 @@ describe('validerReponse (couture D)', () => {
     rang: 4,
     scoreComposite: 82,
     classification: 'PARTIELLEMENT_CONFORME',
+    moisClos: true,
     piliersCouverts: 6,
     scoresPiliers: (['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as Pilier[]).map((pilier) => ({ pilier, score: 100 })),
     sousComposantes: sc10(),

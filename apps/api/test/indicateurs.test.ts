@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { demarrerBaseEphemere, type BaseEphemere } from './helpers/db.js';
 
 /**
@@ -28,6 +28,23 @@ describe('vues d\'indicateurs, composite et gel', () => {
     await db.query(`INSERT INTO dqa.dim_produit_traceur (produit_code, libelle) VALUES ('ARV', 'ARV')`);
   });
 
+  afterEach(async () => {
+    // certains tests forcent la clôture via `jour_limite_requisition` : on
+    // restaure les valeurs du référentiel (migration 0040) pour l'isolation.
+    await db.query(`UPDATE dqa.strate_structure SET jour_limite_requisition = CASE type_structure
+      WHEN 'ESPC' THEN 5 WHEN 'Hôpital de référence' THEN 7 ELSE 10 END`);
+  });
+
+  // Cycle PAQD d'un mois `AAAA-MM` : 3 cycles de 4 mois (C1 = janv-avr, ...).
+  const cycleDe = (mois: string) => {
+    const [a, m] = mois.split('-').map(Number);
+    return `${a}-C${Math.floor((m! - 1) / 4) + 1}`;
+  };
+  const finDeMois = (mois: string) => {
+    const [a, m] = mois.split('-').map(Number);
+    return `${mois}-${String(new Date(Date.UTC(a!, m!, 0)).getUTCDate()).padStart(2, '0')}`;
+  };
+
   const socle = async (opts: {
     perimetre?: boolean;
     comptee?: number;
@@ -35,17 +52,22 @@ describe('vues d\'indicateurs, composite et gel', () => {
     avecInventaire?: boolean;
     nbAjustements?: number;
     nbMouvements?: number;
+    /** Mois PAQD du socle (défaut `2026-08`). Décale lot, mouvements et inventaire. */
+    mois?: string;
     /** Sorties de stock supplémentaires, une par (jour, nature) — pilotent P3. */
     sorties?: { jour: string; nature?: 'dispensation' | 'distribution' }[];
   }) => {
     const {
       perimetre = true, comptee = 100, theorique = 100,
       avecInventaire = true, nbAjustements = 0, nbMouvements = 4,
-      sorties = [],
+      mois = '2026-08', sorties = [],
     } = opts;
+    const jourTxn = `${mois}-02`;
+    const jourInv = `${mois}-28`;
     await db.query(
       `INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, statut)
-       VALUES ('t.xlsx','2026-C2','2026-08','2026-08-01','2026-08-31','valide')`,
+       VALUES ('t.xlsx',$1,$2,$3,$4,'valide')`,
+      [cycleDe(mois), mois, `${mois}-01`, finDeMois(mois)],
     );
     await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S1','CSU',$1)`, [perimetre]);
     await db.query(`INSERT INTO dqa.dim_programme (programme_id, programme_nom) VALUES ('P1','VIH')`);
@@ -56,8 +78,8 @@ describe('vues d\'indicateurs, composite et gel', () => {
       const ajust = i < nbAjustements;
       await db.query(
         `INSERT INTO dqa.fact_transaction (transaction_id, site_id, nature, programme_id, statut, date_confirmation, lot_id_source)
-         VALUES ($1,'S1',$2,'P1','fn','2026-08-02',1)`,
-        [`T${i}`, ajust ? 'ajustement_negatif' : 'reception'],
+         VALUES ($1,'S1',$2,'P1','fn',$3::date,1)`,
+        [`T${i}`, ajust ? 'ajustement_negatif' : 'reception', jourTxn],
       );
       await db.query(
         `INSERT INTO dqa.fact_ligne_transaction (ligne_id, transaction_id, produit_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
@@ -82,7 +104,8 @@ describe('vues d\'indicateurs, composite et gel', () => {
       // NON_CALCULABLE ici ; la date d'inventaire n'influe que sur P4/P5.
       await db.query(
         `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
-         VALUES ('INV1','S1','P1','2026-08-28','fn',1)`,
+         VALUES ('INV1','S1','P1',$1::date,'fn',1)`,
+        [jourInv],
       );
       await db.query(
         `INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
@@ -93,7 +116,7 @@ describe('vues d\'indicateurs, composite et gel', () => {
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
   };
 
-  const scorePilier = async (programme: string | null) => {
+  const scorePilier = async (programme: string | null, mois = '2026-08') => {
     const { rows } = await db.query<{
       p_completude: string | null;
       p_promptitude: string | null;
@@ -107,8 +130,8 @@ describe('vues d\'indicateurs, composite et gel', () => {
       `SELECT p_completude, p_promptitude, p_regularite, p_ecart_sdu,
               p_concordance, p_ajustements, score_composite, classification
        FROM dqa.mv_score_pilier
-       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND coalesce(programme_id,'') = $1`,
-      [programme ?? ''],
+       WHERE site_id = 'S1' AND mois_paqd = $2 AND coalesce(programme_id,'') = $1`,
+      [programme ?? '', mois],
     );
     return rows[0];
   };
@@ -133,9 +156,22 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect((await scorePilier(null))?.p_ajustements).toBe('0.0');
   });
 
-  it('P5 à 0 % sans inventaire du mois (ADR 0012 : le silence est un signal)', async () => {
-    await socle({ avecInventaire: false, nbMouvements: 4 });
-    expect((await scorePilier(null))?.p_concordance).toBe('0.0');
+  it('P4 et P5 à 0 % sans inventaire quand le mois est CLOS (ADR 0012 + 0014)', async () => {
+    // 2026-06 : clos depuis le 2026-07-10 quelle que soit la date d'exécution.
+    await socle({ avecInventaire: false, nbMouvements: 4, mois: '2026-06' });
+    const s = await scorePilier(null, '2026-06');
+    expect(s?.p_concordance).toBe('0.0');
+    expect(s?.p_ecart_sdu).toBe('0.0');
+  });
+
+  it('P4 et P5 NON_CALCULABLE sans inventaire quand le mois est EN COURS (ADR 0014)', async () => {
+    await socle({ avecInventaire: false, nbMouvements: 4 }); // 2026-08
+    // rend la clôture déterministe : échéance repoussée au 2026-09-28.
+    await db.query(`UPDATE dqa.strate_structure SET jour_limite_requisition = 28`);
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    const s = await scorePilier(null);
+    expect(s?.p_concordance).toBeNull();
+    expect(s?.p_ecart_sdu).toBeNull();
   });
 
   it('exclut un site hors périmètre', async () => {

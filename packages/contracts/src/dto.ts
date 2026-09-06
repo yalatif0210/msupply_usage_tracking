@@ -369,6 +369,8 @@ export const TOP_SOUS_COMPOSANTES_DIFFICULTE = 5;
 export const pointProgressionNationaleSchema = z.object({
   moisPaqd: moisPaqdSchema,
   scoreCompositeMoyen: pourcentageSchema.nullable(),
+  /** `false` = mois encore ouvert : le point est tracé en pointillé (provisoire). */
+  moisClos: z.boolean(),
 });
 export type PointProgressionNationale = z.infer<typeof pointProgressionNationaleSchema>;
 
@@ -403,6 +405,8 @@ export const pointProgressionSchema = z.object({
   piliersCouverts: z.number().int().min(0).max(6),
   scoresPiliers: z.array(scorePilierBrefSchema).length(6),
   sousComposantes: dixSousComposantesSchema,
+  /** `false` = mois encore ouvert : le point est tracé en pointillé (provisoire). */
+  moisClos: z.boolean(),
 });
 export type PointProgression = z.infer<typeof pointProgressionSchema>;
 

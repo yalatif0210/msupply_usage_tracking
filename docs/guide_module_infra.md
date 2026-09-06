@@ -50,8 +50,9 @@ docker compose -f docker-compose.demo.yml down -v
   mai (borne d'ouverture intra-mois), un inventaire de fin de mois ensuite,
   réception et dispensations mensuelles calées sur `compté(M) = compté(M-1) +
   réceptions - sorties`. Septembre est un mois EN COURS : 5 jours de
-  dispensation, **aucun inventaire ni réquisition** (P1/P2 non calculables,
-  P4/P5 à 0). Un lot d'import par mois plus un cinquième « extraction du 5
+  dispensation, **aucun inventaire ni réquisition** — P1, P2, P4 et P5 sont
+  tous **non calculables** tant que le mois n'est pas clos (ADR 0014), le
+  score ne porte que sur P3 et P6. Un lot d'import par mois plus un cinquième « extraction du 5
   septembre » à fenêtre de 45 jours qui chevauche août et septembre : il apporte
   les premiers jours de septembre ET les réquisitions d'août du CHR et du
   district de Daloa, et le gel corrige alors le score d'août (encore ouvert)
@@ -76,10 +77,10 @@ avec son hôpital de référence et 2 ESPC de sa zone.
 | Écran | À regarder |
 |---|---|
 | Tableau de bord, `/synthese`, fiches site et produit | sélecteur « Mois affiché » : 2026-05 à 2026-09 ; repère « Mois en cours · score provisoire » sur 2026-08 et 2026-09 |
-| Tableau de bord | courbe de progression nationale sur 5 points (95,3 → 90,6 → 92,8 → 89,0 → 30,8 ; les deux derniers provisoires ; septembre chute car aucun site n'y a encore inventorié ni soumis de réquisition : P4/P5 à 0, P1/P2 non calculables, seuls P3 et P6 notés) |
+| Tableau de bord | courbe de progression nationale sur 5 points (95,3 → 90,6 → 92,8 → 89,0 → 92,5 ; les deux derniers provisoires, reliés **en pointillé** ; septembre reste haut mais n'est noté que sur P3 et P6 — P1/P2/P4/P5 non calculables tant que le mois est en cours) |
 | Fiche site — CHR PUBLIC de DALOA (`31600010`), mois d'août | exemple du manuel : P1/P2/P3/P6 à 100, P4 à 50 (1 produit SDU hors tolérance sur 2), P5 à 0 (concordance 98,3 % sous le seuil de 100 %) → composite 62,5 NON CONFORME |
 | Fiche site — DISTRICT de NIAKARAMADOUGOU | P3 « Régularité de saisie (distribution) », seuil 80 %, réponse aux réquisitions de la zone (juin 2/3, juillet 3/3, août 2/3, sept 1/3) ; détail P3 = le couple réquisitions de zone / servies au lieu du bandeau calendaire (ADR 0011) ; « Écart distribution » à la place de « Écart consommation » |
-| Fiche site 2026-09 | mois à 5 jours de données : P3 mesuré sur les jours écoulés (~83 % pour un site régulier), P4/P5 à 0 (aucun inventaire), P1/P2 non calculables (inventaire/réquisition de fin de mois pas dus), P6 à 100 → composite ~30, « Score calculé sur 4 piliers sur 6 », repère « Mois en cours » ; la courbe d'évolution reste visible (fenêtre par défaut = 12 mois) |
+| Fiche site 2026-09 | mois à 5 jours de données : P3 mesuré sur les jours écoulés (~83 % pour un site régulier), P6 à 100 ; P1/P2/P4/P5 non calculables (inventaire/réquisition de fin de mois pas dus) → composite élevé mais **provisoire**, « Score calculé sur 2 piliers sur 6 », repère « Mois en cours » ; la courbe d'évolution reste visible (fenêtre par défaut = 12 mois), son dernier segment en pointillé |
 | Fiche site — CHR PUBLIC de BONDOUKOU | vigilance chronique : P3 faible, écart SDU hors tolérance mai-juin, réquisition en retard, ajustements → NON CONFORME tous les mois |
 | Fiche site — CSU GONATE | avertissement « données du core modifiées depuis le gel » |
 | Fiche site — CSR-DM PUBLIC de BOBIA | réquisition jamais soumise → « rapport manquant », PARTIELLEMENT CONFORME |

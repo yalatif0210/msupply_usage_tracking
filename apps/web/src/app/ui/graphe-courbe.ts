@@ -10,6 +10,9 @@ import {
   type ApexYAxis,
   ChartComponent,
 } from 'ng-apexcharts';
+
+/** Suffixe de la serie tracee en pointille (mois en cours, score provisoire). */
+const SUFFIXE_PROVISOIRE = ' (provisoire)';
 import { CHART_BASE, POLICE_GRAPHE, seuilsYAxis } from './graphe-commun';
 import { JetonsGraphe } from './graphe-jetons';
 
@@ -55,7 +58,7 @@ const SERIES_LEGENDE_SOUS_GRAPHE = 5;
         [xaxis]="xaxis()"
         [yaxis]="yaxis()"
         [colors]="palette()"
-        [stroke]="stroke"
+        [stroke]="stroke()"
         [markers]="markers"
         [legend]="legende()"
         [annotations]="annotations()"
@@ -85,8 +88,25 @@ export class GrapheCourbe {
   readonly hauteur = input(340);
   /** Resume accessible ; sinon un resume est deduit des series. */
   readonly resume = input<string | null>(null);
+  /**
+   * Index du premier point provisoire (mois encore ouvert). A partir du
+   * segment qui y mene, la courbe passe en pointille. N'a d'effet que sur une
+   * courbe a serie unique (le score composite) ; ignore sinon.
+   */
+  readonly pointilleDepuis = input<number | null>(null);
 
-  protected readonly stroke: ApexStroke = { width: 2, curve: 'straight' };
+  /** La courbe est-elle scindee en un troncon plein + un troncon pointille ? */
+  protected readonly estScinde = computed(() => {
+    const i = this.pointilleDepuis();
+    return i !== null && this.series().length === 1 && i >= 1 && i < this.etiquettes().length;
+  });
+
+  protected readonly stroke = computed<ApexStroke>(() => ({
+    width: 2,
+    curve: 'straight',
+    // [plein, pointille] : le second troncon (serie « provisoire ») est tirete.
+    dashArray: this.estScinde() ? [0, 5] : 0,
+  }));
   protected readonly markers: ApexMarkers = { size: 3, strokeWidth: 0, hover: { sizeOffset: 2 } };
 
   protected readonly chartOptions = computed<ApexChart>(() => ({
@@ -96,11 +116,29 @@ export class GrapheCourbe {
     ...CHART_BASE,
   }));
 
-  protected readonly serieApex = computed(() =>
-    this.series().map((s) => ({ name: s.nom, data: s.points })),
-  );
+  protected readonly serieApex = computed(() => {
+    if (this.estScinde()) {
+      const s = this.series()[0]!;
+      const i = this.pointilleDepuis()!;
+      // Le point de jonction (i-1) appartient aux deux troncons : le pointille
+      // demarre donc au segment qui mene au premier mois provisoire.
+      const plein = s.points.map((v, k) => (k <= i - 1 ? v : null));
+      const provisoire = s.points.map((v, k) => (k >= i - 1 ? v : null));
+      return [
+        { name: s.nom, data: plein },
+        { name: `${s.nom}${SUFFIXE_PROVISOIRE}`, data: provisoire },
+      ];
+    }
+    return this.series().map((s) => ({ name: s.nom, data: s.points }));
+  });
 
-  protected readonly palette = computed(() => this.jetons.palette(this.series().length));
+  protected readonly palette = computed(() => {
+    if (this.estScinde()) {
+      const c = this.jetons.palette(1)[0]!;
+      return [c, c];
+    }
+    return this.jetons.palette(this.series().length);
+  });
 
   protected readonly xaxis = computed<ApexXAxis>(() => ({
     categories: this.etiquettes(),
@@ -156,6 +194,9 @@ export class GrapheCourbe {
     if (fourni) return fourni;
     const noms = this.series().map((s) => s.nom).join(', ');
     const seuils = this.seuils().length ? ` Reperes de seuil : ${this.seuils().join(', ')}.` : '';
-    return `Courbe, ${this.series().length} series sur ${this.etiquettes().length} points (${noms}).${seuils}`;
+    const provisoire = this.estScinde()
+      ? ` Le dernier segment est trace en pointille : mois en cours, score provisoire.`
+      : '';
+    return `Courbe, ${this.series().length} series sur ${this.etiquettes().length} points (${noms}).${seuils}${provisoire}`;
   });
 }

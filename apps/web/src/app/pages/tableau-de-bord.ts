@@ -146,7 +146,13 @@ type FiltresTableauDeBord = {
                       [etiquettes]="etiquettesProgression()"
                       [series]="seriesProgression()"
                       [seuils]="seuils"
+                      [pointilleDepuis]="pointilleDepuis()"
                     />
+                    @if (pointilleDepuis() !== null) {
+                      <p class="mt-2 text-xs text-muted-foreground">
+                        Segment en pointillé : mois en cours, score encore provisoire.
+                      </p>
+                    }
                   } @else {
                     <p class="text-sm text-muted-foreground">
                       L'historique n'a pas encore deux mois : la courbe s'affichera au prochain
@@ -251,6 +257,17 @@ export class TableauDeBordPage {
       points: this.res.valeur()?.progression.map((p) => p.scoreCompositeMoyen) ?? [],
     },
   ]);
+
+  /**
+   * Index du premier mois non clos de la progression (score provisoire) :
+   * la courbe passe en pointillé à partir de ce point. `null` si tous les
+   * mois affichés sont clos.
+   */
+  protected readonly pointilleDepuis = computed<number | null>(() => {
+    const progression = this.res.valeur()?.progression ?? [];
+    const i = progression.findIndex((p) => !p.moisClos);
+    return i > 0 ? i : null;
+  });
 
   constructor() {
     void this.res.demarrer();

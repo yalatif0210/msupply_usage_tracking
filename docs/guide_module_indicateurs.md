@@ -146,8 +146,11 @@ grille, pas une amplitude d'écart).
 - `ecart_sdu` : `|théorique − compté| / compté ≤ tolérance` au dernier
   inventaire finalisé du mois par produit ; compté (réalité) au dénominateur.
   Cas limites : compté 0 / théorique 0 → conforme ; compté 0 / théorique > 0 →
-  non conforme. **0 %** (grain tous programmes) si le site n'a aucun inventaire
-  finalisé daté dans le mois (ADR 0012).
+  non conforme. Si le site n'a aucun inventaire finalisé daté dans le mois
+  (grain tous programmes) : **0 %** une fois le mois **clos**
+  (`dqa.mois_est_clos`), **NON_CALCULABLE** tant qu'il est **en cours**
+  (l'inventaire de fin de mois n'est pas encore dû — ADR 0012 amendé par
+  ADR 0014).
 - `ecart_consommation` : `|déclarée − reconstituée| / reconstituée ≤ tolérance`.
   Bornes **inter-mois** (migration 0037) : `d_début` = dernier inventaire
   finalisé du mois **M-1**, `d_fin` = dernier inventaire finalisé de **M** ;
@@ -157,14 +160,23 @@ grille, pas une amplitude d'écart).
   Σ quantités distribuées pour un **district** (`nature = distribution`, la
   sous-composante se lit « écart distribution »). Produit sans borne
   d'ouverture → exclu (`conso_raison_exclusion = 'aucune_borne'`) ;
-  reconstituée ≤ 0 → exclu (`'reconstituee_non_positive'`). **0 %** (grain tous
-  programmes) si aucune borne d'ouverture exploitable ; NON_CALCULABLE seulement
-  si des bornes existent mais qu'aucune reconstituée n'est positive.
+  reconstituée ≤ 0 → exclu (`'reconstituee_non_positive'`). Sans aucune borne
+  d'ouverture exploitable (grain tous programmes) : **0 %** si le mois est
+  clos, **NON_CALCULABLE** s'il est en cours (ADR 0014). NON_CALCULABLE aussi
+  quand des bornes existent mais qu'aucune reconstituée n'est positive.
 
 Le score de pilier P4 (`p_ecart_sdu`, hérité du nom historique) est la moyenne
 simple des scores des deux sous-composantes calculables. Tolérance (2 %) et
 seuil de taux (90 %) viennent de `grille_seuil_sous_composante.tolerance` /
 `.seuil` — à confirmer avec la coordination PAQD.
+
+**P5 · Concordance physique / théorique** (`mv_p5_concordance`) : une seule
+sous-composante `concordance`, `least(|théo|, |compté|) / greatest(…) · 100` au
+dernier inventaire finalisé du mois, comparée au seuil `concordance` (100 %).
+Sans aucun inventaire finalisé daté dans le mois : **0 %** une fois le mois
+clos, **NON_CALCULABLE** tant qu'il est en cours (ADR 0014) — et comme la
+sous-composante est unique, P5 entier suit. NON_CALCULABLE aussi si le site a
+inventorié mais sans produit traceur exploitable.
 
 **Tableau produit P4 · P5** (`mv_p4_ecart_produit`, variante `p4` de
 `GET /api/sites/:id/piliers/:code`) : une ligne par produit traceur inventorié,
