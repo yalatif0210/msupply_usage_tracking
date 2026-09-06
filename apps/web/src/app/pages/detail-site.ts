@@ -685,10 +685,19 @@ export class DetailSitePage {
     },
     germe: { detail: null, historique: null },
     filtresInitiaux: { programme: '', de: '', a: '', mois: '' },
-    // aligne la plage sur ce que l'historique a réellement renvoyé
+    // aligne la plage sur ce que l'historique a réellement renvoyé. Cas
+    // particulier : au début d'un cycle, le cycle courant (fenêtre par défaut)
+    // n'a qu'un mois -> ni courbe d'évolution ni progression. On élargit alors
+    // à 12 mois pour qu'il y ait un contexte.
     apresChargement: (v) => {
       const points = v.historique?.points ?? [];
+      const mois = v.historique?.moisDisponibles ?? []; // décroissant
       if (points.length === 0) return undefined;
+      if (points.length < 2 && mois.length > 1) {
+        const fin = mois[0]!;
+        const debut = reculerMois(fin, MOIS_FENETRE_ANNEE);
+        return { de: debut < mois.at(-1)! ? mois.at(-1)! : debut, a: fin };
+      }
       return { de: points[0]!.moisPaqd, a: points.at(-1)!.moisPaqd };
     },
   });
