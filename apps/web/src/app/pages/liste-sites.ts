@@ -3,6 +3,7 @@ import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { HlmBadge } from '@spartan-ng/helm/badge';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
+import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmSkeleton } from '@spartan-ng/helm/skeleton';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import type { Programme, ScoreSite } from '@dqa/contracts';
@@ -13,11 +14,15 @@ import { BadgeClassification } from '../ui/badge-classification';
 import { BarreAttente } from '../ui/barre-attente';
 import { Coquille } from '../ui/coquille';
 
-/** Filtres de l'ecran. `district` est purement client : il ne recharge pas. */
+/** Filtres de l'ecran. `district` et `page` sont purement client : ils ne rechargent pas. */
 type FiltresListe = {
   programmeId: string;
   district: string;
+  page: string;
 }
+
+/** Nombre de sites par page du tableau. */
+const TAILLE_PAGE = 15;
 
 @Component({
   selector: 'dqa-liste-sites',
@@ -29,6 +34,7 @@ type FiltresListe = {
     BarreAttente,
     DecimalPipe,
     HlmBadge,
+    HlmButton,
     HlmSelectImports,
     HlmSkeleton,
     HlmTableImports,
@@ -105,7 +111,7 @@ type FiltresListe = {
                   </tr>
                 </thead>
                 <tbody hlmTBody>
-                  @for (s of sitesAffiches(); track s.site.siteId) {
+                  @for (s of sitesPage(); track s.site.siteId) {
                     <tr hlmTr>
                       <td hlmTd class="h-12 font-medium">
                         <a [routerLink]="['/sites', s.site.siteId]" class="text-primary hover:underline">{{ s.site.siteNom }}</a>
@@ -134,9 +140,24 @@ type FiltresListe = {
                 </tbody>
               </table>
             </div>
-            <p class="mt-2 text-xs text-muted-foreground">
-              Sites triés du score le plus faible au plus élevé ; sites sans mesure en fin de liste.
-            </p>
+            <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <p class="text-xs text-muted-foreground">
+                Sites triés du score le plus faible au plus élevé ; sites sans mesure en fin de liste.
+              </p>
+              @if (nbPages() > 1) {
+                <div class="flex items-center gap-2 text-xs">
+                  <button hlmBtn size="sm" variant="outline" type="button" [disabled]="pageCourante() <= 1" (click)="allerPage(pageCourante() - 1)">
+                    Précédent
+                  </button>
+                  <span class="tabular-nums text-muted-foreground">
+                    Page {{ pageCourante() }} sur {{ nbPages() }} · {{ sitesAffiches().length }} sites
+                  </span>
+                  <button hlmBtn size="sm" variant="outline" type="button" [disabled]="pageCourante() >= nbPages()" (click)="allerPage(pageCourante() + 1)">
+                    Suivant
+                  </button>
+                </div>
+              }
+            </div>
           }
         </div>
       }
@@ -155,8 +176,8 @@ export class ListeSitesPage {
   protected readonly res = ressource<ScoreSite[], FiltresListe>({
     charger: (f) => this.service.listerSites({ programmeId: f.programmeId || undefined }),
     germe: [],
-    filtresInitiaux: { programmeId: '', district: '' },
-    clesUrl: ['programmeId', 'district'],
+    filtresInitiaux: { programmeId: '', district: '', page: '' },
+    clesUrl: ['programmeId', 'district', 'page'],
   });
 
   /** Filtrage `district` fait ici, sur la liste deja chargee : instantane, sans requete. */
@@ -164,6 +185,22 @@ export class ListeSitesPage {
     const district = this.res.filtres().district;
     const liste = this.res.valeur();
     return district ? liste.filter((s) => s.site.district === district) : liste;
+  });
+
+  protected readonly nbPages = computed(() =>
+    Math.max(1, Math.ceil(this.sitesAffiches().length / TAILLE_PAGE)),
+  );
+
+  /** Page courante (1-based), bornée à `[1, nbPages]` même si l'URL contient n'importe quoi. */
+  protected readonly pageCourante = computed(() => {
+    const demandee = Math.trunc(Number(this.res.filtres().page)) || 1;
+    return Math.min(Math.max(1, demandee), this.nbPages());
+  });
+
+  /** La tranche de sites visible dans le tableau. */
+  protected readonly sitesPage = computed<ScoreSite[]>(() => {
+    const debut = (this.pageCourante() - 1) * TAILLE_PAGE;
+    return this.sitesAffiches().slice(debut, debut + TAILLE_PAGE);
   });
 
   constructor() {
@@ -176,11 +213,17 @@ export class ListeSitesPage {
    * `district` -> filtre client instantane, `programmeId` -> refetch en fond.
    */
   protected majDistrict(valeur: unknown): void {
-    this.res.definirLocal({ district: versChaine(valeur) });
+    // un changement de filtre repart de la première page.
+    this.res.definirLocal({ district: versChaine(valeur), page: '' });
   }
 
   protected majProgramme(valeur: unknown): void {
-    this.res.definir({ programmeId: versChaine(valeur) });
+    this.res.definir({ programmeId: versChaine(valeur), page: '' });
+  }
+
+  protected allerPage(n: number): void {
+    this.res.definirLocal({ page: n <= 1 ? '' : String(n) });
+    window.scrollTo({ top: 0 });
   }
 
   /**
