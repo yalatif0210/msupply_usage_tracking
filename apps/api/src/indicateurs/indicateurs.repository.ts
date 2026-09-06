@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Pool } from 'pg';
 import {
-  LIBELLES_MESURE_BRUTE,
   LIBELLES_PILIER,
   LIBELLES_SOUS_COMPOSANTE,
+  libelleMesureBrute,
+  libelleSousComposante,
   MESURES_BRUTES,
   PILIER_DE_CODE,
   PILIER_DE_MESURE_BRUTE,
@@ -714,7 +715,7 @@ export class IndicateursRepository {
         seuilSdu: h?.seuil_ecart_sdu ?? null,
         conso: brute(h?.taux_conso_pct, h?.score_conso),
         seuilConso: h?.seuil_ecart_conso ?? null,
-      }),
+      }, estDistrict),
       this.pilierP5(h?.p_concordance ?? null, h?.seuil_concordance ?? null,
         brute(h?.taux_concordance_pct, h?.p_concordance)),
       this.pilierP6(h?.p_ajustements ?? null, h?.seuil_ajustements ?? null,
@@ -836,11 +837,12 @@ export class IndicateursRepository {
     m: ValeurBrute,
     seuil: string | null,
     raisonNC: string,
+    libelle: string = LIBELLES_SOUS_COMPOSANTE[sc],
   ): MesureSousComposante {
     const statut = m.score === null ? 'NON_CALCULABLE' : Number(m.score) >= 100 ? 'CONFORME' : 'ALERTE';
     return {
       sousComposante: sc,
-      libelle: LIBELLES_SOUS_COMPOSANTE[sc],
+      libelle,
       valeur: nombreOuNull(m.pct),
       unite: 'pct',
       seuil: nombreOuNull(seuil),
@@ -889,14 +891,12 @@ export class IndicateursRepository {
         estDistrict
           ? 'Aucune réquisition de la zone du district à évaluer ce mois'
           : 'Aucune sortie de stock exploitable sur le mois',
+        libelleSousComposante('regularite_saisie', estDistrict),
       ),
     ]);
     // Libellé adaptatif (ADR 0011) : la sous-composante est unique, l'écran
     // distingue le district par le suffixe.
-    return {
-      ...p,
-      libelle: estDistrict ? 'Régularité de saisie (distribution)' : 'Régularité de saisie (dispensation)',
-    };
+    return { ...p, libelle: libelleSousComposante('regularite_saisie', estDistrict) };
   }
 
   /** `strate_de(type_structure) = 'District'` : P3 mesuré autrement (ADR 0011). */
@@ -911,17 +911,28 @@ export class IndicateursRepository {
   private pilierP4(
     score: string | null,
     m: { sdu: ValeurBrute; seuilSdu: string | null; conso: ValeurBrute; seuilConso: string | null },
+    estDistrict: boolean,
   ): ScorePilier {
+    // Pour un district, l'écart consommation se lit « écart distribution » :
+    // la consommation déclarée compte les quantités distribuées (ADR 0012).
+    const flux = estDistrict ? 'distribution' : 'consommation';
     return this.envelopper('P4', score, [
-      this.mesure('ecart_sdu', m.sdu, m.seuilSdu, 'Aucun produit traceur inventorié ce mois'),
-      this.mesure('ecart_consommation', m.conso, m.seuilConso,
-        'Aucun produit évaluable : deux inventaires bornants et une consommation reconstituée positive sont requis'),
+      this.mesure('ecart_sdu', m.sdu, m.seuilSdu,
+        'Un inventaire du mois est présent mais sans produit traceur exploitable'),
+      this.mesure(
+        'ecart_consommation',
+        m.conso,
+        m.seuilConso,
+        `Les inventaires bornants existent mais aucune ${flux} reconstituée n'est positive`,
+        libelleSousComposante('ecart_consommation', estDistrict),
+      ),
     ]);
   }
 
   private pilierP5(score: string | null, seuil: string | null, m: ValeurBrute): ScorePilier {
     return this.envelopper('P5', score, [
-      this.mesure('concordance', m, seuil, 'Aucun inventaire finalisé exploitable pour le mois'),
+      this.mesure('concordance', m, seuil,
+        'Un inventaire du mois est présent mais sans produit traceur exploitable'),
     ]);
   }
 
@@ -977,10 +988,7 @@ export class IndicateursRepository {
       const liste = parPilier.get(pilier) ?? [];
       liste.push({
         mesure,
-        libelle:
-          estDistrict && mesure === 'p3_regularite'
-            ? 'réquisitions de la zone servies dans le mois'
-            : LIBELLES_MESURE_BRUTE[mesure],
+        libelle: libelleMesureBrute(mesure, estDistrict),
         attendu: r.nb_attendu,
         realise: r.nb_realise,
         aLHeure: r.nb_a_lheure,
@@ -1048,7 +1056,7 @@ export class IndicateursRepository {
         case 'p3':
           return { ...vide, code, jours: [], reponseZone: null };
         case 'p4':
-          return { ...vide, code, produits: [] };
+          return { ...vide, code, estDistrict, produits: [] };
         case 'p6':
           return { ...vide, code, ajustements: [], nbMouvements: 0 };
       }
@@ -1075,7 +1083,7 @@ export class IndicateursRepository {
       return { ...commun, ...horo(coreMajLe), code, ...lignes };
     }
     if (code === 'p4') {
-      const { coreMajLe, ...lignes } = await this.detailPilierP4(siteId, mois, prog);
+      const { coreMajLe, ...lignes } = await this.detailPilierP4(siteId, mois, prog, estDistrict);
       return { ...commun, ...horo(coreMajLe), code, ...lignes };
     }
     const { coreMajLe, ...lignes } = await this.detailPilierP6(siteId, mois, prog);
@@ -1178,7 +1186,9 @@ export class IndicateursRepository {
               EXISTS (SELECT 1 FROM dqa.fact_inventaire fi
                        WHERE fi.site_id = sp.site_id AND fi.statut = 'fn'
                          AND fi.programme_id = sp.programme_id
-                         AND to_char(fi.date_inventaire, 'YYYY-MM') = $2) AS a_inventaire,
+                         AND to_char(fi.date_inventaire, 'YYYY-MM') = $2
+                         AND fi.date_inventaire >= (date_trunc('month', fi.date_inventaire)
+                                                    + interval '1 month' - interval '3 days')::date) AS a_inventaire,
               EXISTS (SELECT 1 FROM dqa.fact_requisition fr
                        WHERE fr.site_id = sp.site_id AND fr.programme_id = sp.programme_id
                          AND fr.mois_couvert = $2) AS a_requisition
@@ -1335,7 +1345,7 @@ export class IndicateursRepository {
                   AND ($3::text IS NULL OR ft.programme_id = $3)
               ) AS a_sortie
        FROM dqa.dim_temps t
-       WHERE t.mois_paqd = $2
+       WHERE t.mois_paqd = $2 AND t.jour <= CURRENT_DATE
        ORDER BY t.jour`,
       params,
     );
@@ -1524,7 +1534,8 @@ export class IndicateursRepository {
     siteId: string,
     mois: string,
     prog: string | null,
-  ): Promise<Pick<DetailPilierP4, 'produits'> & { coreMajLe: Date | null }> {
+    estDistrict: boolean,
+  ): Promise<Pick<DetailPilierP4, 'produits' | 'estDistrict'> & { coreMajLe: Date | null }> {
     const params = [siteId, mois, prog];
 
     // `mv_p4_ecart_produit` restreint déjà aux sites du périmètre et aux
@@ -1571,7 +1582,7 @@ export class IndicateursRepository {
              AND to_char(fi.date_inventaire, 'YYYY-MM') = $2
              AND ($3::text IS NULL OR fi.programme_id = $3)),
          (SELECT max(ft.maj_le) FROM dqa.fact_transaction ft
-           WHERE ft.site_id = $1 AND ft.nature IN ('reception', 'dispensation')
+           WHERE ft.site_id = $1 AND ft.nature IN ('reception', 'dispensation', 'distribution')
              AND coalesce(ft.annulation, false) = false
              AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $2
              AND ($3::text IS NULL OR ft.programme_id = $3))
@@ -1599,14 +1610,14 @@ export class IndicateursRepository {
             ecartPct: Number(r.ecart_conso_pct),
             conforme: r.conso_conforme,
           }
-        : { evaluable: false, raisonExclusion: r.conso_raison_exclusion ?? 'un_seul_inventaire' },
+        : { evaluable: false, raisonExclusion: r.conso_raison_exclusion ?? 'aucune_borne' },
       concordance: {
         tauxPct: nombreOuNull(r.concordance_pct),
         conforme: r.concordance_conforme,
       },
     }));
 
-    return { produits, coreMajLe: maj.rows[0]?.core_maj_le ?? null };
+    return { produits, estDistrict, coreMajLe: maj.rows[0]?.core_maj_le ?? null };
   }
 
   /**

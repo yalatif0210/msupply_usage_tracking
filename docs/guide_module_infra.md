@@ -44,15 +44,18 @@ docker compose -f docker-compose.demo.yml down -v
 - **`seed`** — `postgres:16-alpine` qui joue `db/demo/seed.sql` une fois l'API
   saine (donc les migrations passées). Purge le core, insère 11 sites de strates
   variées (dont un district et sa zone de trois sites rattachés) + la fin du
-  cycle C2 (2026-05 à 2026-08) et le début du C3 (2026-09) +
-  inventaires / mouvements sur 4 traceurs, un lot d'import par mois plus un
-  cinquième lot « extraction du 5 septembre » à fenêtre de 45 jours qui
-  chevauche août et septembre : il apporte les premiers jours de septembre ET
-  les réquisitions d'août du CHU et du District, et le gel corrige alors le
-  score d'août (encore ouvert) à la hausse sans redéclaration (ADR 0010).
-  2026-08 et 2026-09 sont les mois en cours au regard de la date du jour, leur
-  score est provisoire. `web` attend sa fin (`service_completed_successfully`) :
-  au premier accès les écrans sont déjà peuplés. Rejouable :
+  cycle C2 (2026-05 à 2026-08) et le début du C3 (2026-09). Les trajectoires de
+  stock des 4 traceurs sont **générées** (bloc `DO` + table `_plan`) pour se
+  réconcilier sur des fenêtres d'un mois : deux inventaires en mai (borne
+  d'ouverture intra-mois), un inventaire de fin de mois ensuite, réception et
+  dispensations mensuelles calées sur `compté(M) = compté(M-1) + réceptions -
+  sorties`. Un lot d'import par mois plus un cinquième « extraction du 5
+  septembre » à fenêtre de 45 jours qui chevauche août et septembre : il apporte
+  les premiers jours de septembre ET les réquisitions d'août du CHU et du
+  District, et le gel corrige alors le score d'août (encore ouvert) sans
+  redéclaration (ADR 0010). 2026-08 et 2026-09 sont les mois en cours au regard
+  de la date du jour, leur score est provisoire. `web` attend sa fin
+  (`service_completed_successfully`). Rejouable :
   `docker compose -f docker-compose.demo.yml run --rm seed`.
 - **`web`** — build Angular (`@angular/build:application` → `dist/browser/`)
   servi par `nginx:1.27-alpine` ; `apps/web/nginx.conf` : `try_files` pour le
@@ -67,15 +70,16 @@ piliers » :
 | Écran | À regarder |
 |---|---|
 | Tableau de bord, `/synthese`, fiches site et produit | sélecteur « Mois affiché » : 2026-05 à 2026-09 ; repère « Mois en cours · score provisoire » sur 2026-08 et 2026-09 |
-| Tableau de bord | courbe de progression nationale sur 5 points (34 → 46,6 → 66,4 → 60,1 → 49,3 ; les deux derniers provisoires) |
-| Fiche site (`/sites/SITE-CHU`), plage « Tout » | « Progression (score composite) » 42,5 → 62,5 → 87,5 → 62,5 → 66,7 : août est passé de 51,7 (réquisitions manquantes) à 62,5 quand le lot du 5 septembre les a rapportées, sans redéclarer août |
-| Fiche site 2026-09 | mois à 5 jours de données : score volatil, repère « Mois en cours », historique qui démarre au cycle C3 (bouton « Tout » pour voir les 5 mois) |
-| Fiche site (`/sites/SITE-DIST`) | district : P3 « Régularité de saisie (distribution) », seuil 80 %, mesure la réponse aux réquisitions de la zone (juin 2/3, juillet 3/3, août 2/3, sept 1/3) ; détail P3 = le couple réquisitions de zone / servies au lieu du bandeau calendaire (ADR 0011) |
+| Tableau de bord | courbe de progression nationale sur 5 points (91,7 → 89,7 → 92,9 → 87,4 → 66,8 ; les deux derniers provisoires — septembre chute car aucun site n'y a fait son inventaire de fin de mois) |
+| Fiche site (`/sites/SITE-HG`), mois d'août | exemple du manuel : P1/P2/P3/P6 à 100, P4 à 50 (1 produit SDU hors tolérance sur 2), P5 à 0 (concordance 98,3 % sous le seuil de 100 %) → composite 62,5 NON CONFORME |
+| Fiche site (`/sites/SITE-DIST`) | district : P3 « Régularité de saisie (distribution) », seuil 80 %, réponse aux réquisitions de la zone (juin 2/3, juillet 3/3, août 2/3, sept 1/3) ; détail P3 = le couple réquisitions de zone / servies au lieu du bandeau calendaire (ADR 0011) ; « Écart distribution » à la place de « Écart consommation » |
+| Fiche site 2026-09 | mois à 5 jours de données : P3 mesuré sur les jours écoulés (~100 % pour un site régulier), P1/P2 à 0 faute d'inventaire de fin de mois → composite ~75, repère « Mois en cours » |
+| Fiche site (`/sites/SITE-CHR`) | vigilance chronique : P3 faible, écart SDU hors tolérance mai-juin, réquisition en retard, ajustements → NON CONFORME tous les mois |
 | Fiche site (`/sites/SITE-REIMP`) | avertissement « données du core modifiées depuis le gel » |
-| Fiche site (`/sites/SITE-CSU`) | réquisition et inventaire manquants pour le mois |
+| Fiche site (`/sites/SITE-CSU`) | réquisition jamais soumise → « rapport manquant », PARTIELLEMENT CONFORME |
 | `/synthese` onglet « Rapports & inventaires » | strates CHU / CHR / HG / ESPC / CS / District ; « Non classé » pour l'Institut |
 | `/admin/strates` | `Institut` sans correspondance |
-| Fiche produit-mois | depuis un code produit du tableau P4·P5 de `SITE-CHU` (ARV : deux inventaires bornants, photos de stock) |
+| Fiche produit-mois | depuis un code produit du tableau P4·P5 de `SITE-HG` (ARV : bornes inter-mois, photos de stock) |
 
 Pour tester l'import réel : se connecter en `coordination`, écran
 **Imports**, déposer un classeur au format du canevas

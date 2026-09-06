@@ -80,12 +80,21 @@ describe('administration des produits traceurs', () => {
       SELECT 'INVX','IX','L',100,100, id FROM dqa.import_lot WHERE nom_fichier='x'`);
 
     await base.pool.query(`REFRESH MATERIALIZED VIEW dqa.mv_p5_concordance`);
-    const avant = await base.pool.query(`SELECT 1 FROM dqa.mv_p5_concordance WHERE site_id='SX'`);
-    expect(avant.rowCount).toBeGreaterThan(0);
+    const avant = await base.pool.query<{ taux_concordance_pct: string | null; nb_produits: number }>(
+      `SELECT taux_concordance_pct, nb_produits FROM dqa.mv_p5_concordance
+       WHERE site_id='SX' AND programme_id IS NULL`,
+    );
+    expect(Number(avant.rows[0]?.nb_produits)).toBeGreaterThan(0);
 
     await a.put('/api/admin/traceurs/3100014-ARV').send({ actif: false });
     await base.pool.query(`REFRESH MATERIALIZED VIEW dqa.mv_p5_concordance`);
-    const apres = await base.pool.query(`SELECT 1 FROM dqa.mv_p5_concordance WHERE site_id='SX'`);
-    expect(apres.rowCount).toBe(0);
+    // le site a un inventaire du mois (ligne forcée, ADR 0012) mais plus aucun
+    // traceur exploitable → concordance NON_CALCULABLE, exclue de l'agrégat.
+    const apres = await base.pool.query<{ taux_concordance_pct: string | null; nb_produits: number }>(
+      `SELECT taux_concordance_pct, nb_produits FROM dqa.mv_p5_concordance
+       WHERE site_id='SX' AND programme_id IS NULL`,
+    );
+    expect(Number(apres.rows[0]?.nb_produits)).toBe(0);
+    expect(apres.rows[0]?.taux_concordance_pct).toBeNull();
   });
 });

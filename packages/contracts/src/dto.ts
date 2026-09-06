@@ -429,9 +429,16 @@ export type HistoriqueQuery = z.infer<typeof historiqueQuerySchema>;
 
 // ─── Tableau produit P4 · P5 (écart SDU / consommation + concordance) ────────
 
-/** Raison pour laquelle un produit est exclu du calcul de l'écart consommation. */
+/**
+ * Raison pour laquelle un produit est exclu du calcul de l'écart consommation.
+ *
+ * - `aucune_borne` : pas de borne d'ouverture exploitable (ni dernier inventaire
+ *   du mois M-1, ni deux inventaires de dates différentes dans le mois M).
+ * - `reconstituee_non_positive` : bornes présentes mais la consommation
+ *   reconstituée (`stock ouverture + réceptions − stock clôture`) est ≤ 0.
+ */
 export const raisonExclusionConsoSchema = z.enum([
-  'un_seul_inventaire',
+  'aucune_borne',
   'reconstituee_non_positive',
 ]);
 export type RaisonExclusionConso = z.infer<typeof raisonExclusionConsoSchema>;
@@ -615,7 +622,11 @@ export type ReponseZoneP3 = z.infer<typeof reponseZoneP3Schema>;
 
 export const detailPilierP3Schema = detailPilierBaseSchema.extend({
   code: z.literal('p3'),
-  /** Un item par jour calendaire du mois PAQD (28 à 31) ; vide pour un district. */
+  /**
+   * Un item par jour écoulé du mois PAQD (compteur au fil de l'eau, borné au
+   * mois : jusqu'à aujourd'hui pour le mois en cours, tous les jours pour un
+   * mois clos). Vide pour un district (voir `reponseZone`).
+   */
   jours: z.array(jourP3Schema),
   /** Renseigné pour un district : remplace le bandeau calendaire. `null` sinon. */
   reponseZone: reponseZoneP3Schema.nullable(),
@@ -647,6 +658,12 @@ export type DetailPilierP6 = z.infer<typeof detailPilierP6Schema>;
  */
 export const detailPilierP4Schema = detailPilierBaseSchema.extend({
   code: z.literal('p4'),
+  /**
+   * Vrai si le site est un district : l'écart consommation se lit « écart
+   * distribution » et la consommation déclarée compte les quantités distribuées
+   * au lieu des dispensations (même reconstruction).
+   */
+  estDistrict: z.boolean(),
   produits: z.array(ligneProduitP4P5Schema),
 });
 export type DetailPilierP4 = z.infer<typeof detailPilierP4Schema>;
@@ -712,10 +729,12 @@ export const ajustementFicheProduitSchema = z.object({
 export type AjustementFicheProduit = z.infer<typeof ajustementFicheProduitSchema>;
 
 /**
- * Consommation du produit sur le mois. `reconstituee = stockDébut + réceptions
- * − stockFin` entre les deux inventaires bornants ; `declaree` = Σ dispensations
- * sur le même intervalle ; `ecart = declaree − reconstituee`. Les trois sont
- * `null` quand le produit n'a pas deux inventaires bornants dans le mois.
+ * Consommation du produit sur le mois M. Bornes : ouverture = dernier inventaire
+ * finalisé du mois M-1 (à défaut, premier inventaire de M si M en a deux) ;
+ * clôture = dernier inventaire finalisé de M. `reconstituee = stock ouverture +
+ * réceptions − stock clôture` ; `declaree` = Σ dispensations (ou Σ quantités
+ * distribuées pour un district) sur l'intervalle ; `ecart = declaree −
+ * reconstituee`. `null` quand aucune borne d'ouverture n'est exploitable.
  */
 export const consommationFicheProduitSchema = z.object({
   reconstituee: z.number().nullable(),

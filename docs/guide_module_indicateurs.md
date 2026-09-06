@@ -79,16 +79,18 @@ core a été ré-importé après le gel (`coreMajLe > calculeLe`).
 **P1 — complétude des transactions** (`mv_p1_completude`) : trois
 sous-composantes, seuil grille 100 %.
 - `completude_inventaires` : programmes gérés (`dim_site_programme` actif) avec
-  ≥ 1 inventaire finalisé ce mois ÷ programmes gérés.
+  ≥ 1 inventaire finalisé **daté dans les trois derniers jours du mois** ÷
+  programmes gérés (ADR 0012, migration 0037 — même prédicat que
+  `promptitude_inventaires`, les deux sous-composantes sont désormais
+  identiques, c'est voulu).
 - `completude_requisitions` : programmes gérés avec ≥ 1 réquisition
   `mois_couvert = mois PAQD` ÷ programmes gérés.
 - `completude_receptions` : réceptions finalisées ce mois ÷ factures
   fournisseur du mois ; NON_CALCULABLE si aucune facture.
 
 Une ligne P1 n'existe que pour un mois où le site a une activité (inventaire,
-réquisition, réception ou facture) : un mois vide reste un état vide, pas un
-score de zéro. Score de pilier P1 = moyenne simple des sous-composantes
-calculables.
+réquisition, réception ou facture). Score de pilier P1 = moyenne simple des
+sous-composantes calculables.
 
 **P2 — promptitude des transactions** (`mv_p2_promptitude`) : deux
 sous-composantes, **seuil grille 100 %**, dénominateur = **programmes gérés**
@@ -109,11 +111,16 @@ simple des deux sous-composantes.
 
 **P3 — régularité de saisie** (`mv_p3_regularite`, branche `UNION ALL`) :
 
-- **Sites qui dispensent** : jours du mois PAQD avec au moins une sortie de
-  stock (`nature ∈ {dispensation, distribution}`) ÷ jours calendaires du mois.
-  Aucun jour n'est retranché — en milieu hospitalier la dispensation a lieu
-  7 j/7, le PAQD ne défalque ni week-ends ni fériés (arbitrage coordination du
-  2026-08-31, migration 0024). Seuil grille `regularite_saisie` = 65 %.
+- **Sites qui dispensent** (tout site non-district du périmètre) : jours du mois
+  avec au moins une sortie de stock (`nature ∈ {dispensation, distribution}`) ÷ **jours écoulés
+  du mois, plafonnés au nombre de jours du mois** (`least(count(*), CURRENT_DATE
+  − 1er du mois + 1)`). Compteur au fil de l'eau : un mois en cours est mesuré
+  sur les jours écoulés, un mois clos sur tous ses jours ; il se stabilise seul
+  à la clôture. Aucun jour n'est retranché — dispensation 7 j/7 (migration
+  0024). **Toujours calculable** : une ligne « tous programmes » existe pour
+  chaque `(site non-district, mois couvert par un import)`, 0 sortie ⇒ 0 %
+  (ADR 0012, migration 0037), plus jamais NON_CALCULABLE. Seuil grille
+  `regularite_saisie` = 65 %.
 - **Districts** (`strate_de(type_structure) = 'District'`, ADR 0011, migration
   0036) : réquisitions DISTINCTES de la zone (sites du périmètre du même
   `dim_site.district`, hors le district lui-même) couvrant M-1, servies dans le
@@ -126,10 +133,11 @@ Sous-composante unique `regularite_saisie` : calcul, seuil et libellé
 (« (dispensation) » vs « (distribution) ») s'adaptent au type de site. La
 colonne `est_district` de `mv_p3_regularite` dit quelle branche a produit la
 valeur ; `mv_score_pilier` et `v_sous_composante_atteinte` choisissent le
-seuil en conséquence, la synthèse en hérite. NON_CALCULABLE si aucune donnée
-exploitable (aucune sortie, ou aucune réquisition de zone) → pas de ligne.
-`DetailSite.estDistrict` sert au front pour le libellé ; le détail P3 d'un
-district porte `reponseZone` (le couple de comptes) au lieu de `jours`.
+seuil en conséquence, la synthèse en hérite. Un **district** reste
+NON_CALCULABLE tant qu'aucune réquisition de zone n'est à évaluer → pas de
+ligne. `DetailSite.estDistrict` sert au front pour le libellé ; le détail P3
+d'un district porte `reponseZone` (le couple de comptes) au lieu de `jours`,
+et `jours` (mois non-district) ne liste que les jours écoulés.
 
 **P4 · Taux de conformité** (`mv_p4_ecart`) : libellé de pilier « Taux de
 conformité » ; deux sous-composantes (`ecart_sdu`, `ecart_consommation`) en
@@ -138,12 +146,20 @@ grille, pas une amplitude d'écart).
 - `ecart_sdu` : `|théorique − compté| / compté ≤ tolérance` au dernier
   inventaire finalisé du mois par produit ; compté (réalité) au dénominateur.
   Cas limites : compté 0 / théorique 0 → conforme ; compté 0 / théorique > 0 →
-  non conforme. NON_CALCULABLE si aucun produit traceur inventorié.
-- `ecart_consommation` : `|déclarée − reconstituée| / reconstituée ≤ tolérance`
-  entre le premier et le dernier inventaire du mois. `reconstituée =
-  stock_début + réceptions − stock_fin` sur l'intervalle `(d_début, d_fin]`.
-  Produit sans deux inventaires bornants ou reconstituée ≤ 0 → exclu.
-  NON_CALCULABLE si aucun produit évaluable.
+  non conforme. **0 %** (grain tous programmes) si le site n'a aucun inventaire
+  finalisé daté dans le mois (ADR 0012).
+- `ecart_consommation` : `|déclarée − reconstituée| / reconstituée ≤ tolérance`.
+  Bornes **inter-mois** (migration 0037) : `d_début` = dernier inventaire
+  finalisé du mois **M-1**, `d_fin` = dernier inventaire finalisé de **M** ;
+  à défaut d'inventaire en M-1, fallback sur le premier / dernier inventaire de
+  M (s'il y en a deux). `reconstituée = stock(d_début) + réceptions − stock(d_fin)`
+  sur `(d_début, d_fin]` ; `déclarée` = Σ dispensations sur l'intervalle, ou
+  Σ quantités distribuées pour un **district** (`nature = distribution`, la
+  sous-composante se lit « écart distribution »). Produit sans borne
+  d'ouverture → exclu (`conso_raison_exclusion = 'aucune_borne'`) ;
+  reconstituée ≤ 0 → exclu (`'reconstituee_non_positive'`). **0 %** (grain tous
+  programmes) si aucune borne d'ouverture exploitable ; NON_CALCULABLE seulement
+  si des bornes existent mais qu'aucune reconstituée n'est positive.
 
 Le score de pilier P4 (`p_ecart_sdu`, hérité du nom historique) est la moyenne
 simple des scores des deux sous-composantes calculables. Tolérance (2 %) et
@@ -177,10 +193,11 @@ Chaque réponse porte aussi les `comptesBruts` figés du pilier, `calculeLe`
 Variantes livrées : `p1` (inventaires / réquisitions / réceptions / factures du
 mois + état par programme géré), `p2` (inventaires avec « dans les 3 derniers
 jours », réquisitions avec date limite — règles de la migration 0020 — et « à
-l'heure »), `p3` (un item par jour calendaire du mois PAQD, `aSortie` = au moins
-une `dispensation` / `distribution` non annulée ce jour ; mêmes prédicats que
-`mv_p3_regularite`), `p4` (tableau produit P4 · P5 fusionné, lu de
-`mv_p4_ecart_produit` avec la concordance par produit) et `p6` (les seuls
+l'heure »), `p3` (un item par jour **écoulé** du mois PAQD — borné à
+`CURRENT_DATE` —, `aSortie` = au moins une `dispensation` / `distribution` non
+annulée ce jour ; district : `reponseZone` au lieu de `jours`), `p4` (tableau
+produit P4 · P5 fusionné + `estDistrict` ; l'écart consommation se lit « écart
+distribution » pour un district) et `p6` (les seuls
 mouvements d'ajustement : date, produit, quantité, sens, plus `nbMouvements`, le
 dénominateur de `mv_p6_ajustements` ; ajustement = ligne `issu_ajustement` ou
 nature `ajustement_*`). `p5` est servi par la variante `p4`. Le filtre
@@ -212,11 +229,12 @@ piliers P3 à P6 : les inventaires finalisés du mois portant le produit (stock
 théorique mSupply vs stock physique compté, écart), les photos `fact_stock_snapshot`
 du mois, les réceptions finalisées, le total dispensé + le nombre de jours avec
 dispensation, les ajustements (même prédicat que P6), et la consommation
-reconstituée (`stockDébut + réceptions − stockFin` entre les deux inventaires
-bornants) vs déclarée avec leur écart. Le détail est lu **en direct des `fact_*`** ;
-`consommation`, `stockDebut` et `stockFin` sont repris de `mv_p4_ecart_produit`
-(mêmes calculs que l'écart consommation P4, migration 0017) et valent `null` sans
-deux inventaires bornants. `mois` par défaut = le plus récent mesuré du site
+reconstituée (`stock ouverture + réceptions − stock clôture` entre les bornes
+inter-mois de l'écart consommation P4, cf. plus haut) vs déclarée avec leur
+écart. Le détail est lu **en direct des `fact_*`** ; `consommation`,
+`stockDebut` et `stockFin` sont repris de `mv_p4_ecart_produit` (mêmes calculs
+que l'écart consommation P4) et valent `null` sans borne d'ouverture
+exploitable. `mois` par défaut = le plus récent mesuré du site
 (`hist_score_site`) ; `programmeId` restreint les lignes de core. La réponse porte
 `calculeLe` (gel des comptes du mois, `hist_pilier_brut` à défaut `hist_score_site`),
 `coreMajLe` (`max(maj_le)` des lignes de core lues) et `reimporteDepuisLeGel`

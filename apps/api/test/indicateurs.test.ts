@@ -133,9 +133,9 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect((await scorePilier(null))?.p_ajustements).toBe('0.0');
   });
 
-  it('P5 NON_CALCULABLE sans inventaire exploitable', async () => {
+  it('P5 à 0 % sans inventaire du mois (ADR 0012 : le silence est un signal)', async () => {
     await socle({ avecInventaire: false, nbMouvements: 4 });
-    expect((await scorePilier(null))?.p_concordance).toBeNull();
+    expect((await scorePilier(null))?.p_concordance).toBe('0.0');
   });
 
   it('exclut un site hors périmètre', async () => {
@@ -208,15 +208,13 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect((await scorePilier(null))?.p_regularite).toBe('100.0');
   });
 
-  it('P3 NON_CALCULABLE quand le site n\'a aucune sortie sur le mois', async () => {
-    await socle({ nbMouvements: 0 }); // inventaire présent → P5 calculable, mais aucune sortie
-    const { rowCount } = await db.query(
-      `SELECT 1 FROM dqa.mv_p3_regularite WHERE site_id = 'S1'`,
-    );
-    expect(rowCount).toBe(0);
+  it('P3 à 0 % quand un site de soins n\'a aucune sortie du mois (ADR 0012)', async () => {
+    await socle({ nbMouvements: 0 }); // inventaire présent, aucune sortie → P3 = 0 %, pas NON_CALCULABLE
+    const v = await p3();
+    expect(v?.nb_jours_avec_sortie).toBe(0);
+    expect(v?.taux_regularite_pct).toBe('0.0');
     const sp = await scorePilier(null);
-    expect(sp).toBeDefined();
-    expect(sp?.p_regularite).toBeNull();
+    expect(sp?.p_regularite).toBe('0.0');
   });
 
   it('le composite intègre P3 dans la renormalisation', async () => {
@@ -224,8 +222,12 @@ describe('vues d\'indicateurs, composite et gel', () => {
     // → (0·15 + 100·25 + 100·25 + 100·10) / (15 + 25 + 25 + 10) = 6000 / 75 = 80.0
     await socle({
       comptee: 100, theorique: 100, nbMouvements: 0,
-      sorties: joursAout.slice(0, 4).map((j) => ({ jour: j })),
+      sorties: joursAout.slice(0, 4).map((j) => ({ jour: j })),  // 1 sortie dans (03/08, 28/08] : le 04/08
     });
+    // borne d'ouverture pour que l'écart consommation soit conforme (P4 = 100) :
+    // reconstituée = 101 − 100 = 1 = déclarée (04/08).
+    await inventaire('INV0', '2026-08-03', 'I1', 101, 101);
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     const sp = await scorePilier(null);
     expect(sp?.p_regularite).toBe('0.0');
     expect(sp?.score_composite).toBe('80.0');
@@ -259,7 +261,7 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect(sc?.sc_concordance).toBe('100.0'); // compté = théorique
     expect(sc?.sc_ratio_ajustements).toBe('0.0'); // 0 ajustement sur 10 mouvements
     expect(sc?.sc_completude_inventaires).toBeNull(); // P1 non calculable (aucun programme géré)
-    expect(sc?.sc_ecart_consommation).toBeNull(); // un seul inventaire dans le mois
+    expect(sc?.sc_ecart_consommation).toBe('0.0'); // traceur inventorié sans borne d'ouverture → 0 % (ADR 0012)
   });
 
   it('le rattrapage repeuple les dix sc_* remis à NULL avec les mêmes valeurs', async () => {
@@ -392,8 +394,11 @@ describe('vues d\'indicateurs, composite et gel', () => {
   it('P4 écart SDU NON_CALCULABLE sans produit traceur inventorié', async () => {
     await db.query(`DELETE FROM dqa.dim_produit_traceur`);
     await socle({ nbMouvements: 4 }); // mouvements → P6 calculable, mais aucun traceur
-    const { rowCount } = await db.query(`SELECT 1 FROM dqa.mv_p4_ecart WHERE site_id = 'S1'`);
-    expect(rowCount).toBe(0);
+    // le site a un inventaire du mois mais sans traceur exploitable → ligne forcée
+    // (grain tous programmes), taux SDU et conso NULL (ADR 0012).
+    const v = await p4();
+    expect(v?.taux_sdu_pct).toBeNull();
+    expect(v?.taux_conso_pct).toBeNull();
     expect((await scorePilier(null))?.p_ecart_sdu).toBeNull();
   });
 
@@ -410,15 +415,15 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect(v?.score_conso).toBe('100.0');
   });
 
-  it('P4 écart consommation : un seul inventaire → produit exclu → NON_CALCULABLE', async () => {
-    await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // seul INV1
+  it('P4 écart consommation : un seul inventaire du mois → 0 % / ALERTE (ADR 0012)', async () => {
+    await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // seul INV1, pas de borne d'ouverture
     const v = await p4();
     expect(v?.taux_sdu_pct).not.toBeNull();     // SDU reste calculable
     expect(v?.nb_produits_conso).toBe(0);
-    expect(v?.taux_conso_pct).toBeNull();
-    expect(v?.score_conso).toBeNull();
-    // score de pilier P4 = moyenne des seules sous-composantes calculables = SDU
-    expect((await scorePilier(null))?.p_ecart_sdu).toBe(v?.score_sdu);
+    expect(v?.taux_conso_pct).toBe('0.0');      // traceur inventorié sans borne → 0 %
+    expect(v?.score_conso).toBe('0.0');
+    // score de pilier P4 = moyenne (SDU conforme 100, conso 0) = 50
+    expect((await scorePilier(null))?.p_ecart_sdu).toBe('50.0');
   });
 
   it('P4 écart consommation : reconstituée ≤ 0 → produit exclu', async () => {
@@ -451,12 +456,13 @@ describe('vues d\'indicateurs, composite et gel', () => {
        FROM dqa.hist_score_site WHERE site_id = 'S1' AND programme_id IS NULL`,
     );
     expect(rows[0].mois_paqd).toBe('2026-08');
-    // P1 et P2 sans programme géré déclaré → NULL ; P3 sans sortie → NULL ;
-    // P4, P5, P6 gelés
+    // P1 et P2 sans programme géré déclaré → NULL ; P3 sans sortie → 0 % (ADR 0012) ;
+    // P4 = moyenne (SDU conforme 100, conso 0 faute de borne d'ouverture) = 50 ;
+    // P5, P6 conformes
     expect(rows[0].p_completude).toBeNull();
     expect(rows[0].p_promptitude).toBeNull();
-    expect(rows[0].p_regularite).toBeNull();
-    expect(rows[0].p_ecart_sdu).toBe('100.0');
+    expect(rows[0].p_regularite).toBe('0.0');
+    expect(rows[0].p_ecart_sdu).toBe('50.0');
     expect(rows[0].p_concordance).toBe('100.0');
     expect(rows[0].p_ajustements).toBe('100.0');
     expect(rows[0].grille_id).not.toBeNull();
@@ -464,24 +470,33 @@ describe('vues d\'indicateurs, composite et gel', () => {
   });
 
   it('renormalise le composite sur les seuls piliers calculables', async () => {
-    // socle : P1, P2, P3 absents → leurs poids (10 + 15 + 15) sortent du dénominateur.
-    // P4 hors tolérance (0), P5 sous le seuil (0), P6 conforme (100).
-    // Composite = (0·25 + 0·25 + 100·10) / (25 + 25 + 10) = 1000 / 60 = 16.7
+    // socle : P1, P2 absents → leurs poids (10 + 15) sortent du dénominateur.
+    // P3 à 0 % (aucune sortie, ADR 0012), P4 hors tolérance (0), P5 sous le seuil
+    // (0), P6 conforme (100).
+    // Composite = (0·15 + 0·25 + 0·25 + 100·10) / (15 + 25 + 25 + 10) = 1000 / 75 = 13.3
     await socle({ comptee: 70, theorique: 100, nbMouvements: 10, nbAjustements: 0 });
     const tous = await scorePilier(null);
     expect(tous?.p_completude).toBeNull();
     expect(tous?.p_promptitude).toBeNull();
-    expect(tous?.p_regularite).toBeNull();
+    expect(tous?.p_regularite).toBe('0.0');
     expect(tous?.p_ecart_sdu).toBe('0.0');
     expect(tous?.p_concordance).toBe('0.0');
     expect(tous?.p_ajustements).toBe('100.0');
-    expect(tous?.score_composite).toBe('16.7');
+    expect(tous?.score_composite).toBe('13.3');
     expect(tous?.classification).toBe('NON_CONFORME');
   });
 
-  it('composite = 100 et CONFORME quand P4, P5 et P6 sont tous conformes', async () => {
-    await socle({ comptee: 100, theorique: 100, nbMouvements: 10, nbAjustements: 0 });
+  it('composite = 100 et CONFORME quand P3, P4, P5 et P6 sont tous conformes', async () => {
+    await socle({
+      comptee: 100, theorique: 100, nbMouvements: 10, nbAjustements: 0,
+      sorties: joursAout.slice(0, 25).map((j) => ({ jour: j })), // 25 / 31 → P3 conforme
+    });
+    // borne d'ouverture : 22 sorties dans (03/08, 28/08] → reconstituée = 22 = déclarée
+    await inventaire('INVOUV', '2026-08-03', 'I1', 122, 122);
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     const tous = await scorePilier(null);
+    expect(tous?.p_regularite).toBe('100.0');
+    expect(tous?.p_ecart_sdu).toBe('100.0');
     expect(tous?.score_composite).toBe('100.0');
     expect(tous?.classification).toBe('CONFORME');
   });
@@ -550,9 +565,11 @@ describe('vue P1 — complétude des transactions', () => {
     await db.query(`INSERT INTO dqa.dim_site_programme (site_id, programme_id, actif) VALUES ('S1',$1,true)`, [id]);
   };
   const inventaireFinalise = async (id: string, programme: string) => {
+    // daté dans les 3 derniers jours du mois : la complétude P1 des inventaires
+    // exige désormais cette fenêtre (ADR 0012).
     await db.query(
       `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
-       VALUES ($1,'S1',$2,'2026-08-20','fn',1)`,
+       VALUES ($1,'S1',$2,'2026-08-29','fn',1)`,
       [id, programme],
     );
   };

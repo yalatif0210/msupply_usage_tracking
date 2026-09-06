@@ -59,6 +59,14 @@ bord national comme sur la fiche site. Il disparaît une fois le mois
 tardive), plus aucune donnée ne peut encore arriver pour ce mois, et le score
 affiché est définitif.
 
+La régularité de saisie (P3) est un **compteur au fil de l'eau** : sur un mois
+en cours, elle est mesurée sur les jours déjà écoulés (un site qui dispense
+chaque jour ouvré reste proche de 100 %), pas sur le mois entier. Les autres
+piliers, eux, partent bas tant que l'inventaire et la réquisition de fin de
+mois ne sont pas arrivés : un mois en cours affiche donc presque toujours un
+score plus faible que le mois précédent clos, sans que ce soit un mauvais
+signe en soi.
+
 ---
 
 ## 2. Les rôles
@@ -182,10 +190,11 @@ score du pilier est la moyenne simple de ses sous-composantes calculables.
 
 ## 5. Le calcul, pilier par pilier
 
-Les six formules ci-dessous sont illustrées par le même exemple réel : **le
-CHU de Treichville (SITE-CHU), mois de juin 2026**, tel qu'il apparaît dans le
-jeu de démonstration. Score composite du site ce mois-là : **62,5 / 100**,
-classé **NON CONFORME**. Le calcul complet est repris section 6.
+Les six formules ci-dessous sont illustrées par le même exemple réel :
+**l'hôpital général d'Abengourou (SITE-HG), mois d'août 2026**, tel qu'il
+apparaît dans le jeu de démonstration. Score composite du site ce mois-là :
+**62,5 / 100**, classé **NON CONFORME** — alors que quatre piliers sur six sont
+parfaitement conformes. Le calcul complet est repris section 6.
 
 ### P1 · Complétude des transactions (poids 10 %, seuil 100 %)
 
@@ -193,16 +202,20 @@ Trois sous-composantes, chacune un ratio **programmes gérés avec l'activité
 attendue ÷ programmes gérés** :
 
 - **Complétude des inventaires** : programmes gérés ayant reçu au moins un
-  inventaire finalisé ce mois.
+  inventaire finalisé **dans les trois derniers jours du mois**. Un inventaire
+  de milieu de mois ne tient pas lieu d'inventaire de fin de mois : cette
+  sous-composante et la promptitude des inventaires (P2) sont désormais
+  identiques, l'échéance de fin de mois pèse alors 10 % (P1) + 15 % (P2).
 - **Complétude des réquisitions** : programmes gérés ayant soumis au moins une
   réquisition couvrant ce mois.
 - **Complétude des réceptions** : réceptions finalisées ce mois ÷ factures
   fournisseur du mois (non calculable si aucune facture).
 
-**Exemple (SITE-CHU, juin 2026) :** le site gère 2 programmes (VIH, Paludisme).
-2 inventaires réalisés sur 2 attendus → 100 %. 2 réquisitions sur 2 attendues
-→ 100 %. 1 réception sur 1 facture → 100 %. Les trois sous-composantes sont
-CONFORME (seuil 100 %) : **score P1 = 100**.
+**Exemple (SITE-HG, août 2026) :** l'hôpital gère 1 programme (VIH). 1
+inventaire finalisé le 29 août (dans les 3 derniers jours) sur 1 attendu
+→ 100 %. 1 réquisition sur 1 attendue → 100 %. 2 réceptions sur 2 factures
+fournisseur → 100 %. Les trois sous-composantes sont CONFORME (seuil 100 %) :
+**score P1 = 100**.
 
 ### P2 · Promptitude des transactions (poids 15 %, seuil = 100 %)
 
@@ -220,22 +233,31 @@ compte cette fois ceux dont l'activité est arrivée **à temps** :
 Un programme géré qui n'a rien soumis compte 0, jamais « non calculable » :
 ne rien transmettre pénalise ce pilier.
 
-**Exemple :** la réquisition VIH du CHU est soumise le 2026-07-08, limite le
-2026-07-10 (CHU → 10 jours) : à l'heure. Les 2 inventaires et les 2
-réquisitions du site sont à l'heure : **score P2 = 100**.
+**Exemple :** la réquisition VIH de SITE-HG couvrant août est soumise le
+2026-09-03, limite le 2026-09-07 (HG → 7 jours) : à l'heure. L'inventaire du
+29 août est dans les 3 derniers jours. Inventaire et réquisition à l'heure :
+**score P2 = 100**.
 
 ### P3 · Régularité de saisie (poids 15 %)
 
 Une seule sous-composante, mais elle se mesure différemment selon le type de
 site.
 
-**Sites qui dispensent (seuil ≥ 65 %).** **Jours du mois PAQD avec au moins une
-sortie de stock (dispensation ou distribution) ÷ jours calendaires du mois.**
-Aucun jour n'est retranché : la dispensation a lieu 7 jours sur 7 en milieu
-hospitalier, ni les week-ends ni les jours fériés ne sont défalqués.
+**Sites qui dispensent (seuil ≥ 65 %).** **Jours du mois avec au moins une
+sortie de stock (dispensation) ÷ jours du mois.** Aucun jour n'est retranché :
+la dispensation a lieu 7 jours sur 7 en milieu hospitalier, ni les week-ends ni
+les jours fériés ne sont défalqués. C'est un **compteur au fil de l'eau, borné
+au mois** : le dénominateur croît jour après jour et plafonne au dernier jour
+du mois. Un mois en cours est mesuré sur les jours écoulés (au 5 septembre, un
+site qui dispense chaque jour ouvré est à ~100 %), un mois clos sur tous ses
+jours ; le mois se stabilise de lui-même à sa clôture.
 
-*Exemple :* juin compte 30 jours ; le CHU a enregistré une dispensation sur 26
-d'entre eux → 26 / 30 = **86,7 %**, au-dessus du seuil de 65 % : **score
+P3 est **toujours calculable** pour un site de soins : aucune sortie sur les
+jours écoulés vaut **0 %** / ALERTE, jamais « non calculable ». Un hôpital qui
+ne dispense rien est un signal, pas une absence de données.
+
+*Exemple :* août compte 31 jours ; SITE-HG a enregistré une dispensation sur 22
+d'entre eux → 22 / 31 = **71,0 %**, au-dessus du seuil de 65 % : **score
 P3 = 100**.
 
 **Districts (seuil ≥ 80 %).** Un district ne dispense pas ; sa régularité, c'est
@@ -264,42 +286,51 @@ amplitude d'écart moyenne.
 - **Écart SDU (stock disponible utilisable)** : au dernier inventaire
   finalisé du mois, pour chaque produit traceur,
   `|théorique - compté| / compté`. En dessous de la tolérance (2 %) : le
-  produit est conforme.
-- **Écart consommation** : entre le premier et le dernier inventaire
-  bornant du mois, on compare la consommation **déclarée** (dispensations
-  enregistrées) à la consommation **reconstituée** :
-  `stock_début + réceptions - stock_fin`. Écart
-  `|déclarée - reconstituée| / reconstituée` en dessous de la tolérance :
-  conforme.
+  produit est conforme. **0 %** si le site n'a fait aucun inventaire du mois.
+- **Écart consommation** : on compare la consommation **déclarée**
+  (dispensations enregistrées ; pour un district, quantités **distribuées** —
+  la sous-composante se lit alors « écart distribution ») à la consommation
+  **reconstituée** `stock_ouverture + réceptions - stock_clôture` entre deux
+  bornes **inter-mois** : ouverture = dernier inventaire finalisé du **mois
+  précédent**, clôture = dernier inventaire finalisé du mois. Un seul inventaire
+  de fin de mois par mois suffit donc. À défaut d'inventaire le mois précédent,
+  on retombe sur le premier et le dernier inventaire du mois (s'il y en a deux).
+  Écart `|déclarée - reconstituée| / reconstituée` en dessous de la tolérance :
+  conforme. **0 %** si aucune borne d'ouverture n'est exploitable ; « non
+  calculable » seulement si des bornes existent mais qu'aucune consommation
+  reconstituée n'est positive.
 
-**Exemple, écart SDU sur le DTG/3TC/TDF (ARV) :** théorique 440, compté 440 →
-écart 0 %, conforme. Sur les 4 produits traceurs inventoriés au CHU en juin,
-les 4 sont conformes : **taux écart SDU = 100 %** (seuil de taux 90 %) →
+**Exemple, écart SDU (SITE-HG, août 2026) :** sur le DTG/3TC/TDF (ARV),
+théorique 402, compté 388 → écart |402 - 388| / 388 = **3,6 %**, au-dessus de
+la tolérance de 2 % : non conforme. Sur le test VIH (WONDFO), 138 / 138 → 0 %,
+conforme. 1 produit conforme sur 2 → **taux écart SDU = 50 %**, sous le seuil
+de taux de 90 % → ALERTE.
+
+**Exemple, écart consommation (même site) :** sur l'ARV, stock d'ouverture
+(dernier inventaire de juillet) 386, réceptions d'août 46, stock de clôture
+(inventaire du 29 août) 388 → reconstituée = 386 + 46 - 388 = 44. Déclarée = 44
+(somme des dispensations d'août). Écart = |44 - 44| / 44 = **0 %**, conforme.
+Le test VIH est également conforme → **taux écart consommation = 100 %** →
 CONFORME.
 
-**Exemple, écart consommation sur le même produit :** stock début 520,
-réceptions 110, stock fin 440 → reconstituée = 520 + 110 - 440 = 190.
-Déclarée = 195. Écart = |195 - 190| / 190 = **2,6 %**, au-dessus de la
-tolérance de 2 % : ce produit n'est pas conforme sur cette sous-composante.
-Sur les 2 produits évaluables du mois (les 2 autres n'ont qu'un seul
-inventaire, donc pas de reconstitution possible), aucun n'est conforme :
-**taux écart consommation = 0 %** → ALERTE.
-
 **Score P4** = moyenne des deux sous-composantes calculables =
-(100 + 0) / 2 = **50**.
+(0 + 100) / 2 = **50**.
 
 ### P5 · Concordance physique / théorique (poids 25 %, seuil = 100 %)
 
 Une sous-composante : au dernier inventaire finalisé du mois, pour chaque
 produit traceur, `min(|théorique|, |compté|) / max(|théorique|, |compté|)`,
-moyenné sur tous les produits inventoriés du site.
+moyenné sur tous les produits inventoriés du site. **0 %** si le site n'a fait
+aucun inventaire du mois (ne pas inventorier est un manquement, pas une absence
+de données).
 
-**Exemple :** sur les 4 produits traceurs du CHU en juin, la concordance
-moyenne est **99,5 %**. Le seuil de cette sous-composante est **= 100 %**
-exactement (contrairement à P4, aucune tolérance n'est admise) : un écart de
-0,5 % suffit à placer la sous-composante en ALERTE. Comme P5 n'a qu'une seule
-sous-composante et que le score de pilier est binaire, **score P5 = 0**, alors
-même que 99,5 % semble être un bon résultat en apparence.
+**Exemple :** sur les 2 produits traceurs de SITE-HG en août, la concordance
+moyenne est **98,3 %** (96,5 % sur l'ARV, 100 % sur le test VIH). Le seuil de
+cette sous-composante est **= 100 %** exactement (contrairement à P4, aucune
+tolérance n'est admise) : un écart de 1,7 % suffit à placer la sous-composante
+en ALERTE. Comme P5 n'a qu'une seule sous-composante et que le score de pilier
+est binaire, **score P5 = 0**, alors même que 98,3 % semble être un bon
+résultat en apparence.
 
 ### P6 · Ratio d'ajustements (poids 10 %, seuil ≤ 5 %)
 
@@ -310,15 +341,14 @@ mSupply), soit par le indicateur ligne à ligne `is_from_inventory_adjustment`.
 Plus ce ratio est bas, mieux c'est : un ajustement corrige un défaut de
 traçabilité, il ne devrait pas être le mode normal de gestion du stock.
 
-**Exemple :** le CHU a enregistré 28 mouvements de stock en juin, dont un seul
-ajustement (-12 sur l'Artéméther/Luméfantrine, le 2026-06-15) → 1 / 28 =
-**3,6 %**, sous le seuil de 5 % : **score P6 = 100**.
+**Exemple :** SITE-HG a enregistré 46 mouvements de stock en août, dont aucun
+ajustement → 0 / 46 = **0 %**, sous le seuil de 5 % : **score P6 = 100**.
 
 ---
 
 ## 6. Le score composite, pas à pas
 
-Reprenons l'exemple complet du CHU de Treichville, juin 2026 :
+Reprenons l'exemple complet de SITE-HG, août 2026 :
 
 | Pilier | Score | Poids |
 |---|---|---|
@@ -341,19 +371,19 @@ score composite = (100×10 + 100×15 + 100×15 + 50×25 + 0×25 + 100×10) / 100
 62,5 est inférieur à 75 : le site est classé **NON CONFORME**, malgré quatre
 piliers sur six parfaitement conformes. C'est le rôle du poids : P4 et P5
 pèsent à eux seuls la moitié du score (25 % + 25 %), et une seule
-sous-composante en alerte sur P5 (99,5 % de concordance, sous le seuil de
+sous-composante en alerte sur P5 (98,3 % de concordance, sous le seuil de
 100 %) suffit à faire basculer tout le pilier à 0.
 
 Sur le jeu de démonstration (mai à septembre 2026), le score composite moyen
-national suit **34 puis 46,6 puis 66,4 puis 60,1 puis 49,3** : une progression
-nette jusqu'en juillet, portée par plusieurs sites qui ont resserré leurs
-écarts SDU dans la tolérance et soumis leurs réquisitions à l'heure. Août et
+national suit **91,7 puis 89,7 puis 92,9 puis 87,4 puis 66,8**. Août et
 septembre sont **provisoires** : une extraction du 5 septembre a fait remonter
-les réquisitions d'août du CHU et du District (le score d'août est passé de
-58,8 à 60,1 sans nouvel import d'août), et septembre ne compte encore que cinq
-jours de données. Deux sites restent des points de vigilance d'un mois à
-l'autre : le CHR de Bouaké (réquisition souvent en retard, régularité de saisie
-faible) et le CSU de Korhogo (réquisition jamais soumise).
+les réquisitions d'août du CHU et du District, et septembre ne compte encore
+que cinq jours de données — aucun site n'y a fait son inventaire de fin de mois,
+d'où la chute. Points de vigilance d'un mois à l'autre : le CHR de Bouaké
+(réquisition en retard, régularité de saisie faible, écarts SDU) qui reste NON
+CONFORME, le district de Man (réponse partielle aux réquisitions de sa zone —
+P3 « distribution » à 2/3 puis 3/3 puis 2/3), et le CSU de Korhogo (réquisition
+jamais soumise).
 
 ---
 
@@ -384,9 +414,11 @@ principe des scores immuables, section 1).
 ## 8. Lire les indications à l'écran
 
 - **Badge de statut** (CONFORME / ALERTE / NON CALCULABLE) sur chaque
-  sous-composante : NON CALCULABLE porte toujours une raison explicite
-  (aucune facture reçue, aucun produit traceur inventorié, etc.), ce n'est
-  jamais un score de zéro déguisé.
+  sous-composante : NON CALCULABLE porte toujours une raison explicite (aucune
+  facture reçue, réquisitions de zone absentes pour un district, etc.). Il se
+  réserve aux vrais trous de données : le **silence** d'un site attendu actif
+  (aucune sortie de stock, aucun inventaire de fin de mois) est rendu par un
+  **0 % / ALERTE**, pas par NON CALCULABLE.
 - **« Score calculé sur N piliers sur 6 »** : apparaît quand au moins un
   pilier est NON CALCULABLE ce mois ; les poids des piliers restants ont été
   renormalisés (section 4).

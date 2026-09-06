@@ -118,6 +118,22 @@ export const LIBELLES_SOUS_COMPOSANTE: Record<SousComposante, string> = {
   ratio_ajustements: "Ratio d'ajustements",
 };
 
+/**
+ * Libellé d'une sous-composante adapté au type de site.
+ *
+ * Un district ne dispense pas, il distribue : partout où un site de soins
+ * parle de « dispensation » / « consommation », un district parle de
+ * « distribution » (ADR 0011, ADR 0012).
+ *   - `regularite_saisie`  → « Régularité de saisie (distribution) »
+ *   - `ecart_consommation` → « Écart distribution »
+ */
+export function libelleSousComposante(sc: SousComposante, estDistrict: boolean): string {
+  if (estDistrict && sc === 'regularite_saisie') return 'Régularité de saisie (distribution)';
+  if (estDistrict && sc === 'ecart_consommation') return 'Écart distribution';
+  if (!estDistrict && sc === 'regularite_saisie') return 'Régularité de saisie (dispensation)';
+  return LIBELLES_SOUS_COMPOSANTE[sc];
+}
+
 export const SOUS_COMPOSANTES_DU_PILIER: Record<Pilier, readonly SousComposante[]> = {
   P1: ['completude_inventaires', 'completude_requisitions', 'completude_receptions'],
   P2: ['promptitude_inventaires', 'promptitude_requisitions'],
@@ -175,6 +191,15 @@ export const LIBELLES_MESURE_BRUTE: Record<MesureBrute, string> = {
   p5_concordance: 'produits concordants',
   p6_ajustements: 'ajustements',
 };
+
+/** Libellé du couple attendu / réalisé adapté au type de site (cf. `libelleSousComposante`). */
+export function libelleMesureBrute(mesure: MesureBrute, estDistrict: boolean): string {
+  if (estDistrict && mesure === 'p3_regularite') return 'réquisitions de la zone servies dans le mois';
+  if (estDistrict && mesure === 'p4_ecart_consommation') {
+    return 'produits dans la tolérance (écart distribution)';
+  }
+  return LIBELLES_MESURE_BRUTE[mesure];
+}
 
 // ─── Statuts ────────────────────────────────────────────────────────────────
 

@@ -113,6 +113,10 @@ _Éviter_ : statut du site, niveau, catégorie
 Part des transactions attendues d'un site qui ont effectivement été saisies, sur
 un mois PAQD. Attendu par mois : un inventaire et une réquisition par programme
 de santé géré ; une réception par facture fournisseur adressée au site.
+L'inventaire ne compte que s'il est daté dans les **trois derniers jours du
+mois** (même fenêtre que la promptitude P2) : un inventaire de milieu de mois ne
+tient pas lieu d'inventaire de fin de mois, ni pour la complétude ni pour la
+promptitude.
 
 **Promptitude (P2)** :
 Part des inventaires et réquisitions d'un site réalisés dans les délais
@@ -137,22 +141,35 @@ Part des produits traceurs dont le stock physiquement compté au dernier
 inventaire du mois est **dans la tolérance** de la quantité théorique mSupply :
 `|théorique − compté| / compté ≤ tolérance` (le compté, la réalité, au
 dénominateur). Statut CONFORME si ce taux atteint le seuil de la grille.
-Tolérance et seuil viennent de la grille. NON_CALCULABLE si aucun produit
-traceur inventorié dans le mois.
+Tolérance et seuil viennent de la grille. **0 %** (ALERTE) si le site n'a aucun
+inventaire finalisé daté dans le mois : ne pas inventorier est un manquement,
+pas une absence de données.
 
 **Écart consommation (P4)** :
 Part des produits traceurs dont la consommation *déclarée* (somme des
-dispensations saisies) est dans la tolérance de la consommation *reconstituée* :
+dispensations saisies ; pour un district, somme des **quantités distribuées**)
+est dans la tolérance de la consommation *reconstituée* :
 `|déclarée − reconstituée| / reconstituée ≤ tolérance`. La consommation
-reconstituée d'un produit = `stock_début + réceptions − stock_fin` entre le
-**premier** et le **dernier** inventaire finalisé du mois (les deux inventaires
-bornants). Un produit sans deux inventaires bornants ou dont la reconstituée est
-≤ 0 est exclu du calcul. NON_CALCULABLE si aucun produit évaluable.
+reconstituée d'un produit = `stock ouverture + réceptions − stock clôture` entre
+deux inventaires bornants : **ouverture** = dernier inventaire finalisé du mois
+**M-1** (le stock de clôture de M-1 est le stock d'entrée de M) ; **clôture** =
+dernier inventaire finalisé du mois M. À défaut d'inventaire en M-1, on retombe
+sur le premier et le dernier inventaire de M (s'il y en a deux). Un produit sans
+borne d'ouverture exploitable ou dont la reconstituée est ≤ 0 est exclu. **0 %**
+(ALERTE) si aucune borne d'ouverture n'est exploitable pour le site ;
+NON_CALCULABLE seulement si des bornes existent mais qu'aucune reconstituée
+n'est positive.
 _Éviter_ : écart SDU (réservé à la sous-composante ci-dessus)
+
+**Écart distribution (P4)** :
+Nom que prend l'écart consommation pour un district : mêmes bornes, même
+reconstruction, mais la consommation déclarée est la somme des quantités
+distribuées (et non dispensées). Un district ne dispense pas.
 
 **Concordance physique / théorique (P5)** :
 Rapport moyen entre stock compté et stock théorique au dernier inventaire du
 mois, sur les produits traceurs. Statut binaire selon le seuil de la grille.
+**0 %** (ALERTE) si le site n'a aucun inventaire finalisé daté dans le mois.
 
 **Réquisition** :
 Une commande mensuelle de réapprovisionnement, par programme, adressée par un
@@ -163,16 +180,32 @@ appelée **rapport** : les deux termes désignent le même objet (voir *Rapport
 mensuel*).
 
 **Régularité de saisie (P3)** :
-Part des jours calendaires du mois où le site a enregistré au moins une sortie
-de stock. « Sortie de stock » = une dispensation pour un site de dispensation,
-une distribution vers un site rattaché pour un district. Aucun jour n'est
-retranché : en milieu hospitalier la dispensation a lieu 7 j/7, le PAQD ne
-défalque ni week-ends ni jours fériés.
+Part des jours du mois où le site a enregistré au moins une sortie de stock
+(dispensation ou distribution). Aucun jour n'est retranché : en milieu
+hospitalier la dispensation a lieu 7 j/7, le PAQD ne défalque ni week-ends ni
+jours fériés.
+**Compteur au fil de l'eau, borné au mois** : le dénominateur croît jour après
+jour et plafonne au dernier jour du mois ; un mois en cours est mesuré sur les
+jours écoulés, un mois clos sur tous ses jours. **Toujours calculable** pour un
+site de soins : aucune sortie sur les jours écoulés vaut 0 %, jamais
+NON_CALCULABLE (un hôpital qui ne dispense rien est un signal, pas une absence
+de données). Pour un **district**, qui ne dispense pas, P3 mesure autre chose
+(voir *Régularité de saisie — district*).
+
+**Régularité de saisie — district (P3)** :
+Pour un district (`strate_de = 'District'`), P3 mesure sa capacité à honorer
+les réquisitions de sa zone : réquisitions DISTINCTES de la zone couvrant M-1,
+servies dans M par une distribution du district, sur le total de ces
+réquisitions. Seuil ≥ 80 %. NON_CALCULABLE si aucune réquisition de zone à
+évaluer (ADR 0011).
 
 **Statut d'une sous-composante** :
 Binaire : CONFORME si le seuil du pilier est atteint, ALERTE sinon. Ou
-NON_CALCULABLE quand les données sont insuffisantes — exclu des agrégats, jamais
-rendu par un zéro. Il n'y a pas d'état intermédiaire au niveau sous-composante.
+NON_CALCULABLE quand les données ne permettent pas de trancher — exclu des
+agrégats. NON_CALCULABLE se réserve aux vrais trous de données ; le silence d'un
+site attendu actif (aucune sortie, aucun inventaire de fin de mois) est rendu
+par un **0 %** ALERTE, pas par NON_CALCULABLE. Il n'y a pas d'état intermédiaire
+au niveau sous-composante.
 _Éviter_ : statut d'indicateur, PARTIEL, état, résultat
 
 **Périmètre DQA** :

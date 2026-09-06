@@ -14,7 +14,7 @@ import { RouterLink } from '@angular/router';
 import {
   CODE_PILIER,
   LIBELLES_PILIER,
-  LIBELLES_SOUS_COMPOSANTE,
+  libelleSousComposante,
   PILIER_DE_SOUS_COMPOSANTE,
   PILIERS,
   SOUS_COMPOSANTES_DU_PILIER,
@@ -370,6 +370,7 @@ function reculerMois(mois: string, n: number): string {
                           @if (calendrierP3(dp); as cal) {
                             <p class="mt-2 text-muted-foreground tabular-nums">
                               {{ cal.nbJoursAvecSortie }} / {{ cal.nbJours }} jours avec au moins une sortie
+                              ({{ (cal.nbJoursAvecSortie * 100 / cal.nbJours) | number: '1.0-0' }} %)
                             </p>
                             <div class="mt-2 space-y-1">
                               @for (semaine of cal.semaines; track $index) {
@@ -824,9 +825,7 @@ export class DetailSitePage {
   protected libellePilier = (p: Pilier) =>
     p === 'P3' ? LIBELLES_PILIER.P3 + this.suffixeP3() : LIBELLES_PILIER[p];
   protected libelleSc = (sc: SousComposante) =>
-    sc === 'regularite_saisie'
-      ? LIBELLES_SOUS_COMPOSANTE.regularite_saisie + this.suffixeP3()
-      : LIBELLES_SOUS_COMPOSANTE[sc];
+    libelleSousComposante(sc, this.detail()?.estDistrict ?? false);
   protected pilierDe = (sc: SousComposante) => PILIER_DE_SOUS_COMPOSANTE[sc];
 
   /** Libellé de série pour le `<hlm-select>` de programme (l'`itemToString` reçoit une chaîne). */
@@ -854,8 +853,8 @@ export class DetailSitePage {
   }
 
   private readonly RAISONS_CONSO: Record<RaisonExclusionConso, string> = {
-    un_seul_inventaire: 'un seul inventaire dans le mois',
-    reconstituee_non_positive: 'consommation reconstituée ≤ 0',
+    aucune_borne: "pas de borne d'ouverture (dernier inventaire du mois précédent ou deux dans le mois)",
+    reconstituee_non_positive: 'reconstituée ≤ 0',
   };
   protected raisonConso = (r: RaisonExclusionConso) => this.RAISONS_CONSO[r];
 

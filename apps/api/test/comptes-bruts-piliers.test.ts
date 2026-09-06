@@ -64,8 +64,8 @@ describe('vues de pilier : couples attendu / réalisé', () => {
       .then((r) => r.rows[0]);
 
   it('P1 : inventaires et réquisitions réalisés sur programmes gérés', async () => {
-    // VIH : inventaire + réquisition ; TB : rien
-    await inv('A', 'VIH', '2026-08-28');
+    // VIH : inventaire (dans les 3 derniers jours) + réquisition ; TB : rien
+    await inv('A', 'VIH', '2026-08-29');
     await req('R1', 'VIH', '2026-08-31');
     await refresh();
     const row = await ligneP1<{
@@ -173,7 +173,7 @@ describe('vues de pilier : couples attendu / réalisé', () => {
         .then((r) => r.rows[0]);
 
     it('fige les trois mesures P1 au grain « tous programmes »', async () => {
-      await inv('A', 'VIH', '2026-08-28');
+      await inv('A', 'VIH', '2026-08-29');
       await req('R1', 'VIH', '2026-08-31');
       await tx('RC1', 'reception', '2026-08-10');
       await tx('FA1', 'facture_fournisseur', '2026-08-05');
@@ -186,10 +186,10 @@ describe('vues de pilier : couples attendu / réalisé', () => {
     });
 
     it('ré-appliquer le gel écrase la ligne (upsert sur la clé mesure)', async () => {
-      await inv('A', 'VIH', '2026-08-28');
+      await inv('A', 'VIH', '2026-08-29');
       await geler();
       expect((await brut('p1_inventaires')).nb_realise).toBe(1);
-      await inv('B', 'TB', '2026-08-20');
+      await inv('B', 'TB', '2026-08-30');
       await geler();
       expect((await brut('p1_inventaires')).nb_realise).toBe(2);
       const { rows } = await db.query(
@@ -222,16 +222,16 @@ describe('vues de pilier : couples attendu / réalisé', () => {
 
     it('P2 : attendu, réalisé (repris de P1) et à l\'heure figés', async () => {
       await inv('A', 'VIH', '2026-08-29'); // dans les 3 derniers jours
-      await inv('B', 'TB', '2026-08-10'); // hors délai
+      await inv('B', 'TB', '2026-08-10'); // hors des 3 derniers jours : ne compte plus (ADR 0012)
       await geler();
-      // 2 programmes gérés ont un inventaire → réalisé = 2 (comme p1_inventaires) ;
-      // un seul est à l'heure.
+      // Depuis l'ADR 0012, un inventaire hors des 3 derniers jours ne compte ni
+      // pour P1 ni pour P2 : seul VIH (le 29) est réalisé, et à l'heure.
       expect(await brut('p2_inventaires')).toMatchObject({
         nb_attendu: 2,
-        nb_realise: 2,
+        nb_realise: 1,
         nb_a_lheure: 1,
       });
-      expect((await brut('p1_inventaires')).nb_realise).toBe(2);
+      expect((await brut('p1_inventaires')).nb_realise).toBe(1);
     });
 
     it('P3 : jours avec sortie / jours du mois', async () => {

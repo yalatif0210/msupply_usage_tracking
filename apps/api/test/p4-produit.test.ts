@@ -162,8 +162,8 @@ describe('vue mv_p4_ecart_produit', () => {
     expect(p['T7']).toMatchObject({
       conso_evaluable: true, reconstituee: '20.000', ecart_conso_pct: '0.0', conso_conforme: true,
     });
-    // I2 : un seul inventaire
-    expect(p['T2']).toMatchObject({ conso_evaluable: false, conso_raison_exclusion: 'un_seul_inventaire' });
+    // I2 : un seul inventaire du mois, pas de borne d'ouverture (M-1 absent)
+    expect(p['T2']).toMatchObject({ conso_evaluable: false, conso_raison_exclusion: 'aucune_borne' });
     // I6 : reconstituée = 10 + 0 − 100 = −90 ≤ 0
     expect(p['T6']).toMatchObject({ conso_evaluable: false, conso_raison_exclusion: 'reconstituee_non_positive' });
   });
@@ -219,7 +219,7 @@ describe('vue mv_p4_ecart_produit', () => {
       if (t1.consommation.evaluable) expect(t1.consommation.conforme).toBe(false);
       const t2 = d.produits.find((p) => p.produitCode === 'T2')!;
       expect(t2.consommation.evaluable).toBe(false);
-      if (!t2.consommation.evaluable) expect(t2.consommation.raisonExclusion).toBe('un_seul_inventaire');
+      if (!t2.consommation.evaluable) expect(t2.consommation.raisonExclusion).toBe('aucune_borne');
 
       // comptes bruts figés du pilier P4 + horodatage du gel
       expect(d.comptesBruts.some((c) => c.mesure === 'p4_ecart_sdu')).toBe(true);

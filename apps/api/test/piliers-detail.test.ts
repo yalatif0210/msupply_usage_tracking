@@ -77,7 +77,7 @@ describe('détail ligne à ligne des piliers (P1, P2)', () => {
   // ── P1 ────────────────────────────────────────────────────────────────────
 
   it('P1 nominal : listes, manques par programme et comptes bruts figés', async () => {
-    await inv('A', 'VIH', '2026-08-28');
+    await inv('A', 'VIH', '2026-08-29'); // dans les 3 derniers jours
     await req('R1', 'VIH', '2026-08-31');
     await tx('RC1', 'reception', '2026-08-10', 'VIH', 'GRN-1');
     await tx('FA1', 'facture_fournisseur', '2026-08-05');
@@ -89,7 +89,7 @@ describe('détail ligne à ligne des piliers (P1, P2)', () => {
     if (d === null || d.code !== 'p1') throw new Error('variante p1 attendue');
 
     expect(d.moisPaqd).toBe('2026-08');
-    expect(d.inventaires).toEqual([{ date: '2026-08-28', programme: 'VIH' }]);
+    expect(d.inventaires).toEqual([{ date: '2026-08-29', programme: 'VIH' }]);
     expect(d.requisitions).toEqual([
       { programme: 'VIH', moisCouvert: '2026-08', dateSoumission: '2026-08-31' },
     ]);
@@ -112,7 +112,7 @@ describe('détail ligne à ligne des piliers (P1, P2)', () => {
   });
 
   it('P1 limite : aucune facture → p1_receptions non figée ; core modifié après le gel', async () => {
-    await inv('A', 'VIH', '2026-08-28');
+    await inv('A', 'VIH', '2026-08-29');
     await req('R1', 'VIH', '2026-08-31');
     await geler();
 

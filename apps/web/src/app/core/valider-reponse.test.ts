@@ -384,11 +384,12 @@ describe('validerReponse (couture D)', () => {
   const detailPilierP4 = (over: Record<string, unknown> = {}) => ({
     ...detailPilierBase,
     code: 'p4',
+    estDistrict: false,
     produits: [
       ligneP4P5(),
       ligneP4P5({
         produitCode: 'T2',
-        consommation: { evaluable: false, raisonExclusion: 'un_seul_inventaire' },
+        consommation: { evaluable: false, raisonExclusion: 'aucune_borne' },
         concordance: { tauxPct: null, conforme: false },
       }),
     ],
