@@ -24,7 +24,7 @@ describe('synthèse « rapports & inventaires »', () => {
 
   beforeEach(async () => {
     await db.query(`SET search_path TO dqa, public`);
-    await db.query(`TRUNCATE dqa.hist_pilier_brut, dqa.dim_site_programme,
+    await db.query(`TRUNCATE dqa.hist_pilier_brut, dqa.fact_inventaire, dqa.dim_site_programme,
       dqa.dim_site, dqa.dim_programme, dqa.import_lot RESTART IDENTITY CASCADE`);
   });
 
@@ -64,6 +64,16 @@ describe('synthèse « rapports & inventaires »', () => {
            (site_id, mois_paqd, programme_id, mesure, nb_attendu, nb_realise, nb_a_lheure)
          VALUES ($1,$2,$3,$4,$5,$6,$7)`,
         [siteId, mois, prog, mesure, a, r, h],
+      );
+    }
+    // La colonne « Réalisés » des inventaires vient d'un inventaire finalisé
+    // réel du mois (migration 0041), pas de la mesure gelée : un seul par
+    // (site, programme, mois), quelle que soit sa date.
+    if (prog && inv.realise >= 1) {
+      await db.query(
+        `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut)
+         VALUES ($1,$2,$3,($4 || '-15')::date,'fn')`,
+        [`INV-${siteId}-${prog}-${mois}`, siteId, prog, mois],
       );
     }
   };
@@ -159,12 +169,13 @@ describe('synthèse « rapports & inventaires »', () => {
   });
 
   it('cas limite : une strate où tout est à l\'heure et une où rien n\'est réalisé', async () => {
-    await Promise.all([programme('VIH')]);
+    await Promise.all([programme('VIH'), programme('TB')]);
     await site('T1', 'NORD', 'CHU');
     await site('T2', 'NORD', 'District sanitaire');
-    await Promise.all([gere('T1', 'VIH'), gere('T2', 'VIH')]);
-    // CHU : réquisition et inventaire réalisés pile à l'heure (à l'heure == attendu)
-    await brut('T1', 'VIH', '2026-08', { attendu: 2, realise: 2, aLHeure: 2 }, { attendu: 2, realise: 2, aLHeure: 2 });
+    await Promise.all([gere('T1', 'VIH'), gere('T1', 'TB'), gere('T2', 'VIH')]);
+    // CHU : deux programmes, réquisition et inventaire réalisés pile à l'heure.
+    await brut('T1', 'VIH', '2026-08', { attendu: 1, realise: 1, aLHeure: 1 }, { attendu: 1, realise: 1, aLHeure: 1 });
+    await brut('T1', 'TB', '2026-08', { attendu: 1, realise: 1, aLHeure: 1 }, { attendu: 1, realise: 1, aLHeure: 1 });
     // District : rien réalisé
     await brut('T2', 'VIH', '2026-08', { attendu: 3, realise: 0, aLHeure: 0 }, { attendu: 3, realise: 0, aLHeure: 0 });
     await rafraichir();

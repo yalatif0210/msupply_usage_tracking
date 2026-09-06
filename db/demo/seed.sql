@@ -171,7 +171,6 @@ DECLARE
     m           int;
     mois        text;
     lot         int;
-    d_clot      date;
     d_rec       date;
     stock       numeric;
     stock_prec  numeric;
@@ -196,28 +195,29 @@ FOR p IN SELECT * FROM _plan LOOP
         lot        := m;
         stock_prec := stock;
 
-        -- septembre : mois partiel (5 jours ouvrés), une sortie par jour, pas
-        -- de réception -> la reconstituée du mois en cours vaut le total des
-        -- sorties écoulées.
         IF m = 5 THEN
+            -- septembre : mois EN COURS (5 jours de données). AUCUN inventaire
+            -- de fin de mois n'a encore été fait -> P1/P2 (complétude,
+            -- promptitude) et P4/P5 (écart SDU, concordance, écart conso, faute
+            -- de borne de clôture) restent à 0. Seuls P3 (régularité, au fil de
+            -- l'eau) et P6 (ajustements) sont mesurés.
             q_cumul := 5;
             stock   := stock_prec - 5;
         ELSE
             q_cumul := p.sortie_mois;
             stock   := stock_prec + p.rec_mois - p.sortie_mois;
+
+            bruit := COALESCE(p.sdu_bruit[m], 0);
+            theo  := stock + bruit;
+
+            -- inventaire de fin de mois
+            inv_clot := format('INV-%s-%s-%s', p.site, replace(p.produit,'ITM-',''), mois);
+            INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
+            VALUES (inv_clot, p.site, p.prog, fin_mois[m], 'fn', lot)
+            ON CONFLICT (inventaire_id) DO NOTHING;
+            INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
+            VALUES (inv_clot, p.produit, 'L1', theo, stock, lot);
         END IF;
-
-        bruit := COALESCE(p.sdu_bruit[m], 0);
-        theo  := stock + bruit;
-
-        -- inventaire de fin de mois (septembre : le dernier jour de données)
-        d_clot   := CASE WHEN m = 5 THEN DATE '2026-09-05' ELSE fin_mois[m] END;
-        inv_clot := format('INV-%s-%s-%s', p.site, replace(p.produit,'ITM-',''), mois);
-        INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
-        VALUES (inv_clot, p.site, p.prog, d_clot, 'fn', lot)
-        ON CONFLICT (inventaire_id) DO NOTHING;
-        INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
-        VALUES (inv_clot, p.produit, 'L1', theo, stock, lot);
 
         -- en mai : un second inventaire, le 1er du mois (borne d'ouverture)
         IF m = 1 THEN

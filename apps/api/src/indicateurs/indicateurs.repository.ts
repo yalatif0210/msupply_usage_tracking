@@ -856,10 +856,12 @@ export class IndicateursRepository {
     seuil: string | null,
     m: { inv: ValeurBrute; req: ValeurBrute; rec: ValeurBrute },
   ): ScorePilier {
-    const raisonProg = 'Aucun programme géré déclaré pour ce site';
+    // NON_CALCULABLE ici = le mois n'a ni inventaire ni réquisition à évaluer
+    // (le site n'a rien transmis, ou n'a aucun programme géré déclaré).
+    const raisonNC = 'Aucun inventaire ni réquisition transmis pour ce mois';
     return this.envelopper('P1', score, [
-      this.mesure('completude_inventaires', m.inv, seuil, raisonProg),
-      this.mesure('completude_requisitions', m.req, seuil, raisonProg),
+      this.mesure('completude_inventaires', m.inv, seuil, raisonNC),
+      this.mesure('completude_requisitions', m.req, seuil, raisonNC),
       this.mesure('completude_receptions', m.rec, seuil,
         'Aucune facture fournisseur adressée au site ce mois'),
     ]);
@@ -870,10 +872,10 @@ export class IndicateursRepository {
     seuil: string | null,
     m: { inv: ValeurBrute; req: ValeurBrute },
   ): ScorePilier {
-    const raisonProg = 'Aucun programme géré déclaré pour ce site';
+    const raisonNC = 'Aucun inventaire ni réquisition transmis pour ce mois';
     return this.envelopper('P2', score, [
-      this.mesure('promptitude_inventaires', m.inv, seuil, raisonProg),
-      this.mesure('promptitude_requisitions', m.req, seuil, raisonProg),
+      this.mesure('promptitude_inventaires', m.inv, seuil, raisonNC),
+      this.mesure('promptitude_requisitions', m.req, seuil, raisonNC),
     ]);
   }
 
