@@ -2,7 +2,7 @@
 
 **Destinataires :** toute personne autorisée à consulter le tableau de bord
 (équipes district, coordination nationale, DAP).
-**Version :** 1.0 (2026-09).
+**Version :** 1.1 (2026-09).
 
 Ce manuel explique ce que montre l'application, comment naviguer d'un écran à
 l'autre, et surtout comment chaque chiffre affiché est calculé, formule par
@@ -74,7 +74,7 @@ signe en soi.
 | Rôle | Ce qu'il voit | Ce qu'il peut modifier |
 |---|---|---|
 | `lecteur` | Tous les écrans de consultation (tableau de bord, sites, synthèse, fiches produit) | Rien |
-| `coordination` | Tout ce que voit `lecteur`, plus l'écran des imports | Dépôt des classeurs, grille de paramètres, référentiel des produits traceurs, classement des strates de structure |
+| `coordination` | Tout ce que voit `lecteur`, plus l'écran des imports | Dépôt des classeurs, grille de paramètres, référentiel des produits traceurs, référentiel des types de structure |
 | `admin` | Tout ce que voit `lecteur` | Comptes utilisateurs |
 
 L'onglet « Imports » n'apparaît que pour la coordination : c'est elle qui
@@ -149,7 +149,7 @@ anomalies. Un champ de dépôt en tête de page envoie un nouveau classeur.
 | `/admin/traceurs` | coordination | Liste des produits traceurs suivis par P4 et P5 ; désactiver un produit le retire des calculs futurs sans toucher à son historique |
 | `/admin/grille` | coordination | Poids des piliers et seuils des sous-composantes ; une modification crée une nouvelle version, effective au cycle suivant seulement |
 | `/admin/comptes` | admin | Comptes utilisateurs et leur rôle |
-| `/admin/strates` | lecture ouverte à tout rôle, écriture coordination | Correspondance entre `type_structure` (référentiel DAP) et strate affichée dans « Rapports & inventaires » |
+| `/admin/strates` (« Types de structure ») | lecture ouverte à tout rôle, écriture coordination | Référentiel des `type_structure` (référentiel DAP) : la **strate** affichée dans « Rapports & inventaires », le **jour limite** de soumission d'une réquisition (P2), et le **régime** de scoring (district ou site de soins). Un type non renseigné : strate « Non classé », jour limite 10, régime site de soins |
 
 ---
 
@@ -225,9 +225,11 @@ compte cette fois ceux dont l'activité est arrivée **à temps** :
 - **Promptitude des inventaires** : inventaire finalisé dans les **trois
   derniers jours du mois**.
 - **Promptitude des réquisitions** : réquisition soumise au plus tard le
-  **jour limite** du mois suivant. Ce jour limite dépend du type de
-  structure : le 5 pour un ESPC, le 7 pour un hôpital de référence, le 10 pour
-  un district sanitaire.
+  **jour limite** du mois suivant. Ce jour limite dépend du type de structure
+  et vient du référentiel administré (écran « Types de structure ») : par
+  défaut le 5 pour un ESPC, le 7 pour un hôpital de référence, le 10 pour un
+  district sanitaire, un CHU ou un institut. La coordination peut l'ajuster
+  par type sans nouvelle livraison.
 
 Un programme géré qui n'a rien soumis compte 0, jamais « non calculable » :
 ne rien transmettre pénalise ce pilier.
@@ -447,4 +449,6 @@ principe des scores immuables, section 1).
 | Grille de paramètres | Le jeu daté des poids de pilier et des seuils de sous-composante, éditable par la coordination, effectif au cycle suivant seulement |
 | Produit traceur | Un produit suivi de près pour les piliers P4, P5 et P6 ; la liste est administrée par la coordination |
 | Programme de santé | Un programme vertical géré par un site (VIH, paludisme, etc.) ; le nombre de programmes gérés détermine le nombre d'inventaires et de réquisitions attendus chaque mois |
-| Strate de structure | Le regroupement de type de structure (District sanitaire, Hôpital de référence, ESPC — plus « Non classé » pour un type non mappé) utilisé pour la synthèse « Rapports & inventaires » |
+| Type de structure | La valeur `name_category3` d'un site (District sanitaire, Hôpital de référence, ESPC, CHU, Institut). Administré dans l'écran « Types de structure » : il porte la strate d'affichage, le jour limite de réquisition et le régime de scoring |
+| Strate | Un des trois attributs d'un type de structure : le regroupement utilisé pour la synthèse « Rapports & inventaires » (« Non classé » pour un type non renseigné) |
+| Régime de scoring | District ou site de soins. Seule différence : un district mesure P3 sur les réquisitions de sa zone servies et P4 sur les quantités distribuées |
