@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, type OnInit, inject, input } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -145,28 +145,36 @@ type FiltresProduit = {
           <!-- Consommation -->
           <section class="mt-8">
             <h2 class="text-lg font-semibold tracking-tight">Consommation</h2>
-            <dl class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div class="rounded-lg border border-border p-3">
-                <dt class="text-xs text-muted-foreground">Consommation reconstituée</dt>
-                <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ nb(f.consommation.reconstituee) }}</dd>
-                <dd class="mt-1 text-xs text-muted-foreground">stock début plus réceptions moins stock fin</dd>
-              </div>
-              <div class="rounded-lg border border-border p-3">
-                <dt class="text-xs text-muted-foreground">Consommation déclarée</dt>
-                <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ nb(f.consommation.declaree) }}</dd>
-                <dd class="mt-1 text-xs text-muted-foreground">somme des dispensations entre les deux inventaires bornants</dd>
-              </div>
-              <div class="rounded-lg border border-border p-3">
-                <dt class="text-xs text-muted-foreground">Écart (déclarée moins reconstituée)</dt>
-                <dd class="mt-1 text-2xl font-semibold tabular-nums">
-                  {{ f.consommation.ecart === null ? absent : signe(f.consommation.ecart) }}
-                </dd>
-              </div>
-            </dl>
-            <p class="mt-3 text-sm tabular-nums">
-              Stock au premier inventaire bornant : {{ nb(f.stockDebut) }} ·
-              Stock au dernier inventaire bornant : {{ nb(f.stockFin) }}
-            </p>
+            @if (f.consommation.reconstituee === null) {
+              <p class="mt-2 text-sm text-muted-foreground">
+                Écart consommation non évaluable ce mois : il faut un inventaire de
+                clôture et une borne d'ouverture (dernier inventaire du mois
+                précédent, ou deux inventaires dans le mois).
+              </p>
+            } @else {
+              <dl class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div class="rounded-lg border border-border p-3">
+                  <dt class="text-xs text-muted-foreground">Consommation reconstituée</dt>
+                  <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ nb(f.consommation.reconstituee) }}</dd>
+                  <dd class="mt-1 text-xs text-muted-foreground">stock début plus réceptions moins stock fin</dd>
+                </div>
+                <div class="rounded-lg border border-border p-3">
+                  <dt class="text-xs text-muted-foreground">Consommation déclarée</dt>
+                  <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ nb(f.consommation.declaree) }}</dd>
+                  <dd class="mt-1 text-xs text-muted-foreground">somme des dispensations entre les deux inventaires bornants</dd>
+                </div>
+                <div class="rounded-lg border border-border p-3">
+                  <dt class="text-xs text-muted-foreground">Écart (déclarée moins reconstituée)</dt>
+                  <dd class="mt-1 text-2xl font-semibold tabular-nums">
+                    {{ f.consommation.ecart === null ? absent : signe(f.consommation.ecart) }}
+                  </dd>
+                </div>
+              </dl>
+              <p class="mt-3 text-sm tabular-nums">
+                Stock au premier inventaire bornant : {{ nb(f.stockDebut) }} ·
+                Stock au dernier inventaire bornant : {{ nb(f.stockFin) }}
+              </p>
+            }
 
             <h3 class="mt-5 text-sm font-medium text-muted-foreground">Réceptions du mois</h3>
             @if (f.receptions.length > 0) {
@@ -230,7 +238,7 @@ type FiltresProduit = {
     </main>
   `,
 })
-export class FicheProduitPage {
+export class FicheProduitPage implements OnInit {
   readonly id = input.required<string>();
   readonly code = input.required<string>();
 
@@ -252,7 +260,9 @@ export class FicheProduitPage {
     apresChargement: (v) => (v && v.moisPaqd ? { mois: v.moisPaqd } : undefined),
   });
 
-  constructor() {
+  // `ngOnInit` (pas le constructeur) : les inputs de route `id` / `code` ne sont
+  // liés qu'après la construction. Les lire trop tôt lève NG0950.
+  ngOnInit(): void {
     void this.res.demarrer();
   }
 

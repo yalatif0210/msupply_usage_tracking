@@ -44,9 +44,17 @@ export interface OptionsRessource<T, F extends Record<string, string>> {
   /**
    * Ajustement des filtres apres un chargement reussi (ex. aligner le mois
    * affiche sur celui que le serveur a effectivement servi). Le partiel
-   * renvoye est applique sans declencher de nouveau chargement.
+   * renvoye est applique ; il ne declenche un nouveau chargement que si
+   * `rechargerApresAjustement` est vrai ET qu'au moins une valeur change.
    */
   readonly apresChargement?: (donnee: T, filtres: F) => Partial<F> | void;
+  /**
+   * Si vrai, un ajustement `apresChargement` qui change reellement un filtre
+   * relance un chargement (ex. elargir la plage servie par defaut). La
+   * fonction `apresChargement` doit alors etre idempotente : appelee sur sa
+   * propre sortie, elle ne doit plus rien changer, sinon boucle.
+   */
+  readonly rechargerApresAjustement?: boolean;
 }
 
 export class Ressource<T, F extends Record<string, string>> {
@@ -126,8 +134,15 @@ export class Ressource<T, F extends Record<string, string>> {
       this._pret.set(true);
       const ajuste = this.options.apresChargement?.(donnee, this._filtres());
       if (ajuste && Object.keys(ajuste).length > 0) {
-        this._filtres.update((f) => ({ ...f, ...ajuste }));
-        this.ecrireUrl();
+        const courant = this._filtres();
+        const change = (Object.entries(ajuste) as [keyof F, F[keyof F]][]).some(
+          ([cle, val]) => courant[cle] !== val,
+        );
+        if (change) {
+          this._filtres.update((f) => ({ ...f, ...ajuste }));
+          this.ecrireUrl();
+          if (this.options.rechargerApresAjustement) void this.charger();
+        }
       }
     } catch (cause) {
       if (jeton !== this.jeton) return;

@@ -546,7 +546,9 @@ function reculerMois(mois: string, n: number): string {
                       </hlm-select-content>
                     </hlm-select>
                   </div>
-                  <button hlmBtn size="sm" variant="outline" type="button" (click)="preset('cycle')">Cycle courant</button>
+                  @if (cycleCourantTracable()) {
+                    <button hlmBtn size="sm" variant="outline" type="button" (click)="preset('cycle')">Cycle courant</button>
+                  }
                   <button hlmBtn size="sm" variant="outline" type="button" (click)="preset('12m')">12 derniers mois</button>
                   <button hlmBtn size="sm" variant="outline" type="button" (click)="preset('tout')">Tout</button>
                 </div>
@@ -685,21 +687,26 @@ export class DetailSitePage {
     },
     germe: { detail: null, historique: null },
     filtresInitiaux: { programme: '', de: '', a: '', mois: '' },
-    // aligne la plage sur ce que l'historique a réellement renvoyé. Cas
-    // particulier : au début d'un cycle, le cycle courant (fenêtre par défaut)
-    // n'a qu'un mois -> ni courbe d'évolution ni progression. On élargit alors
-    // à 12 mois pour qu'il y ait un contexte.
-    apresChargement: (v) => {
-      const points = v.historique?.points ?? [];
+    apresChargement: (v, f) => {
       const mois = v.historique?.moisDisponibles ?? []; // décroissant
-      if (points.length === 0) return undefined;
-      if (points.length < 2 && mois.length > 1) {
+      if (mois.length === 0) return undefined;
+      // Aucune borne (ouverture directe, sans plage dans l'URL) : fenêtre par
+      // défaut = 12 derniers mois. Le cycle courant seul ne suffit pas : au
+      // premier mois d'un cycle il n'a qu'un point, donc ni courbe ni
+      // progression.
+      if (!f.de && !f.a) {
         const fin = mois[0]!;
         const debut = reculerMois(fin, MOIS_FENETRE_ANNEE);
         return { de: debut < mois.at(-1)! ? mois.at(-1)! : debut, a: fin };
       }
+      // Sinon on reflète la plage réellement servie dans les sélecteurs.
+      const points = v.historique?.points ?? [];
+      if (points.length === 0) return undefined;
       return { de: points[0]!.moisPaqd, a: points.at(-1)!.moisPaqd };
     },
+    // l'élargissement à 12 mois (première ouverture sans plage) doit relancer
+    // le chargement : l'historique du cycle courant seul ne suffit pas.
+    rechargerApresAjustement: true,
   });
 
   protected readonly historique = computed<HistoriqueSite | null>(() => this.res.valeur().historique);
@@ -808,10 +815,28 @@ export class DetailSitePage {
     await this.res.demarrer();
   }
 
+  /** Cycle PAQD d'un mois AAAA-MM (3 cycles de 4 mois : C1 janv-avr, C2 mai-août, C3 sept-déc). */
+  private cycleDe(mois: string): string {
+    const [a, m] = mois.split('-').map(Number);
+    return `${a}-C${Math.floor((m! - 1) / 4) + 1}`;
+  }
+
+  /** Le cycle courant a-t-il au moins deux mois mesurés ? (sinon « Cycle courant » ne trace rien). */
+  protected readonly cycleCourantTracable = computed(() => {
+    const mois = this.moisDisponibles();
+    if (mois.length === 0) return false;
+    const cyc = this.cycleDe(mois[0]!);
+    return mois.filter((m) => this.cycleDe(m) === cyc).length > 1;
+  });
+
   protected preset(quoi: 'cycle' | '12m' | 'tout'): void {
     const mois = this.moisDisponibles(); // décroissant
-    if (quoi === 'cycle') {
-      this.res.definir({ de: '', a: '' });
+    if (quoi === 'cycle' && mois.length) {
+      // bornes explicites du cycle courant (et non de:'' a:'' qui déclencherait
+      // la fenêtre 12 mois par défaut).
+      const cyc = this.cycleDe(mois[0]!);
+      const duCycle = mois.filter((m) => this.cycleDe(m) === cyc);
+      this.res.definir({ de: duCycle.at(-1)!, a: duCycle[0]! });
       return;
     }
     if (quoi === 'tout' && mois.length) {
