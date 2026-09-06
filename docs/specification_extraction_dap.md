@@ -99,7 +99,7 @@ marquage du périmètre DQA.
 | `site_nom` | texte | ● | `store.name` |
 | `district` | texte | ● | `store.name_id → name.category1_id → name_category1.description` |
 | `region` | texte | ● | remonter `name_category1 → name_category1_level1 → name_category1_level2.description` |
-| `type_structure` | texte | ● | `name.category3_id → name_category3.description` — le palier (voir §5.3) |
+| `type_structure` | texte | ● | `name.category3_id → name_category3.description` (le palier, voir §5.3) |
 | `actif` | OUI/NON | ● | `store.disabled = false` |
 | `dans_perimetre_dqa` | OUI/NON | ● | **liste fournie par la mission DQA** (annexe A) |
 
@@ -254,7 +254,7 @@ de bord ne calcule que les `fn`.
 ### 5.3 `type_structure` : le palier, pas le sous-type
 
 `type_structure` porte la valeur de `name_category3.description` **telle
-quelle** — le palier de la pyramide sanitaire. Sur le jeu réel, trois valeurs :
+quelle** : le palier de la pyramide sanitaire. Sur le jeu réel, trois valeurs :
 `ESPC`, `Hôpital de référence`, `District sanitaire`. Le sous-type (CSU vs CSR,
 CHR vs HG) n'est **pas** demandé : il reste lisible dans `site_nom` et le code.
 

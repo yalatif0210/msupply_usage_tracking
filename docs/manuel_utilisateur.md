@@ -135,7 +135,7 @@ Trois onglets, filtrables par mois, programme et région :
   d'atteinte moyen et leurs comptes de statut ;
 - **Rapports & inventaires** : réquisitions et inventaires de fin de mois
   attendus, réalisés et réalisés dans les délais, agrégés par strate de
-  structure (District sanitaire, Hôpital de référence, ESPC — plus « Non classé » pour un type non mappé).
+  structure (District sanitaire, Hôpital de référence, ESPC ; « Non classé » pour un type non mappé).
 
 ### Imports (`/imports`, coordination uniquement)
 
@@ -193,7 +193,7 @@ score du pilier est la moyenne simple de ses sous-composantes calculables.
 Les six formules ci-dessous sont illustrées par le même exemple réel :
 **le CHR public de Daloa (`31600010`), mois d'août 2026**, tel qu'il
 apparaît dans le jeu de démonstration. Score composite du site ce mois-là :
-**62,5 / 100**, classé **NON CONFORME** — alors que quatre piliers sur six sont
+**62,5 / 100**, classé **NON CONFORME**, alors que quatre piliers sur six sont
 parfaitement conformes. Le calcul complet est repris section 6.
 
 ### P1 · Complétude des transactions (poids 10 %, seuil 100 %)
@@ -235,7 +235,7 @@ Un programme géré qui n'a rien soumis compte 0, jamais « non calculable » :
 ne rien transmettre pénalise ce pilier.
 
 **Exemple :** la réquisition VIH du CHR de Daloa couvrant août est soumise le
-2026-09-04, limite le 2026-09-07 (hôpital de référence → 7 jours) : à l'heure —
+2026-09-04, limite le 2026-09-07 (hôpital de référence → 7 jours) : à l'heure,
 elle est arrivée par l'extraction du 5 septembre, dans la fenêtre de 45 jours.
 L'inventaire du 29 août est dans les 3 derniers jours. Inventaire et réquisition
 à l'heure :
@@ -291,7 +291,7 @@ amplitude d'écart moyenne.
   `|théorique - compté| / compté`. En dessous de la tolérance (2 %) : le
   produit est conforme. **0 %** si le site n'a fait aucun inventaire du mois.
 - **Écart consommation** : on compare la consommation **déclarée**
-  (dispensations enregistrées ; pour un district, quantités **distribuées** —
+  (dispensations enregistrées ; pour un district, quantités **distribuées**,
   la sous-composante se lit alors « écart distribution ») à la consommation
   **reconstituée** `stock_ouverture + réceptions - stock_clôture` entre deux
   bornes **inter-mois** : ouverture = dernier inventaire finalisé du **mois
@@ -378,15 +378,19 @@ sous-composante en alerte sur P5 (98,3 % de concordance, sous le seuil de
 100 %) suffit à faire basculer tout le pilier à 0.
 
 Sur le jeu de démonstration (mai à septembre 2026), le score composite moyen
-national suit **95,3 puis 90,6 puis 92,8 puis 89,0 puis 69,2**. Août et
+national suit **95,3 puis 90,6 puis 92,8 puis 89,0 puis 30,8**. Août et
 septembre sont **provisoires** : une extraction du 5 septembre a fait remonter
 les réquisitions d'août du CHR de Daloa et du district de Daloa, et septembre ne
-compte encore que cinq jours de données — aucun site n'y a fait son inventaire
-de fin de mois, d'où la chute. Points de vigilance d'un mois à l'autre : le CHR
-public de Bondoukou (réquisition en retard, régularité de saisie faible, écarts
-SDU) qui reste NON CONFORME, le district de Niakaramadougou (réponse partielle
-aux réquisitions de sa zone — P3 « distribution » à 2/3 puis 3/3 puis 2/3), et
-le CSR-DM public de Bobia (réquisition jamais soumise).
+compte encore que cinq jours de données. Aucun site n'y a fait d'inventaire ni
+soumis de réquisition : P4 (écart SDU et consommation) et P5 (concordance)
+valent alors 0 (ADR 0012, section 5), P1 et P2 ne sont pas encore calculables
+(inventaire et réquisition de fin de mois pas dus), seuls P3 et P6 portent la
+note. D'où la chute, attendue tant que le mois n'a pas avancé. Points de
+vigilance d'un mois à l'autre : le CHR public de Bondoukou (réquisition en
+retard, régularité de saisie faible, écarts SDU) qui reste NON CONFORME, le
+district de Niakaramadougou (réponse partielle aux réquisitions de sa zone,
+P3 « distribution » à 2/3 puis 3/3 puis 2/3), et le CSR-DM public de Bobia
+(réquisition jamais soumise).
 
 ---
 
