@@ -91,6 +91,31 @@ Pour tester l'import réel : se connecter en `coordination`, écran
 
 ## Production
 
-Hors périmètre de ce dépôt à ce jour : pas de `docker-compose.prod.yml`, pas de
-CI. La pile démo en est la base (mêmes images ; ajouter TLS, `NODE_ENV=production`,
-secrets, sauvegardes, et un volume de base persistant).
+`docker-compose.prod.yml` (racine) + `deploy/`. Mêmes images que la démo, plus :
+
+| Élément | Fichier |
+|---|---|
+| Pile complète (base persistante, API, Nginx+TLS, certbot, sauvegardes) | `docker-compose.prod.yml` |
+| Variables (domaine, mots de passe, fuseau, rétention) | `deploy/.env.prod.example` → `deploy/.env.prod` |
+| Gabarit Nginx (TLS, en-têtes, proxy, SPA) | `deploy/nginx/default.conf.template` |
+| En-têtes de sécurité partagés | `deploy/nginx/security-headers.conf` |
+| Hook de rechargement Nginx (renouvellement TLS) | `deploy/nginx/99-reload.sh` |
+| Émission initiale du certificat Let's Encrypt | `deploy/init-letsencrypt.sh` |
+| Sauvegarde / restauration manuelles | `deploy/backup.sh`, `deploy/restore.sh` |
+
+Différences avec la démo : base sur volume **persistant** (`db_data`), pas de
+service `seed`, `NODE_ENV=production` (cookie de session `Secure`),
+`restart: unless-stopped`, seul `web` publie des ports (80 / 443).
+
+**Manuel pas à pas et pédagogique** (comment tout est écrit, directive par
+directive) : `docs/manuel_deploiement.md`.
+
+Mise en service résumée :
+
+```
+cp deploy/.env.prod.example deploy/.env.prod   # renseigner domaine, mots de passe
+./deploy/init-letsencrypt.sh                    # certificat TLS (une fois)
+docker compose --env-file deploy/.env.prod -f docker-compose.prod.yml up -d
+```
+
+Pas de CI à ce jour.

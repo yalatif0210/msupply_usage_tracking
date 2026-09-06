@@ -36,6 +36,16 @@ COPY --from=build /app/db/migrations db/migrations
 COPY apps/api/docker-entrypoint.sh /usr/local/bin/entrypoint
 RUN chmod +x /usr/local/bin/entrypoint
 
+# L'image node:* fournit déjà l'utilisateur non privilégié `node` (uid 1000).
+# Le runtime n'écrit rien sur le disque : tout est en lecture seule pour lui.
+USER node
+
 WORKDIR /app/apps/api
 EXPOSE 3000
+
+# Sonde interne : `docker`/Compose relancent le conteneur s'il ne répond plus.
+# Les fichiers Compose peuvent la surcharger (intervalles plus courts en démo).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD node -e "fetch('http://localhost:'+(process.env.PORT||3000)+'/api/sante').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
 ENTRYPOINT ["sh", "/usr/local/bin/entrypoint"]

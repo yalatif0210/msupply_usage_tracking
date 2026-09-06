@@ -5,6 +5,7 @@ coverage/
 .env
 .env.*
 !.env.example
+!deploy/.env.prod.example
 .DS_Store
 ~$*
 Re_ SQL.zip

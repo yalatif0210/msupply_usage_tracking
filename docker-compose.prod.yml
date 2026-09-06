@@ -1,0 +1,121 @@
+# Pile de PRODUCTION — base PostgreSQL persistante, API NestJS, front Nginx
+# avec terminaison TLS (Let's Encrypt), renouvellement automatique et
+# sauvegardes quotidiennes.
+#
+#   cp deploy/.env.prod.example deploy/.env.prod   # puis renseigner
+#   ./deploy/init-letsencrypt.sh                   # première émission du certificat
+#   docker compose --env-file deploy/.env.prod -f docker-compose.prod.yml up -d
+#
+# Détail de chaque directive : docs/manuel_deploiement.md
+#
+# Différences avec docker-compose.demo.yml :
+#   - la base a un volume nommé PERSISTANT (pas de `down -v` en prod) ;
+#   - aucun service `seed` (les données viennent des imports réels) ;
+#   - `NODE_ENV=production` → cookie de session `Secure` (HTTPS obligatoire) ;
+#   - `restart: unless-stopped` partout ;
+#   - seul `web` publie des ports (80 et 443), API et base restent internes.
+name: dqa
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: ${DQA_TZ:-Africa/Abidjan}
+      PGTZ: ${DQA_TZ:-Africa/Abidjan}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  api:
+    image: dqa-api:latest
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      # `db` = nom du service, résolu par le DNS interne du réseau Compose.
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      NODE_ENV: production
+      PORT: '3000'
+      TZ: ${DQA_TZ:-Africa/Abidjan}
+    depends_on:
+      db:
+        condition: service_healthy
+    # Sonde héritée de l'image (apps/api/Dockerfile) : /api/sante toutes les 30 s.
+    restart: unless-stopped
+
+  web:
+    image: dqa-web:latest
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      # Injecté par envsubst dans le gabarit Nginx au démarrage du conteneur.
+      DQA_DOMAIN: ${DQA_DOMAIN}
+    volumes:
+      # Le gabarit remplace la config démo bakée dans l'image (voir manuel §4).
+      # L'entrypoint de l'image nginx lance envsubst sur *.template puis les
+      # scripts /docker-entrypoint.d/*.sh — d'où le hook de rechargement.
+      - ./deploy/nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./deploy/nginx/security-headers.conf:/etc/nginx/snippets/security-headers.conf:ro
+      - ./deploy/nginx/99-reload.sh:/docker-entrypoint.d/99-reload.sh:ro
+      - certbot_certs:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    # Tente un renouvellement toutes les 12 h ; `certbot renew` ne fait rien
+    # tant que le certificat n'est pas dans sa fenêtre de renouvellement (30 j).
+    entrypoint: sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $$!; done"
+    restart: unless-stopped
+
+  backup:
+    image: postgres:16-alpine
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      RETENTION_DAYS: ${DQA_BACKUP_RETENTION_DAYS:-14}
+      TZ: ${DQA_TZ:-Africa/Abidjan}
+    volumes:
+      - ./backups:/backups
+    # Dump `custom` (compressé, restaurable sélectivement) une fois par jour,
+    # purge des dumps plus vieux que RETENTION_DAYS. Détail : deploy/backup.sh.
+    entrypoint: >
+      sh -c 'while :; do
+        ts=$$(date +%Y%m%d-%H%M%S);
+        if pg_dump --no-owner --format=custom --file=/backups/dqa-$$ts.dump; then
+          echo "backup ok : dqa-$$ts.dump ($$(date))";
+        else
+          echo "backup ECHEC : $$ts ($$(date))";
+        fi;
+        find /backups -name "dqa-*.dump" -mtime +$$RETENTION_DAYS -delete;
+        sleep 86400;
+      done'
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  certbot_certs:
+  certbot_webroot:
