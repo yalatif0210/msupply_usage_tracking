@@ -1,0 +1,1145 @@
+<title>Plan de suivi mSupply</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,500;0,600;1,400&family=Public+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+
+<style>
+  :root {
+    --ground: #f6f5f1;
+    --surface: #ffffff;
+    --surface-2: #efede6;
+    --ink: #1b211f;
+    --ink-soft: #58605c;
+    --primary: #0e5c61;
+    --primary-tint: #e2edec;
+    --accent: #a2541c;
+    --rule: #dcd7cd;
+    --rule-strong: #c3bcac;
+    --vert: #2f7d43;
+    --orange: #b06a0f;
+    --rouge: #b0322a;
+    --vert-bg: #e7f0e6;
+    --orange-bg: #f6ebda;
+    --rouge-bg: #f6e3e0;
+    --shadow: 0 1px 2px rgba(27, 33, 31, .06);
+    --measure: 43rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #121615;
+      --surface: #191e1d;
+      --surface-2: #212827;
+      --ink: #e7e5de;
+      --ink-soft: #9aa19d;
+      --primary: #58b0b3;
+      --primary-tint: #16302f;
+      --accent: #d6894c;
+      --rule: #2c3331;
+      --rule-strong: #3b433f;
+      --vert: #6bbf7c;
+      --orange: #d59a4e;
+      --rouge: #dd7a70;
+      --vert-bg: #16241a;
+      --orange-bg: #2a2214;
+      --rouge-bg: #2c1a17;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #121615;
+    --surface: #191e1d;
+    --surface-2: #212827;
+    --ink: #e7e5de;
+    --ink-soft: #9aa19d;
+    --primary: #58b0b3;
+    --primary-tint: #16302f;
+    --accent: #d6894c;
+    --rule: #2c3331;
+    --rule-strong: #3b433f;
+    --vert: #6bbf7c;
+    --orange: #d59a4e;
+    --rouge: #dd7a70;
+    --vert-bg: #16241a;
+    --orange-bg: #2a2214;
+    --rouge-bg: #2c1a17;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+  @media (max-width: 640px) { body { font-size: 16px; } }
+
+  .layout {
+    max-width: 74rem;
+    margin: 0 auto;
+    padding: 0 clamp(1rem, 4vw, 3rem);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+  @media (min-width: 1080px) {
+    .layout { grid-template-columns: 15rem minmax(0, 1fr); align-items: start; }
+  }
+
+  /* ---- Table of contents ---- */
+  .toc {
+    font-size: .82rem;
+    line-height: 1.45;
+  }
+  @media (min-width: 1080px) {
+    .toc {
+      position: sticky;
+      top: 0;
+      max-height: 100vh;
+      overflow-y: auto;
+      padding: 2.6rem 0 2rem;
+      border-right: 1px solid var(--rule);
+      padding-right: 1.4rem;
+    }
+  }
+  .toc__title {
+    font-family: "Public Sans", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-size: .68rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0 0 .8rem;
+  }
+  .toc ol { list-style: none; margin: 0; padding: 0; }
+  .toc li { margin: .18rem 0; }
+  .toc a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    display: grid;
+    grid-template-columns: 1.6rem 1fr;
+    gap: .35rem;
+    padding: .12rem 0;
+  }
+  .toc a:hover { color: var(--primary); }
+  .toc a .n { color: var(--rule-strong); font-variant-numeric: tabular-nums; }
+  .toc .grp {
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    font-size: .64rem;
+    font-weight: 700;
+    color: var(--ink-soft);
+    margin: 1.1rem 0 .4rem;
+  }
+  .toc details { margin: 0; }
+  .toc summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-size: .68rem;
+    padding: .5rem 0;
+  }
+  @media (min-width: 1080px) { .toc summary { display: none; } .toc details[open] .toc__inner, .toc .toc__inner { display: block; } }
+  @media (max-width: 1079px) {
+    .toc { border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); padding: .3rem 1rem; margin-top: 1.5rem; }
+    .toc details:not([open]) .toc__inner { display: none; }
+    .toc__inner { padding-bottom: .8rem; }
+  }
+
+  /* ---- Document ---- */
+  .doc { min-width: 0; padding: 2.4rem 0 5rem; }
+
+  .doc__head { border-bottom: 2px solid var(--ink); padding-bottom: 1.8rem; margin-bottom: 2.6rem; }
+  .kicker {
+    text-transform: uppercase;
+    letter-spacing: .16em;
+    font-size: .7rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0 0 1rem;
+  }
+  h1 {
+    font-family: "Newsreader", Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(2rem, 5.5vw, 3.1rem);
+    line-height: 1.08;
+    letter-spacing: -.01em;
+    margin: 0 0 .9rem;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-family: "Newsreader", Georgia, serif;
+    font-size: clamp(1.05rem, 2.4vw, 1.32rem);
+    line-height: 1.5;
+    color: var(--ink-soft);
+    font-style: italic;
+    max-width: var(--measure);
+    margin: 0 0 1.8rem;
+  }
+  .meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: .1rem 2rem;
+    border-top: 1px solid var(--rule);
+    padding-top: 1.2rem;
+  }
+  .meta div { padding: .5rem 0; border-bottom: 1px solid var(--rule); }
+  .meta dt {
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    font-size: .62rem;
+    font-weight: 700;
+    color: var(--ink-soft);
+    margin-bottom: .15rem;
+  }
+  .meta dd { margin: 0; font-size: .92rem; }
+
+  section { margin: 3.2rem 0; scroll-margin-top: 1.5rem; }
+  section > .eyebrow {
+    display: block;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: .8rem;
+    letter-spacing: .06em;
+    color: var(--accent);
+    border-top: 1px solid var(--rule-strong);
+    padding-top: .9rem;
+    margin-bottom: .3rem;
+  }
+  h2 {
+    font-family: "Newsreader", Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(1.5rem, 3.6vw, 2rem);
+    line-height: 1.16;
+    letter-spacing: -.005em;
+    margin: 0 0 1.1rem;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: "Public Sans", sans-serif;
+    font-weight: 700;
+    font-size: 1.02rem;
+    letter-spacing: .01em;
+    margin: 2rem 0 .6rem;
+    color: var(--primary);
+  }
+  h4 {
+    font-weight: 700;
+    font-size: .95rem;
+    margin: 1.4rem 0 .4rem;
+  }
+  p { max-width: var(--measure); margin: 0 0 1rem; }
+  a { color: var(--primary); }
+
+  ul, ol { max-width: var(--measure); padding-left: 1.3rem; margin: 0 0 1.1rem; }
+  li { margin: .34rem 0; }
+  li::marker { color: var(--rule-strong); }
+
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+  code, .mono {
+    font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, monospace;
+    font-size: .86em;
+    background: var(--surface-2);
+    padding: .08em .35em;
+    border-radius: 4px;
+  }
+
+  /* ---- Tables ---- */
+  .tw {
+    margin: 1.4rem 0 1.8rem;
+    overflow-x: auto;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    -webkit-overflow-scrolling: touch;
+  }
+  table { border-collapse: collapse; width: 100%; font-size: .86rem; }
+  th, td {
+    text-align: left;
+    padding: .62rem .85rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+    line-height: 1.45;
+  }
+  thead th {
+    background: var(--primary-tint);
+    color: var(--primary);
+    font-weight: 700;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    position: sticky;
+    top: 0;
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-2); }
+  td .num, th .num { font-variant-numeric: tabular-nums; }
+  table.narrow { font-size: .88rem; }
+
+  /* ---- Chips / tags ---- */
+  .chips { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1rem 0 1.4rem; max-width: var(--measure); }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    font-size: .78rem;
+    font-weight: 600;
+    padding: .2rem .6rem;
+    border-radius: 999px;
+    border: 1px solid var(--rule-strong);
+    background: var(--surface);
+    white-space: nowrap;
+  }
+  .chip .dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--rule-strong); }
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .1rem; margin: 1rem 0 1.6rem; }
+  .flow .step {
+    font-size: .78rem; font-weight: 600; padding: .22rem .55rem;
+    background: var(--primary-tint); color: var(--primary); border-radius: 6px;
+  }
+  .flow .arr { color: var(--rule-strong); padding: 0 .2rem; font-weight: 700; }
+
+  .sig-vert { color: var(--vert); }
+  .sig-orange { color: var(--orange); }
+  .sig-rouge { color: var(--rouge); }
+  .chip.vert { border-color: var(--vert); background: var(--vert-bg); color: var(--vert); }
+  .chip.orange { border-color: var(--orange); background: var(--orange-bg); color: var(--orange); }
+  .chip.rouge { border-color: var(--rouge); background: var(--rouge-bg); color: var(--rouge); }
+  .chip.vert .dot { background: var(--vert); }
+  .chip.orange .dot { background: var(--orange); }
+  .chip.rouge .dot { background: var(--rouge); }
+
+  .tag {
+    display: inline-block;
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    padding: .06rem .4rem;
+    border-radius: 4px;
+    vertical-align: baseline;
+  }
+  .tag-conf { background: var(--orange-bg); color: var(--orange); }
+  .tag-evo { background: var(--primary-tint); color: var(--primary); }
+
+  /* ---- Callout / note ---- */
+  .note {
+    max-width: var(--measure);
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    padding: .9rem 1.1rem;
+    margin: 1.4rem 0;
+    border-radius: 0 8px 8px 0;
+    font-size: .94rem;
+  }
+  .note p { margin: 0; max-width: none; }
+  .note p + p { margin-top: .5rem; }
+
+  .ladder { list-style: none; padding: 0; max-width: var(--measure); margin: 1rem 0 1.6rem; }
+  .ladder li {
+    display: grid; grid-template-columns: 7rem 1fr; gap: .8rem;
+    padding: .6rem 0; border-bottom: 1px solid var(--rule);
+  }
+  .ladder li:last-child { border-bottom: none; }
+  .ladder b { color: var(--primary); }
+
+  hr.div { border: none; border-top: 1px solid var(--rule); margin: 3rem 0 0; max-width: none; }
+
+  .annex-head {
+    font-family: "Newsreader", Georgia, serif;
+    font-size: 1.7rem;
+    font-weight: 600;
+    margin: 4rem 0 .4rem;
+    padding-top: 1.4rem;
+    border-top: 2px solid var(--ink);
+  }
+
+  .end {
+    text-align: center;
+    color: var(--ink-soft);
+    font-style: italic;
+    font-family: "Newsreader", Georgia, serif;
+    margin: 4rem 0 0;
+  }
+
+  @media (max-width: 520px) {
+    .ladder li { grid-template-columns: 1fr; gap: .1rem; }
+    .meta { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="layout">
+  <nav class="toc" aria-label="Sommaire">
+    <details>
+      <summary>Sommaire</summary>
+      <div class="toc__inner">
+        <p class="toc__title">Sommaire</p>
+        <ol>
+          <li><a href="#s1"><span class="n">1</span><span>Résumé exécutif</span></a></li>
+          <li><a href="#s2"><span class="n">2</span><span>Contexte et justification</span></a></li>
+          <li><a href="#s3"><span class="n">3</span><span>Problématique</span></a></li>
+          <li><a href="#s4"><span class="n">4</span><span>Objectif général</span></a></li>
+          <li><a href="#s5"><span class="n">5</span><span>Objectifs spécifiques</span></a></li>
+          <li><a href="#s6"><span class="n">6</span><span>Théorie du changement</span></a></li>
+          <li><a href="#s7"><span class="n">7</span><span>Cadre conceptuel</span></a></li>
+          <li><a href="#s8"><span class="n">8</span><span>Dimensions de suivi</span></a></li>
+          <li><a href="#s9"><span class="n">9</span><span>Cadre des indicateurs</span></a></li>
+          <li><a href="#s10"><span class="n">10</span><span>Architecture du suivi</span></a></li>
+          <li><a href="#s11"><span class="n">11</span><span>Rôle de l'application</span></a></li>
+          <li><a href="#s12"><span class="n">12</span><span>Alertes et segmentation</span></a></li>
+          <li><a href="#s13"><span class="n">13</span><span>Changement de comportement</span></a></li>
+          <li><a href="#s14"><span class="n">14</span><span>Stratégie d'intervention</span></a></li>
+          <li><a href="#s15"><span class="n">15</span><span>Suivi des actions correctives</span></a></li>
+          <li><a href="#s16"><span class="n">16</span><span>Gouvernance et RACI</span></a></li>
+          <li><a href="#s17"><span class="n">17</span><span>Cycle de suivi</span></a></li>
+          <li><a href="#s18"><span class="n">18</span><span>Tableaux de bord</span></a></li>
+          <li><a href="#s19"><span class="n">19</span><span>Efficacité des interventions</span></a></li>
+          <li><a href="#s20"><span class="n">20</span><span>Données pour la décision</span></a></li>
+          <li><a href="#s21"><span class="n">21</span><span>Plan opérationnel</span></a></li>
+          <li><a href="#s22"><span class="n">22</span><span>Feuille de route</span></a></li>
+          <li><a href="#s23"><span class="n">23</span><span>Risques et atténuation</span></a></li>
+          <li><a href="#s24"><span class="n">24</span><span>Conditions de pérennisation</span></a></li>
+          <li><a href="#s25"><span class="n">25</span><span>Conclusion</span></a></li>
+        </ol>
+        <p class="grp">Annexes</p>
+        <ol>
+          <li><a href="#aa"><span class="n">A</span><span>Tableau des indicateurs</span></a></li>
+          <li><a href="#ab"><span class="n">B</span><span>Fiche de supervision</span></a></li>
+          <li><a href="#ac"><span class="n">C</span><span>Registre des actions</span></a></li>
+          <li><a href="#ad"><span class="n">D</span><span>Matrice RACI</span></a></li>
+          <li><a href="#ae"><span class="n">E</span><span>Mapping dimension / donnée</span></a></li>
+          <li><a href="#af"><span class="n">F</span><span>Glossaire</span></a></li>
+          <li><a href="#ag"><span class="n">G</span><span>Cible des 8 tableaux de bord</span></a></li>
+        </ol>
+      </div>
+    </details>
+  </nav>
+
+  <article class="doc">
+    <header class="doc__head">
+      <p class="kicker">Suivi-évaluation &nbsp;&middot;&nbsp; Adoption d'un système d'information</p>
+      <h1>Plan de suivi de l'utilisation de mSupply</h1>
+      <p class="standfirst">Du constat descriptif au pilotage opérationnel : détecter les sites qui décrochent, comprendre pourquoi, agir, vérifier, documenter. Autour d'un instrument déjà en service, le tableau de bord DQA mSupply.</p>
+      <dl class="meta">
+        <div><dt>Programme</dt><dd>Gestion des stocks de produits de santé au niveau décentralisé, Côte d'Ivoire</dd></div>
+        <div><dt>Maîtrise d'ouvrage</dt><dd>Nouvelle PSP-CI / DAP / coordination nationale</dd></div>
+        <div><dt>Financement</dt><dd>Département d'État des États-Unis, jusqu'en 2030</dd></div>
+        <div><dt>Instrument central</dt><dd>Tableau de bord DQA mSupply (application existante)</dd></div>
+        <div><dt>Périmètre</dt><dd>40 sites (phase 1) &middot; ambition nationale phasée</dd></div>
+        <div><dt>Version</dt><dd>1.0 (2026-09) &middot; document de travail</dd></div>
+      </dl>
+      <p style="max-width:var(--measure); font-size:.86rem; color:var(--ink-soft); margin-top:1.1rem;">
+        Conventions : <span class="tag tag-conf">Information à confirmer</span> = donnée non disponible à ce jour &nbsp;&middot;&nbsp;
+        <span class="tag tag-evo">Évolution proposée</span> = fonctionnalité qui n'existe pas encore dans l'application.
+      </p>
+    </header>
+
+    <section id="s1">
+      <span class="eyebrow">01</span>
+      <h2>Résumé exécutif</h2>
+      <p>Le programme a déployé mSupply comme système de gestion des stocks de produits de santé dans un réseau de sites décentralisés. Le déploiement d'un outil ne garantit pas son utilisation, et l'utilisation ne garantit pas une gestion des stocks de meilleure qualité. Le présent plan organise le passage d'un constat descriptif (« le site utilise ou n'utilise pas mSupply ») à un pilotage opérationnel de l'adoption : détecter au fil de l'eau les sites qui décrochent, comprendre pourquoi, décider d'une action, la suivre jusqu'à la vérification, et documenter le résultat pour ne pas recommencer indéfiniment les mêmes interventions.</p>
+      <p>Le plan s'appuie sur un actif déjà en production : le <strong>Tableau de bord DQA mSupply</strong>. Cette application consolide chaque semaine un extrait de la base mSupply transmis par la DAP, calcule par site un score de conformité des données sur six piliers, et historise la progression dans le temps. Le plan ne demande pas de construire un nouveau système. Il demande de <strong>relire la donnée déjà disponible sous deux angles</strong> : un <strong>axe adoption</strong> (le site fait-il réellement tourner sa gestion de stock sur mSupply) et un <strong>axe qualité des données</strong> (les données saisies sont-elles fiables), et d'ajouter autour de l'application une <strong>boucle d'action</strong> légère (une fiche de supervision trimestrielle d'une page, un registre des actions correctives).</p>
+      <p>Le dispositif est cadré par la contrainte structurante du programme : les données n'arrivent pas en temps réel, elles arrivent par lot hebdomadaire. Tout le cycle de suivi en découle. Le plan reste honnête sur ce qu'il peut mesurer : plusieurs dimensions souvent citées (fréquence de connexion individuelle, usage détaillé des modules, connectivité) ne sont pas observables avec la donnée actuelle et sont traitées comme des évolutions à négocier, pas comme des acquis.</p>
+      <p>Le périmètre de départ est de 40 sites. L'ambition, sur l'horizon 2030, est une couverture nationale progressive (33 régions, 113 districts), <strong>conditionnée</strong> à la capacité de la DAP à étendre l'extraction hebdomadaire. La feuille de route en cinq phases (Baseline, Monitoring, Intervention, Optimisation, Pérennisation) organise cette montée en charge et le transfert progressif de la routine à la coordination nationale.</p>
+    </section>
+
+    <section id="s2">
+      <span class="eyebrow">02</span>
+      <h2>Contexte et justification</h2>
+      <h3>2.1 &nbsp; mSupply au niveau décentralisé</h3>
+      <p>mSupply est le système de gestion des stocks utilisé par le réseau. Au niveau d'un site, l'utilisation attendue se traduit par des actes concrets et datés : enregistrer les réceptions de produits, saisir les dispensations ou les distributions, réaliser l'inventaire de fin de mois, soumettre la réquisition mensuelle de réapprovisionnement, corriger le stock théorique par un ajustement lorsqu'un écart est constaté. Ces actes laissent une trace dans la base : c'est cette trace que le suivi exploite.</p>
+      <h3>2.2 &nbsp; L'application de suivi existante</h3>
+      <p>Le <strong>Tableau de bord DQA mSupply</strong> est en service. Son fonctionnement :</p>
+      <ul>
+        <li><strong>Source unique et cadence.</strong> La DAP transmet chaque semaine un classeur Excel unique, extrait de mSupply sur une fenêtre glissante de 45 jours (le recouvrement permet de rattraper une semaine manquée). Ce classeur contient dix jeux de données : métadonnées de l'extraction, sites, rattachement site-programme, produits, transactions, lignes de transactions, photo du stock actuel, inventaires, lignes d'inventaire, réquisitions.</li>
+        <li><strong>Traitement.</strong> L'application valide le classeur, l'intègre dans un modèle en trois couches (miroir brut, données typées et dédoublonnées, indicateurs), calcule les indicateurs dans des vues de base de données, puis <strong>fige</strong> les scores du mois pour en garantir l'immuabilité.</li>
+        <li><strong>Restitution.</strong> Un tableau de bord national, une liste des sites, une fiche par site (scores par pilier, courbes d'évolution, radar, détail ligne à ligne), une fiche produit-mois, un écran de synthèse, un écran d'imports, et des écrans d'administration.</li>
+        <li><strong>Grain.</strong> Site (magasin mSupply) &times; programme &times; mois. <strong>Aucune donnée utilisateur mSupply</strong> n'est extraite : ni identité de l'agent qui a saisi une transaction, ni journal de connexion, ni usage des écrans mSupply.</li>
+      </ul>
+      <h3>2.3 &nbsp; Justification du plan</h3>
+      <p>L'application produit aujourd'hui un <strong>verdict de qualité des données</strong>. Le programme a besoin, en plus, d'un <strong>pilotage de l'adoption</strong> : savoir quels sites décrochent, agir avant l'abandon, et vérifier que l'appui porte ses fruits. Les deux besoins se nourrissent de la même donnée hebdomadaire mais répondent à des questions différentes. Le plan formalise cette double lecture et l'outille d'un cycle opérationnel et d'une boucle d'action.</p>
+    </section>
+
+    <section id="s3">
+      <span class="eyebrow">03</span>
+      <h2>Problématique</h2>
+      <h3>3.1 &nbsp; Pourquoi « le taux d'utilisation » ne suffit pas</h3>
+      <p>Un indicateur binaire (« le site utilise / n'utilise pas mSupply ») masque huit réalités distinctes, chacune appelant une réponse différente :</p>
+      <div class="tw"><table>
+        <thead><tr><th>Niveau</th><th>Question</th><th>Ce qu'un « taux d'utilisation » ne dit pas</th></tr></thead>
+        <tbody>
+          <tr><td>Accès</td><td>Le site a-t-il un poste, une connexion, un compte actif ?</td><td>Un site sans accès n'est pas un site qui refuse l'outil.</td></tr>
+          <tr><td>Utilisation</td><td>Le site enregistre-t-il des transactions ?</td><td>Une transaction par mois n'est pas une gestion de stock sur mSupply.</td></tr>
+          <tr><td>Utilisation régulière</td><td>Les saisies suivent-elles le rythme réel des mouvements de stock ?</td><td>Un site peut saisir en bloc une fois par mois, ce qui casse la valeur opérationnelle.</td></tr>
+          <tr><td>Utilisation correcte</td><td>Les saisies respectent-elles le processus (inventaire avant réquisition, ajustement justifié) ?</td><td>Des données saisies mais fausses sont pires qu'une absence de données.</td></tr>
+          <tr><td>Utilisation complète des fonctionnalités</td><td>Le site utilise-t-il l'inventaire, la réquisition, la dispensation, pas seulement la réception ?</td><td>Un usage partiel laisse des angles morts dans la chaîne.</td></tr>
+          <tr><td>Qualité des données</td><td>Les quantités saisies concordent-elles avec le stock physique ?</td><td>C'est l'objet des six piliers PAQD.</td></tr>
+          <tr><td>Utilisation des données pour la décision</td><td>Les données mSupply servent-elles à commander, à anticiper une rupture ?</td><td>Un système alimenté mais jamais consulté n'a pas d'effet.</td></tr>
+          <tr><td>Appropriation durable</td><td>Le site maintient-il ces pratiques sans appui externe ?</td><td>C'est la seule mesure qui compte à la fin du projet.</td></tr>
+        </tbody>
+      </table></div>
+      <h3>3.2 &nbsp; Conséquence pour le plan</h3>
+      <p>Le suivi doit distinguer explicitement ces niveaux, mesurer ceux qui sont observables, évaluer les autres en supervision, et attacher à chaque signal de dégradation une décision. Un plan qui produit des statistiques sans dire ce que l'équipe doit faire quand elles se dégradent n'est pas un plan de suivi, c'est un rapport.</p>
+    </section>
+
+    <section id="s4">
+      <span class="eyebrow">04</span>
+      <h2>Objectif général</h2>
+      <p>Piloter l'adoption et l'utilisation effective de mSupply dans le réseau décentralisé, de manière à ce que chaque site atteigne et maintienne une gestion des stocks régulière, correcte et autonome sur le système, et à ce que l'équipe programme puisse détecter, prioriser et corriger les décrochages au fil de l'eau.</p>
+    </section>
+
+    <section id="s5">
+      <span class="eyebrow">05</span>
+      <h2>Objectifs spécifiques</h2>
+      <ol>
+        <li><strong>Mesurer l'adoption</strong> de mSupply par site, sur une échelle opérationnelle claire, à partir de la donnée déjà disponible.</li>
+        <li><strong>Détecter au fil des imports hebdomadaires</strong> les sites en décrochage ou à risque d'abandon.</li>
+        <li><strong>Comprendre les barrières</strong> à l'utilisation, via une fiche de supervision trimestrielle légère.</li>
+        <li><strong>Déclencher et suivre des actions correctives</strong> ciblées, jusqu'à leur vérification, dans un registre partagé.</li>
+        <li><strong>Évaluer l'efficacité des interventions</strong> (l'appui améliore-t-il réellement l'utilisation, et l'amélioration tient-elle dans le temps).</li>
+        <li><strong>Segmenter l'appui</strong> : concentrer les ressources sur les sites qui en ont besoin, alléger le suivi des sites autonomes.</li>
+        <li><strong>Préparer la pérennisation</strong> : transférer la routine à la coordination nationale et réduire la dépendance au projet d'ici 2030.</li>
+        <li><strong>Documenter la progression vers l'usage des données pour la décision</strong>, comme cap de moyen terme.</li>
+      </ol>
+    </section>
+
+    <section id="s6">
+      <span class="eyebrow">06</span>
+      <h2>Théorie du changement et modèle d'adoption</h2>
+      <h3>6.1 &nbsp; Le parcours d'une structure</h3>
+      <p>Une structure ne passe pas d'un coup de la non-utilisation à l'appropriation. Elle franchit des paliers, et peut régresser. Le modèle narratif compte sept niveaux. Pour chacun, le tableau indique ce que l'on cherche à observer, le comportement attendu, le risque si le niveau n'est pas atteint, l'intervention type, et <strong>comment le niveau est apprécié</strong> (par la donnée, par la fiche de supervision, ou non mesuré à ce jour).</p>
+      <div class="tw"><table>
+        <thead><tr><th>Niveau</th><th>Ce qu'on observe</th><th>Comportement attendu</th><th>Risque si non atteint</th><th>Intervention type</th><th>Mode d'appréciation</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Accès</strong></td><td>Poste, connexion, compte mSupply actif</td><td>Le site peut se connecter et saisir</td><td>Non-utilisation subie, faussement lue comme un refus</td><td>Résolution matérielle, activation du compte, appui connectivité</td><td><strong>Supervision</strong> &middot; <span class="tag tag-conf">à confirmer</span> pour un suivi systématique</td></tr>
+          <tr><td><strong>Première utilisation</strong></td><td>Premières transactions enregistrées</td><td>Le site saisit au moins les réceptions et les dispensations</td><td>Le déploiement reste théorique</td><td>Formation initiale, accompagnement des premières saisies</td><td><strong>Donnée</strong> : présence de transactions</td></tr>
+          <tr><td><strong>Utilisation régulière</strong></td><td>Rythme des saisies vs rythme réel des mouvements</td><td>Saisie au fil des jours, réquisition mensuelle à l'heure</td><td>Données périmées, sans valeur opérationnelle</td><td>Coaching sur la routine quotidienne, rappels calendaires</td><td><strong>Donnée</strong> : P3 régularité, P2 promptitude</td></tr>
+          <tr><td><strong>Utilisation correcte</strong></td><td>Respect du processus, cohérence physique / théorique</td><td>Inventaire de clôture fait et saisi, ajustements justifiés</td><td>Décisions fondées sur des données fausses</td><td>Coaching processus (comptage, ordre des opérations, ajustements)</td><td><strong>Donnée</strong> : P1, P4, P5, P6</td></tr>
+          <tr><td><strong>Maîtrise</strong></td><td>Autonomie de saisie, résolution des erreurs courantes</td><td>Le gestionnaire corrige seul ses erreurs, forme un remplaçant</td><td>Dépendance permanente à l'appui externe</td><td>Réduction progressive de l'accompagnement, tutoriels courts</td><td><strong>Supervision</strong> &middot; non mesuré par la donnée</td></tr>
+          <tr><td><strong>Appropriation</strong></td><td>Les données mSupply servent à décider</td><td>Le stock mSupply est consulté en réunion de gestion</td><td>Système alimenté mais sans effet sur la disponibilité</td><td>Démonstration de valeur, intégration aux revues de stock</td><td><strong>Supervision</strong> + un proxy de donnée (section 20)</td></tr>
+          <tr><td><strong>Pérennisation</strong></td><td>Maintien des pratiques sans intervention</td><td>Niveau tenu plusieurs cycles sans action ouverte</td><td>Régression dès la fin du projet</td><td>Institutionnalisation, transfert à la routine de district</td><td><strong>Donnée</strong> : stabilité + absence d'action ouverte</td></tr>
+        </tbody>
+      </table></div>
+      <h3>6.2 &nbsp; L'échelle opérationnelle</h3>
+      <p>Pour le pilotage quotidien, ce parcours à sept niveaux est trop fin et à moitié non mesurable. Le plan retient une <strong>échelle opérationnelle à quatre niveaux</strong>, qui se calcule directement sur la donnée de l'application et qui pilote le classement, la segmentation et le routage de l'appui.</p>
+      <div class="chips">
+        <span class="chip"><span class="dot"></span>Actif</span>
+        <span class="chip"><span class="dot"></span>Régulier</span>
+        <span class="chip"><span class="dot"></span>Fiable</span>
+        <span class="chip"><span class="dot"></span>Autonome</span>
+      </div>
+      <ul class="ladder">
+        <li><b>Actif</b><span>Au moins une transaction saisie dans le mois. &nbsp;<em>(Première utilisation)</em></span></li>
+        <li><b>Régulier</b><span>Actif + P3 (régularité) et P2 (promptitude) au seuil de la grille, sur les deux derniers cycles. &nbsp;<em>(Utilisation régulière)</em></span></li>
+        <li><b>Fiable</b><span>Régulier + P1, P4, P5, P6 au seuil, sur le dernier cycle. &nbsp;<em>(Utilisation correcte)</em></span></li>
+        <li><b>Autonome</b><span>Fiable tenu deux cycles consécutifs sans action corrective ouverte. &nbsp;<em>(Maîtrise + Pérennisation)</em></span></li>
+      </ul>
+      <h3>6.3 &nbsp; La boucle de pilotage</h3>
+      <p>Le dispositif tourne selon une boucle unique, du signal à la documentation :</p>
+      <div class="flow">
+        <span class="step">Collecter</span><span class="arr">&rsaquo;</span>
+        <span class="step">Consolider</span><span class="arr">&rsaquo;</span>
+        <span class="step">Analyser</span><span class="arr">&rsaquo;</span>
+        <span class="step">Détecter</span><span class="arr">&rsaquo;</span>
+        <span class="step">Alerter</span><span class="arr">&rsaquo;</span>
+        <span class="step">Prioriser</span><span class="arr">&rsaquo;</span>
+        <span class="step">Agir</span><span class="arr">&rsaquo;</span>
+        <span class="step">Vérifier</span><span class="arr">&rsaquo;</span>
+        <span class="step">Documenter</span>
+      </div>
+    </section>
+
+    <section id="s7">
+      <span class="eyebrow">07</span>
+      <h2>Cadre conceptuel du suivi</h2>
+      <p>Rôle de l'application et des acteurs à chaque étape de la boucle.</p>
+      <div class="tw"><table>
+        <thead><tr><th>Étape</th><th>Données nécessaires</th><th>Source</th><th>Rôle de l'application</th><th>Acteur</th><th>Résultat attendu</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Collecter</strong></td><td>Transactions, inventaires, réquisitions, stock (45 j)</td><td>Extraction mSupply</td><td>(indirect) définit le contrat d'extraction v2</td><td>DAP</td><td>Classeur hebdomadaire conforme</td></tr>
+          <tr><td><strong>Consolider</strong></td><td>Le classeur reçu</td><td>Import dans l'application</td><td>Validation, intégration, dédoublonnage sur les identifiants mSupply</td><td>Application &middot; coordination</td><td>Données du mois intégrées et contrôlées</td></tr>
+          <tr><td><strong>Analyser</strong></td><td>Données intégrées + grille versionnée</td><td>Base de l'application</td><td>Calcul des piliers, du composite, du <strong>niveau</strong> et du <strong>signal</strong> ; historisation</td><td>Application</td><td>Scores figés, niveaux à jour</td></tr>
+          <tr><td><strong>Détecter</strong></td><td>Scores et niveaux + historique</td><td>Application</td><td>Comparaison au seuil et à la tendance (2 cycles)</td><td>Application (écran Alertes)</td><td>Liste des sites à traiter</td></tr>
+          <tr><td><strong>Alerter</strong></td><td>Sites Rouge, sans transaction, fraîcheur dépassée</td><td>Application</td><td>Mise en évidence ; <span class="tag tag-evo">évolution</span> : notification au point focal</td><td>Coordination</td><td>Points focaux informés</td></tr>
+          <tr><td><strong>Prioriser</strong></td><td>Niveau, signal, segment, ancienneté</td><td>Application (écran Performance)</td><td>Classement et filtrage par segment</td><td>Coordination</td><td>Plan d'appui du mois</td></tr>
+          <tr><td><strong>Agir</strong></td><td>Diagnostic de la cause (barrière)</td><td>Fiche de supervision + échange</td><td>(indirect) fournit le contexte historique</td><td>Point focal district</td><td>Action convenue, responsable, échéance</td></tr>
+          <tr><td><strong>Vérifier</strong></td><td>Score et niveau aux cycles suivants</td><td>Application</td><td>Mesure avant / après, tendance post-intervention</td><td>Coordination</td><td>Action confirmée ou ré-ouverte</td></tr>
+          <tr><td><strong>Documenter</strong></td><td>Problème, cause, action, résultat</td><td>Registre des actions</td><td>(interim : tableur) <span class="tag tag-evo">évolution n&deg;1</span> : module applicatif</td><td>Coordination</td><td>Historique consultable, pas de répétition</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="s8">
+      <span class="eyebrow">08</span>
+      <h2>Dimensions de suivi</h2>
+      <p>Le plan structure le suivi autour de huit dimensions. Pour chacune : ce qu'elle couvre, et sa <strong>disponibilité de donnée réelle</strong> aujourd'hui.</p>
+      <div class="tw"><table>
+        <thead><tr><th>Dimension</th><th>Contenu</th><th>Disponibilité</th></tr></thead>
+        <tbody>
+          <tr><td><strong>A. Disponibilité / Accessibilité</strong></td><td>Accès au système, connectivité, équipement, compte</td><td><strong>Supervision uniquement.</strong> Aucune donnée d'infrastructure dans l'extraction. <span class="tag tag-conf">à confirmer</span> : relevé d'accès par la DAP.</td></tr>
+          <tr><td><strong>B. Utilisation</strong></td><td>Fréquence des transactions, régularité, fraîcheur</td><td><strong>Donnée disponible.</strong> Reformulation assumée : « fréquence de connexion » devient « fréquence des transactions ».</td></tr>
+          <tr><td><strong>C. Qualité d'utilisation</strong></td><td>Complétude, cohérence, exactitude, respect des processus, anomalies</td><td><strong>Donnée disponible.</strong> Objet des piliers P1, P4, P5, P6.</td></tr>
+          <tr><td><strong>D. Utilisation fonctionnelle</strong></td><td>Usage des fonctions clés</td><td><strong>Partiel.</strong> Observables : réquisition, réception, dispensation, inventaire, ajustement, mode (magasin / dispensaire). Le reste : <span class="tag tag-evo">évolution</span> selon extension de l'extraction.</td></tr>
+          <tr><td><strong>E. Comportement utilisateur</strong></td><td>Habitudes, contournement, doublons papier, résistance, autonomie</td><td><strong>Supervision + inférence de donnée.</strong> Recours élevé aux ajustements et saisie en bloc = proxies ; le reste en visite.</td></tr>
+          <tr><td><strong>F. Capacité / Compétence</strong></td><td>Maîtrise, coaching, erreurs récurrentes, nouveaux utilisateurs, turnover</td><td><strong>Supervision.</strong> Turnover <span class="tag tag-conf">à confirmer</span> faute de donnée utilisateur ; déclaré en fiche.</td></tr>
+          <tr><td><strong>G. Environnement organisationnel</strong></td><td>Supervision, leadership, organisation du travail, responsabilisation</td><td><strong>Supervision uniquement.</strong></td></tr>
+          <tr><td><strong>H. Pérennisation</strong></td><td>Utiliser mSupply sans appui, maintien des pratiques, résolution autonome</td><td><strong>Donnée (proxy) + supervision.</strong> Proxy : niveau Autonome tenu sans action ouverte.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="s9">
+      <span class="eyebrow">09</span>
+      <h2>Cadre des indicateurs</h2>
+      <h3>9.1 &nbsp; Principe</h3>
+      <p>Douze indicateurs pilotables, pas trente. Un indicateur n'entre dans le cadre que si une décision lui est attachée : « si cet indicateur se dégrade, l'équipe fait X ». Les autres mesures utiles mais non pilotables figurent en <a href="#ae">annexe E</a>.</p>
+      <ul>
+        <li><strong>KPI d'alerte</strong> : déclenchent une action à court terme sur un site.</li>
+        <li><strong>KPI de comportement</strong> : décrivent comment le site utilise le système.</li>
+        <li><strong>KPI de processus</strong> : décrivent la santé du dispositif de suivi lui-même.</li>
+        <li><strong>KPI de résultat</strong> : mesurent l'effet d'ensemble (adoption et qualité).</li>
+      </ul>
+      <h3>9.2 &nbsp; Les douze indicateurs</h3>
+      <div class="tw"><table>
+        <thead><tr><th>#</th><th>Indicateur</th><th>Famille</th><th>Définition</th><th>Source</th><th>Fréquence</th><th>Désagrégation</th><th>Seuil / signal</th><th>Action déclenchée</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td>Sites sans aucune transaction du mois</td><td>Alerte</td><td>Sites du périmètre sans transaction saisie sur le mois PAQD</td><td>Jeu Transactions</td><td>Hebdo / mensuel</td><td>District, programme</td><td>&gt; 0 site : Rouge pour ces sites</td><td>Contact immédiat du point focal ; vérification accès, équipement, personnel</td></tr>
+          <tr><td class="num">2</td><td>Fraîcheur des données</td><td>Alerte</td><td>Jours entre la dernière transaction saisie et la date d'extraction</td><td>Transactions + métadonnées</td><td>Hebdo</td><td>Site</td><td>&gt; 10 j : Orange ; &gt; 20 j : Rouge</td><td>Relance du site ; diagnostic connectivité / charge de travail</td></tr>
+          <tr><td class="num">3</td><td>Sites en baisse sur 2 cycles</td><td>Alerte</td><td>Niveau d'adoption ou score composite en recul deux cycles de suite</td><td>Historique de l'application</td><td>Cycle</td><td>District</td><td>Tout site : Orange au minimum</td><td>Passage en revue mensuelle ; intervention ciblée selon segment</td></tr>
+          <tr><td class="num">4</td><td>Régularité de saisie (P3)</td><td>Comportement</td><td>Part des jours du mois avec au moins une sortie de stock ; district : part des réquisitions de zone servies</td><td>Vues d'indicateurs</td><td>Mensuel</td><td>Site, programme</td><td>Grille : 65 % (soins), 80 % (district)</td><td>Sous le seuil : coaching sur la routine quotidienne de saisie</td></tr>
+          <tr><td class="num">5</td><td>Promptitude des réquisitions (P2)</td><td>Comportement</td><td>Réquisition du mois soumise avant l'échéance de la strate (5, 7 ou 10)</td><td>Jeu Réquisitions</td><td>Mensuel</td><td>Site, programme</td><td>Grille : 100 %</td><td>Rappel calendaire ; appui à la préparation de la réquisition</td></tr>
+          <tr><td class="num">6</td><td>Complétude des transactions (P1)</td><td>Comportement</td><td>Présence de l'inventaire, de la réquisition et de la réception de fin de mois</td><td>Vues d'indicateurs</td><td>Mensuel</td><td>Site, programme</td><td>Grille : 100 %</td><td>Vérifier que l'inventaire de clôture est fait puis saisi</td></tr>
+          <tr><td class="num">7</td><td>Recours aux ajustements d'inventaire (P6)</td><td>Comportement</td><td>Ajustements rapportés au total des mouvements de stock du mois</td><td>Lignes de transactions</td><td>Mensuel</td><td>Site</td><td>Grille : 5 % maximum</td><td>Si dépassé : analyse des causes ; coaching processus</td></tr>
+          <tr><td class="num">8</td><td>Part des sites Fiable ou Autonome</td><td>Résultat</td><td>Sites au niveau Fiable ou Autonome sur l'échelle d'adoption</td><td>Application (niveau calculé)</td><td>Cycle</td><td>District, région</td><td>Cible fixée en Phase 1</td><td>Revue trimestrielle ; ajustement de la stratégie d'appui</td></tr>
+          <tr><td class="num">9</td><td>Couverture de l'extraction</td><td>Processus</td><td>Sites présents dans le classeur / sites du périmètre</td><td>Métadonnées + jeu Sites</td><td>Hebdo</td><td>(national)</td><td>&lt; 95 % : anomalie</td><td>Escalade DAP ; identification nominative des sites manquants</td></tr>
+          <tr><td class="num">10</td><td>Délai import vers disponibilité</td><td>Processus</td><td>Jours entre la réception du classeur et le gel des scores</td><td>Journal d'imports</td><td>Hebdo</td><td>(national)</td><td>Dérive vs cible interne</td><td>Revue du processus d'import avec l'équipe technique</td></tr>
+          <tr><td class="num">11</td><td>Actions correctives : ouvertes, en retard, clôturées</td><td>Processus</td><td>Décompte du registre des actions correctives</td><td>Registre</td><td>Mensuel</td><td>District</td><td>Toute action en retard</td><td>Revue mensuelle ; escalade des actions en retard</td></tr>
+          <tr><td class="num">12</td><td>Score composite PAQD moyen et distribution des classifications</td><td>Résultat</td><td>Moyenne sur 100 et répartition CONFORME / PARTIELLEMENT / NON CONFORME</td><td>Vues d'indicateurs</td><td>Cycle</td><td>District, région, programme</td><td>Classification en base (90 / 75)</td><td>Analyse par pilier des sous-composantes en difficulté</td></tr>
+        </tbody>
+      </table></div>
+      <h3>9.3 &nbsp; Indicateurs d'efficacité des interventions</h3>
+      <p>Deux indicateurs supplémentaires, exploités en revue semestrielle (<a href="#s19">section 19</a>) :</p>
+      <ul>
+        <li><strong>Taux de maintien de l'amélioration</strong> : part des sites qui, après clôture d'une action, restent au niveau atteint pendant les deux cycles suivants.</li>
+        <li><strong>Réduction des segments à risque</strong> : variation, d'un semestre à l'autre, du nombre de sites en segment « À risque » et « Faible usage ».</li>
+      </ul>
+    </section>
+
+    <section id="s10">
+      <span class="eyebrow">10</span>
+      <h2>Architecture du système de suivi</h2>
+      <h3>10.1 &nbsp; Sources de données</h3>
+      <div class="tw"><table>
+        <thead><tr><th>Source</th><th>Nature</th><th>Cadence</th><th>Responsable</th><th>Statut</th></tr></thead>
+        <tbody>
+          <tr><td>Classeur d'extraction mSupply (10 jeux)</td><td>Automatique</td><td>Hebdomadaire, fenêtre 45 j</td><td>DAP (point de contact nommé)</td><td><strong>Existe</strong> &middot; contrat = spécification d'extraction v2</td></tr>
+          <tr><td>Fiche de supervision trimestrielle (1 page)</td><td>Manuelle</td><td>Trimestrielle, pendant la visite prévue</td><td>Point focal district</td><td><strong>À mettre en place</strong> (<a href="#ab">annexe B</a>)</td></tr>
+          <tr><td>Registre des actions correctives</td><td>Manuelle</td><td>Continue, revue mensuelle</td><td>Coordination nationale</td><td><strong>À mettre en place</strong> (<a href="#ac">annexe C</a>) &middot; <span class="tag tag-evo">évolution n&deg;1</span></td></tr>
+          <tr><td>Journal d'accès / relevé d'équipement</td><td>Manuelle ou extraite</td><td>Trimestrielle</td><td>Point focal / DAP</td><td><span class="tag tag-conf">à confirmer</span></td></tr>
+          <tr><td>Colonne « agent qui a saisi » sur les transactions</td><td>Automatique</td><td>Hebdomadaire</td><td>DAP</td><td><span class="tag tag-conf">à confirmer</span> (négociation) &middot; débloquerait le suivi par utilisateur</td></tr>
+        </tbody>
+      </table></div>
+      <h3>10.2 &nbsp; Flux</h3>
+      <ol>
+        <li>La DAP produit et transmet le classeur hebdomadaire.</li>
+        <li>La coordination l'importe ; l'application valide, intègre, calcule et fige.</li>
+        <li>L'application met à jour, par site : les six piliers, le score composite, le <strong>niveau d'adoption</strong>, le <strong>signal</strong> et le <strong>segment</strong>.</li>
+        <li>La coordination lit l'écran Alertes (hebdomadaire) et l'écran Performance &amp; segmentation (mensuel).</li>
+        <li>Les points focaux traitent les sites affectés, remplissent la fiche de supervision au trimestre, alimentent le registre.</li>
+        <li>La coordination suit le registre, mesure les effets avant / après, rend compte en revue semestrielle.</li>
+      </ol>
+      <h3>10.3 &nbsp; Ce que le suivi ne collecte pas</h3>
+      <p>Pas de collecte manuelle mensuelle. Pas de questionnaire utilisateur. Pas de saisie parallèle de données de stock. La seule collecte manuelle est la fiche de supervision trimestrielle, d'une page, intégrée à une visite existante.</p>
+    </section>
+
+    <section id="s11">
+      <span class="eyebrow">11</span>
+      <h2>Rôle de l'application dans le plan</h2>
+      <p>Classement de chaque capacité : <strong>existe</strong>, <strong>exploitable immédiatement</strong>, <strong>à améliorer</strong>, <strong>évolution future</strong>.</p>
+      <h3>11.1 &nbsp; Ce qui existe et est exploitable immédiatement</h3>
+      <ul>
+        <li>Import hebdomadaire validé, intégration en trois couches, gel des scores (immuabilité des mois clos).</li>
+        <li>Calcul des six piliers PAQD et du score composite, par site, mois et programme.</li>
+        <li>Historisation et courbes d'évolution ; distinction mois clos / mois en cours (score provisoire).</li>
+        <li>Tableau de bord national : score moyen, tendance, répartition des classifications, sous-composantes en difficulté.</li>
+        <li>Liste des sites paginée, filtrable par district et programme.</li>
+        <li>Fiche site : scores par pilier, radar, courbes, détail ligne à ligne lu en direct du core.</li>
+        <li>Fiche produit-mois : toutes les grandeurs brutes derrière P3 à P6 pour un produit traceur.</li>
+        <li>Écran de synthèse (agrégations district, région, programme), écran d'imports, écrans d'administration.</li>
+      </ul>
+      <h3>11.2 &nbsp; Ce qui est à améliorer (adaptations de l'existant)</h3>
+      <ul>
+        <li><strong>Calcul et affichage du niveau d'adoption et du signal</strong> par site (dérivés des piliers et de la tendance).</li>
+        <li><strong>Colonnes niveau / signal / segment</strong> dans la liste des sites, avec filtre par segment.</li>
+        <li><strong>Distribution des niveaux d'adoption et des signaux</strong> sur le tableau de bord national.</li>
+        <li><strong>Indicateur de fraîcheur</strong> (délai depuis la dernière transaction) par site.</li>
+        <li><strong>Couverture de l'extraction</strong> affichée à chaque import.</li>
+      </ul>
+      <h3>11.3 &nbsp; Ce qui constitue une évolution future</h3>
+      <ul>
+        <li><strong>Module de registre des actions correctives</strong> <span class="tag tag-evo">évolution n&deg;1</span> : création, affectation, échéance, statut, résultat, lien vers l'indicateur déclencheur, historique par site.</li>
+        <li><strong>Écran Alertes &amp; actions</strong> dédié, avec notification au point focal.</li>
+        <li><strong>Vue nationale d'adoption dans le temps</strong> et analyse de cohortes (Nouveaux sites).</li>
+        <li><strong>Suivi par utilisateur nommé</strong> (conditionné à la colonne « agent » dans l'extraction).</li>
+        <li><strong>Suivi de l'usage des fonctionnalités</strong> hors des cinq natures actuelles (conditionné à l'extension de l'extraction).</li>
+        <li><strong>Cadence infra-hebdomadaire</strong> (conditionnée à un changement de mode d'alimentation, non prévu).</li>
+      </ul>
+    </section>
+
+    <section id="s12">
+      <span class="eyebrow">12</span>
+      <h2>Système d'alertes et de segmentation</h2>
+      <h3>12.1 &nbsp; Deux lectures distinctes</h3>
+      <ul>
+        <li><strong>Niveau d'adoption</strong> (Actif, Régulier, Fiable, Autonome) : <em>où en est le site</em>. C'est un état.</li>
+        <li><strong>Signal</strong> (Vert, Orange, Rouge) : <em>quelle attention le site demande maintenant</em>. C'est une urgence, orthogonale au niveau. Un site Fiable mais en baisse deux cycles est Orange ; un nouveau site Actif et stable est Vert.</li>
+      </ul>
+      <p>Le signal ne se confond pas avec la classification qualité PAQD (CONFORME / PARTIELLEMENT CONFORME / NON CONFORME), qui reste le verdict sur la fiabilité des données.</p>
+      <h3>12.2 &nbsp; Règle de signal</h3>
+      <div class="chips">
+        <span class="chip vert"><span class="dot"></span>Vert</span>
+        <span class="chip orange"><span class="dot"></span>Orange</span>
+        <span class="chip rouge"><span class="dot"></span>Rouge</span>
+      </div>
+      <div class="tw"><table class="narrow">
+        <thead><tr><th>Signal</th><th>Condition</th></tr></thead>
+        <tbody>
+          <tr><td><strong class="sig-vert">Vert</strong></td><td>Niveau stable ou en progression, aucune alerte active (indicateurs 1, 2, 3)</td></tr>
+          <tr><td><strong class="sig-orange">Orange</strong></td><td>Un signe de dégradation : une baisse sur 1 à 2 cycles, ou une sous-composante de l'axe adoption sous le seuil, ou une fraîcheur entre 10 et 20 jours</td></tr>
+          <tr><td><strong class="sig-rouge">Rouge</strong></td><td>Décrochage : sous le niveau Actif, ou baisse sur 2 cycles et plus, ou fraîcheur supérieure à 20 jours, ou aucune transaction du mois</td></tr>
+        </tbody>
+      </table></div>
+      <h3>12.3 &nbsp; Méthode de fixation des seuils</h3>
+      <p>Approche <strong>hybride</strong>, sans seuil arbitraire :</p>
+      <ol>
+        <li><strong>Plancher normatif.</strong> Les seuils des piliers de l'axe adoption sont ceux de la grille de paramètres versionnée, déjà validés avec la coordination PAQD (P3 : 65 % soins / 80 % district ; P2 : 100 % ; P1 : 100 %). Un site doit les passer pour prétendre au niveau Régulier ou Fiable.</li>
+        <li><strong>Règle de tendance.</strong> Indépendamment du niveau atteint, deux cycles de baisse consécutifs entraînent un déclassement du signal (vers Orange, puis Rouge).</li>
+        <li><strong>Calage empirique en Phase 1.</strong> Les seuils propres au plan (fraîcheur, cible de « part Fiable+ ») sont fixés après la baseline, sur la distribution réellement observée, puis révisés à chaque revue annuelle. Toute modification de la grille PAQD passe par l'écran d'administration et ne s'applique qu'au cycle suivant.</li>
+      </ol>
+      <h3>12.4 &nbsp; Segmentation</h3>
+      <p>Cinq segments, <strong>dérivés</strong> du niveau, du signal et de l'ancienneté. Un seul système, pas trois étiquettes parallèles. La segmentation pilote le routage de l'appui.</p>
+      <div class="tw"><table>
+        <thead><tr><th>Segment</th><th>Règle</th><th>Surveillance</th><th>Fréquence</th><th>Type d'intervention</th><th>Responsable</th><th>Escalade</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Performer</strong></td><td>Fiable ou Autonome, signal Vert</td><td>Léger</td><td>Cycle</td><td>Valorisation, mobilisation comme pair-formateur</td><td>Point focal district</td><td>(sans objet)</td></tr>
+          <tr><td><strong>À risque</strong></td><td>Tout niveau, signal Orange</td><td>Renforcé</td><td>Mensuel</td><td>Diagnostic de barrière, action préventive ciblée</td><td>Point focal district</td><td>Coordination si Orange persiste 2 cycles</td></tr>
+          <tr><td><strong>Faible usage</strong></td><td>Actif ou Régulier, signal Rouge</td><td>Intensif</td><td>Mensuel + contact intercalaire</td><td>Coaching sur site, plan de redressement</td><td>Point focal + support technique</td><td>Coordination immédiate</td></tr>
+          <tr><td><strong>Non-utilisateur</strong></td><td>Sous le niveau Actif (aucune transaction depuis 1 cycle et plus)</td><td>Critique</td><td>Hebdomadaire jusqu'à reprise</td><td>Visite en urgence, diagnostic accès / personnel / matériel</td><td>Coordination + point focal</td><td>Management PSP-CI si non résolu en 1 mois</td></tr>
+          <tr><td><strong>Nouveau</strong></td><td>Site intégré depuis moins de 2 cycles</td><td>Renforcé (accompagnement)</td><td>Bimensuel</td><td>Accompagnement des premières saisies, passation</td><td>Point focal district</td><td>Coordination si pas de progression après 2 cycles</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="s13">
+      <span class="eyebrow">13</span>
+      <h2>Stratégie de changement de comportement</h2>
+      <p>Le plan ne se limite pas à la formation. Il traite la sous-utilisation comme un problème de comportement, dont la cause conditionne l'intervention.</p>
+      <h3>13.1 &nbsp; Matrice Barrière &rsaquo; Cause &rsaquo; Intervention &rsaquo; Responsable &rsaquo; Indicateur de succès</h3>
+      <div class="tw"><table>
+        <thead><tr><th>Barrière</th><th>Cause probable</th><th>Intervention</th><th>Responsable</th><th>Indicateur de succès</th></tr></thead>
+        <tbody>
+          <tr><td>Manque de compétence</td><td>Formation initiale insuffisante, turnover</td><td>Coaching sur site, tutoriels courts ciblés sur les erreurs constatées</td><td>Point focal district</td><td>La fraîcheur repasse sous 5 jours ; P3 remonte au seuil</td></tr>
+          <tr><td>Manque de confiance</td><td>Peur de faire une erreur irréversible</td><td>Accompagnement, période de saisie supervisée</td><td>Point focal district</td><td>Nombre de transactions saisies en autonomie</td></tr>
+          <tr><td>Absence de motivation</td><td>Le site ne reçoit jamais de retour sur ce qu'il saisit</td><td>Restitution mensuelle des scores au site, reconnaissance des Performers</td><td>Coordination</td><td>Évolution du niveau d'adoption du site</td></tr>
+          <tr><td>Mauvaise compréhension du bénéfice</td><td>mSupply perçu comme une contrainte de reporting</td><td>Démonstration concrète : une rupture évitée grâce à la visibilité du stock</td><td>Point focal district</td><td>Consultation des données de stock en réunion de gestion</td></tr>
+          <tr><td>Surcharge de travail</td><td>Sous-effectif, cumul de fonctions</td><td>Réorganisation de la routine, priorisation des saisies critiques</td><td>Point focal + responsable du site</td><td>P3 régularité</td></tr>
+          <tr><td>Problèmes techniques, connectivité, équipement</td><td>Matériel vétuste, coupures fréquentes</td><td>Signalement au support technique, cadrage d'un mode dégradé (saisie différée encadrée)</td><td>Support technique</td><td>Fraîcheur des données ; incidents ouverts / résolus</td></tr>
+          <tr><td>Changement de personnel</td><td>Départ du gestionnaire formé</td><td>Passation documentée obligatoire, formation express du remplaçant sous 2 semaines</td><td>Point focal district</td><td>Maintien du niveau au trimestre du remplacement</td></tr>
+          <tr><td>Supervision insuffisante</td><td>Visites de district espacées</td><td>Intégration du suivi mSupply à la visite trimestrielle (fiche 1 page)</td><td>Coordination</td><td>Taux de fiches de supervision remplies</td></tr>
+          <tr><td>Absence de responsabilisation</td><td>Aucune conséquence à la non-utilisation</td><td>Inscription de l'adoption dans les revues de performance de district</td><td>Coordination + management</td><td>Part des districts avec une revue mSupply documentée</td></tr>
+          <tr><td>Processus parallèles</td><td>Registre papier maintenu en doublon</td><td>Accompagnement à l'abandon progressif du papier une fois mSupply fiable</td><td>Point focal district</td><td>Segment du site (passage à Fiable)</td></tr>
+          <tr><td>Préférence pour les anciennes pratiques</td><td>Habitude, ancienneté</td><td>Démonstration de valeur, mise en relation avec des pairs Performers</td><td>Point focal district</td><td>Niveau d'adoption</td></tr>
+          <tr><td>Manque de feedback</td><td>Le site ne voit jamais ses propres scores</td><td>Accès en lecture au tableau de bord pour le point focal et, si possible, le site</td><td>Coordination</td><td>Consultation du tableau de bord <span class="tag tag-conf">à confirmer</span></td></tr>
+        </tbody>
+      </table></div>
+      <h3>13.2 &nbsp; Palette d'interventions</h3>
+      <p>Formation, coaching, supervision, accompagnement ciblé, support technique, rappel calendaire, communication, démonstration de valeur, responsabilisation managériale, analyse des performances, partage des bonnes pratiques. Le choix se fait à partir de la cause identifiée, pas par défaut.</p>
+    </section>
+
+    <section id="s14">
+      <span class="eyebrow">14</span>
+      <h2>Stratégie d'intervention</h2>
+      <p>L'intervention est calibrée par segment (<a href="#s12">section 12.4</a>). Principes transversaux :</p>
+      <ul>
+        <li><strong>Priorité aux Non-utilisateurs et au Faible usage.</strong> Ce sont les sites où l'effet marginal d'une action est le plus fort.</li>
+        <li><strong>Accompagnement systématique des Nouveaux</strong> pendant deux cycles, pour éviter qu'ils ne basculent en Faible usage.</li>
+        <li><strong>Action préventive sur les À risque.</strong> Un site Orange traité tôt coûte moins cher qu'un site Rouge.</li>
+        <li><strong>Allègement pour les Performers.</strong> Suivi au cycle, mobilisation comme pairs-formateurs.</li>
+        <li><strong>Une action par cause, pas une formation pour tout.</strong> La matrice de la section 13 est la référence.</li>
+        <li><strong>Toute intervention est tracée</strong> dans le registre (section 15), avec une échéance et une vérification.</li>
+      </ul>
+    </section>
+
+    <section id="s15">
+      <span class="eyebrow">15</span>
+      <h2>Suivi des actions correctives</h2>
+      <h3>15.1 &nbsp; Le registre</h3>
+      <p>Interim : un tableur unique tenu par la coordination nationale, sur le gabarit de l'<a href="#ac">annexe C</a>. Cible : un module de l'application <span class="tag tag-evo">évolution n&deg;1</span>.</p>
+      <p>Colonnes : site, date de détection, problème, indicateur déclencheur, cause identifiée, action décidée, responsable, échéance, statut (ouverte / en cours / en retard / clôturée / escaladée), résultat attendu, résultat obtenu, date et mode de vérification.</p>
+      <h3>15.2 &nbsp; Cycle de revue</h3>
+      <ul>
+        <li><strong>Mensuel.</strong> La coordination passe en revue toutes les actions ouvertes : avancement, échéances dépassées, escalades. Nouvelle affectation pour les sites entrés en alerte depuis la revue précédente.</li>
+        <li><strong>Trimestriel.</strong> Le point focal met à jour, en fiche de supervision, le suivi des actions du trimestre précédent.</li>
+        <li><strong>Vérification.</strong> Une action n'est clôturée que lorsque l'indicateur déclencheur est revenu au seuil et s'y maintient sur le cycle suivant. Sinon, elle est ré-ouverte ou escaladée.</li>
+      </ul>
+      <h3>15.3 &nbsp; Mémoire</h3>
+      <p>Le registre conserve l'historique par site. Avant toute nouvelle action, la coordination consulte les actions passées du site : si la même cause revient malgré une intervention antérieure, l'action change de nature (escalade, appui d'un autre type, décision managériale), elle ne se répète pas à l'identique.</p>
+    </section>
+
+    <section id="s16">
+      <span class="eyebrow">16</span>
+      <h2>Gouvernance et RACI</h2>
+      <h3>16.1 &nbsp; Acteurs</h3>
+      <div class="tw"><table>
+        <thead><tr><th>Acteur</th><th>Rôle dans le plan</th></tr></thead>
+        <tbody>
+          <tr><td>Équipe projet (Nouvelle PSP-CI / DAP / coordination nationale)</td><td>Pilotage d'ensemble, financement, décisions de périmètre</td></tr>
+          <tr><td>Coordination nationale</td><td>Tenue du cycle de suivi, registre des actions, revues, reporting</td></tr>
+          <tr><td>DAP (point de contact extraction)</td><td>Production et transmission du classeur hebdomadaire, contrat d'extraction</td></tr>
+          <tr><td>Point focal district (1 par district)</td><td>Traitement des sites affectés, visite de supervision trimestrielle, interventions de terrain</td></tr>
+          <tr><td>Gestionnaire de stock du site</td><td>Utilisation de mSupply, participation à la supervision</td></tr>
+          <tr><td>Support technique mSupply</td><td>Incidents, mode dégradé, évolutions applicatives</td></tr>
+          <tr><td>Management PSP-CI</td><td>Arbitrages, escalades non résolues, décision d'extension</td></tr>
+        </tbody>
+      </table></div>
+      <h3>16.2 &nbsp; Matrice RACI</h3>
+      <p style="font-size:.86rem;color:var(--ink-soft)">R = réalise &nbsp;&middot;&nbsp; A = redevable &nbsp;&middot;&nbsp; C = consulté &nbsp;&middot;&nbsp; I = informé</p>
+      <div class="tw"><table class="narrow">
+        <thead><tr><th>Activité</th><th>Coord.</th><th>DAP</th><th>Point focal</th><th>Gest. stock</th><th>Support tech.</th><th>Management</th></tr></thead>
+        <tbody>
+          <tr><td>Production et transmission du classeur hebdomadaire</td><td>A</td><td>R</td><td>I</td><td>I</td><td>C</td><td>I</td></tr>
+          <tr><td>Import et contrôle de complétude</td><td>R / A</td><td>C</td><td>I</td><td></td><td>C</td><td></td></tr>
+          <tr><td>Revue hebdomadaire des signaux critiques</td><td>R / A</td><td>I</td><td>I</td><td></td><td></td><td>I</td></tr>
+          <tr><td>Revue mensuelle de performance et des actions</td><td>A</td><td></td><td>R</td><td></td><td>C</td><td>I</td></tr>
+          <tr><td>Visite de supervision trimestrielle et fiche</td><td>A</td><td></td><td>R</td><td>C</td><td></td><td>I</td></tr>
+          <tr><td>Tenue du registre des actions correctives</td><td>R / A</td><td></td><td>C</td><td></td><td></td><td>I</td></tr>
+          <tr><td>Interventions de coaching sur site</td><td>A</td><td></td><td>R</td><td>C</td><td>C</td><td></td></tr>
+          <tr><td>Résolution des incidents techniques</td><td>C</td><td>C</td><td>C</td><td>I</td><td>R / A</td><td>I</td></tr>
+          <tr><td>Revue semestrielle d'adoption et de pérennisation</td><td>A</td><td>C</td><td>C</td><td></td><td></td><td>R</td></tr>
+          <tr><td>Négociation de l'extension de l'extraction</td><td>C</td><td>R</td><td>I</td><td></td><td>C</td><td>A</td></tr>
+          <tr><td>Décision d'entrée / sortie du périmètre</td><td>A</td><td>C</td><td>C</td><td></td><td></td><td>R</td></tr>
+        </tbody>
+      </table></div>
+      <div class="note"><p><span class="tag tag-conf">Information à confirmer</span> &nbsp; Répartition exacte des rôles entre PSP-CI, DAP et coordination nationale, et existence d'un point focal dédié au suivi mSupply distinct du point focal district généraliste.</p></div>
+    </section>
+
+    <section id="s17">
+      <span class="eyebrow">17</span>
+      <h2>Cycle de suivi</h2>
+      <div class="tw"><table>
+        <thead><tr><th>Fréquence</th><th>Activités</th><th>Données mobilisées</th><th>Responsable</th><th>Livrable</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Hebdomadaire</strong></td><td>Import du classeur ; rafraîchissement des scores ; lecture de l'écran Alertes ; contrôle de la couverture de l'extraction</td><td>Classeur, indicateurs 1, 2, 9</td><td>Coordination</td><td>Note de signaux critiques</td></tr>
+          <tr><td><strong>Mensuel</strong></td><td>Revue des segments À risque, Faible usage, Non-utilisateur, Nouveau ; état du registre ; affectation des interventions</td><td>Niveaux, signaux, segments, registre</td><td>Coordination + points focaux</td><td>Plan d'appui du mois, registre à jour</td></tr>
+          <tr><td><strong>Trimestriel</strong></td><td>Visite de supervision et fiche 1 page ; analyse des tendances par district ; revue des barrières ; mise à jour du suivi des actions</td><td>Fiche de supervision, historique, indicateurs 3 à 8</td><td>Points focaux district</td><td>Fiches de supervision, synthèse district</td></tr>
+          <tr><td><strong>Semestriel</strong></td><td>Bilan d'adoption ; efficacité des interventions ; ajustement de la stratégie d'appui</td><td>Historique complet, registre, indicateurs de résultat</td><td>Coordination + équipe projet</td><td>Rapport semestriel d'adoption</td></tr>
+          <tr><td><strong>Annuel</strong></td><td>Évaluation de la pérennisation ; révision des seuils du plan ; revue du dispositif ; décision sur le périmètre et l'extension</td><td>Ensemble</td><td>Équipe projet + management</td><td>Rapport annuel, décisions de périmètre</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="s18">
+      <span class="eyebrow">18</span>
+      <h2>Tableaux de bord</h2>
+      <p>Cinq tableaux de bord couvrent le cycle. La cible détaillée des huit tableaux de bord initialement envisagés figure en <a href="#ag">annexe G</a>.</p>
+      <div class="tw"><table>
+        <thead><tr><th>#</th><th>Tableau de bord</th><th>Audience</th><th>Objectif</th><th>Indicateurs clés</th><th>Décision attendue</th><th>État</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td><strong>Exécutif</strong></td><td>Management PSP-CI, bailleur</td><td>État national en un écran</td><td>Score PAQD moyen et tendance, répartition des classifications, distribution des niveaux d'adoption, nombre de sites par signal, couverture de l'extraction</td><td>Allocation des ressources d'appui, arbitrage de périmètre</td><td><strong>Existe</strong> (tableau de bord national) &middot; à améliorer : niveaux d'adoption et signaux</td></tr>
+          <tr><td class="num">2</td><td><strong>Performance &amp; segmentation</strong></td><td>Coordination, points focaux</td><td>Classer les sites et router l'appui</td><td>Liste des sites avec niveau, signal, segment, score PAQD, tendance ; tri et filtre par district / programme / segment</td><td>Qui reçoit quel appui ce mois</td><td><strong>Existe partiellement</strong> (liste des sites) &middot; à améliorer : colonnes et filtre par segment</td></tr>
+          <tr><td class="num">3</td><td><strong>Adoption &amp; tendance</strong></td><td>Coordination, équipe projet</td><td>Voir la trajectoire d'adoption</td><td>Courbe du niveau par site et agrégée, évolution de la part Fiable+, cohortes de nouveaux sites</td><td>La stratégie d'appui produit-elle un effet</td><td><strong>Existe partiellement</strong> (courbes fiche site) &middot; <span class="tag tag-evo">évolution</span> : vue nationale et cohortes</td></tr>
+          <tr><td class="num">4</td><td><strong>Alertes &amp; actions</strong></td><td>Coordination, points focaux</td><td>Ce qui exige une action maintenant</td><td>Sites sans transaction, fraîcheur dépassée, baisses sur 2 cycles, actions ouvertes et en retard</td><td>Déclencher ou escalader une intervention</td><td><strong>N'existe pas</strong> &middot; <span class="tag tag-evo">évolution n&deg;1</span> &middot; interim : suivi manuel + tableur</td></tr>
+          <tr><td class="num">5</td><td><strong>Qualité des données</strong></td><td>Coordination, points focaux</td><td>Diagnostic par pilier</td><td>Sous-composantes en difficulté (P4, P5, P6), fiche site détaillée, fiche produit-mois</td><td>Coaching processus ciblé (comptage, ajustements, ordre des opérations)</td><td><strong>Existe</strong> (Synthèse, fiche site, fiche produit-mois)</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="s19">
+      <span class="eyebrow">19</span>
+      <h2>Évaluation de l'efficacité des interventions</h2>
+      <h3>19.1 &nbsp; Question</h3>
+      <p>Nos interventions améliorent-elles réellement l'utilisation de mSupply, et l'amélioration tient-elle dans le temps ?</p>
+      <h3>19.2 &nbsp; Méthode</h3>
+      <p>Pour chaque action corrective clôturée, comparaison de quatre moments :</p>
+      <ol>
+        <li><strong>Avant</strong> : niveau d'adoption et score du site au cycle précédant la détection.</li>
+        <li><strong>Intervention</strong> : nature, date, responsable (registre).</li>
+        <li><strong>Après</strong> : niveau et score aux deux cycles suivant la clôture.</li>
+        <li><strong>Maintien</strong> : niveau et score deux cycles plus tard encore.</li>
+      </ol>
+      <h3>19.3 &nbsp; Indicateurs</h3>
+      <ul>
+        <li>Variation du niveau d'adoption avant / après intervention.</li>
+        <li>Amélioration de la fraîcheur, de la régularité (P3), de la complétude (P1).</li>
+        <li>Réduction du recours aux ajustements (P6).</li>
+        <li>Réduction du nombre de sites en segment À risque et Faible usage d'un semestre à l'autre.</li>
+        <li><strong>Taux de maintien</strong> : part des sites restés au niveau atteint sur les deux cycles suivant la clôture.</li>
+      </ul>
+      <h3>19.4 &nbsp; Limite assumée</h3>
+      <div class="note"><p>Le dispositif ne permet pas d'établir un effet causal rigoureux : il n'y a pas de groupe de comparaison, et plusieurs facteurs agissent en même temps. Les résultats sont présentés comme des <strong>tendances associées aux interventions</strong>, pas comme un impact démontré. Cette limite est explicitée dans tout rapport au bailleur.</p></div>
+    </section>
+
+    <section id="s20">
+      <span class="eyebrow">20</span>
+      <h2>Utilisation des données pour la décision</h2>
+      <h3>20.1 &nbsp; Cap de moyen terme</h3>
+      <p>Le suivi ne s'arrête pas à l'utilisation du système. Il vise à terme une progression :</p>
+      <div class="flow">
+        <span class="step">Utilisation du système</span><span class="arr">&rsaquo;</span>
+        <span class="step">Qualité des données</span><span class="arr">&rsaquo;</span>
+        <span class="step">Confiance dans les données</span><span class="arr">&rsaquo;</span>
+        <span class="step">Utilisation des données</span><span class="arr">&rsaquo;</span>
+        <span class="step">Décisions fondées sur les données</span><span class="arr">&rsaquo;</span>
+        <span class="step">Performance de la chaîne</span>
+      </div>
+      <h3>20.2 &nbsp; Comment cette progression est appréciée</h3>
+      <ul>
+        <li><strong>Utilisation et qualité</strong> : mesurées par les douze indicateurs (axes adoption et qualité).</li>
+        <li><strong>Confiance</strong> : appréciée en fiche de supervision (le gestionnaire et le point focal se fient-ils au stock mSupply, ou maintiennent-ils un comptage parallèle).</li>
+        <li><strong>Utilisation des données</strong> : appréciée en fiche de supervision (les données mSupply sont-elles consultées lors des décisions de commande et des réunions de gestion).</li>
+        <li><strong>Décisions fondées sur les données</strong> : un <strong>proxy quantitatif unique</strong>, la cohérence entre les quantités réquisitionnées et la tendance de consommation reconstituée du site. Une réquisition très éloignée de la consommation observée suggère qu'elle n'est pas préparée à partir des données du système.</li>
+        <li><strong>Performance de la chaîne</strong> : hors périmètre de cet instrument (relève du suivi logistique du programme). Le plan se contente de signaler le lien.</li>
+      </ul>
+      <h3>20.3 &nbsp; Évolution du monitoring</h3>
+      <p>À mesure que les sites atteignent le niveau Fiable, la revue trimestrielle déplace progressivement son attention de « le site saisit-il » vers « le site décide-t-il à partir de ce qu'il saisit ». Ce glissement est explicite dans l'ordre du jour des revues à partir de la Phase 4.</p>
+    </section>
+
+    <section id="s21">
+      <span class="eyebrow">21</span>
+      <h2>Plan opérationnel</h2>
+      <div class="tw"><table>
+        <thead><tr><th>Activité</th><th>Objectif</th><th>Méthode</th><th>Responsable</th><th>Fréquence</th><th>Outil</th><th>Livrable</th><th>KPI</th></tr></thead>
+        <tbody>
+          <tr><td>Import et contrôle du classeur</td><td>Données du mois intégrées et fiables</td><td>Import applicatif, contrôle des compteurs de métadonnées, vérification de la couverture</td><td>Coordination</td><td>Hebdomadaire</td><td>Application (écran Imports)</td><td>Journal d'import</td><td>Couverture de l'extraction (ind. 9)</td></tr>
+          <tr><td>Lecture des signaux critiques</td><td>Détecter les décrochages immédiats</td><td>Écran Alertes : sites sans transaction, fraîcheur, signaux Rouge</td><td>Coordination</td><td>Hebdomadaire</td><td>Application (écran Alertes) &middot; interim : tableur</td><td>Note de signaux</td><td>Ind. 1, 2, 3</td></tr>
+          <tr><td>Revue mensuelle de performance</td><td>Router l'appui vers les bons sites</td><td>Écran Performance &amp; segmentation, filtre par segment ; affectation aux points focaux</td><td>Coordination + points focaux</td><td>Mensuelle</td><td>Application + registre</td><td>Plan d'appui du mois</td><td>Actions ouvertes dans le mois (ind. 11)</td></tr>
+          <tr><td>Interventions de terrain</td><td>Corriger les causes de sous-utilisation</td><td>Matrice barrière vers intervention (section 13), contact ou visite selon segment</td><td>Points focaux district</td><td>Selon segment</td><td>Fiche de contact, registre</td><td>Actions tracées</td><td>Ind. 4 à 8 des sites concernés</td></tr>
+          <tr><td>Visite de supervision trimestrielle</td><td>Diagnostiquer les barrières, suivre les actions</td><td>Fiche 1 page pendant la visite déjà prévue</td><td>Points focaux district</td><td>Trimestrielle</td><td>Fiche de supervision (annexe B)</td><td>Fiches remplies</td><td>Taux de fiches remplies</td></tr>
+          <tr><td>Tenue du registre des actions</td><td>Ne pas répéter les mêmes interventions</td><td>Registre unique, revue mensuelle, vérification avant clôture</td><td>Coordination</td><td>Continue</td><td>Tableur (puis module)</td><td>Registre à jour</td><td>Actions en retard (ind. 11)</td></tr>
+          <tr><td>Revue semestrielle d'adoption</td><td>Évaluer l'effet d'ensemble et ajuster la stratégie</td><td>Analyse des distributions et des indicateurs d'efficacité</td><td>Coordination + équipe projet</td><td>Semestrielle</td><td>Application + registre</td><td>Rapport semestriel</td><td>Part Fiable+ (ind. 8), taux de maintien</td></tr>
+          <tr><td>Revue annuelle du dispositif</td><td>Réviser seuils, périmètre, extension</td><td>Analyse annuelle, décision de la direction</td><td>Équipe projet + management</td><td>Annuelle</td><td>Ensemble</td><td>Rapport annuel, décisions</td><td>Score PAQD moyen (ind. 12), part Autonome</td></tr>
+          <tr><td>Négociation de l'extraction</td><td>Sécuriser et étendre la source</td><td>Accord de service avec la DAP, dimensionnement de l'extension</td><td>Équipe projet + DAP</td><td>Continue / annuelle</td><td>Contrat d'extraction</td><td>Accord de service, plan d'extension</td><td>Couverture, délai de transmission</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="s22">
+      <span class="eyebrow">22</span>
+      <h2>Feuille de route</h2>
+      <p>Cinq phases sur l'horizon 2030. Les cycles PAQD durent quatre mois (trois par an).</p>
+
+      <h3>Phase 1 &nbsp;&middot;&nbsp; Baseline &nbsp;<span style="font-weight:400;color:var(--ink-soft)">(cycles C1 à C2, environ 8 mois)</span></h3>
+      <ul>
+        <li><strong>Activités</strong> : stabiliser l'import hebdomadaire ; analyse rétrospective de l'historique disponible ; calage empirique des seuils du plan sur la distribution observée ; création de la fiche de supervision et du registre ; formation des points focaux au dispositif.</li>
+        <li><strong>Résultats attendus</strong> : situation initiale documentée (niveau, signal et segment de chaque site) ; seuils du plan validés.</li>
+        <li><strong>Indicateurs</strong> : couverture de l'extraction &ge; 95 % ; 100 % des sites classés.</li>
+        <li><strong>Prérequis</strong> : classeur hebdomadaire conforme et régulier.</li>
+      </ul>
+
+      <h3>Phase 2 &nbsp;&middot;&nbsp; Monitoring systématique &nbsp;<span style="font-weight:400;color:var(--ink-soft)">(cycles C3 à C6, environ 16 mois)</span></h3>
+      <ul>
+        <li><strong>Activités</strong> : cycle opérationnel complet ; tenue du registre ; développement du module d'actions correctives <span class="tag tag-evo">évolution n&deg;1</span> et des adaptations de la section 11.2.</li>
+        <li><strong>Résultats attendus</strong> : chaque site en alerte a une action tracée et vérifiée.</li>
+        <li><strong>Indicateurs</strong> : délai signal vers action ouverte inférieur à un mois ; part des actions clôturées dans les délais.</li>
+        <li><strong>Prérequis</strong> : Phase 1 achevée.</li>
+      </ul>
+
+      <h3>Phase 3 &nbsp;&middot;&nbsp; Intervention ciblée &nbsp;<span style="font-weight:400;color:var(--ink-soft)">(démarre en C3, en parallèle)</span></h3>
+      <ul>
+        <li><strong>Activités</strong> : déploiement des interventions par segment (coaching Faible usage, accompagnement Nouveaux, action préventive À risque, démonstration de valeur).</li>
+        <li><strong>Résultats attendus</strong> : réduction du nombre de sites Rouge et du segment Faible usage.</li>
+        <li><strong>Indicateurs</strong> : variation du niveau d'adoption après intervention ; taux de maintien.</li>
+      </ul>
+
+      <h3>Phase 4 &nbsp;&middot;&nbsp; Optimisation &nbsp;<span style="font-weight:400;color:var(--ink-soft)">(années 2 à 3)</span></h3>
+      <ul>
+        <li><strong>Activités</strong> : analyse des tendances ; révision annuelle des seuils ; évaluation de l'efficacité des interventions ; préparation de l'extension (dimensionnement de l'extraction avec la DAP, découpage en vagues de districts).</li>
+        <li><strong>Résultats attendus</strong> : dispositif ajusté ; dossier d'extension prêt.</li>
+        <li><strong>Indicateurs</strong> : part Fiable+ en progression ; efficacité des interventions mesurée.</li>
+      </ul>
+
+      <h3>Phase 5 &nbsp;&middot;&nbsp; Pérennisation et mise à l'échelle &nbsp;<span style="font-weight:400;color:var(--ink-soft)">(année 3 jusqu'en 2030)</span></h3>
+      <ul>
+        <li><strong>Activités</strong> : transfert de la routine à la coordination nationale ; réduction progressive de l'appui projet ; extension au-delà des 40 sites par vagues, <strong>conditionnée</strong> à la capacité d'extraction de la DAP ; institutionnalisation (revues de performance de district, attributions des points focaux).</li>
+        <li><strong>Résultats attendus</strong> : le suivi tourne sans le projet ; périmètre étendu vers la couverture nationale.</li>
+        <li><strong>Indicateurs</strong> : part des sites Autonomes ; nombre de sites couverts ; part du dispositif financée hors projet.</li>
+        <li><strong>Prérequis</strong> : extraction extensible ; engagement budgétaire national.</li>
+      </ul>
+    </section>
+
+    <section id="s23">
+      <span class="eyebrow">23</span>
+      <h2>Risques et mesures d'atténuation</h2>
+      <div class="tw"><table>
+        <thead><tr><th>Risque</th><th>Probabilité / Impact</th><th>Mesures d'atténuation</th></tr></thead>
+        <tbody>
+          <tr><td>Extraction DAP non tenue ou de qualité insuffisante</td><td>Moyenne / Critique (tout le dispositif en dépend)</td><td>Accord de service sur le contenu, le format et la cadence ; fenêtre de 45 jours qui amortit une semaine manquée ; contrôle de complétude à chaque import ; point de contact DAP nommé</td></tr>
+          <tr><td>Extraction non extensible au national</td><td>Moyenne / Élevé (bloque la Phase 5)</td><td>Dimensionner tôt (Phase 4) ; extension par vagues de districts ; ne pas conditionner le succès du plan à l'échelle nationale immédiate</td></tr>
+          <tr><td>Fiche de supervision non remplie</td><td>Élevée / Moyen</td><td>Une page, intégrée à une visite déjà prévue ; taux de remplissage suivi comme KPI de processus ; relance systématique par la coordination</td></tr>
+          <tr><td>Dépendance au projet, non-appropriation</td><td>Moyenne / Élevé</td><td>Phase 5 dédiée ; transfert progressif ; institutionnalisation dans les revues de district ; transfert budgétaire graduel</td></tr>
+          <tr><td>Usage punitif perçu, rétention d'information</td><td>Moyenne / Élevé</td><td>Cadrage explicite « amélioration continue » ; restitution des scores aux sites ; valorisation des Performers ; aucune sanction automatique</td></tr>
+          <tr><td>Petits effectifs par district (dénominateur du P3 district, taille des segments)</td><td>Élevée / Faible</td><td>Agrégation au district et à la région ; prudence sur les petits nombres ; lecture en tendance plutôt qu'en niveau ponctuel</td></tr>
+          <tr><td>Turnover des gestionnaires de stock formés</td><td>Élevée / Moyen</td><td>Passation documentée obligatoire ; formation express du remplaçant sous deux semaines ; le niveau d'adoption au trimestre du remplacement est suivi</td></tr>
+          <tr><td>Évolution de mSupply cassant l'extraction</td><td>Faible / Élevé</td><td>Le contrat d'extraction (spécification v2) fait foi ; test de non-régression à chaque évolution mSupply signalée</td></tr>
+          <tr><td>Comptes de consultation non déployés pour les points focaux</td><td>Moyenne / Moyen</td><td>Prévoir la création des comptes en Phase 1 ; à défaut, restitution par export de la coordination</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="s24">
+      <span class="eyebrow">24</span>
+      <h2>Conditions de pérennisation</h2>
+      <p>Le dispositif est pérenne lorsque, simultanément :</p>
+      <ol>
+        <li>L'extraction hebdomadaire est produite en routine par la DAP, indépendamment du projet.</li>
+        <li>Le suivi mSupply est inscrit dans les attributions du point focal district et dans les revues de performance de district.</li>
+        <li>La coordination nationale tient le cycle de revue (hebdomadaire, mensuel, trimestriel) sans appui externe.</li>
+        <li>Le registre des actions correctives est alimenté et <strong>exploité</strong> (pas seulement rempli).</li>
+        <li>Une part croissante du coût du dispositif est portée par le budget national.</li>
+        <li>Les sites atteignent et maintiennent le niveau Autonome sans intervention répétée.</li>
+      </ol>
+      <p>Chacune de ces conditions est suivie comme un indicateur de la Phase 5.</p>
+    </section>
+
+    <section id="s25">
+      <span class="eyebrow">25</span>
+      <h2>Conclusion</h2>
+      <p>Le programme dispose déjà de l'instrument central : une application qui consolide chaque semaine la donnée mSupply et calcule, par site, un score de qualité des données. Ce plan ne demande pas de la remplacer. Il demande de lui faire porter une seconde question, opérationnelle : chaque site fait-il vraiment tourner sa gestion de stock sur mSupply, et si non, pourquoi, et qu'a-t-on fait pour l'aider. La réponse tient dans une échelle d'adoption à quatre niveaux, un signal d'attention, une segmentation qui route l'appui, une fiche de supervision d'une page, et un registre d'actions qui donne au dispositif sa mémoire.</p>
+      <p>L'ambition est nationale et l'horizon est 2030. Le chemin est phasé et honnête sur ses dépendances : rien n'est possible sans une extraction hebdomadaire fiable, et l'échelle nationale suppose que la DAP puisse l'étendre. À l'arrivée, le succès ne se mesure pas au nombre de tableaux de bord, mais au nombre de sites qui utilisent mSupply correctement, s'en servent pour décider, et le font sans nous.</p>
+    </section>
+
+    <h2 class="annex-head" id="aa">Annexe A &nbsp;&middot;&nbsp; Tableau détaillé des indicateurs</h2>
+    <p>Reprend le tableau de la section 9.2, enrichi par indicateur des éléments suivants, à compléter en Phase 1 :</p>
+    <ul>
+      <li><strong>Formule exacte</strong> (référence à la vue de base de données ou au calcul).</li>
+      <li><strong>Valeur de baseline</strong> (mesurée sur les deux premiers cycles).</li>
+      <li><strong>Cible</strong> (fixée sur la distribution observée, révisée annuellement).</li>
+      <li><strong>Règle de désagrégation</strong> (site, programme, district, région).</li>
+      <li><strong>Responsable de la mesure</strong> et <strong>responsable de l'action</strong>.</li>
+      <li><strong>Rattachement</strong> à la ou aux dimensions de la section 8.</li>
+    </ul>
+
+    <h2 class="annex-head" id="ab">Annexe B &nbsp;&middot;&nbsp; Gabarit de fiche de supervision trimestrielle (1 page)</h2>
+    <p><strong>En-tête</strong> : district, site, date de visite, nom du point focal, nom du gestionnaire de stock présent.</p>
+    <h4>1. Accès et environnement <span style="font-weight:400;color:var(--ink-soft)">(cases à cocher)</span></h4>
+    <ul>
+      <li>Poste fonctionnel : oui / non</li>
+      <li>Connexion utilisable : oui / non / intermittente</li>
+      <li>Compte mSupply actif : oui / non</li>
+      <li>Gestionnaire de stock formé en poste : oui / non &middot; si changement depuis la dernière visite : date, passation faite oui / non</li>
+    </ul>
+    <h4>2. Barrières observées <span style="font-weight:400;color:var(--ink-soft)">(checklist, cocher ce qui s'applique)</span></h4>
+    <p>Manque de compétence &middot; manque de confiance &middot; absence de motivation &middot; bénéfice mal compris &middot; surcharge de travail &middot; problème technique ou connectivité &middot; équipement &middot; changement de personnel &middot; supervision insuffisante &middot; absence de responsabilisation &middot; registre papier parallèle &middot; préférence pour les anciennes pratiques &middot; manque de feedback</p>
+    <h4>3. Niveau perçu <span style="font-weight:400;color:var(--ink-soft)">(à confronter au niveau calculé par l'application)</span></h4>
+    <p>Actif &middot; Régulier &middot; Fiable &middot; Autonome<br>Le site consulte-t-il les données mSupply pour ses décisions de commande : jamais / parfois / systématiquement</p>
+    <h4>4. Actions</h4>
+    <ul>
+      <li>Suivi des actions du trimestre précédent : référence, statut (clôturée / en cours / sans effet), commentaire</li>
+      <li>Nouvelle(s) action(s) convenue(s) : description, cause visée, responsable, échéance</li>
+    </ul>
+    <p><strong>Signature</strong> : point focal, responsable du site.</p>
+
+    <h2 class="annex-head" id="ac">Annexe C &nbsp;&middot;&nbsp; Gabarit du registre des actions correctives</h2>
+    <p>Une ligne par action. Colonnes :</p>
+    <div class="tw"><table class="narrow">
+      <thead><tr><th>Champ</th><th>Contenu</th></tr></thead>
+      <tbody>
+        <tr><td>Identifiant</td><td>Numéro séquentiel</td></tr>
+        <tr><td>Site</td><td>Nom et identifiant</td></tr>
+        <tr><td>District / région</td><td></td></tr>
+        <tr><td>Date de détection</td><td></td></tr>
+        <tr><td>Problème</td><td>Description courte</td></tr>
+        <tr><td>Indicateur déclencheur</td><td>Numéro de l'indicateur (section 9) ou observation de supervision</td></tr>
+        <tr><td>Cause identifiée</td><td>Référence à la matrice de la section 13</td></tr>
+        <tr><td>Action décidée</td><td>Description</td></tr>
+        <tr><td>Responsable</td><td>Nom et fonction</td></tr>
+        <tr><td>Échéance</td><td>Date</td></tr>
+        <tr><td>Statut</td><td>Ouverte / en cours / en retard / clôturée / escaladée</td></tr>
+        <tr><td>Résultat attendu</td><td>Ce que l'indicateur devrait montrer</td></tr>
+        <tr><td>Résultat obtenu</td><td>Valeur constatée à la vérification</td></tr>
+        <tr><td>Vérification</td><td>Date et mode (cycle de mesure, visite)</td></tr>
+        <tr><td>Historique</td><td>Lien vers les actions passées du même site sur la même cause</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 class="annex-head" id="ad">Annexe D &nbsp;&middot;&nbsp; Matrice RACI complète</h2>
+    <p>Reprend la <a href="#s16">section 16.2</a>. À compléter en Phase 1 avec les noms des titulaires et la confirmation de la répartition PSP-CI / DAP / coordination <span class="tag tag-conf">à confirmer</span>.</p>
+
+    <h2 class="annex-head" id="ae">Annexe E &nbsp;&middot;&nbsp; Mapping dimension vers donnée disponible</h2>
+    <div class="tw"><table>
+      <thead><tr><th>Dimension</th><th>Sous-élément</th><th>Donnée / source</th><th>Statut</th></tr></thead>
+      <tbody>
+        <tr><td>A. Disponibilité</td><td>Accès système, connexion, équipement, compte</td><td>Fiche de supervision</td><td>Supervision</td></tr>
+        <tr><td>B. Utilisation</td><td>Fréquence des transactions</td><td>Jeu Transactions</td><td>Existe</td></tr>
+        <tr><td>B. Utilisation</td><td>Régularité</td><td>Vue P3</td><td>Existe</td></tr>
+        <tr><td>B. Utilisation</td><td>Fraîcheur</td><td>Transactions + date d'extraction</td><td>À améliorer (calcul à exposer)</td></tr>
+        <tr><td>C. Qualité</td><td>Complétude</td><td>Vue P1</td><td>Existe</td></tr>
+        <tr><td>C. Qualité</td><td>Promptitude</td><td>Vue P2</td><td>Existe</td></tr>
+        <tr><td>C. Qualité</td><td>Conformité, concordance</td><td>Vues P4, P5</td><td>Existe</td></tr>
+        <tr><td>C. Qualité</td><td>Ajustements</td><td>Vue P6</td><td>Existe</td></tr>
+        <tr><td>D. Fonctionnelle</td><td>Réquisition, réception, dispensation, inventaire, ajustement</td><td>Transactions, natures dérivées</td><td>Existe</td></tr>
+        <tr><td>D. Fonctionnelle</td><td>Mode magasin / dispensaire</td><td>Champ mode des transactions</td><td>Exploitable immédiatement</td></tr>
+        <tr><td>D. Fonctionnelle</td><td>Commandes fournisseur, transferts, prévisions, rapports</td><td>(non extrait)</td><td>Évolution proposée</td></tr>
+        <tr><td>E. Comportement</td><td>Saisie en bloc, recours aux ajustements</td><td>Dates de saisie, vue P6</td><td>Inférence de donnée</td></tr>
+        <tr><td>E. Comportement</td><td>Contournement, résistance, autonomie</td><td>Fiche de supervision</td><td>Supervision</td></tr>
+        <tr><td>F. Capacité</td><td>Maîtrise, coaching, erreurs récurrentes</td><td>Fiche de supervision</td><td>Supervision</td></tr>
+        <tr><td>F. Capacité</td><td>Turnover</td><td>Fiche de supervision</td><td>Supervision &middot; <span class="tag tag-conf">à confirmer</span> pour une donnée automatique</td></tr>
+        <tr><td>G. Organisationnel</td><td>Supervision, leadership, responsabilisation, processus</td><td>Fiche de supervision</td><td>Supervision</td></tr>
+        <tr><td>H. Pérennisation</td><td>Niveau tenu sans action ouverte</td><td>Application (niveau + registre)</td><td>À améliorer</td></tr>
+        <tr><td>H. Pérennisation</td><td>Résolution autonome des problèmes</td><td>Fiche de supervision</td><td>Supervision</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 class="annex-head" id="af">Annexe F &nbsp;&middot;&nbsp; Glossaire</h2>
+    <div class="tw"><table>
+      <thead><tr><th>Terme</th><th>Définition</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Site</strong></td><td>Un magasin mSupply du réseau, unité d'analyse et d'intervention du plan. Remplace « structure » et « utilisateur » du cadrage initial : le suivi porte sur la fonction de gestion de stock du site, pas sur un agent nommé.</td></tr>
+        <tr><td><strong>Périmètre de suivi</strong></td><td>Ensemble des sites dont les données sont extraites et suivies par l'application (40 à ce jour). Les critères d'entrée et de sortie sont fixés par la coordination.</td></tr>
+        <tr><td><strong>Mois PAQD</strong></td><td>Le mois calendaire sur lequel portent l'extraction et le calcul des scores.</td></tr>
+        <tr><td><strong>Cycle PAQD</strong></td><td>Quatre mois consécutifs. Trois cycles par an calés sur l'année civile.</td></tr>
+        <tr><td><strong>Mois clos / mois en cours</strong></td><td>Un mois est clos une fois passée l'échéance de réquisition la plus tardive (environ le 10 du mois suivant) : son score devient définitif. Avant, il est en cours et son score est provisoire.</td></tr>
+        <tr><td><strong>Pilier PAQD</strong></td><td>Une des six composantes du score de qualité des données : P1 complétude, P2 promptitude, P3 régularité de saisie, P4 taux de conformité, P5 concordance physique / théorique, P6 ratio d'ajustements.</td></tr>
+        <tr><td><strong>Score composite PAQD</strong></td><td>Note sur 100 d'un site, moyenne pondérée des six piliers. Classification : CONFORME (90 et plus), PARTIELLEMENT CONFORME (75 à 89), NON CONFORME (moins de 75). C'est le <strong>verdict de qualité des données</strong>.</td></tr>
+        <tr><td><strong>Axe adoption</strong></td><td>Lecture de la donnée d'import orientée « le site utilise-t-il réellement mSupply » : s'appuie sur P1, P2, P3 et la fraîcheur.</td></tr>
+        <tr><td><strong>Axe qualité des données</strong></td><td>Lecture orientée « les données saisies sont-elles fiables » : le score composite PAQD et ses piliers P4, P5, P6.</td></tr>
+        <tr><td><strong>Niveau d'adoption</strong></td><td>État d'un site sur l'échelle opérationnelle : Actif, Régulier, Fiable, Autonome.</td></tr>
+        <tr><td><strong>Signal</strong></td><td>Statut d'attention d'un site : Vert, Orange, Rouge. Orthogonal au niveau (l'un dit l'état, l'autre l'urgence). Distinct de la classification qualité PAQD.</td></tr>
+        <tr><td><strong>Segment</strong></td><td>Catégorie de routage de l'appui : Performer, À risque, Faible usage, Non-utilisateur, Nouveau. Dérivée du niveau, du signal et de l'ancienneté.</td></tr>
+        <tr><td><strong>Fraîcheur</strong></td><td>Nombre de jours entre la dernière transaction saisie par un site et la date de l'extraction.</td></tr>
+        <tr><td><strong>Fiche de supervision</strong></td><td>Instrument trimestriel d'une page, rempli par le point focal district pendant la visite de supervision.</td></tr>
+        <tr><td><strong>Registre des actions correctives</strong></td><td>Journal des interventions (une ligne par action, du problème à la vérification). Interim : tableur. Cible : module de l'application.</td></tr>
+        <tr><td><strong>Point focal district</strong></td><td>Agent de district (un par district) chargé du suivi de terrain des sites de son ressort.</td></tr>
+        <tr><td><strong>Grille de paramètres</strong></td><td>Jeu daté des poids de pilier et des seuils de sous-composante, administré dans l'application, effectif au cycle suivant seulement.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note"><p><em>Note de gestion du modèle.</em> Si le plan est adopté, les termes <strong>niveau d'adoption</strong>, <strong>signal</strong>, <strong>segment</strong> et <strong>fraîcheur</strong> deviendront des concepts de l'application et devront être ajoutés au glossaire technique du produit (<code>CONTEXT.md</code>) au moment de leur implémentation.</p></div>
+
+    <h2 class="annex-head" id="ag">Annexe G &nbsp;&middot;&nbsp; Cible détaillée des huit tableaux de bord</h2>
+    <p>Le cadrage initial envisageait huit tableaux de bord. Le plan en retient cinq (<a href="#s18">section 18</a>). Correspondance et cible :</p>
+    <div class="tw"><table>
+      <thead><tr><th>Tableau de bord envisagé</th><th>Traitement dans le plan</th></tr></thead>
+      <tbody>
+        <tr><td>1. Executive (vue nationale)</td><td>Tableau de bord 1 (Exécutif)</td></tr>
+        <tr><td>2. Performance des structures (classement, segmentation)</td><td>Tableau de bord 2 (Performance &amp; segmentation)</td></tr>
+        <tr><td>3. Adoption (évolution de l'utilisation)</td><td>Tableau de bord 3 (Adoption &amp; tendance)</td></tr>
+        <tr><td>4. Alertes (structures à intervenir)</td><td>Tableau de bord 4 (Alertes &amp; actions) &middot; <span class="tag tag-evo">évolution proposée</span></td></tr>
+        <tr><td>5. Fonctionnalités (usage des fonctions mSupply)</td><td>Intégré partiellement au tableau de bord 3 pour les cinq natures observées ; le reste est une <span class="tag tag-evo">évolution proposée</span> conditionnée à l'extension de l'extraction</td></tr>
+        <tr><td>6. Qualité des données</td><td>Tableau de bord 5 (Qualité des données)</td></tr>
+        <tr><td>7. Actions correctives (ouvertes, en cours, en retard, clôturées)</td><td>Intégré au tableau de bord 4 (Alertes &amp; actions)</td></tr>
+        <tr><td>8. Impact des interventions (avant / après)</td><td>Non tableau de bord permanent : traité en revue semestrielle (section 19), sur la base du registre et de l'historique</td></tr>
+      </tbody>
+    </table></div>
+
+    <p class="end">Fin du document &nbsp;&middot;&nbsp; Plan de suivi de l'utilisation de mSupply &nbsp;&middot;&nbsp; version 1.0</p>
+  </article>
+</div>
