@@ -18,7 +18,7 @@ propre PostgreSQL éphémère (testcontainers, `apps/api/test/helpers/db.ts`).
 docker compose -f docker-compose.demo.yml up --build
 ```
 
-Puis <http://localhost:8080> — connexion `coordination` / `coordination-2026`
+Puis <http://localhost:8081> — connexion `coordination` / `coordination-2026`
 (ou `admin` / `admin-2026`, `lecteur` / `lecteur-2026`).
 
 - Le front (Nginx) écoute sur `:8080` ; `3000` / `4200` sont laissés libres

@@ -76,6 +76,23 @@ server {
     # En-têtes de sécurité au niveau serveur : couvrent /api/ et les erreurs.
     include /etc/nginx/snippets/security-headers.conf;
 
+    # ── Dépôt d'un classeur : délai long réservé à cette seule route ─────
+    # Staging, promotion et recalcul des scores dans la même requête : un
+    # fichier réel dépasse 300 s. Au-delà, Nginx répondait 504 alors que
+    # l'import aboutissait côté API (lot validé, écran en erreur).
+    location = /api/imports {
+        set $upstream http://api:3000;
+        proxy_pass                 $upstream;
+        proxy_http_version         1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout   900s;
+        proxy_send_timeout   900s;
+    }
+
     # ── API : reverse-proxy vers le conteneur `api` (port interne 3000) ──
     location /api/ {
         set $upstream http://api:3000;
@@ -86,7 +103,7 @@ server {
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_connect_timeout 5s;
-        proxy_read_timeout   300s;   # gel + reconstruction des vues à l'import
+        proxy_read_timeout   300s;
         proxy_send_timeout   300s;
     }
 
