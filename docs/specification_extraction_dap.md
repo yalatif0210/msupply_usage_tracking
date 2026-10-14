@@ -1,7 +1,13 @@
 # Spécification d'extraction mSupply · Tableau de bord DQA
 
-**Destinataire :** DAP / Nouvelle PSP-CI (extraction : Wilfried Akosso)
-**Version :** 2.0 (2026-08-28)
+**Destinataire :** DAP / Nouvelle PSP-CI (chargé de l'extraction)
+**Version :** 2.3 (2026-10-13) · révisions : INVENTAIRES gagne
+`heure_inventaire` et `numero_inventaire` ; quantités en unités, sans
+conversion par le conditionnement ; réquisition
+du site servi dans TRANSACTIONS ; paramètres contrôlés par le script. Version 2.2 : PRODUITS limité aux
+traceurs (la liste du script fait foi), STOCK_ACTUEL agrégé par lot. Version 2.1 :
+région en lien direct, sites du périmètre désactivés inclus, mois couvert des
+réquisitions borné à M-2..M, règle de la ligne d'exemple
 **Objet :** contrat de données pour l'alimentation hebdomadaire du tableau de
 bord DQA (40 sites, six piliers PAQD).
 
@@ -39,7 +45,13 @@ semaine au tableau de bord.
   `STOCK_ACTUEL`, `INVENTAIRES`, `INVENTAIRE_LIGNES`, `REQUISITIONS`).
 - **Ligne 5 de chaque onglet = noms de colonnes**, à ne ni renommer, ni
   déplacer, ni supprimer. Les données commencent à la ligne 6.
-- **Supprimer la ligne d'exemple** (ligne 6 du gabarit) avant l'envoi.
+- **Ligne d'exemple** (ligne 6 du gabarit, en gris italique) : les données
+  s'écrivent à partir de la ligne 6 et l'écrasent. Une fois les données en
+  place, **ne jamais supprimer la ligne 6** : elle contient alors la première
+  vraie donnée. En saisie manuelle, effacer seulement sa mise en forme. La
+  chaîne `lancer_extraction.sh` de la DAP le fait d'elle-même et vérifie le
+  classeur produit ; ce fichier s'envoie tel quel, sans être réenregistré dans
+  Excel (contrôle possible : `python csv_vers_canevas.py --verifier <fichier>`).
 - **Dates :** format `AAAA-MM-JJ` (ex. `2026-08-15`), saisi comme **texte** pour
   éviter toute reconversion Excel. Jamais d'heure.
 - **Nombres :** point décimal, sans séparateur de milliers, sans unité.
@@ -64,6 +76,11 @@ semaine au tableau de bord.
 - **Renvoi d'un classeur :** un classeur renvoyé, identique ou corrigé, pour le
   même mois PAQD **remplace** les données de ce mois : pas de doublon, pas de
   double comptage.
+- **Contrôles en amont, dans le script d'extraction :** les paramètres (cycle,
+  rang du mois, bornes du mois, fenêtre) sont vérifiés avec les mêmes règles
+  qu'au dépôt ; une erreur arrête l'extraction avant toute production de
+  fichier (« PARAMETRE INCORRECT : … »). Chaque jeu sort avec une seule ligne
+  par clé (site, produit, lot…), condition pour que le lot soit accepté.
 
 ---
 
@@ -89,8 +106,9 @@ Légende « Requis » : ● obligatoire · ○ facultatif · ▶ obligatoire sou
 
 ### 4.2 SITES · grain : un site
 
-Tous les magasins actifs (pour résoudre les rattachements district), avec
-marquage du périmètre DQA.
+Tous les magasins actifs (pour résoudre les rattachements district), plus les
+sites du périmètre DQA même désactivés (leurs mouvements sont extraits, ils
+doivent donc figurer ici), avec marquage du périmètre DQA.
 
 | Colonne | Type | Requis | Source mSupply |
 |---|---|---|---|
@@ -98,7 +116,7 @@ marquage du périmètre DQA.
 | `site_code` | texte | ● | `store.code` |
 | `site_nom` | texte | ● | `store.name` |
 | `district` | texte | ● | `store.name_id → name.category1_id → name_category1.description` |
-| `region` | texte | ● | remonter `name_category1 → name_category1_level1 → name_category1_level2.description` |
+| `region` | texte | ● | `name_category1.parent_id → name_category1_level2.description` (lien direct, vérifié par la DAP le 2026-10-12) |
 | `type_structure` | texte | ● | `name.category3_id → name_category3.description` (le palier, voir §5.3) |
 | `actif` | OUI/NON | ● | `store.disabled = false` |
 | `dans_perimetre_dqa` | OUI/NON | ● | **liste fournie par la mission DQA** (annexe A) |
@@ -118,7 +136,11 @@ Quels programmes de santé chaque site gère. **Pilote le calcul du pilier P1**
 
 ### 4.4 PRODUITS · grain : un produit
 
-Tous les produits (le marquage « traceur » est géré côté tableau de bord).
+**Uniquement les produits traceurs (annexe A).** Le tableau de bord tient pour
+traceur tout produit de cet onglet : sa liste des traceurs est mise à jour à
+chaque import (un produit absent du dernier fichier devient inactif). Ajouter
+ou retirer un traceur se fait donc dans la liste du script d'extraction, et
+nulle part ailleurs.
 
 | Colonne | Type | Requis | Source mSupply |
 |---|---|---|---|
@@ -146,7 +168,7 @@ fenêtre d'extraction. Inclure les annulations (marquées), exclure les brouillo
 | `date_saisie` | date | ● | `transact.entry_date` |
 | `date_confirmation` | date | ○ | `transact.confirm_date` |
 | `date_livraison` | date | ▶ | `transact.ship_date` (obligatoire si `nature = reception`) |
-| `requisition_id` | texte | ○ | `transact.requisition_id` |
+| `requisition_id` | texte | ○ | `transact.requisition_id` ; si cette réquisition appartient au magasin qui distribue et est liée (`linked_requisition_id`) à celle d'un autre magasin, l'identifiant de cette dernière (la réquisition du site servi) |
 | `goods_received_id` | texte | ○ | `transact.goods_received_id` |
 | `commentaire` | texte | ▶ | `transact.comment` (obligatoire si `nature` ∈ {`ajustement_positif`, `ajustement_negatif`}) |
 
@@ -162,7 +184,7 @@ fenêtre d'extraction. Inclure les annulations (marquées), exclure les brouillo
 | `programme_id` | texte | ○ | `trans_line.program_id` |
 | `lot` | texte | ○ | `trans_line.batch` |
 | `quantite` | nombre | ● | `trans_line.quantity` (quantité réelle en conditionnement) |
-| `taille_conditionnement` | nombre | ● | `trans_line.pack_size` (unités de dispensation par conditionnement) |
+| `taille_conditionnement` | nombre | ● | `trans_line.pack_size`, à titre d'information : `quantite` est déjà en unités, jamais multipliée |
 | `type_ligne` | texte | ● | `trans_line.type` (`stock_in`, `stock_out`, `service`…) |
 | `issu_ajustement` | OUI/NON | ● | `trans_line.is_from_inventory_adjustment` |
 | `date_peremption` | date | ○ | `trans_line.expiry_date` |
@@ -177,9 +199,14 @@ traceurs (annexe A).**
 | `site_id` | texte | ● | `item_line.store_id` |
 | `produit_id` | texte | ● | `item_line.item_id` |
 | `lot` | texte | ○ | `item_line.batch` |
-| `quantite_disponible` | nombre | ● | `item_line.available` |
+| `quantite_disponible` | nombre | ● | `item_line.available` (en unités : dispensation à l'unité) |
 | `date_peremption` | date | ○ | `item_line.expiry_date` |
-| `date_photo` | date | ● | date d'extraction |
+| `date_photo` | date | ● | jour d'exécution du script (`item_line` n'a pas d'historique) |
+
+**Une seule ligne par (site, produit, lot).** mSupply répartit souvent un même
+lot sur plusieurs `item_line` (emplacements, conditionnements) : les agréger,
+quantité sommée, péremption la plus proche (`min(expiry_date)`). Le lot du
+2026-10-12 portait 3889 lignes pour 2699 clés.
 
 ### 4.8 INVENTAIRES · grain : un inventaire
 
@@ -194,6 +221,16 @@ Inventaires (`stock_take`) dont la `stock_take_date` tombe dans la fenêtre.
 | `statut` | texte | ● | `stock_take.status` (`fn` = finalisé) |
 | `invad_additions_id` | texte | ○ | `stock_take.invad_additions_id` |
 | `invad_reductions_id` | texte | ○ | `stock_take.invad_reductions_id` |
+| `heure_inventaire` | heure `HH:MM:SS` | ○ | `stock_take.stock_take_time` |
+| `numero_inventaire` | nombre | ○ | `stock_take.serial_number` |
+
+**Plusieurs inventaires le même jour.** Un site peut finaliser plusieurs
+inventaires le même jour sur le même produit (recomptage, correction). Le
+tableau de bord retient le dernier finalisé : heure, puis numéro attribué par
+mSupply. Les deux colonnes doivent figurer en en-tête (sinon le classeur est
+rejeté) ; leurs valeurs peuvent être vides. Le numéro suit la création de
+l'inventaire et n'est pas unique par site (contrôle DAP du 2026-10-13) : il
+ne sert qu'à départager deux inventaires de même heure.
 
 ### 4.9 INVENTAIRE_LIGNES · grain : (inventaire, produit, lot)
 
@@ -205,12 +242,22 @@ Inventaires (`stock_take`) dont la `stock_take_date` tombe dans la fenêtre.
 | `inventaire_id` | texte | ● | `stock_take_lines.stock_take_id` |
 | `produit_id` | texte | ● | `stock_take_lines.item_id` |
 | `lot` | texte | ○ | `stock_take_lines.batch` |
-| `quantite_theorique` | nombre | ● | `stock_take_lines.snapshot_qty × stock_take_lines.snapshot_packsize` |
-| `quantite_comptee` | nombre | ● | `stock_take_lines.stock_take_qty` |
+| `quantite_theorique` | nombre | ● | `stock_take_lines.snapshot_qty` (en unités, sans multiplication par le conditionnement) |
+| `quantite_comptee` | nombre | ● | `stock_take_lines.stock_take_qty` (en unités) |
 
 ### 4.10 REQUISITIONS · grain : une réquisition
 
-Réquisitions dont la `date_entered` **ou** la période couverte touche la fenêtre.
+**Seulement les réquisitions propres de chaque site** (`requisition.type`
+différent de `response` et `EPIWastageResponse`). Quand un site commande à son
+district, mSupply crée aussi une copie de travail chez le district (la
+réponse) : l'extraire ferait compter au district des réquisitions qu'il n'a
+pas soumises. La réponse sert uniquement à rattacher la distribution du
+district à la demande du site (colonne `requisition_id` de TRANSACTIONS).
+
+Réquisitions dont la `date_entered` **ou** la période couverte touche la
+fenêtre, **et** dont le mois couvert tombe entre M-2 et M (M = mois PAQD) :
+c'est la plage que le tableau de bord exploite. Une réquisition saisie
+tardivement pour un mois plus ancien n'est pas transmise.
 
 | Colonne | Type | Requis | Source mSupply |
 |---|---|---|---|
@@ -279,10 +326,13 @@ libellé nouveau se rattache dans la console, sans nouvelle livraison.
 
 - **Liste des sites du périmètre DQA** (40 `site_id` / `site_code`), pour la
   colonne `dans_perimetre_dqa`.
-- **Liste des produits traceurs** (`produit_code`), filtre des jeux
+- **Liste des produits traceurs** (`produit_code`), filtre des jeux PRODUITS,
   LIGNES_TRANSACTIONS, STOCK_ACTUEL, INVENTAIRE_LIGNES. Révisée à chaque cycle.
+  Elle vit dans le script d'extraction (`tmp_traceurs`) et **fait foi** : le
+  tableau de bord reprend l'onglet PRODUITS comme liste des traceurs.
 
-Ces deux listes sont transmises séparément et tenues à jour par la mission.
+Ces deux listes sont arrêtées par la mission et reportées dans le script
+d'extraction de la DAP.
 
 ---
 
@@ -299,3 +349,9 @@ Ces deux listes sont transmises séparément et tenues à jour par la mission.
 4. **`transact.programid` / `requisition.programid` / `stock_take.programid` :**
    sont-ils systématiquement renseignés, ou faut-il un rattachement de repli
    (via la réquisition liée, ou la liste maîtresse du produit) ?
+5. **`stock_take.serial_number` :** réponse de la DAP le 2026-10-13. Le numéro
+   suit la création de l'inventaire, l'heure (`stock_take_time`) sa
+   finalisation ; les deux ordres divergent dans 14 % des journées à plusieurs
+   inventaires, et le numéro n'est pas unique par site. L'heure, toujours
+   renseignée, fait foi ; le numéro ne départage que deux inventaires de même
+   heure. Point clos.

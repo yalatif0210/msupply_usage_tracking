@@ -139,7 +139,7 @@ dans `hist_score_site` avec `date_mesure = CURRENT_DATE`.
 
 Classeur = **9 feuilles** : MODE_EMPLOI (instructions) + 8 remplissables
 (METADATA + 7 onglets de données). Extraction du 2026-08-18, mSupply V09.01.03,
-réalisée par Wilfried Akosso.
+réalisée par le chargé de l'extraction de la DAP.
 
 ### 5.1 Codes `type_transaction` réellement présents (14 462 lignes)
 

@@ -32,7 +32,7 @@ psql -d <base_msupply> -f 10_vues_extraction.sql
    VALUES
      (true, DATE '2026-08-18', '2026-C2', 'M+2',
       DATE '2026-08-01', DATE '2026-08-31', DATE '2026-07-04', DATE '2026-08-18',
-      'Wilfried Akosso', 'V09.01.03')
+      'Prénom NOM, DAP', 'V09.01.03')
    ON CONFLICT (singleton) DO UPDATE SET
       date_extraction = EXCLUDED.date_extraction,
       cycle_paqd      = EXCLUDED.cycle_paqd,

@@ -18,3 +18,16 @@ tmp/
 /*.png
 .mcp.json
 .claude/worktrees/
+
+# Données réelles de la DAP : jamais sur GitHub (données de démonstration ou
+# anonymisées uniquement). Le gabarit vierge docs/Canevas_..._v2.xlsx reste suivi.
+/Canevas_Extraction_mSupply_DQA_v2_*.xlsx
+/RE__SQL/
+/RE__SQL.zip
+SCRIPT/**/csv_extraction/
+SCRIPT/*.zip
+__pycache__/
+# Listes de la mission : identifiants réels des sites (modèle versionné :
+# listes_mission.exemple.sql). Rapport préparé pour la DAP : usage interne.
+listes_mission.sql
+docs/rapport_analyse_canevas_DAP.docx

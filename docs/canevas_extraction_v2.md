@@ -7,7 +7,7 @@ recensées dans [exploration_etat_des_lieux.md](exploration_etat_des_lieux.md),
 en s'appuyant sur les tables réelles de mSupply plutôt que sur des devinettes.
 Reste à valider en séance DAP : §6.
 
-**Interlocuteur DAP :** Wilfried Akosso (auteur des requêtes d'extraction).
+**Interlocuteur DAP :** le chargé de l'extraction (auteur des requêtes).
 
 ---
 
