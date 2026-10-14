@@ -30,4 +30,5 @@ __pycache__/
 # Listes de la mission : identifiants réels des sites (modèle versionné :
 # listes_mission.exemple.sql). Rapport préparé pour la DAP : usage interne.
 listes_mission.sql
+connexion.env
 docs/rapport_analyse_canevas_DAP.docx
