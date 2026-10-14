@@ -129,9 +129,9 @@ export class ValidationService {
       if (!onglet) continue; // déjà signalé par R2
       const declare = classeur.metadata.get(champCompteur);
       const reel = onglet.lignes.length;
-      if (declare === undefined) {
+      if (declare === undefined || declare.trim() === '') {
         out.push(ano({ onglet: 'METADATA', gravite: 'erreur', code: 'COMPTEUR_METADATA_MANQUANT',
-          message: `compteur « ${champCompteur} » absent de METADATA` }));
+          message: `compteur « ${champCompteur} » absent ou vide dans METADATA` }));
       } else if (Number(declare) !== reel) {
         out.push(ano({ onglet: nomJeu, gravite: 'erreur', code: 'COMPTEUR_METADATA',
           message: `${declare} ligne(s) déclarée(s) dans METADATA, ${reel} reçue(s)`,

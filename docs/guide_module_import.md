@@ -23,7 +23,9 @@ POST /api/imports (multipart, rôle coordination)
   │
   ├─ transaction unique ─────────────────────────────────────────────
   │   ├─ StagingService     écrit les lignes brutes dans stg_*
-  │   ├─ PromotionService   upsert stg_* → dim_*/fact_* sur les clés mSupply
+  │   ├─ PromotionService   calendrier complété, upsert stg_* → dim_*/fact_*
+  │   │                     sur les clés mSupply, liste des traceurs reprise
+  │   │                     de PRODUITS
   │   │                     + anomalies « référence non promue »
   │   └─ import_lot         statut « validé », mois PAQD figé
   │   (tout échec ici → ROLLBACK complet, lot « rejeté »)
@@ -124,10 +126,49 @@ règle — voir `test/import-validation.test.ts`.
   le lot). C'est voulu — le canevas V2 garantit l'unicité à la source. Les
   **lignes** d'inventaire, elles, sont agrégées par `GROUP BY (inventaire,
   produit, lot)`.
-- `dim_produit_traceur` est seedée (migration 0013) avec les **13 produits
-  traceurs** de l'onglet PRODUITS du fichier d'extraction fourni par la DAP
-  (`produit_code` = `item.code`). À revoir à chaque cycle si le panier évolue.
+- Même agrégation pour `fact_stock_snapshot` sur `(date_photo, site, produit,
+  lot)` : quantité sommée, péremption la plus proche. mSupply répartit un même
+  lot sur plusieurs `item_line`. Sans ce `GROUP BY`, l'upsert reçoit deux fois
+  la même clé (« ON CONFLICT DO UPDATE command cannot affect row a second
+  time ») et le lot entier est rejeté : c'est arrivé au lot du 2026-10-12
+  (STOCK_ACTUEL, 3889 lignes pour 2699 clés). L'extraction agrège désormais
+  aussi à la source.
+- **Traceurs alimentés par l'import (ADR 0015).** Tout produit de l'onglet
+  PRODUITS devient traceur actif ; un traceur absent du lot passe inactif. Un
+  lot sans aucun produit ne touche pas à la liste. Conséquence : un fichier
+  produit avec l'ancien script (les 5449 produits mSupply dans PRODUITS)
+  ferait de tous les produits des traceurs. Les fichiers antérieurs au
+  2026-10-13 sont à régénérer avant import. La migration 0013 ne sert plus que
+  de liste de départ d'une base neuve.
+- **`heure_inventaire` / `numero_inventaire` (canevas v2.3, ADR 0016).**
+  Colonnes obligatoires en en-tête d'INVENTAIRES : leur absence rejette le
+  classeur, ce qui écarte aussi tout fichier produit par un script antérieur.
+  À la promotion, une heure hors `HH:MM[:SS]` valide ou un numéro non entier
+  deviennent `NULL` (garde regex) plutôt que de faire échouer le lot ; le tri
+  de l'inventaire retenu retombe alors sur `inventaire_id`.
+- **Quantités en unités, jamais converties (ADR 0017, migration 0045).**
+  `fact_ligne_transaction.quantite_unitaire` = `quantite` ; la taille de
+  conditionnement est stockée pour information. En Côte d'Ivoire, mSupply
+  saisit tout à l'unité de dispensation.
+- **Calendrier complété à l'import** (migration 0043,
+  `dqa.completer_calendrier`). La promotion ajoute les jours manquants de
+  `dim_temps` de l'année précédant la fenêtre d'extraction à l'année suivant
+  sa fin. Le seed 0008 s'arrêtait au 31/12/2027 alors que le programme court
+  jusqu'en 2030. Les mois du lot (`mois_debut`/`mois_fin`) ne sont écrits
+  dans `import_lot` qu'**après** la promotion : l'étape s'appuie sur la
+  fenêtre, à défaut sur la date d'extraction.
 - Le gabarit `Canevas_Extraction_mSupply_DQA_v2.xlsx` contient une ligne
-  d'exemple en ligne 6 : importé tel quel, il est rejeté (compteurs à 0 vs
-  lignes d'exemple). C'est le comportement attendu — la DAP supprime la ligne
-  d'exemple avant envoi.
+  d'exemple en ligne 6 (gris italique) : importé vide, il est rejeté (compteurs
+  à 0 vs lignes d'exemple). Les données s'écrivent **par-dessus** cette ligne ;
+  une fois remplie, la ligne 6 est une vraie donnée et ne doit jamais être
+  supprimée. Lot du 2026-10-12 : la première donnée, restée au style de
+  l'exemple, a été supprimée à la main dans Excel sur 8 onglets, et le lot a
+  été rejeté (compteur METADATA = réel + 1). La chaîne DAP
+  (`csv_vers_canevas.py`) remet désormais une police normale et vérifie le
+  classeur enregistré ; `--verifier <fichier>` refait ce contrôle.
+- Le lecteur ne dépend pas de l'ordre des attributs XML. Excel écrit
+  `<Relationship Id=… Target=…>`, openpyxl `<Relationship Target=… Id=…>` avec
+  une cible absolue (`/xl/worksheets/…`). Une première version ne lisait que le
+  premier ordre : un classeur produit par le script DAP et envoyé sans passer
+  par Excel était lu sans aucun onglet, donc rejeté en bloc. Test :
+  `test/lecture-classeur.test.ts`.

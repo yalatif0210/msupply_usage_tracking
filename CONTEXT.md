@@ -86,7 +86,7 @@ traverser plusieurs cycles.
 
 **Grille de paramètres** :
 Le jeu daté des poids de piliers, des seuils de sous-composantes et — pour les
-sous-composantes évaluées par taux de conformité (écart SDU, écart consommation)
+sous-composantes évaluées par taux de conformité (conformité SDU, conformité consommation)
 — de la tolérance par produit. Éditée par la coordination nationale ; une
 modification ne vaut que pour les cycles à venir. Chaque score historisé
 référence la grille avec laquelle il a été calculé et reste immuable.
@@ -137,17 +137,36 @@ au plus tard le 5 du mois suivant (centres de santé), le 7 (HG, CHR), le 10
 
 **Produit traceur** :
 Un des produits retenus par la mission pour les calculs d'écart (P4) et de
-concordance (P5). La liste est administrée dans la console web par la
-coordination, pas dérivée de mSupply.
+concordance (P5). La liste est tenue dans le script d'extraction de la DAP ;
+tout produit de l'onglet PRODUITS d'un import est traceur d'office, un produit
+absent du dernier lot devient inactif (ADR 0015). Un code peut couvrir
+plusieurs **articles** mSupply : il compte une fois dans les taux P4 et P5,
+conforme seulement si tous ses articles le sont (ADR 0016).
+
+**Article** :
+Un enregistrement `item` de mSupply. Deux articles peuvent porter le même code
+produit (même médicament enregistré deux fois). Les calculs se font par
+article, les taux par code.
+_Éviter_ : produit (quand on parle de l'enregistrement mSupply)
+
+**Inventaire retenu** :
+Pour un site, un jour et un produit, le seul inventaire qui compte quand
+plusieurs ont été finalisés : le dernier finalisé (heure, puis numéro mSupply).
+Par programme, le dernier du programme ; tous programmes, le dernier tous
+programmes confondus.
 _Éviter_ : produit suivi, produit critique
 
 **Taux de conformité (P4)** :
 Libellé du pilier P4 sur les écrans et dans `CLAUDE.md` §5 : ses deux
-sous-composantes (écart SDU, écart consommation) sont des taux de conformité,
-pas des amplitudes d'écart. Les termes internes `ecart_sdu` / `ecart_consommation`
-(enum, contrats, base) restent inchangés.
+sous-composantes (conformité SDU, conformité consommation) sont des taux de
+conformité, pas des amplitudes d'écart. Lecture : avec la grille par défaut,
+un produit est conforme si son écart tient dans 2 %, et la sous-composante est
+CONFORME si au moins 90 % des traceurs le sont (« ≥ 90 · tolérance 2 % »). Les
+termes internes `ecart_sdu` / `ecart_consommation` (enum, contrats, base)
+restent inchangés ; « écart » ne désigne plus à l'écran que l'écart d'un
+produit (tableau produit de la fiche site, fiche produit).
 
-**Écart SDU (P4)** :
+**Conformité SDU (P4)** :
 Part des produits traceurs dont le stock physiquement compté au dernier
 inventaire du mois est **dans la tolérance** de la quantité théorique mSupply :
 `|théorique − compté| / compté ≤ tolérance` (le compté, la réalité, au
@@ -157,7 +176,7 @@ finalisé daté dans le mois : **0 %** (ALERTE) une fois le mois clos (ne pas
 inventorier est alors un manquement), **NON_CALCULABLE** tant qu'il est en
 cours (l'inventaire de fin de mois n'est pas encore dû).
 
-**Écart consommation (P4)** :
+**Conformité consommation (P4)** :
 Part des produits traceurs dont la consommation *déclarée* (somme des
 dispensations saisies ; pour un district, somme des **quantités distribuées**)
 est dans la tolérance de la consommation *reconstituée* :
@@ -171,10 +190,10 @@ borne d'ouverture exploitable ou dont la reconstituée est ≤ 0 est exclu. Sans
 aucune borne d'ouverture exploitable pour le site : **0 %** (ALERTE) si le mois
 est clos, **NON_CALCULABLE** s'il est en cours. NON_CALCULABLE aussi si des
 bornes existent mais qu'aucune reconstituée n'est positive.
-_Éviter_ : écart SDU (réservé à la sous-composante ci-dessus)
+_Éviter_ : écart SDU, écart consommation (pour la sous-composante : c'est un taux, pas un écart)
 
-**Écart distribution (P4)** :
-Nom que prend l'écart consommation pour un district : mêmes bornes, même
+**Conformité distribution (P4)** :
+Nom que prend la conformité consommation pour un district : mêmes bornes, même
 reconstruction, mais la consommation déclarée est la somme des quantités
 distribuées (et non dispensées). Un district ne dispense pas.
 
@@ -191,7 +210,15 @@ site à son fournisseur. Elle couvre un mois M (celui de son inventaire de
 référence de fin de mois) et doit être soumise au plus tard le 5, 7 ou 10 du
 mois M+1 selon le type de structure. Comptée pour M, jamais pour M+1. Aussi
 appelée **rapport** : les deux termes désignent le même objet (voir *Rapport
-mensuel*).
+mensuel*). C'est la réquisition du site lui-même (`request` dans mSupply).
+
+**Réquisition de réponse** :
+La copie de travail que mSupply crée chez le fournisseur (district) quand un
+site lui adresse une réquisition (`response`, liée à la demande par
+`linked_requisition_id`). Elle appartient au fournisseur mais n'est pas une
+réquisition qu'il a soumise : exclue de l'extraction, elle sert seulement à
+relier la distribution du district à la demande du site.
+_Éviter_ : réquisition du district (pour désigner une réponse)
 
 **Régularité de saisie (P3)** :
 Part des jours du mois où le site a enregistré au moins une sortie de stock
@@ -271,6 +298,6 @@ aux données.
 | P1 | Complétude des transactions | 10 % | complétude des inventaires, des réquisitions, des réceptions |
 | P2 | Promptitude des transactions | 15 % | promptitude des inventaires, des réquisitions |
 | P3 | Régularité de saisie (dispensation) | 15 % | régularité de saisie |
-| P4 | Taux de conformité | 25 % | écart SDU, écart consommation |
+| P4 | Taux de conformité | 25 % | conformité SDU, conformité consommation |
 | P5 | Concordance physique / théorique | 25 % | concordance |
 | P6 | Ratio d'ajustements | 10 % | ratio d'ajustements |

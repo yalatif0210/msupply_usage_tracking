@@ -1,22 +1,11 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  NotFoundException,
-  Param,
-  Put,
-} from '@nestjs/common';
-import {
-  entreeProduitTraceurSchema,
-  type EntreeProduitTraceur,
-  type ProduitTraceur,
-} from '@dqa/contracts';
-import { Roles } from '../auth/auth.metadata.js';
-import { ZodValidationPipe } from '../commun/zod-validation.pipe.js';
+import { Controller, Get } from '@nestjs/common';
+import type { ProduitTraceur } from '@dqa/contracts';
 import { TraceursRepository } from './traceurs.repository.js';
 
+/**
+ * Consultation seule : la liste vient de l'onglet PRODUITS des imports
+ * (ADR 0015). Une saisie ici serait écrasée au lot suivant.
+ */
 @Controller('admin/traceurs')
 export class TraceursController {
   constructor(private readonly repo: TraceursRepository) {}
@@ -25,23 +14,5 @@ export class TraceursController {
   @Get()
   lister(): Promise<ProduitTraceur[]> {
     return this.repo.lister();
-  }
-
-  @Roles(['coordination'])
-  @Put(':code')
-  enregistrer(
-    @Param('code') code: string,
-    @Body(new ZodValidationPipe(entreeProduitTraceurSchema.partial()))
-    corps: Partial<EntreeProduitTraceur>,
-  ): Promise<ProduitTraceur> {
-    return this.repo.enregistrer({ ...corps, produitCode: code });
-  }
-
-  @Roles(['coordination'])
-  @Delete(':code')
-  @HttpCode(204)
-  async supprimer(@Param('code') code: string): Promise<void> {
-    const ok = await this.repo.supprimer(code);
-    if (!ok) throw new NotFoundException('Code traceur inconnu');
   }
 }

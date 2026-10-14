@@ -38,6 +38,16 @@ function decode(xml: string): string {
     .replace(/&amp;/g, '&');
 }
 
+/**
+ * Valeur d'un attribut XML dans une liste d'attributs, quel que soit son rang :
+ * l'ordre varie selon le producteur (Excel écrit `Id` avant `Target`, openpyxl
+ * l'inverse).
+ */
+function attribut(attributs: string, nom: string): string | undefined {
+  const echappe = nom.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:^|\\s)${echappe}="([^"]*)"`).exec(attributs)?.[1];
+}
+
 function colLettres(ref: string): string {
   return ref.replace(/\d+/g, '');
 }
@@ -68,13 +78,12 @@ function parseFeuille(xml: string, shared: string[]): Map<number, CelluleBrute[]
   for (const rowMatch of xml.matchAll(/<row[^>]*\br="(\d+)"[^>]*>([\s\S]*?)<\/row>/g)) {
     const numLigne = Number(rowMatch[1]);
     const cellules: CelluleBrute[] = [];
-    for (const cMatch of (rowMatch[2] ?? '').matchAll(
-      /<c\s+r="([A-Z]+\d+)"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g,
-    )) {
-      const ref = cMatch[1] ?? '';
-      const attrs = cMatch[2] ?? '';
-      const corps = cMatch[3] ?? '';
-      const type = /\bt="([^"]+)"/.exec(attrs)?.[1];
+    for (const cMatch of (rowMatch[2] ?? '').matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+      const attrs = cMatch[1] ?? '';
+      const ref = attribut(attrs, 'r');
+      if (!ref) continue;
+      const corps = cMatch[2] ?? '';
+      const type = attribut(attrs, 't');
       let valeur = '';
       if (type === 's') {
         const idx = Number(/<v>([\s\S]*?)<\/v>/.exec(corps)?.[1] ?? '');
@@ -117,16 +126,18 @@ export function lireClasseur(buffer: Buffer): ClasseurLu {
   const shared = parseSharedStrings(lire('xl/sharedStrings.xml'));
 
   const relCible = new Map<string, string>();
-  for (const m of rels.matchAll(/<Relationship\b[^>]*\bId="([^"]+)"[^>]*\bTarget="([^"]+)"[^>]*\/>/g)) {
-    relCible.set(m[1] ?? '', (m[2] ?? '').replace(/^\/?xl\//, '').replace(/^\//, ''));
+  for (const m of rels.matchAll(/<Relationship\b([^>]*?)\/?>/g)) {
+    const id = attribut(m[1] ?? '', 'Id');
+    const cible = attribut(m[1] ?? '', 'Target');
+    if (id && cible) relCible.set(id, cible.replace(/^\/?xl\//, '').replace(/^\//, ''));
   }
 
   const metadata = new Map<string, string>();
   const onglets = new Map<string, OngletLu>();
 
-  for (const s of workbook.matchAll(/<sheet\b[^>]*\bname="([^"]+)"[^>]*\br:id="([^"]+)"[^>]*\/>/g)) {
-    const nom = decode(s[1] ?? '');
-    const cible = relCible.get(s[2] ?? '');
+  for (const s of workbook.matchAll(/<sheet\b([^>]*?)\/?>/g)) {
+    const nom = decode(attribut(s[1] ?? '', 'name') ?? '');
+    const cible = relCible.get(attribut(s[1] ?? '', 'r:id') ?? '');
     const xml = cible ? lire(`xl/${cible}`) : undefined;
     if (!xml) continue;
     const lignes = parseFeuille(xml, shared);

@@ -18,6 +18,20 @@ const NATURE_LISTE = NATURES.map((n) => `'${n}'`).join(', ');
 
 const ETAPES: { nom: string; sql: string }[] = [
   {
+    // Fenêtre d'extraction, à défaut la date d'extraction (validée) : les mois
+    // du lot ne sont écrits qu'après la promotion. Élargie à l'année civile
+    // précédente et à la suivante : les réquisitions rattrapées (M-2) peuvent
+    // enjamber le changement d'année.
+    nom: 'dim_temps',
+    sql: `
+      SELECT dqa.completer_calendrier(
+               (date_trunc('year', coalesce(fenetre_debut, date_extraction)) - interval '1 year')::date,
+               (date_trunc('year', coalesce(fenetre_fin, date_extraction)) + interval '2 years - 1 day')::date)
+      FROM dqa.import_lot
+      WHERE id = $1 AND coalesce(fenetre_debut, date_extraction) IS NOT NULL
+        AND coalesce(fenetre_fin, date_extraction) IS NOT NULL`,
+  },
+  {
     nom: 'dim_site',
     sql: `
       INSERT INTO dqa.dim_site
@@ -58,6 +72,29 @@ const ETAPES: { nom: string; sql: string }[] = [
         produit_code = EXCLUDED.produit_code, produit_nom = EXCLUDED.produit_nom,
         unite = EXCLUDED.unite, programmes = EXCLUDED.programmes,
         lot_id_source = EXCLUDED.lot_id_source, maj_le = now()`,
+  },
+  {
+    // L'onglet PRODUITS ne porte que les traceurs listés dans le script
+    // d'extraction (ADR 0015) : chacun l'est d'office, le dernier lot reçu
+    // fait foi pour la liste.
+    nom: 'dim_produit_traceur',
+    sql: `
+      INSERT INTO dqa.dim_produit_traceur (produit_code, libelle, actif, maj_le)
+      SELECT DISTINCT ON (produit_code) produit_code, nullif(produit_nom, ''), true, now()
+      FROM dqa.stg_produits WHERE lot_id = $1 AND coalesce(produit_code, '') <> ''
+      ORDER BY produit_code, produit_id
+      ON CONFLICT (produit_code) DO UPDATE SET
+        libelle = EXCLUDED.libelle, actif = true, maj_le = now()`,
+  },
+  {
+    // Garde : un lot sans onglet PRODUITS ne vide pas la liste.
+    nom: 'dim_produit_traceur_retires',
+    sql: `
+      UPDATE dqa.dim_produit_traceur t SET actif = false, maj_le = now()
+      WHERE t.actif
+        AND EXISTS (SELECT 1 FROM dqa.stg_produits WHERE lot_id = $1 AND coalesce(produit_code, '') <> '')
+        AND NOT EXISTS (SELECT 1 FROM dqa.stg_produits p
+                        WHERE p.lot_id = $1 AND p.produit_code = t.produit_code)`,
   },
   {
     nom: 'dim_site_programme',
@@ -140,9 +177,13 @@ const ETAPES: { nom: string; sql: string }[] = [
     sql: `
       INSERT INTO dqa.fact_inventaire
         (inventaire_id, site_id, programme_id, date_inventaire, statut,
-         invad_additions_id, invad_reductions_id, lot_id_source, maj_le)
+         invad_additions_id, invad_reductions_id, heure_inventaire, numero_inventaire,
+         lot_id_source, maj_le)
       SELECT i.inventaire_id, i.site_id, p.programme_id, ${D('i.date_inventaire')}, i.statut,
-             nullif(i.invad_additions_id, ''), nullif(i.invad_reductions_id, ''), $1, now()
+             nullif(i.invad_additions_id, ''), nullif(i.invad_reductions_id, ''),
+             CASE WHEN i.heure_inventaire ~ '^([01]?\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$' THEN i.heure_inventaire::time END,
+             CASE WHEN i.numero_inventaire ~ '^\\d{1,9}$' THEN i.numero_inventaire::integer END,
+             $1, now()
       FROM dqa.stg_inventaires i
       JOIN dqa.dim_site s ON s.site_id = i.site_id
       LEFT JOIN dqa.dim_programme p ON p.programme_id = i.programme_id
@@ -152,6 +193,7 @@ const ETAPES: { nom: string; sql: string }[] = [
         site_id = EXCLUDED.site_id, programme_id = EXCLUDED.programme_id,
         date_inventaire = EXCLUDED.date_inventaire, statut = EXCLUDED.statut,
         invad_additions_id = EXCLUDED.invad_additions_id, invad_reductions_id = EXCLUDED.invad_reductions_id,
+        heure_inventaire = EXCLUDED.heure_inventaire, numero_inventaire = EXCLUDED.numero_inventaire,
         lot_id_source = EXCLUDED.lot_id_source, maj_le = now()`,
   },
   {
@@ -196,16 +238,19 @@ const ETAPES: { nom: string; sql: string }[] = [
         lot_id_source = EXCLUDED.lot_id_source, maj_le = now()`,
   },
   {
+    // mSupply répartit un même lot sur plusieurs item_line (emplacements,
+    // conditionnements) : on somme, et la péremption retenue est la plus proche.
     nom: 'fact_stock_snapshot',
     sql: `
       INSERT INTO dqa.fact_stock_snapshot
         (date_photo, site_id, produit_id, lot, quantite_disponible, date_peremption, lot_id_source, maj_le)
       SELECT ${D('st.date_photo')}, st.site_id, st.produit_id, coalesce(st.lot, ''),
-             coalesce(${N('st.quantite_disponible')}, 0), ${D('st.date_peremption')}, $1, now()
+             sum(coalesce(${N('st.quantite_disponible')}, 0)), min(${D('st.date_peremption')}), $1, now()
       FROM dqa.stg_stock_actuel st
       JOIN dqa.dim_site s   ON s.site_id = st.site_id
       JOIN dqa.dim_produit pr ON pr.produit_id = st.produit_id
       WHERE st.lot_id = $1 AND st.date_photo ~ '^\\d{4}-\\d{2}-\\d{2}$'
+      GROUP BY ${D('st.date_photo')}, st.site_id, st.produit_id, coalesce(st.lot, '')
       ON CONFLICT (date_photo, site_id, produit_id, lot) DO UPDATE SET
         quantite_disponible = EXCLUDED.quantite_disponible, date_peremption = EXCLUDED.date_peremption,
         lot_id_source = EXCLUDED.lot_id_source, maj_le = now()`,

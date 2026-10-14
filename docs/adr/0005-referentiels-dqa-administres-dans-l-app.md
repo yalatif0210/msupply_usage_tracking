@@ -1,5 +1,8 @@
 # Les référentiels DQA sont administrés dans l'application
 
+**Statut.** Remplacé par l'ADR 0015 pour la liste des produits traceurs. Reste
+valable pour la grille de paramètres et le périmètre DQA.
+
 **Contexte.** Trois jeux de données de référence pilotent le calcul des scores :
 la grille de paramètres (poids, seuils), la liste des produits traceurs, et le
 périmètre DQA. On pourrait les faire venir de l'extraction mSupply, ou les figer

@@ -24,6 +24,7 @@ migration : la **grille de paramètres** (rôle `coordination`), les **comptes**
 | `GET` | `/api/admin/strates` | tout rôle authentifié | `VueStrates` (`{ mappings, nonClasses }`) |
 | `PUT` | `/api/admin/strates/:typeStructure` | coordination | `StrateStructure` (upsert : `strate` + `jourLimiteRequisition` + `estDistrict`) |
 | `DELETE` | `/api/admin/strates/:typeStructure` | coordination | 204 (404 si inconnu) |
+| `GET` | `/api/admin/traceurs` | tout rôle authentifié | `ProduitTraceur[]` (lecture seule, ADR 0015) |
 
 ## Grille de paramètres (ADR 0003)
 
@@ -95,6 +96,15 @@ refus serveur.
   seule (contrôles masqués, refus serveur en doublure).
 - `dim_site.jour_limite_requisition` (ancien override par site) a été retiré du
   contrat d'extraction : l'échéance ne dépend plus que du `type_structure`.
+
+## Produits traceurs (ADR 0015)
+
+Consultation seule. La liste est écrite par la promotion de chaque import
+(étapes `dim_produit_traceur` et `dim_produit_traceur_retires` de
+`PromotionService`) à partir de l'onglet PRODUITS, lui-même limité par le
+script d'extraction à sa liste `tmp_traceurs`. Les anciens `PUT` / `DELETE`
+ont été retirés : une saisie dans la console aurait été écrasée au lot
+suivant, sans avertissement.
 
 ## Pièges connus
 

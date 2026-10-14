@@ -112,8 +112,8 @@ export const LIBELLES_SOUS_COMPOSANTE: Record<SousComposante, string> = {
   promptitude_inventaires: 'Promptitude des inventaires',
   promptitude_requisitions: 'Promptitude des réquisitions',
   regularite_saisie: 'Régularité de saisie',
-  ecart_sdu: 'Écart SDU',
-  ecart_consommation: 'Écart consommation',
+  ecart_sdu: 'Conformité SDU',
+  ecart_consommation: 'Conformité consommation',
   concordance: 'Concordance physique / théorique',
   ratio_ajustements: "Ratio d'ajustements",
 };
@@ -125,11 +125,11 @@ export const LIBELLES_SOUS_COMPOSANTE: Record<SousComposante, string> = {
  * parle de « dispensation » / « consommation », un district parle de
  * « distribution » (ADR 0011, ADR 0012).
  *   - `regularite_saisie`  → « Régularité de saisie (distribution) »
- *   - `ecart_consommation` → « Écart distribution »
+ *   - `ecart_consommation` → « Conformité distribution »
  */
 export function libelleSousComposante(sc: SousComposante, estDistrict: boolean): string {
   if (estDistrict && sc === 'regularite_saisie') return 'Régularité de saisie (distribution)';
-  if (estDistrict && sc === 'ecart_consommation') return 'Écart distribution';
+  if (estDistrict && sc === 'ecart_consommation') return 'Conformité distribution';
   if (!estDistrict && sc === 'regularite_saisie') return 'Régularité de saisie (dispensation)';
   return LIBELLES_SOUS_COMPOSANTE[sc];
 }

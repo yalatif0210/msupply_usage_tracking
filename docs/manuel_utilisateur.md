@@ -2,7 +2,7 @@
 
 **Destinataires :** toute personne autorisée à consulter le tableau de bord
 (équipes district, coordination nationale, DAP).
-**Version :** 1.2 (2026-09).
+**Version :** 1.3 (2026-10).
 
 Ce manuel explique ce que montre l'application, comment naviguer d'un écran à
 l'autre, et surtout comment chaque chiffre affiché est calculé, formule par
@@ -76,7 +76,7 @@ progression le relie **en pointillé**.
 | Rôle | Ce qu'il voit | Ce qu'il peut modifier |
 |---|---|---|
 | `lecteur` | Tous les écrans de consultation (tableau de bord, sites, synthèse, fiches produit) | Rien |
-| `coordination` | Tout ce que voit `lecteur`, plus l'écran des imports | Dépôt des classeurs, grille de paramètres, référentiel des produits traceurs, référentiel des types de structure |
+| `coordination` | Tout ce que voit `lecteur`, plus l'écran des imports | Dépôt des classeurs, grille de paramètres, référentiel des types de structure |
 | `admin` | Tout ce que voit `lecteur` | Comptes utilisateurs |
 
 L'onglet « Imports » n'apparaît que pour la coordination : c'est elle qui
@@ -148,7 +148,7 @@ anomalies. Un champ de dépôt en tête de page envoie un nouveau classeur.
 
 | Écran | Rôle requis | Contenu |
 |---|---|---|
-| `/admin/traceurs` | coordination | Liste des produits traceurs suivis par P4 et P5 ; désactiver un produit le retire des calculs futurs sans toucher à son historique |
+| `/admin/traceurs` | coordination (consultation) | Liste des produits traceurs suivis par P4 et P5. Elle ne se saisit pas à l'écran : elle vient du script d'extraction de la DAP. Chaque import reprend l'onglet PRODUITS : ses produits sont traceurs d'office, un produit absent du dernier fichier passe **inactif** (il sort des calculs suivants, son historique reste intact). Changer le panier, c'est faire modifier la liste du script par la DAP |
 | `/admin/grille` | coordination | Poids des piliers et seuils des sous-composantes ; une modification crée une nouvelle version, effective au cycle suivant seulement |
 | `/admin/comptes` | admin | Comptes utilisateurs et leur rôle |
 | `/admin/strates` (« Types de structure ») | lecture ouverte à tout rôle, écriture coordination | Référentiel des `type_structure` (référentiel DAP) : la **strate** affichée dans « Rapports & inventaires », le **jour limite** de soumission d'une réquisition (P2), et le **régime** de scoring (district ou site de soins). Un type non renseigné : strate « Non classé », jour limite 10, régime site de soins |
@@ -284,19 +284,35 @@ Le seuil district (80 %) est modifiable dans la grille de paramètres.
 
 ### P4 · Taux de conformité (poids 25 %, tolérance produit 2 %)
 
-Deux sous-composantes, chacune un **taux de conformité** : la part des
-produits traceurs qui restent dans la tolérance de la grille, pas une
-amplitude d'écart moyenne.
+Deux sous-composantes, **Conformité SDU** et **Conformité consommation**,
+chacune un **taux de conformité** : la part des produits traceurs qui restent
+dans la tolérance de la grille, pas une amplitude d'écart moyenne.
 
-- **Écart SDU (stock disponible utilisable)** : au dernier inventaire
+**Lire « ≥ 90 · tolérance 2 % ».** C'est ainsi que la grille de paramètres
+affiche ces deux sous-composantes. Les deux nombres ne mesurent pas la même
+chose :
+
+- **tolérance 2 %** s'applique à **chaque produit** : l'écart d'un produit
+  (entre théorique et compté, ou entre consommation déclarée et
+  reconstituée) doit rester sous 2 % pour que ce produit soit conforme ;
+- **≥ 90** s'applique au **site** : la part de ses produits traceurs conformes
+  doit atteindre au moins 90 % pour que la sous-composante soit CONFORME.
+
+Avec 13 traceurs, un site est donc CONFORME s'il en a au moins 12 dans la
+tolérance (12 / 13 = 92 %) ; à 11 sur 13 (85 %), il passe en ALERTE. Le mot
+« écart » ne désigne à l'écran que l'écart d'**un produit** (colonnes du
+tableau produit de la fiche site, fiche produit-mois) ; le taux du site
+s'appelle « conformité ».
+
+- **Conformité SDU (stock disponible utilisable)** : au dernier inventaire
   finalisé du mois, pour chaque produit traceur,
   `|théorique - compté| / compté`. En dessous de la tolérance (2 %) : le
   produit est conforme. Si le site n'a fait aucun inventaire du mois : **0 %**
   une fois le mois **clos**, mais **non calculable** tant qu'il est **en
   cours** (l'inventaire de fin de mois n'est pas encore attendu).
-- **Écart consommation** : on compare la consommation **déclarée**
+- **Conformité consommation** : on compare la consommation **déclarée**
   (dispensations enregistrées ; pour un district, quantités **distribuées**,
-  la sous-composante se lit alors « écart distribution ») à la consommation
+  la sous-composante se lit alors « conformité distribution ») à la consommation
   **reconstituée** `stock_ouverture + réceptions - stock_clôture` entre deux
   bornes **inter-mois** : ouverture = dernier inventaire finalisé du **mois
   précédent**, clôture = dernier inventaire finalisé du mois. Un seul inventaire
@@ -307,17 +323,17 @@ amplitude d'écart moyenne.
   clos, **non calculable** s'il est en cours. « Non calculable » aussi quand
   des bornes existent mais qu'aucune consommation reconstituée n'est positive.
 
-**Exemple, écart SDU (le CHR de Daloa, août 2026) :** sur le DTG/3TC/TDF (ARV),
+**Exemple, conformité SDU (le CHR de Daloa, août 2026) :** sur le DTG/3TC/TDF (ARV),
 théorique 402, compté 388 → écart |402 - 388| / 388 = **3,6 %**, au-dessus de
 la tolérance de 2 % : non conforme. Sur le test VIH (WONDFO), 138 / 138 → 0 %,
-conforme. 1 produit conforme sur 2 → **taux écart SDU = 50 %**, sous le seuil
+conforme. 1 produit conforme sur 2 → **conformité SDU = 50 %**, sous le seuil
 de taux de 90 % → ALERTE.
 
-**Exemple, écart consommation (même site) :** sur l'ARV, stock d'ouverture
+**Exemple, conformité consommation (même site) :** sur l'ARV, stock d'ouverture
 (dernier inventaire de juillet) 386, réceptions d'août 46, stock de clôture
 (inventaire du 29 août) 388 → reconstituée = 386 + 46 - 388 = 44. Déclarée = 44
 (somme des dispensations d'août). Écart = |44 - 44| / 44 = **0 %**, conforme.
-Le test VIH est également conforme → **taux écart consommation = 100 %** →
+Le test VIH est également conforme → **conformité consommation = 100 %** →
 CONFORME.
 
 **Score P4** = moyenne des deux sous-composantes calculables =
@@ -326,8 +342,9 @@ CONFORME.
 ### P5 · Concordance physique / théorique (poids 25 %, seuil = 100 %)
 
 Une sous-composante : au dernier inventaire finalisé du mois, pour chaque
-produit traceur, `min(|théorique|, |compté|) / max(|théorique|, |compté|)`,
-moyenné sur tous les produits inventoriés du site. Si le site n'a fait aucun
+produit traceur (tous ses lots additionnés),
+`min(|théorique|, |compté|) / max(|théorique|, |compté|)`, moyenné sur tous
+les produits inventoriés du site. Si le site n'a fait aucun
 inventaire du mois : **0 %** une fois le mois clos (ne pas inventorier est
 alors un manquement, pas une absence de données), mais **non calculable** tant
 que le mois est en cours. P5 n'ayant qu'une sous-composante, le pilier entier
@@ -340,6 +357,27 @@ tolérance n'est admise) : un écart de 1,7 % suffit à placer la sous-composant
 en ALERTE. Comme P5 n'a qu'une seule sous-composante et que le score de pilier
 est binaire, **score P5 = 0**, alors même que 98,3 % semble être un bon
 résultat en apparence.
+
+### Quel inventaire compte pour P4 et P5 ?
+
+- **Plusieurs inventaires le même jour.** Un site peut finaliser plusieurs
+  inventaires le même jour sur le même produit, par exemple un recomptage
+  après une erreur de saisie. Seul le **dernier finalisé** compte (heure de
+  l'inventaire, puis numéro attribué par mSupply) : on ne les additionne
+  jamais, ce qui doublerait le stock.
+- **Programmes.** Un inventaire compte pour le programme sous lequel il a été
+  fait. Le stock, lui, appartient au site : un produit suivi par deux
+  programmes est le même stock physique. La ligne d'un programme lit le
+  dernier inventaire de ce programme ; la ligne « tous programmes » lit le
+  dernier inventaire du jour, tous programmes confondus. Un inventaire ou un
+  mouvement saisi sans programme ne compte que dans « tous programmes ».
+- **Un produit, plusieurs articles.** Dans mSupply, un même médicament peut
+  être enregistré sous deux articles qui portent le même code (parfois avec
+  une unité différente). Chaque article est contrôlé séparément, pour ne pas
+  masquer une confusion entre les deux ; mais dans les taux de P4 et P5, le
+  code ne compte **qu'une fois**, et il n'est conforme que si **tous** ses
+  articles le sont. Dans le tableau produit de la fiche site, ce code
+  apparaît sur une ligne de synthèse suivie d'une ligne par article.
 
 ### P6 · Ratio d'ajustements (poids 10 %, seuil ≤ 5 %)
 
@@ -389,7 +427,7 @@ septembre sont **provisoires** : une extraction du 5 septembre a fait remonter
 les réquisitions d'août du CHR de Daloa et du district de Daloa, et septembre ne
 compte encore que cinq jours de données. Aucun site n'y a fait d'inventaire ni
 soumis de réquisition : P1, P2 (inventaire et réquisition de fin de mois pas
-dus), P4 (écart SDU et consommation) et P5 (concordance) sont tous **non
+dus), P4 (conformité SDU et consommation) et P5 (concordance) sont tous **non
 calculables** tant que le mois est en cours (ADR 0014). Le score de septembre
 ne porte donc que sur P3 et P6 : il reste élevé, mais **provisoire**. Sur la
 courbe de progression, le segment qui mène à un mois en cours est tracé **en
@@ -409,7 +447,7 @@ Sur l'écran de synthèse et les tableaux de sous-composantes, une colonne
 chiffre entre 0 et 100 qui dit **à quel point** on est proche ou loin du
 seuil, là où le statut ne dit que oui ou non.
 
-- Pour les sous-composantes P4 (écart SDU, écart consommation), le taux de
+- Pour les sous-composantes P4 (conformité SDU, conformité consommation), le taux de
   conformité **est déjà** un taux d'atteinte : il est repris tel quel.
 - Pour une sous-composante à sens plancher (P1, P2, P3, P5 : plus il faut être
   **au-dessus** du seuil) : `valeur / seuil`, plafonné à 100. Une régularité
@@ -465,7 +503,7 @@ principe des scores immuables, section 1).
 | Cycle PAQD | Quatre mois consécutifs (M+1 à M+4), trois cycles par an calés sur l'année civile |
 | Score composite | Note sur 100 d'un site, moyenne pondérée des six scores de pilier, tous programmes confondus |
 | Grille de paramètres | Le jeu daté des poids de pilier et des seuils de sous-composante, éditable par la coordination, effectif au cycle suivant seulement |
-| Produit traceur | Un produit suivi de près pour les piliers P4, P5 et P6 ; la liste est administrée par la coordination |
+| Produit traceur | Un produit suivi de près pour les piliers P4, P5 et P6 ; la liste est tenue dans le script d'extraction de la DAP et reprise à chaque import |
 | Programme de santé | Un programme vertical géré par un site (VIH, paludisme, etc.) ; le nombre de programmes gérés détermine le nombre d'inventaires et de réquisitions attendus chaque mois |
 | Type de structure | La valeur `name_category3` d'un site (District sanitaire, Hôpital de référence, ESPC, CHU, Institut). Administré dans l'écran « Types de structure » : il porte la strate d'affichage, le jour limite de réquisition et le régime de scoring |
 | Strate | Un des trois attributs d'un type de structure : le regroupement utilisé pour la synthèse « Rapports & inventaires » (« Non classé » pour un type non renseigné) |

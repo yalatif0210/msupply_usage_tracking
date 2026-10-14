@@ -326,8 +326,10 @@ describe('validerReponse (couture D)', () => {
     conforme: false,
   };
   const ligneP4P5 = (over: Record<string, unknown> = {}) => ({
+    produitId: 'I1',
     produitCode: 'T1',
     libelle: 'Traceur 1',
+    article: null,
     sdu: { theorique: 100, comptee: 95, ecartPct: 5.3, conforme: false },
     consommation: consoEvaluable,
     concordance: { tauxPct: 95, conforme: true },
@@ -389,7 +391,9 @@ describe('validerReponse (couture D)', () => {
     produits: [
       ligneP4P5(),
       ligneP4P5({
+        produitId: 'I2',
         produitCode: 'T2',
+        article: { rang: 1, nombre: 2, unite: 'FL' },
         consommation: { evaluable: false, raisonExclusion: 'aucune_borne' },
         concordance: { tauxPct: null, conforme: false },
       }),

@@ -47,7 +47,7 @@ export const programmeSchema = z.object({
 });
 export type Programme = z.infer<typeof programmeSchema>;
 
-/** Produit traceur — liste de référence administrée dans la console (ADR 0005). */
+/** Produit traceur : liste alimentée par l'onglet PRODUITS de chaque import (ADR 0015). */
 export const produitTraceurSchema = z.object({
   produitCode: z.string().min(1),
   libelle: z.string().nullable(),
@@ -55,13 +55,6 @@ export const produitTraceurSchema = z.object({
   majLe: z.string().datetime(),
 });
 export type ProduitTraceur = z.infer<typeof produitTraceurSchema>;
-
-export const entreeProduitTraceurSchema = z.object({
-  produitCode: z.string().min(1).max(120),
-  libelle: z.string().max(300).optional(),
-  actif: z.boolean().optional(),
-});
-export type EntreeProduitTraceur = z.infer<typeof entreeProduitTraceurSchema>;
 
 /**
  * Référentiel d'un `type_structure` (voir CONTEXT.md « Type de structure »,
@@ -503,10 +496,18 @@ export const concordanceProduitP5Schema = z.object({
 });
 export type ConcordanceProduitP5 = z.infer<typeof concordanceProduitP5Schema>;
 
-/** Une ligne du tableau produit P4 · P5 : un produit traceur inventorié. */
+/**
+ * Une ligne du tableau produit P4 · P5 : un article mSupply d'un produit
+ * traceur inventorié. Deux articles peuvent porter le même code (ADR 0016) :
+ * `article` les situe dans leur code, `null` quand le code n'en a qu'un.
+ */
 export const ligneProduitP4P5Schema = z.object({
+  produitId: z.string(),
   produitCode: z.string(),
   libelle: z.string().nullable(),
+  article: z
+    .object({ rang: z.number().int().positive(), nombre: z.number().int().min(2), unite: z.string().nullable() })
+    .nullable(),
   sdu: ecartSduProduitSchema,
   consommation: ecartConsoProduitSchema,
   concordance: concordanceProduitP5Schema,

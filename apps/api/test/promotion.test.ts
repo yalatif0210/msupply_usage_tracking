@@ -182,6 +182,93 @@ describe('promotion staging → core', () => {
     ).toBe(true);
   });
 
+  it('la quantité d\'une ligne est déjà en unités : jamais multipliée par le conditionnement', async () => {
+    // fixture L-1 : quantite 30, taille_conditionnement 30 (ADR 0017)
+    const res = await deposer(construireClasseur(optionsValides()), 'unites.xlsx');
+    expect(res.body.statut).toBe('valide');
+    const { rows } = await base.pool.query<{ q: string; t: string }>(
+      `SELECT quantite_unitaire::text AS q, taille_conditionnement::text AS t
+       FROM dqa.fact_ligne_transaction WHERE ligne_id = 'L-1'`,
+    );
+    expect(Number(rows[0]?.q)).toBe(30);
+    expect(Number(rows[0]?.t)).toBe(30);
+  });
+
+  it('un même lot réparti sur plusieurs lignes de stock est agrégé en une photo', async () => {
+    // mSupply scinde un lot en plusieurs item_line (emplacements, conditionnements) :
+    // lot du 2026-10-12 rejeté par l'upsert faute d'agrégation.
+    const opts = optionsValides();
+    const stock = opts.jeux.find((j) => j.nom === 'STOCK_ACTUEL')!;
+    const base0 = stock.lignes[0]!;
+    stock.lignes.push(
+      { ...base0, quantite_disponible: '30', date_peremption: '2027-03-31' },
+      { ...base0, lot: '', quantite_disponible: '5', date_peremption: '' },
+      { ...base0, lot: '', quantite_disponible: '7', date_peremption: '' },
+    );
+    opts.metadata['nb_lignes_STOCK_ACTUEL'] = '4';
+    const res = await deposer(construireClasseur(opts), 'stock-scinde.xlsx');
+    expect(res.body.statut).toBe('valide');
+    const { rows } = await base.pool.query<{ lot: string; q: string; peremption: string | null }>(
+      `SELECT lot, quantite_disponible::text AS q, to_char(date_peremption, 'YYYY-MM-DD') AS peremption
+       FROM dqa.fact_stock_snapshot
+       WHERE date_photo = '2026-08-18' AND site_id = 'SITE-1' AND produit_id = 'ITEM-1'
+       ORDER BY lot`,
+    );
+    expect(rows.map((r) => [r.lot, Number(r.q), r.peremption])).toEqual([
+      ['', 12, null],
+      ['LOT7', 300, '2027-03-31'],
+    ]);
+  });
+
+  const traceurs = async (): Promise<Record<string, boolean>> => {
+    const { rows } = await base.pool.query<{ produit_code: string; actif: boolean }>(
+      `SELECT produit_code, actif FROM dqa.dim_produit_traceur`,
+    );
+    return Object.fromEntries(rows.map((r) => [r.produit_code, r.actif]));
+  };
+
+  it('les produits du lot deviennent traceurs, les absents sont désactivés', async () => {
+    await base.pool.query(
+      `INSERT INTO dqa.dim_produit_traceur (produit_code, actif) VALUES ('ANCIEN-01', true)
+       ON CONFLICT (produit_code) DO UPDATE SET actif = true`,
+    );
+    const res = await deposer(construireClasseur(optionsValides()), 'traceurs.xlsx');
+    expect(res.body.statut).toBe('valide');
+    const t = await traceurs();
+    expect(t['ARV001']).toBe(true);
+    expect(t['ANCIEN-01']).toBe(false);
+    const { rows } = await base.pool.query(
+      `SELECT libelle FROM dqa.dim_produit_traceur WHERE produit_code = 'ARV001'`,
+    );
+    expect(rows[0].libelle).toBe('TDF/3TC/DTG');
+  });
+
+  it('un lot sans aucun produit ne vide pas la liste des traceurs', async () => {
+    await deposer(construireClasseur(optionsValides()), 'traceurs-avant.xlsx');
+    const opts = optionsValides();
+    opts.jeux.find((j) => j.nom === 'PRODUITS')!.lignes = [];
+    opts.metadata['nb_lignes_PRODUITS'] = '0';
+    const res = await deposer(construireClasseur(opts), 'sans-produit.xlsx');
+    expect(res.body.statut).toBe('valide');
+    expect((await traceurs())['ARV001']).toBe(true);
+  });
+
+  it('l\'import complète le calendrier autour des mois du lot', async () => {
+    await base.pool.query(`DELETE FROM dqa.dim_temps WHERE jour >= DATE '2025-06-01'`);
+    const res = await deposer(construireClasseur(optionsValides()), 'calendrier.xlsx');
+    expect(res.body.statut).toBe('valide');
+    const { rows } = await base.pool.query<{ debut: string; fin: string; cycle: string }>(
+      `SELECT to_char(min(jour), 'YYYY-MM-DD') AS debut, to_char(max(jour), 'YYYY-MM-DD') AS fin,
+              (SELECT cycle_paqd FROM dqa.dim_temps WHERE jour = DATE '2026-09-01') AS cycle
+       FROM dqa.dim_temps`,
+    );
+    expect(rows[0]).toEqual({ debut: '2025-01-01', fin: '2027-12-31', cycle: '2026-C3' });
+    const jours = await base.pool.query<{ c: string }>(
+      `SELECT count(*)::text AS c FROM dqa.dim_temps WHERE jour BETWEEN DATE '2025-01-01' AND DATE '2027-12-31'`,
+    );
+    expect(Number(jours.rows[0]!.c)).toBe(1095);
+  });
+
   it('un échec de promotion annule tout : staging et core intacts, lot non validé', async () => {
     // provoque un doublon de clé primaire d'inventaire dans le même lot
     const opts = optionsValides();

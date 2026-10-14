@@ -165,6 +165,17 @@ grille, pas une amplitude d'écart).
   clos, **NON_CALCULABLE** s'il est en cours (ADR 0014). NON_CALCULABLE aussi
   quand des bornes existent mais qu'aucune reconstituée n'est positive.
 
+**Inventaire retenu et codes à plusieurs articles (ADR 0016, migration
+0044).** Pour un (site, jour, produit), un seul inventaire compte : le dernier
+saisi (`heure_inventaire`, puis `numero_inventaire`, puis `inventaire_id`).
+Par programme, le dernier inventaire du programme ; « tous programmes », le
+dernier tous programmes confondus (le stock est celui du site, jamais la somme
+des programmes). Un inventaire ou un mouvement sans programme ne compte que
+dans « tous programmes ». Le calcul reste fait **par article** mSupply
+(`produit_id`) ; les taux comptent un **code** une fois, conforme seulement si
+tous ses articles le sont (CTE `par_code` de `mv_p4_ecart` et
+`mv_p5_concordance`).
+
 Le score de pilier P4 (`p_ecart_sdu`, hérité du nom historique) est la moyenne
 simple des scores des deux sous-composantes calculables. Tolérance (2 %) et
 seuil de taux (90 %) viennent de `grille_seuil_sous_composante.tolerance` /
@@ -173,13 +184,18 @@ seuil de taux (90 %) viennent de `grille_seuil_sous_composante.tolerance` /
 **P5 · Concordance physique / théorique** (`mv_p5_concordance`) : une seule
 sous-composante `concordance`, `least(|théo|, |compté|) / greatest(…) · 100` au
 dernier inventaire finalisé du mois, comparée au seuil `concordance` (100 %).
+Depuis la migration 0044, elle se calcule sur `mv_p4_ecart_produit` : même
+inventaire retenu, lots sommés, même répartition par programme que P4 ; taux
+d'un code = celui de son article le moins concordant, recalculé sans arrondi.
 Sans aucun inventaire finalisé daté dans le mois : **0 %** une fois le mois
 clos, **NON_CALCULABLE** tant qu'il est en cours (ADR 0014) — et comme la
 sous-composante est unique, P5 entier suit. NON_CALCULABLE aussi si le site a
 inventorié mais sans produit traceur exploitable.
 
 **Tableau produit P4 · P5** (`mv_p4_ecart_produit`, variante `p4` de
-`GET /api/sites/:id/piliers/:code`) : une ligne par produit traceur inventorié,
+`GET /api/sites/:id/piliers/:code`) : une ligne par article de produit traceur
+inventorié (`produitId`, `article` = rang et unité quand le code en a
+plusieurs ; l'écran les regroupe sous une ligne de code portant le verdict),
 avec l'écart SDU (théorique / compté au dernier inventaire, statut), l'écart
 consommation (stock début-fin / réceptions / déclarée / reconstituée, statut,
 ou « non évaluable » + raison) **et** la concordance P5 par produit
@@ -408,14 +424,13 @@ plage. `ui/graphe-sparkline` (page d'accueil) reste une primitive séparée
   rouge), à côté de `ui/badge-statut` (statut de sous-composante). Partagé par
   la fiche site et la liste des sites.
 
-## Administration des produits traceurs
+## Produits traceurs
 
-`GET /api/admin/traceurs` (lecture, tout rôle), `PUT /api/admin/traceurs/:code`
-et `DELETE /api/admin/traceurs/:code` (rôle `coordination`). La liste initiale
-vient de la migration 0013 ; la coordination l'ajuste ensuite via l'écran
-`/admin/traceurs`. Désactiver (`actif = false`) retire le produit des calculs
-P4 et P5 au prochain rafraîchissement sans perdre l'historique. `produit_code` doit
-correspondre au `produit_code` du fichier d'extraction (= `item.code` mSupply).
+`GET /api/admin/traceurs` (lecture, tout rôle), sans écriture (ADR 0015) : la
+liste est écrite par la promotion de chaque import à partir de l'onglet
+PRODUITS. Un code absent du dernier lot passe inactif et sort des calculs P4 et
+P5 au rafraîchissement suivant, sans perte d'historique. `produit_code` =
+`item.code` mSupply ; un code peut couvrir plusieurs articles (ADR 0016).
 
 ## Pièges connus
 

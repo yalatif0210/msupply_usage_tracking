@@ -88,10 +88,12 @@ export const JEUX: readonly DefinitionJeu[] = [
     colonnes: [
       'inventaire_id', 'site_id', 'programme_id', 'date_inventaire',
       'statut', 'invad_additions_id', 'invad_reductions_id',
+      'heure_inventaire', 'numero_inventaire',
     ],
     requis: ['inventaire_id', 'site_id', 'date_inventaire', 'statut'],
     references: [{ colonne: 'site_id', jeu: 'SITES', cle: 'site_id' }],
     dates: ['date_inventaire'],
+    nombres: ['numero_inventaire'],
   },
   {
     onglet: 'INVENTAIRE_LIGNES',

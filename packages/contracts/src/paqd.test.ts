@@ -4,6 +4,7 @@ import {
   CLASSIFICATIONS,
   dateIsoSchema,
   LIBELLES_PILIER,
+  libelleSousComposante,
   PILIER_DE_SOUS_COMPOSANTE,
   PILIERS,
   POIDS_PILIER,
@@ -16,6 +17,12 @@ import {
 describe('libellés de pilier', () => {
   it('P4 est « Taux de conformité » (et non « Écart SDU »)', () => {
     expect(LIBELLES_PILIER.P4).toBe('Taux de conformité');
+  });
+
+  it('les sous-composantes P4 se lisent « Conformité », pas « Écart »', () => {
+    expect(libelleSousComposante('ecart_sdu', false)).toBe('Conformité SDU');
+    expect(libelleSousComposante('ecart_consommation', false)).toBe('Conformité consommation');
+    expect(libelleSousComposante('ecart_consommation', true)).toBe('Conformité distribution');
   });
 });
 

@@ -31,6 +31,13 @@ describe('ValidationService — un cas passant et un cas échouant par règle', 
     expect(aCode(r, 'COMPTEUR_METADATA')).toBe(true);
     expect(r.bloquant).toBe(true);
   });
+  it('R1 échoue (bloquant) avec un message clair quand un compteur est laissé vide', () => {
+    // gabarit importé sans être rempli : la cellule existe mais n'a pas de valeur
+    const r = valider((o) => (o.metadata['nb_lignes_SITES'] = ''));
+    expect(aCode(r, 'COMPTEUR_METADATA_MANQUANT')).toBe(true);
+    expect(aCode(r, 'COMPTEUR_METADATA')).toBe(false);
+    expect(r.bloquant).toBe(true);
+  });
 
   // R2 — onglet / colonne
   it('R2 passe quand tous les onglets et colonnes sont là', () => {

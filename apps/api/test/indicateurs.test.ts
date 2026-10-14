@@ -165,11 +165,14 @@ describe('vues d\'indicateurs, composite et gel', () => {
   });
 
   it('P4 et P5 NON_CALCULABLE sans inventaire quand le mois est EN COURS (ADR 0014)', async () => {
-    await socle({ avecInventaire: false, nbMouvements: 4 }); // 2026-08
-    // rend la clôture déterministe : échéance repoussée au 2026-09-28.
-    await db.query(`UPDATE dqa.strate_structure SET jour_limite_requisition = 28`);
+    // Le mois courant est en cours par définition : un mois figé (2026-08)
+    // finissait forcément par être clos et le test par échouer.
+    const moisCourant = new Date().toISOString().slice(0, 7);
+    await db.query(`SELECT dqa.completer_calendrier(date_trunc('month', CURRENT_DATE)::date,
+                     (date_trunc('month', CURRENT_DATE) + interval '1 month - 1 day')::date)`);
+    await socle({ avecInventaire: false, nbMouvements: 4, mois: moisCourant });
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
-    const s = await scorePilier(null);
+    const s = await scorePilier(null, moisCourant);
     expect(s?.p_concordance).toBeNull();
     expect(s?.p_ecart_sdu).toBeNull();
   });

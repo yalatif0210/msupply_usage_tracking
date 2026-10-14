@@ -1568,8 +1568,12 @@ export class IndicateursRepository {
     // `mv_p4_ecart_produit` restreint déjà aux sites du périmètre et aux
     // traceurs actifs ; l'appelant a écarté un site hors périmètre.
     const { rows } = await this.pool.query<{
+      produit_id: string;
       produit_code: string;
       libelle: string | null;
+      unite: string | null;
+      rang_article: number;
+      nb_articles: number;
       theorique: string | null;
       comptee: string | null;
       ecart_sdu_pct: string | null;
@@ -1586,14 +1590,20 @@ export class IndicateursRepository {
       concordance_pct: string | null;
       concordance_conforme: boolean;
     }>(
-      `SELECT ep.produit_code, ep.libelle, ep.theorique, ep.comptee,
+      `SELECT ep.produit_id, ep.produit_code, ep.libelle, nullif(p.unite, '') AS unite,
+              (row_number() OVER (PARTITION BY ep.produit_code ORDER BY ep.produit_id))::int AS rang_article,
+              (count(*) OVER (PARTITION BY ep.produit_code))::int AS nb_articles,
+              ep.theorique, ep.comptee,
               ep.ecart_sdu_pct, ep.sdu_conforme,
               ep.stock_debut, ep.stock_fin, ep.receptions, ep.declaree, ep.reconstituee,
               ep.conso_evaluable, ep.conso_raison_exclusion, ep.ecart_conso_pct, ep.conso_conforme,
               ep.concordance_pct, ep.concordance_conforme
        FROM dqa.mv_p4_ecart_produit ep
+       JOIN dqa.dim_produit p ON p.produit_id = ep.produit_id
        WHERE ep.site_id = $1 AND ep.mois_paqd = $2 AND ep.programme_id IS NOT DISTINCT FROM $3
-       ORDER BY ep.sdu_conforme, ep.produit_code`,
+       -- les articles d'un même code restent groupés, codes non conformes d'abord
+       ORDER BY bool_and(ep.sdu_conforme) OVER (PARTITION BY ep.produit_code),
+                ep.produit_code, ep.produit_id`,
       params,
     );
 
@@ -1618,8 +1628,10 @@ export class IndicateursRepository {
     );
 
     const produits: LigneProduitP4P5[] = rows.map((r) => ({
+      produitId: r.produit_id,
       produitCode: r.produit_code,
       libelle: r.libelle,
+      article: r.nb_articles > 1 ? { rang: r.rang_article, nombre: r.nb_articles, unite: r.unite } : null,
       sdu: {
         theorique: nombreOuNull(r.theorique),
         comptee: nombreOuNull(r.comptee),

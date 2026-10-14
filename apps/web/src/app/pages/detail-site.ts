@@ -48,6 +48,7 @@ import { Coquille } from '../ui/coquille';
 import { GrapheCourbe, type SerieGrapheCourbe } from '../ui/graphe-courbe';
 import { GrapheRadar, type AxeGrapheRadar } from '../ui/graphe-radar';
 import { construireCalendrierP3, type CalendrierP3 } from './calendrier-p3';
+import { grouperProduitsP4P5 } from './groupes-produits-p4p5';
 
 type Granularite = 'composite' | 'pilier' | 'sousComposante';
 type ModeRadar = '6' | '10';
@@ -477,14 +478,45 @@ function reculerMois(mois: string, n: number): string {
                       </tr>
                     </thead>
                     <tbody hlmTBody>
-                      @for (pr of produitsP4P5(); track pr.produitCode) {
+                      @for (g of groupesP4P5(); track g.produitCode) {
+                        @if (g.articles.length > 1) {
+                          <tr hlmTr>
+                            <td hlmTd>
+                              <a
+                                class="text-primary hover:underline"
+                                [routerLink]="['/sites', d.site.siteId, 'produits', g.produitCode]"
+                                [queryParams]="{ mois: d.moisPaqd }"
+                              >{{ g.libelle ?? g.produitCode }}</a>
+                              <div class="text-xs text-muted-foreground">{{ g.articles.length }} articles mSupply sous ce code</div>
+                            </td>
+                            <td hlmTd class="text-muted-foreground" colspan="10">
+                              Compté une fois : conforme seulement si tous ses articles le sont.
+                            </td>
+                            <td hlmTd>
+                              <div class="flex flex-wrap items-center gap-2">
+                                <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="g.sduConforme ? 'CONFORME' : 'ALERTE'" /> SDU</span>
+                                <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="g.concordanceConforme ? 'CONFORME' : 'ALERTE'" /> concordance</span>
+                                @if (g.consoConforme !== null) {
+                                  <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="g.consoConforme ? 'CONFORME' : 'ALERTE'" /> conso</span>
+                                }
+                              </div>
+                            </td>
+                          </tr>
+                        }
+                        @for (pr of g.articles; track pr.produitId) {
                         <tr hlmTr>
                           <td hlmTd>
-                            <a
-                              class="text-primary hover:underline"
-                              [routerLink]="['/sites', d.site.siteId, 'produits', pr.produitCode]"
-                              [queryParams]="{ mois: d.moisPaqd }"
-                            >{{ pr.libelle ?? pr.produitCode }}</a>
+                            @if (pr.article; as art) {
+                              <div class="pl-4 text-sm">
+                                article {{ art.rang }} sur {{ art.nombre }}@if (art.unite) { · {{ art.unite }} }
+                              </div>
+                            } @else {
+                              <a
+                                class="text-primary hover:underline"
+                                [routerLink]="['/sites', d.site.siteId, 'produits', pr.produitCode]"
+                                [queryParams]="{ mois: d.moisPaqd }"
+                              >{{ pr.libelle ?? pr.produitCode }}</a>
+                            }
                           </td>
                           <td hlmTd class="text-right tabular-nums">{{ pr.sdu.theorique === null ? absent : (pr.sdu.theorique | number: '1.0-0') }}</td>
                           <td hlmTd class="text-right tabular-nums">{{ pr.sdu.comptee === null ? absent : (pr.sdu.comptee | number: '1.0-0') }}</td>
@@ -512,6 +544,7 @@ function reculerMois(mois: string, n: number): string {
                             </div>
                           </td>
                         </tr>
+                        }
                       }
                     </tbody>
                   </table>
@@ -906,6 +939,7 @@ export class DetailSitePage {
   protected readonly tableauP4P5Ouvert = signal(false);
 
   protected readonly produitsP4P5 = computed(() => this.tableauP4P5()?.produits ?? []);
+  protected readonly groupesP4P5 = computed(() => grouperProduitsP4P5(this.produitsP4P5()));
   protected readonly reimportP4P5 = computed(() => this.tableauP4P5()?.reimporteDepuisLeGel ?? false);
 
   protected ouvrirTableauP4P5(): void {
