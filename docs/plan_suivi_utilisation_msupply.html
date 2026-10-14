@@ -428,12 +428,12 @@
     <header class="doc__head">
       <p class="kicker">Suivi-évaluation &nbsp;&middot;&nbsp; Adoption d'un système d'information</p>
       <h1>Plan de suivi de l'utilisation de mSupply</h1>
-      <p class="standfirst">Du constat descriptif au pilotage opérationnel : détecter les sites qui décrochent, comprendre pourquoi, agir, vérifier, documenter. Autour d'un instrument déjà en service, le tableau de bord DQA mSupply.</p>
+      <p class="standfirst">Du constat descriptif au pilotage opérationnel : détecter les sites qui décrochent, comprendre pourquoi, agir, vérifier, documenter. Autour d'un instrument déjà en service, SUM (Suivi de l'Utilisation de mSupply).</p>
       <dl class="meta">
         <div><dt>Programme</dt><dd>Gestion des stocks de produits de santé au niveau décentralisé, Côte d'Ivoire</dd></div>
         <div><dt>Maîtrise d'ouvrage</dt><dd>Nouvelle PSP-CI / DAP / coordination nationale</dd></div>
         <div><dt>Financement</dt><dd>Département d'État des États-Unis, jusqu'en 2030</dd></div>
-        <div><dt>Instrument central</dt><dd>Tableau de bord DQA mSupply (application existante)</dd></div>
+        <div><dt>Instrument central</dt><dd>SUM, Suivi de l'Utilisation de mSupply (application existante, anciennement « Tableau de bord DQA mSupply »)</dd></div>
         <div><dt>Périmètre</dt><dd>40 sites (phase 1) &middot; ambition nationale phasée</dd></div>
         <div><dt>Version</dt><dd>1.0 (2026-09) &middot; document de travail</dd></div>
       </dl>
@@ -447,7 +447,7 @@
       <span class="eyebrow">01</span>
       <h2>Résumé exécutif</h2>
       <p>Le programme a déployé mSupply comme système de gestion des stocks de produits de santé dans un réseau de sites décentralisés. Le déploiement d'un outil ne garantit pas son utilisation, et l'utilisation ne garantit pas une gestion des stocks de meilleure qualité. Le présent plan organise le passage d'un constat descriptif (« le site utilise ou n'utilise pas mSupply ») à un pilotage opérationnel de l'adoption : détecter au fil de l'eau les sites qui décrochent, comprendre pourquoi, décider d'une action, la suivre jusqu'à la vérification, et documenter le résultat pour ne pas recommencer indéfiniment les mêmes interventions.</p>
-      <p>Le plan s'appuie sur un actif déjà en production : le <strong>Tableau de bord DQA mSupply</strong>. Cette application consolide chaque semaine un extrait de la base mSupply transmis par la DAP, calcule par site un score de conformité des données sur six piliers, et historise la progression dans le temps. Le plan ne demande pas de construire un nouveau système. Il demande de <strong>relire la donnée déjà disponible sous deux angles</strong> : un <strong>axe adoption</strong> (le site fait-il réellement tourner sa gestion de stock sur mSupply) et un <strong>axe qualité des données</strong> (les données saisies sont-elles fiables), et d'ajouter autour de l'application une <strong>boucle d'action</strong> légère (une fiche de supervision trimestrielle d'une page, un registre des actions correctives).</p>
+      <p>Le plan s'appuie sur un actif déjà en production : <strong>SUM</strong> (Suivi de l'Utilisation de mSupply). Cette application consolide chaque semaine un extrait de la base mSupply transmis par la DAP, calcule par site un score de conformité des données sur six piliers, et historise la progression dans le temps. Le plan ne demande pas de construire un nouveau système. Il demande de <strong>relire la donnée déjà disponible sous deux angles</strong> : un <strong>axe adoption</strong> (le site fait-il réellement tourner sa gestion de stock sur mSupply) et un <strong>axe qualité des données</strong> (les données saisies sont-elles fiables), et d'ajouter autour de l'application une <strong>boucle d'action</strong> légère (une fiche de supervision trimestrielle d'une page, un registre des actions correctives).</p>
       <p>Le dispositif est cadré par la contrainte structurante du programme : les données n'arrivent pas en temps réel, elles arrivent par lot hebdomadaire. Tout le cycle de suivi en découle. Le plan reste honnête sur ce qu'il peut mesurer : plusieurs dimensions souvent citées (fréquence de connexion individuelle, usage détaillé des modules, connectivité) ne sont pas observables avec la donnée actuelle et sont traitées comme des évolutions à négocier, pas comme des acquis.</p>
       <p>Le périmètre de départ est de 40 sites. L'ambition, sur l'horizon 2030, est une couverture nationale progressive (33 régions, 113 districts), <strong>conditionnée</strong> à la capacité de la DAP à étendre l'extraction hebdomadaire. La feuille de route en cinq phases (Baseline, Monitoring, Intervention, Optimisation, Pérennisation) organise cette montée en charge et le transfert progressif de la routine à la coordination nationale.</p>
     </section>
@@ -458,7 +458,7 @@
       <h3>2.1 &nbsp; mSupply au niveau décentralisé</h3>
       <p>mSupply est le système de gestion des stocks utilisé par le réseau. Au niveau d'un site, l'utilisation attendue se traduit par des actes concrets et datés : enregistrer les réceptions de produits, saisir les dispensations ou les distributions, réaliser l'inventaire de fin de mois, soumettre la réquisition mensuelle de réapprovisionnement, corriger le stock théorique par un ajustement lorsqu'un écart est constaté. Ces actes laissent une trace dans la base : c'est cette trace que le suivi exploite.</p>
       <h3>2.2 &nbsp; L'application de suivi existante</h3>
-      <p>Le <strong>Tableau de bord DQA mSupply</strong> est en service. Son fonctionnement :</p>
+      <p><strong>SUM</strong> est en service. Son fonctionnement :</p>
       <ul>
         <li><strong>Source unique et cadence.</strong> La DAP transmet chaque semaine un classeur Excel unique, extrait de mSupply sur une fenêtre glissante de 45 jours (le recouvrement permet de rattraper une semaine manquée). Ce classeur contient dix jeux de données : métadonnées de l'extraction, sites, rattachement site-programme, produits, transactions, lignes de transactions, photo du stock actuel, inventaires, lignes d'inventaire, réquisitions.</li>
         <li><strong>Traitement.</strong> L'application valide le classeur, l'intègre dans un modèle en trois couches (miroir brut, données typées et dédoublonnées, indicateurs), calcule les indicateurs dans des vues de base de données, puis <strong>fige</strong> les scores du mois pour en garantir l'immuabilité.</li>

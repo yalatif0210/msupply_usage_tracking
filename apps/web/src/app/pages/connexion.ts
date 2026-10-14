@@ -25,8 +25,9 @@ import { AuthService } from '../core/auth.service';
         class="w-full max-w-sm rounded-xl border border-border bg-card p-6 text-card-foreground shadow-xs sm:p-8"
       >
         <div class="flex flex-col gap-1.5 text-center">
-          <h1 class="text-xl font-bold tracking-tight">Tableau de bord DQA</h1>
-          <p class="text-sm text-muted-foreground">
+          <h1 class="text-xl font-bold tracking-tight">SUM</h1>
+          <p class="text-sm font-medium">Suivi de l'utilisation et de la qualité des données mSupply</p>
+          <p class="mt-2 text-sm text-muted-foreground">
             Entrez vos identifiants pour accéder à la console.
           </p>
         </div>

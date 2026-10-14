@@ -1,4 +1,4 @@
-# Spécification d'extraction mSupply · Tableau de bord DQA
+# Spécification d'extraction mSupply · SUM (Suivi de l'Utilisation de mSupply)
 
 **Destinataire :** DAP / Nouvelle PSP-CI (chargé de l'extraction)
 **Version :** 2.3 (2026-10-13) · révisions : INVENTAIRES gagne

@@ -1,4 +1,4 @@
-# DESIGN_SYSTEM.md — Console DQA mSupply
+# DESIGN_SYSTEM.md — SUM (Suivi de l'Utilisation de mSupply)
 
 Registre visuel : **console d'administration**, dense en information, consultée
 en réunion et **projetée**. Recréée à partir du template **shadcn-admin**

@@ -1,6 +1,6 @@
-# Tableau de bord DQA mSupply
+# SUM · Suivi de l'Utilisation de mSupply
 
-Suivi de la qualité des données mSupply pour les sites du périmètre DQA en Côte
+Anciennement « Tableau de bord DQA ». Suivi de l'utilisation et de la qualité des données mSupply pour les sites du périmètre DQA en Côte
 d'Ivoire. Le tableau de bord sert trois usages simultanés : revue de performance
 nationale, triage opérationnel de supervision par district, et reporting de
 conformité par cycle PAQD.

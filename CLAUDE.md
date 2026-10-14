@@ -1,4 +1,4 @@
-# CLAUDE.md — Tableau de bord DQA mSupply
+# CLAUDE.md — SUM (Suivi de l'Utilisation de mSupply)
 
 Instructions pour Claude Code sur ce dépôt. À lire intégralement avant toute
 modification.
@@ -6,6 +6,11 @@ modification.
 ---
 
 ## 1. Ce que fait ce produit
+
+**Nom :** SUM, « Suivi de l'Utilisation de mSupply » (sous-titre affiché :
+suivi de l'utilisation et de la qualité des données mSupply). Anciennement
+« Tableau de bord DQA ». Le vocabulaire PAQD / DQA reste celui des écrans ;
+les identifiants techniques (`dqa`, `@dqa/contracts`) ne changent pas.
 
 Tableau de bord de suivi de la qualité des données mSupply pour 40 sites
 sanitaires en Côte d'Ivoire.

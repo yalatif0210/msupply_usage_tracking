@@ -1,8 +1,12 @@
-# Manuel utilisateur · Tableau de bord DQA mSupply
+# Manuel utilisateur · SUM, suivi de l'utilisation de mSupply
+
+**SUM** (Suivi de l'Utilisation de mSupply), anciennement « Tableau de bord
+DQA », suit l'utilisation et la qualité des données mSupply des sites du
+périmètre.
 
 **Destinataires :** toute personne autorisée à consulter le tableau de bord
 (équipes district, coordination nationale, DAP).
-**Version :** 1.3 (2026-10).
+**Version :** 1.4 (2026-10).
 
 Ce manuel explique ce que montre l'application, comment naviguer d'un écran à
 l'autre, et surtout comment chaque chiffre affiché est calculé, formule par

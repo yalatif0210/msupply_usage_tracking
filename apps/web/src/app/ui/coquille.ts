@@ -57,7 +57,14 @@ interface LienSection {
   ],
   template: `
     <header class="flex items-center justify-between gap-4 bg-primary px-4 py-2 text-primary-foreground sm:px-6">
-      <a routerLink="/" class="shrink-0 text-base font-bold tracking-tight whitespace-nowrap text-primary-foreground">Tableau de bord DQA</a>
+      <a
+        routerLink="/"
+        class="flex shrink-0 items-baseline gap-2 whitespace-nowrap text-primary-foreground"
+        aria-label="SUM, suivi de l'utilisation et de la qualité des données mSupply"
+      >
+        <span class="text-base font-bold tracking-tight">SUM</span>
+        <span class="hidden text-sm lg:inline">Suivi de l'utilisation et de la qualité des données mSupply</span>
+      </a>
 
       @if (auth.utilisateur(); as u) {
         <!--

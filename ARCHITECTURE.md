@@ -1,4 +1,4 @@
-# Architecture — Tableau de bord DQA mSupply
+# Architecture — SUM (Suivi de l'Utilisation de mSupply)
 
 Document de référence pour l'implémentation. À lire avec `CLAUDE.md`.
 

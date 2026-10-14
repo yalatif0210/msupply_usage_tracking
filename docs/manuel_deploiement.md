@@ -2,7 +2,8 @@
 
 Ce manuel a deux objectifs :
 
-1. **Déployer** le tableau de bord DQA en production.
+1. **Déployer** SUM (Suivi de l'Utilisation de mSupply, anciennement « tableau
+   de bord DQA ») en production.
 2. **T'apprendre à écrire toi-même** toute la configuration Docker et Nginx, de
    façon à la comprendre et à la modifier sans dépendre de personne.
 
