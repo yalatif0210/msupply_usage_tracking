@@ -186,8 +186,40 @@ const TH = 'text-xs font-medium text-muted-foreground';
                           <div class="w-12 shrink-0 text-right text-sm tabular-nums">
                             {{ mp.moyenne === null ? absent : (mp.moyenne | number: '1.0-1') }}
                           </div>
+                          <div class="w-28 shrink-0 text-right text-xs text-muted-foreground tabular-nums"
+                               title="Sites dont ce pilier est calculable ce mois">
+                            sur {{ mp.nbSites }} site{{ mp.nbSites > 1 ? 's' : '' }}
+                          </div>
                         </div>
                       }
+                      <p class="mt-1 text-xs text-muted-foreground">
+                        Chaque moyenne porte sur les seuls sites dont le pilier est calculable ce mois.
+                      </p>
+                    </div>
+                  </section>
+
+                  <section hlmCard>
+                    <div hlmCardHeader>
+                      <h2 hlmCardTitle>Suivi des réceptions</h2>
+                      <p class="text-sm text-muted-foreground">Hors score : factures à faire accepter par les sites.</p>
+                    </div>
+                    <div hlmCardContent class="grid gap-4 sm:grid-cols-3">
+                      <div>
+                        <div class="text-2xl font-bold tabular-nums">
+                          {{ s.suiviReceptions.nbAvecFacture }} / {{ s.suiviReceptions.nbRequisitions }}
+                        </div>
+                        <p class="text-xs text-muted-foreground">réquisitions ordinaires du mois précédent ayant reçu une facture</p>
+                      </div>
+                      <div>
+                        <div class="text-2xl font-bold tabular-nums">{{ s.suiviReceptions.nbFacturesEnAttente }}</div>
+                        <p class="text-xs text-muted-foreground">factures en attente d'acceptation</p>
+                      </div>
+                      <div>
+                        <div class="text-2xl font-bold tabular-nums" [class.text-alerte-texte]="s.suiviReceptions.nbFacturesEnAlerte > 0">
+                          {{ s.suiviReceptions.nbFacturesEnAlerte }}
+                        </div>
+                        <p class="text-xs text-muted-foreground">en attente depuis plus de {{ s.suiviReceptions.delaiAlerteJours }} jours</p>
+                      </div>
                     </div>
                   </section>
 

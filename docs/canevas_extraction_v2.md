@@ -7,6 +7,13 @@ recensées dans [exploration_etat_des_lieux.md](exploration_etat_des_lieux.md),
 en s'appuyant sur les tables réelles de mSupply plutôt que sur des devinettes.
 Reste à valider en séance DAP : §6.
 
+> **Document historique de conception.** Le contrat en vigueur est
+> [specification_extraction_dap.md](specification_extraction_dap.md) (v2.4).
+> Depuis le premier fichier réel (2026-10-14) : `rc` est un reçu de paiement
+> (nature `encaissement`), les réceptions sont les factures `si` finalisées
+> (ADR 0018, 0019) ; le type de structure est tranché par le préfixe du nom
+> (ADR 0021). Les décisions D3 et D4 ci-dessous sont révisées en conséquence.
+
 **Interlocuteur DAP :** le chargé de l'extraction (auteur des requêtes).
 
 ---
@@ -229,8 +236,8 @@ Toutes déclinables par programme pour la vue dédiée (P3, P4, P5, P6 via
 |---|---|---|
 | **D1** | Mois d'une réquisition = mois **couvert** (`periodid`→`period`, sinon mois de `date_stock_take`), pas le mois de soumission. Périodes mSupply = mois civils. | **tranché** |
 | **D2** | Vocabulaire `programme` = enum ouvert, normalisé au 1ᵉʳ import depuis `list_master` où `isprogram`. | **tranché** |
-| **D3** | `type_structure` = `name_category3.description`, le **palier** (`ESPC`, `Hôpital de référence`, `District sanitaire`, `CHU`, `INSTITUT`), pas le sous-type. L'échéance de réquisition (5 / 7 / 10) et le régime de scoring district viennent du référentiel administré `strate_structure` (ADR 0013), plus du contrat. Un palier inconnu tombe sur les replis (« Non classé » / 10 / site de soins) et remonte dans l'écran « Types de structure ». | **tranché** |
-| **D4** | P1c sur transactions réelles (option b). **`si` = facture fournisseur adressée** (dénominateur) ; **`rc` = réception enregistrée** (numérateur). | **tranché** |
+| **D3** | `type_structure` = `name_category3.description`, le **palier** (`ESPC`, `Hôpital de référence`, `District sanitaire`, `CHU`, `INSTITUT`), pas le sous-type. L'échéance de réquisition (5 / 7 / 10) et le régime de scoring district viennent du référentiel administré `strate_structure` (ADR 0013), plus du contrat. Un palier inconnu tombe sur les replis (« Non classé » / 10 / site de soins) et remonte dans l'écran « Types de structure ». | **révisé** : ADR 0021, le préfixe du nom tranche |
+| **D4** | P1c sur transactions réelles (option b). **`si` = facture fournisseur adressée** (dénominateur) ; **`rc` = réception enregistrée** (numérateur). | **révisé** : ADR 0018 et 0019, `rc` = encaissement, réception = `si` finalisée |
 | **D5** | Statut sous-composante binaire CONFORME / ALERTE. | **tranché** |
 | **D6** | `district` = `name_category1.description` ; `region` = `name_category1_level2.description` (grand-parent). | **tranché** |
 | **D7** | L'extraction n'envoie pas `est_traceur`. La **liste des traceurs est administrée dans la console web** par la coordination. | **tranché** |

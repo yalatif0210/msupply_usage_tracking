@@ -1,6 +1,9 @@
 # P4 et P5 non calculables tant que le mois n'est pas clos
 
-**Statut.** Accepté. Amende l'ADR 0012 §3.
+**Statut.** Accepté. Amende l'ADR 0012 §3. Étendu par l'ADR 0019 : la règle
+des échéances non arrivées s'applique aussi aux réquisitions (P1, P2) et à
+l'inventaire de P2 ; P1 et P2 n'étaient pas « déjà non calculables » dès
+qu'un site avait une activité dans le mois.
 
 **Contexte.** L'ADR 0012 (« le silence est un signal ») a posé que P4 (écart
 SDU) et P5 (concordance) valent **0 %** dès qu'un site du périmètre n'a aucun

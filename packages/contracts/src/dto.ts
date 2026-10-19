@@ -89,6 +89,54 @@ export const vueStratesSchema = z.object({
 });
 export type VueStrates = z.infer<typeof vueStratesSchema>;
 
+/**
+ * Programmes éligibles d'un site (ADR 0020). `origine` : `fichier` = statut
+ * repris de l'extraction (SITE_PROGRAMME), `application` = fixé dans la
+ * console, jamais écrasé par un import.
+ */
+export const ORIGINES_PROGRAMME_SITE = ['fichier', 'application'] as const;
+export const origineProgrammeSiteSchema = z.enum(ORIGINES_PROGRAMME_SITE);
+export type OrigineProgrammeSite = z.infer<typeof origineProgrammeSiteSchema>;
+
+/**
+ * Un programme rattaché à un site, avec son activité des trois derniers mois
+ * pour aider la décision : un programme sans inventaire ni réquisition n'est
+ * probablement pas géré par le site.
+ */
+export const programmeSiteSchema = z.object({
+  programmeId: z.string(),
+  programmeCode: z.string().nullable(),
+  programmeNom: z.string(),
+  actif: z.boolean(),
+  origine: origineProgrammeSiteSchema,
+  modifiePar: z.string().nullable(),
+  modifieLe: z.string().datetime().nullable(),
+  nbInventaires: z.number().int().nonnegative(),
+  nbRequisitions: z.number().int().nonnegative(),
+});
+export type ProgrammeSite = z.infer<typeof programmeSiteSchema>;
+
+export const sitesProgrammesSchema = z.object({
+  siteId: z.string(),
+  siteNom: z.string(),
+  district: z.string().nullable(),
+  typeStructure: z.string().nullable(),
+  programmes: z.array(programmeSiteSchema),
+});
+export type SiteProgrammes = z.infer<typeof sitesProgrammesSchema>;
+
+/** `GET /api/admin/programmes-sites` : les sites du périmètre et leurs programmes. */
+export const vueProgrammesSitesSchema = z.object({
+  /** Début de la période d'activité affichée (1er jour du mois M-2). */
+  activiteDepuis: dateIsoSchema,
+  sites: z.array(sitesProgrammesSchema),
+});
+export type VueProgrammesSites = z.infer<typeof vueProgrammesSitesSchema>;
+
+/** Corps d'un `PUT /api/admin/programmes-sites/:siteId/:programmeId`. */
+export const entreeProgrammeSiteSchema = z.object({ actif: z.boolean() });
+export type EntreeProgrammeSite = z.infer<typeof entreeProgrammeSiteSchema>;
+
 // ─── Détail d'un site ───────────────────────────────────────────────────────
 
 export const uniteMesureSchema = z.enum(['pct', 'jours', 'nombre', 'ratio']);
@@ -156,13 +204,44 @@ export const sousComposanteBrefSchema = mesureSousComposanteSchema
   .extend({ tauxAtteinte: pourcentageSchema.nullable() });
 export type SousComposanteBref = z.infer<typeof sousComposanteBrefSchema>;
 
-/** Les dix sous-composantes gelées d'un mois, dans l'ordre canonique `SOUS_COMPOSANTES`. */
-export const dixSousComposantesSchema = z
+/** Les sous-composantes gelées d'un mois, toutes, dans l'ordre canonique `SOUS_COMPOSANTES`. */
+export const sousComposantesMoisSchema = z
   .array(sousComposanteBrefSchema)
-  .length(10)
+  .length(SOUS_COMPOSANTES.length)
   .refine((scs) => scs.every((s, i) => s.sousComposante === SOUS_COMPOSANTES[i]), {
-    message: 'les dix sous-composantes doivent suivre l’ordre de SOUS_COMPOSANTES',
+    message: 'les sous-composantes doivent suivre l’ordre de SOUS_COMPOSANTES',
   });
+
+/** Une facture fournisseur non finalisée (`cn`, `nw`) du site, et depuis quand elle attend. */
+export const factureEnAttenteSchema = z.object({
+  reference: z.string().nullable(),
+  statut: z.string(),
+  /** Mois couvert par la réquisition citée, si la facture en cite une. */
+  moisCouvert: moisPaqdSchema.nullable(),
+  dateEmission: dateIsoSchema,
+  /** Jours entre l'émission et la date d'extraction du dernier lot (pas la date du jour). */
+  ancienneteJours: z.number().int(),
+  enAlerte: z.boolean(),
+});
+export type FactureEnAttente = z.infer<typeof factureEnAttenteSchema>;
+
+/**
+ * Suivi des réceptions, hors score (ADR 0019) : part des réquisitions
+ * ordinaires du mois précédent qui ont reçu une facture, et factures en
+ * attente d'acceptation. Un taux bas appelle une action, sans pénaliser.
+ */
+export const suiviReceptionsSchema = z.object({
+  /** Réquisitions ordinaires finalisées couvrant le mois précédent le mois affiché. */
+  nbRequisitions: z.number().int().nonnegative(),
+  nbAvecFacture: z.number().int().nonnegative(),
+  /** Date d'extraction du dernier lot validé, à laquelle l'attente est mesurée. */
+  dateReference: dateIsoSchema.nullable(),
+  /** Au-delà, une facture en attente est signalée (paramètre en base). */
+  delaiAlerteJours: z.number().int().nonnegative(),
+  /** Factures du site encore non finalisées, les plus anciennes d'abord. */
+  facturesEnAttente: z.array(factureEnAttenteSchema),
+});
+export type SuiviReceptions = z.infer<typeof suiviReceptionsSchema>;
 
 export const detailSiteSchema = z.object({
   site: siteSchema,
@@ -194,12 +273,13 @@ export const detailSiteSchema = z.object({
   classification: classificationSchema.nullable(),
   piliers: z.array(scorePilierSchema),
   /**
-   * Les dix sous-composantes du mois affiché (ordre canonique), valeurs gelées
+   * Les sous-composantes du mois affiché (ordre canonique), valeurs gelées
    * + taux d'atteinte (`v_sous_composante_atteinte`) ; toutes NON_CALCULABLE si
    * le site n'a aucune mesure. Sert le tableau à plat et le radar ; distinct de
    * `piliers[].sousComposantes` (rendu live des cartes).
    */
-  sousComposantes: dixSousComposantesSchema,
+  sousComposantes: sousComposantesMoisSchema,
+  suiviReceptions: suiviReceptionsSchema,
 });
 export type DetailSite = z.infer<typeof detailSiteSchema>;
 
@@ -220,8 +300,20 @@ export const filtreSitesSchema = z.object({
   district: z.string().optional(),
   region: z.string().optional(),
   programmeId: z.string().optional(),
+  /** Mois comparé pour tous les sites ; par défaut le dernier mois clos (U1). */
+  mois: moisPaqdSchema.optional(),
 });
 export type FiltreSites = z.infer<typeof filtreSitesSchema>;
+
+/**
+ * Un mois PAQD mesuré. `clos` : son délai de réquisition est passé, le score
+ * ne bougera plus ; sinon il est provisoire (mois en cours).
+ */
+export const moisMesureSchema = z.object({
+  moisPaqd: moisPaqdSchema,
+  clos: z.boolean(),
+});
+export type MoisMesure = z.infer<typeof moisMesureSchema>;
 
 export const detailSiteQuerySchema = z.object({
   mois: moisPaqdSchema.optional(),
@@ -290,17 +382,32 @@ export const syntheseNationaleSchema = z.object({
   /** Filtre région appliqué (districts + programmes), ou `null` pour « toutes régions ». */
   region: z.string().nullable(),
   national: blocSyntheseSchema.extend({
-    /** Moyenne nationale de chaque score de pilier — 6 entrées, ordre P1..P6. */
+    /**
+     * Moyenne nationale de chaque score de pilier, 6 entrées, ordre P1..P6,
+     * avec le nombre de sites dont le pilier est calculable (U3).
+     */
     moyennesPiliers: z
-      .array(z.object({ pilier: pilierSchema, moyenne: pourcentageSchema.nullable() }))
+      .array(z.object({
+        pilier: pilierSchema,
+        moyenne: pourcentageSchema.nullable(),
+        nbSites: z.number().int().nonnegative(),
+      }))
       .length(6),
   }),
   /** Ventilation par district, triée du score moyen le plus faible au plus élevé. */
   parDistrict: z.array(ligneDistrictSyntheseSchema),
   /** Un item par programme géré par ≥ 1 site du périmètre, trié score croissant. */
   parProgramme: z.array(ligneProgrammeSyntheseSchema),
-  /** Les dix sous-composantes au niveau du filtre, triées taux d'atteinte croissant. */
+  /** Les sous-composantes au niveau du filtre, triées taux d'atteinte croissant. */
   parSousComposante: z.array(ligneSousComposanteSyntheseSchema),
+  /** Suivi des réceptions du mois, hors score (ADR 0019), au niveau du filtre région. */
+  suiviReceptions: z.object({
+    nbRequisitions: z.number().int().nonnegative(),
+    nbAvecFacture: z.number().int().nonnegative(),
+    nbFacturesEnAttente: z.number().int().nonnegative(),
+    nbFacturesEnAlerte: z.number().int().nonnegative(),
+    delaiAlerteJours: z.number().int().nonnegative(),
+  }),
 });
 export type SyntheseNationale = z.infer<typeof syntheseNationaleSchema>;
 
@@ -397,7 +504,7 @@ export const pointProgressionSchema = z.object({
   classification: classificationSchema.nullable(),
   piliersCouverts: z.number().int().min(0).max(6),
   scoresPiliers: z.array(scorePilierBrefSchema).length(6),
-  sousComposantes: dixSousComposantesSchema,
+  sousComposantes: sousComposantesMoisSchema,
   /** `false` = mois encore ouvert : le point est tracé en pointillé (provisoire). */
   moisClos: z.boolean(),
 });
@@ -545,12 +652,6 @@ const detailPilierBaseSchema = z.object({
   reimporteDepuisLeGel: z.boolean(),
 });
 
-/** Un inventaire finalisé du mois (P1 : liste brute). */
-export const ligneInventaireP1Schema = z.object({
-  date: dateIsoSchema,
-  programme: z.string(),
-});
-
 /** Une réquisition couvrant le mois (P1). */
 export const ligneRequisitionP1Schema = z.object({
   programme: z.string(),
@@ -558,30 +659,41 @@ export const ligneRequisitionP1Schema = z.object({
   dateSoumission: dateIsoSchema.nullable(),
 });
 
-/** Une réception finalisée ou une facture fournisseur du mois (P1). */
-export const ligneTransactionP1Schema = z.object({
-  date: dateIsoSchema,
+/**
+ * Une facture fournisseur `si` qui répond à une réquisition ordinaire du site
+ * couvrant M-1 (ADR 0019). `acceptee` : finalisée (`fn`) dans son mois
+ * d'émission, seul cas compté au numérateur de la complétude des réceptions.
+ */
+export const ligneFactureP1Schema = z.object({
   reference: z.string().nullable(),
+  programme: z.string(),
+  /** Mois couvert par la réquisition citée. */
+  moisCouvert: moisPaqdSchema,
+  /** `fn` finalisée, `cn` confirmée, `nw` adressée au site, pas encore prise en main. */
+  statut: z.string(),
+  /** Finalisation de la livraison du district, à défaut création de la facture (site livré par la NPSP). */
+  dateEmission: dateIsoSchema,
+  /** Finalisation de la facture (réception admise) ; null tant qu'elle n'est pas finalisée. */
+  dateReception: dateIsoSchema.nullable(),
+  acceptee: z.boolean(),
 });
+export type LigneFactureP1 = z.infer<typeof ligneFactureP1Schema>;
 
-/** Un programme géré du site et l'état de ses deux livrables du mois (P1). */
+/** Un programme éligible du site et sa réquisition du mois (P1). */
 export const programmeGereP1Schema = z.object({
   programme: z.string(),
-  aInventaire: z.boolean(),
   aRequisition: z.boolean(),
 });
 
 export const detailPilierP1Schema = detailPilierBaseSchema.extend({
   code: z.literal('p1'),
-  /** Inventaires finalisés du mois, un par ligne. */
-  inventaires: z.array(ligneInventaireP1Schema),
   /** Réquisitions dont le mois couvert est le mois PAQD. */
   requisitions: z.array(ligneRequisitionP1Schema),
-  /** Réceptions finalisées du mois. */
-  receptions: z.array(ligneTransactionP1Schema),
-  /** Factures fournisseur du mois (dénominateur des réceptions). */
-  factures: z.array(ligneTransactionP1Schema),
-  /** Un item par programme géré : signale l'inventaire ou la réquisition manquant. */
+  /** Dernier jour pour soumettre la réquisition du mois ; avant, la complétude est non calculable. */
+  echeanceRequisitions: dateIsoSchema,
+  /** Factures répondant aux réquisitions ordinaires du mois précédent (dénominateur des réceptions). */
+  factures: z.array(ligneFactureP1Schema),
+  /** Un item par programme éligible : signale la réquisition manquante. */
   programmesGeres: z.array(programmeGereP1Schema),
 });
 export type DetailPilierP1 = z.infer<typeof detailPilierP1Schema>;
@@ -603,6 +715,10 @@ export const ligneRequisitionP2Schema = z.object({
 
 export const detailPilierP2Schema = detailPilierBaseSchema.extend({
   code: z.literal('p2'),
+  /** Dernier jour du mois : avant, la promptitude des inventaires est non calculable. */
+  echeanceInventaires: dateIsoSchema,
+  /** Jour limite de M+1 : avant, la promptitude des réquisitions est non calculable. */
+  echeanceRequisitions: dateIsoSchema,
   /** Inventaires finalisés du mois, hors des 3 derniers jours d'abord côté front. */
   inventaires: z.array(ligneInventaireP2Schema),
   /** Réquisitions du mois, en retard d'abord côté front. */

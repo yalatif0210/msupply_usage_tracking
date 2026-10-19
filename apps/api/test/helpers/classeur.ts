@@ -130,10 +130,10 @@ export function construireClasseur(opts: OptionsClasseur): Buffer {
 // ── Fixture cohérente : 9 jeux, 1 ligne chacun, références croisées valides ──
 
 export const COLONNES: Record<string, string[]> = {
-  SITES: ['site_id', 'site_code', 'site_nom', 'district', 'region', 'type_structure', 'actif', 'dans_perimetre_dqa'],
+  SITES: ['site_id', 'site_code', 'site_nom', 'district', 'region', 'type_structure', 'actif', 'dans_perimetre_dqa', 'type_structure_msupply'],
   SITE_PROGRAMME: ['site_id', 'programme_id', 'programme_code', 'programme_nom', 'actif'],
   PRODUITS: ['produit_id', 'produit_code', 'produit_nom', 'unite', 'programmes'],
-  TRANSACTIONS: ['transaction_id', 'site_id', 'nature', 'programme_id', 'type_transaction', 'mode', 'statut', 'annulation', 'date_saisie', 'date_confirmation', 'date_livraison', 'requisition_id', 'goods_received_id', 'commentaire'],
+  TRANSACTIONS: ['transaction_id', 'site_id', 'nature', 'programme_id', 'type_transaction', 'mode', 'statut', 'annulation', 'date_saisie', 'date_confirmation', 'date_livraison', 'requisition_id', 'goods_received_id', 'commentaire', 'date_finalisation', 'transaction_liee_id', 'date_finalisation_liee'],
   LIGNES_TRANSACTIONS: ['ligne_id', 'transaction_id', 'produit_id', 'programme_id', 'lot', 'quantite', 'taille_conditionnement', 'type_ligne', 'issu_ajustement', 'date_peremption'],
   STOCK_ACTUEL: ['site_id', 'produit_id', 'lot', 'quantite_disponible', 'date_peremption', 'date_photo'],
   INVENTAIRES: ['inventaire_id', 'site_id', 'programme_id', 'date_inventaire', 'statut', 'invad_additions_id', 'invad_reductions_id', 'heure_inventaire', 'numero_inventaire'],
@@ -148,10 +148,10 @@ export function optionsValides(): OptionsClasseur {
   const T = 'TX-1';
   const INV = 'INV-1';
   const jeux: JeuTest[] = [
-    { nom: 'SITES', colonnes: COLONNES.SITES!, lignes: [{ site_id: S, site_code: 'C1', site_nom: 'CSU Test', district: 'BONDOUKOU', region: 'GONTOUGO', type_structure: 'ESPC', actif: 'OUI', dans_perimetre_dqa: 'OUI' }] },
+    { nom: 'SITES', colonnes: COLONNES.SITES!, lignes: [{ site_id: S, site_code: 'C1', site_nom: 'CSU Test', district: 'BONDOUKOU', region: 'GONTOUGO', type_structure: 'ESPC', actif: 'OUI', dans_perimetre_dqa: 'OUI', type_structure_msupply: 'ESPC' }] },
     { nom: 'SITE_PROGRAMME', colonnes: COLONNES.SITE_PROGRAMME!, lignes: [{ site_id: S, programme_id: P, programme_code: 'VIH', programme_nom: 'VIH', actif: 'OUI' }] },
     { nom: 'PRODUITS', colonnes: COLONNES.PRODUITS!, lignes: [{ produit_id: I, produit_code: 'ARV001', produit_nom: 'TDF/3TC/DTG', unite: 'comprimé', programmes: 'VIH' }] },
-    { nom: 'TRANSACTIONS', colonnes: COLONNES.TRANSACTIONS!, lignes: [{ transaction_id: T, site_id: S, nature: 'dispensation', programme_id: P, type_transaction: 'ci', mode: 'dispensary', statut: 'fn', annulation: 'NON', date_saisie: '2026-08-10', date_confirmation: '2026-08-10', date_livraison: '', requisition_id: '', goods_received_id: '', commentaire: '' }] },
+    { nom: 'TRANSACTIONS', colonnes: COLONNES.TRANSACTIONS!, lignes: [{ transaction_id: T, site_id: S, nature: 'dispensation', programme_id: P, type_transaction: 'ci', mode: 'dispensary', statut: 'fn', annulation: 'NON', date_saisie: '2026-08-10', date_confirmation: '2026-08-10', date_livraison: '', requisition_id: '', goods_received_id: '', commentaire: '', date_finalisation: '2026-08-10', transaction_liee_id: '', date_finalisation_liee: '' }] },
     { nom: 'LIGNES_TRANSACTIONS', colonnes: COLONNES.LIGNES_TRANSACTIONS!, lignes: [{ ligne_id: 'L-1', transaction_id: T, produit_id: I, programme_id: P, lot: 'LOT7', quantite: '30', taille_conditionnement: '30', type_ligne: 'stock_out', issu_ajustement: 'NON', date_peremption: '2027-06-30' }] },
     { nom: 'STOCK_ACTUEL', colonnes: COLONNES.STOCK_ACTUEL!, lignes: [{ site_id: S, produit_id: I, lot: 'LOT7', quantite_disponible: '270', date_peremption: '2027-06-30', date_photo: '2026-08-18' }] },
     { nom: 'INVENTAIRES', colonnes: COLONNES.INVENTAIRES!, lignes: [{ inventaire_id: INV, site_id: S, programme_id: P, date_inventaire: '2026-08-29', statut: 'fn', invad_additions_id: '', invad_reductions_id: '', heure_inventaire: '10:00:00', numero_inventaire: '1' }] },

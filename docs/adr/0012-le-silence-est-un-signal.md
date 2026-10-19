@@ -1,6 +1,7 @@
 # Le silence d'un site de soins est un signal, pas un état vide
 
-**Statut.** Accepté.
+**Statut.** Accepté. Amendé par l'ADR 0014 et par l'ADR 0019 (la complétude
+d'inventaire sort de P1).
 
 **Contexte.** Le tableau de bord doit anticiper au jour le jour une mauvaise
 utilisation de mSupply, pas seulement photographier un mois clos. Or plusieurs

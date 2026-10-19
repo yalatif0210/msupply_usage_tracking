@@ -8,6 +8,7 @@ import {
   lucideGrid3x3,
   lucideLayers,
   lucideLayoutDashboard,
+  lucideListChecks,
   lucideLogOut,
   lucideMenu,
   lucideTarget,
@@ -48,6 +49,7 @@ interface LienSection {
       lucideGrid3x3,
       lucideLayers,
       lucideLayoutDashboard,
+      lucideListChecks,
       lucideLogOut,
       lucideMenu,
       lucideTarget,
@@ -171,6 +173,8 @@ export class Coquille {
     // Types de structure : lecture ouverte à tout rôle (le lecteur la consulte
     // en seule lecture), écriture réservée à la coordination côté API.
     sections.push({ chemin: '/admin/strates', libelle: 'Types', icone: 'lucideLayers', exact: false });
+    // Programmes éligibles (ADR 0020) : même règle d'accès que les types.
+    sections.push({ chemin: '/admin/programmes', libelle: 'Programmes', icone: 'lucideListChecks', exact: false });
 
     return sections;
   });

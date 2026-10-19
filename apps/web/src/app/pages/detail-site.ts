@@ -8,7 +8,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -17,6 +17,7 @@ import {
   libelleSousComposante,
   PILIER_DE_SOUS_COMPOSANTE,
   PILIERS,
+  SOUS_COMPOSANTES,
   SOUS_COMPOSANTES_DU_PILIER,
   type DetailPilier,
   type DetailPilierP1,
@@ -92,6 +93,7 @@ function reculerMois(mois: string, n: number): string {
     FormsModule,
     RouterLink,
     DecimalPipe,
+    DatePipe,
     Coquille,
     BadgeStatut,
     BadgeClassification,
@@ -209,7 +211,11 @@ function reculerMois(mois: string, n: number): string {
                 <div hlmCardHeader>
                   <h2 hlmCardTitle>{{ pil.pilier }} · {{ pil.libelle }}</h2>
                   <p class="text-sm text-muted-foreground tabular-nums">
-                    Score du pilier {{ pil.score === null ? absent : (pil.score | number: '1.0-0') }} / 100
+                    @if (pil.score === null) {
+                      Score du pilier non calculable
+                    } @else {
+                      Score du pilier {{ pil.score | number: '1.0-0' }} / 100
+                    }
                     <span class="text-xs">· poids {{ pil.poids | number: '1.0-0' }} %</span>
                   </p>
                 </div>
@@ -263,51 +269,47 @@ function reculerMois(mois: string, n: number): string {
                           }
                           <div class="mt-2 space-y-3">
                             <div>
-                              <h3 class="font-medium">Programmes gérés</h3>
+                              <h3 class="font-medium">Programmes éligibles</h3>
                               <ul class="mt-1 space-y-0.5">
                                 @for (pg of programmesTries(dp.programmesGeres); track pg.programme) {
                                   <li class="flex items-baseline justify-between gap-3">
                                     <span>{{ pg.programme }}</span>
-                                    <span class="tabular-nums text-muted-foreground">
-                                      inventaire {{ pg.aInventaire ? 'oui' : 'non' }} · réquisition {{ pg.aRequisition ? 'oui' : 'non' }}
-                                    </span>
+                                    <span class="tabular-nums text-muted-foreground">réquisition {{ pg.aRequisition ? 'oui' : 'non' }}</span>
                                   </li>
                                 } @empty {
-                                  <li class="text-muted-foreground">aucun programme géré déclaré</li>
-                                }
-                              </ul>
-                            </div>
-                            <div>
-                              <h3 class="font-medium">Inventaires finalisés ({{ dp.inventaires.length }})</h3>
-                              <ul class="mt-1 space-y-0.5">
-                                @for (iv of dp.inventaires; track $index) {
-                                  <li class="tabular-nums">{{ iv.date }} · {{ iv.programme }}</li>
-                                } @empty {
-                                  <li class="text-muted-foreground">aucun</li>
+                                  <li class="text-muted-foreground">
+                                    aucun programme éligible : voir l'écran <a routerLink="/admin/programmes" class="text-primary hover:underline">Programmes</a>
+                                  </li>
                                 }
                               </ul>
                             </div>
                             <div>
                               <h3 class="font-medium">Réquisitions couvrant le mois ({{ dp.requisitions.length }})</h3>
+                              <p class="text-muted-foreground">Échéance de soumission : {{ dp.echeanceRequisitions | date: 'dd/MM/yyyy' }}</p>
                               <ul class="mt-1 space-y-0.5">
                                 @for (rq of dp.requisitions; track $index) {
-                                  <li class="tabular-nums">{{ rq.programme }} · soumise {{ rq.dateSoumission ?? absent }}</li>
+                                  <li class="tabular-nums">{{ rq.programme }} · soumise le {{ rq.dateSoumission ? (rq.dateSoumission | date: 'dd/MM/yyyy') : absent }}</li>
                                 } @empty {
                                   <li class="text-muted-foreground">aucune</li>
                                 }
                               </ul>
                             </div>
                             <div>
-                              <h3 class="font-medium">Réceptions / factures ({{ dp.receptions.length }} / {{ dp.factures.length }})</h3>
+                              <h3 class="font-medium">
+                                Factures répondant aux réquisitions ordinaires du mois précédent
+                                ({{ nbAcceptees(dp) }} acceptée{{ nbAcceptees(dp) > 1 ? 's' : '' }} sur {{ dp.factures.length }})
+                              </h3>
+                              <p class="text-muted-foreground">
+                                Une facture compte si elle est finalisée dans son mois d'émission (livraison du district, à défaut création de la facture).
+                              </p>
                               <ul class="mt-1 space-y-0.5">
-                                @for (rc of dp.receptions; track $index) {
-                                  <li class="tabular-nums">réception {{ rc.date }}{{ rc.reference ? ' · ' + rc.reference : '' }}</li>
-                                }
                                 @for (fa of dp.factures; track $index) {
-                                  <li class="tabular-nums">facture {{ fa.date }}{{ fa.reference ? ' · ' + fa.reference : '' }}</li>
-                                }
-                                @if (!dp.receptions.length && !dp.factures.length) {
-                                  <li class="text-muted-foreground">aucune</li>
+                                  <li class="tabular-nums" [class.text-alerte-texte]="!fa.acceptee">
+                                    {{ fa.programme }} · réquisition de {{ fa.moisCouvert }} · émise le {{ fa.dateEmission | date: 'dd/MM/yyyy' }} ·
+                                    {{ libelleStatutFacture(fa.statut, fa.dateReception) }}{{ !fa.acceptee && fa.statut === 'fn' ? " · après son mois d'émission" : '' }}
+                                  </li>
+                                } @empty {
+                                  <li class="text-muted-foreground">aucune facture ne cite une réquisition ordinaire du mois précédent</li>
                                 }
                               </ul>
                             </div>
@@ -321,10 +323,13 @@ function reculerMois(mois: string, n: number): string {
                           <div class="mt-2 space-y-3">
                             <div>
                               <h3 class="font-medium">Inventaires finalisés ({{ dp.inventaires.length }})</h3>
+                              <p class="text-muted-foreground">
+                                Attendu dans les 3 derniers jours du mois, au plus tard le {{ dp.echeanceInventaires | date: 'dd/MM/yyyy' }}.
+                              </p>
                               <ul class="mt-1 space-y-0.5">
                                 @for (iv of invP2Tries(dp.inventaires); track $index) {
                                   <li class="tabular-nums">
-                                    {{ iv.date }} · {{ iv.programme }} · {{ iv.dansLes3DerniersJours ? 'dans les 3 derniers jours' : 'hors des 3 derniers jours' }}
+                                    {{ iv.date | date: 'dd/MM/yyyy' }} · {{ iv.programme }} · {{ iv.dansLes3DerniersJours ? 'dans les 3 derniers jours' : 'hors des 3 derniers jours' }}
                                   </li>
                                 } @empty {
                                   <li class="text-muted-foreground">aucun</li>
@@ -333,10 +338,11 @@ function reculerMois(mois: string, n: number): string {
                             </div>
                             <div>
                               <h3 class="font-medium">Réquisitions ({{ dp.requisitions.length }})</h3>
+                              <p class="text-muted-foreground">Échéance de soumission : {{ dp.echeanceRequisitions | date: 'dd/MM/yyyy' }}</p>
                               <ul class="mt-1 space-y-0.5">
                                 @for (rq of reqP2Tries(dp.requisitions); track $index) {
                                   <li class="tabular-nums">
-                                    {{ rq.programme }} · soumise {{ rq.dateSoumission ?? absent }} · limite {{ rq.dateLimite }} · {{ rq.aLHeure ? "à l'heure" : 'en retard' }}
+                                    {{ rq.programme }} · soumise le {{ rq.dateSoumission ? (rq.dateSoumission | date: 'dd/MM/yyyy') : absent }} · limite {{ rq.dateLimite | date: 'dd/MM/yyyy' }} · {{ rq.aLHeure ? "à l'heure" : 'en retard' }}
                                   </li>
                                 } @empty {
                                   <li class="text-muted-foreground">aucune</li>
@@ -449,6 +455,58 @@ function reculerMois(mois: string, n: number): string {
             }
           </div>
 
+          <div hlmCard class="mt-4">
+            <div hlmCardHeader>
+              <h2 hlmCardTitle>Suivi des réceptions</h2>
+              <p class="text-sm text-muted-foreground">Hors score : signale les factures à faire accepter, sans pénaliser le site.</p>
+            </div>
+            <div hlmCardContent class="space-y-3 text-sm">
+              <p class="tabular-nums">
+                @if (d.suiviReceptions.nbRequisitions === 0) {
+                  Aucune réquisition ordinaire finalisée le mois précédent.
+                } @else {
+                  {{ d.suiviReceptions.nbAvecFacture }} réquisition{{ d.suiviReceptions.nbAvecFacture > 1 ? 's' : '' }} ordinaire{{ d.suiviReceptions.nbAvecFacture > 1 ? 's' : '' }}
+                  sur {{ d.suiviReceptions.nbRequisitions }} du mois précédent {{ d.suiviReceptions.nbAvecFacture > 1 ? 'ont' : 'a' }} reçu une facture.
+                }
+              </p>
+              @if (d.suiviReceptions.facturesEnAttente.length) {
+                <div hlmTableContainer>
+                  <table hlmTable>
+                    <thead hlmTHead>
+                      <tr hlmTr>
+                        <th hlmTh>Émise le</th>
+                        <th hlmTh>Statut</th>
+                        <th hlmTh>Réquisition</th>
+                        <th hlmTh class="text-right">Attente</th>
+                        <th hlmTh><span class="sr-only">Alerte</span></th>
+                      </tr>
+                    </thead>
+                    <tbody hlmTBody>
+                      @for (fa of d.suiviReceptions.facturesEnAttente; track $index) {
+                        <tr hlmTr>
+                          <td hlmTd class="tabular-nums">{{ fa.dateEmission | date: 'dd/MM/yyyy' }}</td>
+                          <td hlmTd>{{ libelleStatutFacture(fa.statut, null) }}</td>
+                          <td hlmTd>{{ fa.moisCouvert ?? 'aucune citée' }}</td>
+                          <td hlmTd class="text-right tabular-nums">{{ fa.ancienneteJours }} j</td>
+                          <td hlmTd>
+                            @if (fa.enAlerte) { <span hlmBadge variant="destructive">plus de {{ d.suiviReceptions.delaiAlerteJours }} jours</span> }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <p class="text-xs text-muted-foreground">
+                  Attente mesurée à la date d'extraction du dernier lot
+                  ({{ d.suiviReceptions.dateReference ? (d.suiviReceptions.dateReference | date: 'dd/MM/yyyy') : absent }}),
+                  pas à la date du jour.
+                </p>
+              } @else {
+                <p class="text-muted-foreground">Aucune facture en attente d'acceptation.</p>
+              }
+            </div>
+          </div>
+
           <details class="mt-6" [open]="tableauP4P5Ouvert()" #dtP4 (toggle)="basculerTableauP4P5(dtP4.open)">
             <summary class="cursor-pointer text-sm text-primary">
               Tableau produit P4 · P5 (écart SDU, concordance, écart consommation)
@@ -459,53 +517,58 @@ function reculerMois(mois: string, n: number): string {
                 <p class="mt-2 text-xs text-alerte-texte">Données du core modifiées depuis le gel du mois : le détail ci-dessous peut différer des comptes figés.</p>
               }
               @if (produitsP4P5().length > 0) {
-                <div hlmTableContainer class="mt-3">
+                <p class="mt-3 text-xs text-muted-foreground">
+                  Réceptions : factures fournisseur finalisées entre les deux inventaires bornants.
+                  Faire défiler le tableau vers la droite pour le détail de la {{ fluxP4() }}.
+                </p>
+                <div hlmTableContainer class="mt-2">
                   <table hlmTable>
                     <thead hlmTHead>
                       <tr hlmTr>
-                        <th hlmTh>Produit</th>
+                        <th hlmTh class="sticky left-0 z-10 bg-background">Produit</th>
+                        <th hlmTh>Statuts</th>
                         <th hlmTh class="text-right">Stock théorique</th>
                         <th hlmTh class="text-right">Stock physique compté</th>
                         <th hlmTh class="text-right">Écart SDU</th>
                         <th hlmTh class="text-right">Concordance</th>
+                        <th hlmTh class="text-right">Écart {{ fluxP4() }}</th>
                         <th hlmTh class="text-right">Stock début</th>
                         <th hlmTh class="text-right">Réceptions</th>
                         <th hlmTh class="text-right">Stock fin</th>
-                        <th hlmTh class="text-right">Consommation reconstituée</th>
-                        <th hlmTh class="text-right">Consommation déclarée</th>
-                        <th hlmTh class="text-right">Écart consommation</th>
-                        <th hlmTh>Statuts</th>
+                        <th hlmTh class="text-right">{{ fluxP4Majuscule() }} reconstituée</th>
+                        <th hlmTh class="text-right">{{ fluxP4Majuscule() }} déclarée</th>
                       </tr>
                     </thead>
                     <tbody hlmTBody>
                       @for (g of groupesP4P5(); track g.produitCode) {
                         @if (g.articles.length > 1) {
                           <tr hlmTr>
-                            <td hlmTd>
+                            <td hlmTd class="sticky left-0 z-10 bg-background">
                               <a
                                 class="text-primary hover:underline"
                                 [routerLink]="['/sites', d.site.siteId, 'produits', g.produitCode]"
                                 [queryParams]="{ mois: d.moisPaqd }"
                               >{{ g.libelle ?? g.produitCode }}</a>
+                              <div class="font-mono text-xs text-muted-foreground">{{ g.produitCode }}</div>
                               <div class="text-xs text-muted-foreground">{{ g.articles.length }} articles mSupply sous ce code</div>
-                            </td>
-                            <td hlmTd class="text-muted-foreground" colspan="10">
-                              Compté une fois : conforme seulement si tous ses articles le sont.
                             </td>
                             <td hlmTd>
                               <div class="flex flex-wrap items-center gap-2">
                                 <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="g.sduConforme ? 'CONFORME' : 'ALERTE'" /> SDU</span>
                                 <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="g.concordanceConforme ? 'CONFORME' : 'ALERTE'" /> concordance</span>
                                 @if (g.consoConforme !== null) {
-                                  <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="g.consoConforme ? 'CONFORME' : 'ALERTE'" /> conso</span>
+                                  <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="g.consoConforme ? 'CONFORME' : 'ALERTE'" /> {{ fluxP4() }}</span>
                                 }
                               </div>
+                            </td>
+                            <td hlmTd class="text-muted-foreground" colspan="10">
+                              Compté une fois : conforme seulement si tous ses articles le sont.
                             </td>
                           </tr>
                         }
                         @for (pr of g.articles; track pr.produitId) {
                         <tr hlmTr>
-                          <td hlmTd>
+                          <td hlmTd class="sticky left-0 z-10 bg-background">
                             @if (pr.article; as art) {
                               <div class="pl-4 text-sm">
                                 article {{ art.rang }} sur {{ art.nombre }}@if (art.unite) { · {{ art.unite }} }
@@ -516,7 +579,17 @@ function reculerMois(mois: string, n: number): string {
                                 [routerLink]="['/sites', d.site.siteId, 'produits', pr.produitCode]"
                                 [queryParams]="{ mois: d.moisPaqd }"
                               >{{ pr.libelle ?? pr.produitCode }}</a>
+                              <div class="font-mono text-xs text-muted-foreground">{{ pr.produitCode }}</div>
                             }
+                          </td>
+                          <td hlmTd>
+                            <div class="flex flex-wrap items-center gap-2">
+                              <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="pr.sdu.conforme ? 'CONFORME' : 'ALERTE'" /> SDU</span>
+                              <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="pr.concordance.conforme ? 'CONFORME' : 'ALERTE'" /> concordance</span>
+                              @if (pr.consommation.evaluable) {
+                                <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="pr.consommation.conforme ? 'CONFORME' : 'ALERTE'" /> {{ fluxP4() }}</span>
+                              }
+                            </div>
                           </td>
                           <td hlmTd class="text-right tabular-nums">{{ pr.sdu.theorique === null ? absent : (pr.sdu.theorique | number: '1.0-0') }}</td>
                           <td hlmTd class="text-right tabular-nums">{{ pr.sdu.comptee === null ? absent : (pr.sdu.comptee | number: '1.0-0') }}</td>
@@ -524,25 +597,16 @@ function reculerMois(mois: string, n: number): string {
                           <td hlmTd class="text-right tabular-nums">{{ pr.concordance.tauxPct === null ? absent : (pr.concordance.tauxPct | number: '1.0-1') + ' %' }}</td>
                           @if (pr.consommation; as c) {
                             @if (c.evaluable) {
+                              <td hlmTd class="text-right tabular-nums">{{ c.ecartPct | number: '1.0-1' }} %</td>
                               <td hlmTd class="text-right tabular-nums">{{ c.stockDebut | number: '1.0-0' }}</td>
                               <td hlmTd class="text-right tabular-nums">{{ c.receptions | number: '1.0-0' }}</td>
                               <td hlmTd class="text-right tabular-nums">{{ c.stockFin | number: '1.0-0' }}</td>
                               <td hlmTd class="text-right tabular-nums">{{ c.reconstituee | number: '1.0-0' }}</td>
                               <td hlmTd class="text-right tabular-nums">{{ c.declaree | number: '1.0-0' }}</td>
-                              <td hlmTd class="text-right tabular-nums">{{ c.ecartPct | number: '1.0-1' }} %</td>
                             } @else {
-                              <td hlmTd class="text-muted-foreground" colspan="6">consommation non évaluable : {{ raisonConso(c.raisonExclusion) }}</td>
+                              <td hlmTd class="text-muted-foreground" colspan="6">{{ fluxP4() }} non évaluable : {{ raisonConso(c.raisonExclusion) }}</td>
                             }
                           }
-                          <td hlmTd>
-                            <div class="flex flex-wrap items-center gap-2">
-                              <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="pr.sdu.conforme ? 'CONFORME' : 'ALERTE'" /> SDU</span>
-                              <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="pr.concordance.conforme ? 'CONFORME' : 'ALERTE'" /> concordance</span>
-                              @if (pr.consommation.evaluable) {
-                                <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="pr.consommation.conforme ? 'CONFORME' : 'ALERTE'" /> conso</span>
-                              }
-                            </div>
-                          </td>
                         </tr>
                         }
                       }
@@ -550,7 +614,7 @@ function reculerMois(mois: string, n: number): string {
                   </table>
                 </div>
               } @else if (!chargeP4P5()) {
-                <p class="mt-3 text-sm text-muted-foreground">Aucun produit traceur inventorié pour ce mois.</p>
+                <p class="mt-3 text-sm text-muted-foreground">{{ raisonTableauVide() }}</p>
               }
             </div>
           </details>
@@ -624,7 +688,7 @@ function reculerMois(mois: string, n: number): string {
                   <h3 class="text-base font-medium">Forces et faiblesses au {{ d.moisPaqd }}</h3>
                   <div class="flex gap-2">
                     <button hlmBtn size="sm" type="button" [variant]="axes() === '6' ? 'default' : 'outline'" (click)="axes.set('6')">6 piliers</button>
-                    <button hlmBtn size="sm" type="button" [variant]="axes() === '10' ? 'default' : 'outline'" (click)="axes.set('10')">10 sous-composantes</button>
+                    <button hlmBtn size="sm" type="button" [variant]="axes() === '10' ? 'default' : 'outline'" (click)="axes.set('10')">{{ nbSousComposantes }} sous-composantes</button>
                   </div>
                 </div>
                 <dqa-graphe-radar class="mt-4 block" [axes]="axesRadar()" />
@@ -831,13 +895,37 @@ export class DetailSitePage {
     }
   }
 
-  /** Cas fautifs d'abord : programme sans inventaire ni réquisition en tête. */
+  /** Cas fautifs d'abord : programme sans réquisition en tête. */
   protected programmesTries = (
     l: DetailPilierP1['programmesGeres'],
   ): DetailPilierP1['programmesGeres'] =>
-    [...l].sort((a, b) => this.rangProgramme(a) - this.rangProgramme(b));
-  private rangProgramme = (x: DetailPilierP1['programmesGeres'][number]): number =>
-    x.aInventaire && x.aRequisition ? 1 : 0;
+    [...l].sort((a, b) => Number(a.aRequisition) - Number(b.aRequisition));
+
+  protected nbAcceptees = (dp: DetailPilierP1): number => dp.factures.filter((f) => f.acceptee).length;
+
+  /** Statut mSupply d'une facture `si`, en clair. */
+  protected libelleStatutFacture = (statut: string, dateReception: string | null): string => {
+    if (statut === 'fn') {
+      return dateReception ? `finalisée le ${dateReception.slice(8, 10)}/${dateReception.slice(5, 7)}/${dateReception.slice(0, 4)}` : 'finalisée';
+    }
+    if (statut === 'cn') return 'confirmée, pas encore finalisée';
+    if (statut === 'nw') return 'adressée au site, pas encore prise en main';
+    return statut;
+  };
+
+  protected readonly nbSousComposantes = SOUS_COMPOSANTES.length;
+
+  /** Un district distribue, un site de soins dispense (ADR 0012). */
+  protected readonly fluxP4 = computed(() => (this.detail()?.estDistrict ? 'distribution' : 'consommation'));
+  protected readonly fluxP4Majuscule = computed(() =>
+    this.detail()?.estDistrict ? 'Distribution' : 'Consommation');
+
+  /** Tableau P4 vide : la même explication que la sous-composante non calculable. */
+  protected readonly raisonTableauVide = computed(() => {
+    const p4 = this.detail()?.piliers.find((p) => p.pilier === 'P4');
+    return p4?.sousComposantes.find((sc) => sc.sousComposante === 'ecart_sdu')?.raison
+      ?? 'Aucun produit traceur inventorié pour ce mois.';
+  });
 
   protected invP2Tries = (
     l: DetailPilierP2['inventaires'],
@@ -1081,12 +1169,15 @@ export class DetailSitePage {
   });
 
   protected readonly deltaComposite = computed(() => {
+    // Un mois provisoire peut encore bouger : l'écart se lit entre mois clos.
     const points = this.historique()?.points ?? [];
-    const m = points.filter((p): p is (typeof p) & { scoreComposite: number } => p.scoreComposite !== null);
+    const m = points.filter(
+      (p): p is (typeof p) & { scoreComposite: number } => p.scoreComposite !== null && p.moisClos,
+    );
     if (m.length < 2) return '';
     const v = Math.round((m.at(-1)!.scoreComposite - m[0]!.scoreComposite) * 10) / 10;
-    const signe = v > 0 ? `+${v}` : String(v);
-    return `${m[0]!.moisPaqd} → ${m.at(-1)!.moisPaqd} : ${signe} pts`;
+    const signe = v > 0 ? `+${String(v).replace('.', ',')}` : String(v).replace('.', ',');
+    return `${m[0]!.moisPaqd} → ${m.at(-1)!.moisPaqd} (mois clos) : ${signe} pts`;
   });
 
   /** Écart du mois affiché sur le mois précédent (dans l'historique chargé) ; `null` si l'un des deux manque. */
@@ -1103,7 +1194,7 @@ export class DetailSitePage {
     }
     const signe = ecart > 0 ? '+' : '';
     return {
-      texte: `${signe}${ecart} pts depuis ${precedent.moisPaqd}`,
+      texte: `${signe}${String(ecart).replace('.', ',')} pts depuis ${precedent.moisPaqd}`,
       classe: ecart > 0 ? 'text-conforme-texte' : 'text-alerte-texte',
     };
   });

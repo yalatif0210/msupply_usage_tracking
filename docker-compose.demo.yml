@@ -4,7 +4,8 @@
 #   → http://localhost:8081   (coordination / coordination-2026)
 #
 # Port hôte 8081 (le conteneur écoute toujours sur 8080 en interne) : 8080
-# est pris par un autre projet local (esigl-edge) sur cette machine.
+# est pris par un autre projet local (esigl-edge) sur cette machine. Publié
+# sur 127.0.0.1 seulement : la démo reste invisible depuis le réseau local.
 #
 # Le `docker-compose.yml` reste l'environnement de dev (base seule). Cette pile
 # est isolée : sa propre base éphémère, aucun port de base publié (l'API parle
@@ -69,7 +70,7 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     ports:
-      - '8081:8080'
+      - '127.0.0.1:8081:8080'
     depends_on:
       api:
         condition: service_healthy

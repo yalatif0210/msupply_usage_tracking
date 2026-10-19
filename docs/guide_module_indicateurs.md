@@ -76,21 +76,35 @@ le **détail transaction par transaction** derrière un couple n'est jamais gel�
 il est lu en direct du core par `/piliers/:code` avec un avertissement si le
 core a été ré-importé après le gel (`coreMajLe > calculeLe`).
 
-**P1 — complétude des transactions** (`mv_p1_completude`) : trois
-sous-composantes, seuil grille 100 %.
-- `completude_inventaires` : programmes gérés (`dim_site_programme` actif) avec
-  ≥ 1 inventaire finalisé **daté dans les trois derniers jours du mois** ÷
-  programmes gérés (ADR 0012, migration 0037 — même prédicat que
-  `promptitude_inventaires`, les deux sous-composantes sont désormais
-  identiques, c'est voulu).
-- `completude_requisitions` : programmes gérés avec ≥ 1 réquisition
-  `mois_couvert = mois PAQD` ÷ programmes gérés.
-- `completude_receptions` : réceptions finalisées ce mois ÷ factures
-  fournisseur du mois ; NON_CALCULABLE si aucune facture.
+**Règles communes depuis la migration 0048 (ADR 0018, 0019, 0020).**
+- Seules les transactions **finalisées** (`statut = 'fn'`) entrent dans P3, P4
+  et P6 ; les autres restent en core (traçabilité, dénominateur des réceptions).
+- **Programmes éligibles** : `dim_site_programme.actif`, administré dans la
+  console ; seuls ces programmes sont attendus en P1 / P2.
+- **Échéances** (`dqa.echeance_requisition`, `dqa.echeance_inventaire`) : avant
+  l'échéance, une sous-composante à échéance est NULL (non calculable), jamais
+  0. Réquisition : jour limite du mois suivant ; inventaire : dernier jour du
+  mois.
+- **Grille** : chaque sous-composante est notée par
+  `dqa.note_sous_composante(valeur, sous_composante, mois, district)` contre
+  son propre seuil et son propre sens (`sup` / `inf`) ; plus de seuil commun à
+  un pilier.
 
-Une ligne P1 n'existe que pour un mois où le site a une activité (inventaire,
-réquisition, réception ou facture). Score de pilier P1 = moyenne simple des
-sous-composantes calculables.
+**P1 — complétude des transactions** (`mv_p1_completude`) : deux
+sous-composantes (ADR 0019 : l'inventaire a quitté P1).
+- `completude_requisitions` : programmes éligibles avec ≥ 1 réquisition
+  `mois_couvert = mois PAQD` ÷ programmes éligibles ; NULL avant l'échéance.
+- `completude_receptions` : factures `facture_fournisseur` (`fn`, `cn`, `nw`)
+  citant une réquisition **ordinaire** finalisée du site qui couvre M-1 ;
+  numérateur = factures `fn` dont le mois de réception
+  (`dqa.date_reception_facture` : finalisation) égale le mois d'émission
+  (`dqa.date_emission_facture` : finalisation de la livraison liée, à défaut
+  saisie de la facture). Calcul continu, y compris pour le mois en cours ;
+  NULL si aucune facture. Comptes : `nb_factures`, `nb_factures_acceptees`.
+
+Une ligne P1 existe pour un mois où le site a un inventaire, une réquisition,
+ou une facture répondant à une réquisition du mois précédent. Score de pilier
+P1 = moyenne simple des sous-composantes calculables.
 
 **P2 — promptitude des transactions** (`mv_p2_promptitude`) : deux
 sous-composantes, **seuil grille 100 %**, dénominateur = **programmes gérés**
@@ -104,10 +118,12 @@ sous-composantes, **seuil grille 100 %**, dénominateur = **programmes gérés**
   `Hôpital de référence` 7, `District sanitaire` / `CHU` / `INSTITUT` 10), à
   défaut 10. Le détail P2 ligne à ligne réutilise cette fonction.
 
-Un programme géré sans inventaire (ou sans réquisition) du mois compte **0**,
-jamais NON_CALCULABLE : ne rien soumettre pénalise P2. NON_CALCULABLE seulement
-si le site n'a aucun programme géré déclaré. Score de pilier P2 = moyenne
-simple des deux sous-composantes.
+Une fois l'échéance passée, un programme éligible sans inventaire (ou sans
+réquisition) du mois compte **0** : ne rien soumettre pénalise P2. Avant
+l'échéance, NULL. `nb_inventaires_realise` compte tout inventaire finalisé du
+mois (alimente la synthèse « Rapports & inventaires »), `nb_inventaires_a_lheure`
+ceux des trois derniers jours. Score de pilier P2 = moyenne simple des
+sous-composantes calculables.
 
 **P3 — régularité de saisie** (`mv_p3_regularite`, branche `UNION ALL`) :
 
@@ -255,7 +271,7 @@ ouverte depuis le code produit du tableau P4 · P5. Elle rassemble, pour **un
 produit traceur**, un site et un mois, toutes les grandeurs brutes derrière les
 piliers P3 à P6 : les inventaires finalisés du mois portant le produit (stock
 théorique mSupply vs stock physique compté, écart), les photos `fact_stock_snapshot`
-du mois, les réceptions finalisées, le total dispensé + le nombre de jours avec
+du mois, les réceptions (factures fournisseur finalisées), le total dispensé + le nombre de jours avec
 dispensation, les ajustements (même prédicat que P6), et la consommation
 reconstituée (`stock ouverture + réceptions − stock clôture` entre les bornes
 inter-mois de l'écart consommation P4, cf. plus haut) vs déclarée avec leur

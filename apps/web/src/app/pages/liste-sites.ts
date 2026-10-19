@@ -6,7 +6,7 @@ import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmSkeleton } from '@spartan-ng/helm/skeleton';
 import { HlmTableImports } from '@spartan-ng/helm/table';
-import type { Programme, ScoreSite } from '@dqa/contracts';
+import type { MoisMesure, Programme, ScoreSite } from '@dqa/contracts';
 import { VALEUR_ABSENTE, versChaine } from '../core/affichage';
 import { ressource } from '../core/ressource';
 import { SitesService } from '../core/sites.service';
@@ -19,7 +19,12 @@ type FiltresListe = {
   programmeId: string;
   district: string;
   page: string;
+  /** Mois comparé ; vide = celui que sert l'API (dernier mois clos). */
+  mois: string;
 }
+
+/** En dessous, le classement repose sur trop peu de piliers pour être comparé tel quel (U2). */
+const PILIERS_MINIMUM_CLASSEMENT = 4;
 
 /** Nombre de sites par page du tableau. */
 const TAILLE_PAGE = 15;
@@ -44,7 +49,20 @@ const TAILLE_PAGE = 15;
     <main class="mx-auto max-w-6xl px-4 py-6">
       <h1 class="text-2xl font-semibold tracking-tight text-foreground">Sites du périmètre DQA</h1>
 
-      <div class="mt-4 mb-4 flex flex-wrap gap-4">
+      <div class="mt-4 mb-4 flex flex-wrap items-end gap-4">
+        <label class="grid gap-1.5 text-xs font-medium text-muted-foreground">
+          Mois
+          <hlm-select [value]="moisAffiche()" [itemToString]="libelleMois" (valueChange)="majMois($event)">
+            <hlm-select-trigger class="w-48">
+              <hlm-select-value placeholder="Mois" />
+            </hlm-select-trigger>
+            <hlm-select-content *hlmSelectPortal>
+              @for (m of mois(); track m.moisPaqd) {
+                <hlm-select-item [value]="m.moisPaqd">{{ libelleMois(m.moisPaqd) }}</hlm-select-item>
+              }
+            </hlm-select-content>
+          </hlm-select>
+        </label>
         <label class="grid gap-1.5 text-xs font-medium text-muted-foreground">
           District
           <hlm-select
@@ -80,6 +98,12 @@ const TAILLE_PAGE = 15;
             </hlm-select-content>
           </hlm-select>
         </label>
+        @if (moisProvisoire()) {
+          <span hlmBadge variant="outline" class="mb-2"
+                title="Le délai de réquisition du mois n'est pas passé : ces scores peuvent encore évoluer.">
+            Mois en cours · scores provisoires
+          </span>
+        }
       </div>
 
       @switch (res.phase()) {
@@ -125,7 +149,12 @@ const TAILLE_PAGE = 15;
                         @if (s.moisPaqd) {
                           <span class="flex items-center gap-2">
                             <dqa-badge-classification [classification]="s.classification" />
-                            @if (s.piliersCouverts < 6) {
+                            @if (s.piliersCouverts < piliersMinimum) {
+                              <span hlmBadge variant="destructive"
+                                    title="Score calculé sur trop peu de piliers : à ne pas comparer tel quel aux autres sites">
+                                {{ s.piliersCouverts }}/6 piliers · classement fragile
+                              </span>
+                            } @else if (s.piliersCouverts < 6) {
                               <span hlmBadge variant="secondary" title="Score composite renormalisé sur une couverture partielle">
                                 {{ s.piliersCouverts }}/6 piliers
                               </span>
@@ -143,6 +172,7 @@ const TAILLE_PAGE = 15;
             <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
               <p class="text-xs text-muted-foreground">
                 Sites triés du score le plus faible au plus élevé ; sites sans mesure en fin de liste.
+                Un score calculé sur moins de {{ piliersMinimum }} piliers est signalé « classement fragile ».
               </p>
               @if (nbPages() > 1) {
                 <div class="flex items-center gap-2 text-xs">
@@ -170,15 +200,35 @@ export class ListeSitesPage {
   protected readonly lignesSquelette = [0, 1, 2, 3, 4, 5];
   private readonly service = inject(SitesService);
 
+  protected readonly piliersMinimum = PILIERS_MINIMUM_CLASSEMENT;
   protected readonly districts = signal<string[]>([]);
   protected readonly programmes = signal<Programme[]>([]);
+  protected readonly mois = signal<MoisMesure[]>([]);
 
   protected readonly res = ressource<ScoreSite[], FiltresListe>({
-    charger: (f) => this.service.listerSites({ programmeId: f.programmeId || undefined }),
+    charger: (f) =>
+      this.service.listerSites({ programmeId: f.programmeId || undefined, mois: f.mois || undefined }),
     germe: [],
-    filtresInitiaux: { programmeId: '', district: '', page: '' },
-    clesUrl: ['programmeId', 'district', 'page'],
+    filtresInitiaux: { programmeId: '', district: '', page: '', mois: '' },
+    clesUrl: ['programmeId', 'district', 'page', 'mois'],
   });
+
+  /** Mois réellement servi : celui choisi, sinon celui que porte la liste (défaut de l'API). */
+  protected readonly moisAffiche = computed(
+    () => this.res.filtres().mois || this.res.valeur().find((s) => s.moisPaqd)?.moisPaqd || '',
+  );
+  protected readonly moisProvisoire = computed(
+    () => this.mois().find((m) => m.moisPaqd === this.moisAffiche())?.clos === false,
+  );
+
+  protected readonly libelleMois = (m: unknown): string => {
+    const mm = this.mois().find((x) => x.moisPaqd === m);
+    return mm ? `${mm.moisPaqd}${mm.clos ? '' : ' (provisoire)'}` : typeof m === 'string' ? m : '';
+  };
+
+  protected majMois(valeur: unknown): void {
+    this.res.definir({ mois: versChaine(valeur), page: '' });
+  }
 
   /** Filtrage `district` fait ici, sur la liste deja chargee : instantane, sans requete. */
   protected readonly sitesAffiches = computed<ScoreSite[]>(() => {
@@ -237,9 +287,14 @@ export class ListeSitesPage {
   };
 
   private async init(): Promise<void> {
-    const [d, p] = await Promise.all([this.service.districts(), this.service.programmes()]);
+    const [d, p, m] = await Promise.all([
+      this.service.districts(),
+      this.service.programmes(),
+      this.service.moisMesures(),
+    ]);
     this.districts.set(d);
     this.programmes.set(p);
+    this.mois.set(m);
     await this.res.demarrer();
   }
 }

@@ -77,8 +77,11 @@ export const POIDS_PILIER: Record<Pilier, number> = {
 
 // ─── Sous-composantes ───────────────────────────────────────────────────────
 
+/**
+ * La complétude des inventaires a quitté P1 (ADR 0019) : elle testait le même
+ * fait que la promptitude des inventaires de P2.
+ */
 export const SOUS_COMPOSANTES = [
-  'completude_inventaires',
   'completude_requisitions',
   'completude_receptions',
   'promptitude_inventaires',
@@ -93,7 +96,6 @@ export const sousComposanteSchema = z.enum(SOUS_COMPOSANTES);
 export type SousComposante = z.infer<typeof sousComposanteSchema>;
 
 export const PILIER_DE_SOUS_COMPOSANTE: Record<SousComposante, Pilier> = {
-  completude_inventaires: 'P1',
   completude_requisitions: 'P1',
   completude_receptions: 'P1',
   promptitude_inventaires: 'P2',
@@ -106,7 +108,6 @@ export const PILIER_DE_SOUS_COMPOSANTE: Record<SousComposante, Pilier> = {
 };
 
 export const LIBELLES_SOUS_COMPOSANTE: Record<SousComposante, string> = {
-  completude_inventaires: 'Complétude des inventaires',
   completude_requisitions: 'Complétude des réquisitions',
   completude_receptions: 'Complétude des réceptions',
   promptitude_inventaires: 'Promptitude des inventaires',
@@ -135,7 +136,7 @@ export function libelleSousComposante(sc: SousComposante, estDistrict: boolean):
 }
 
 export const SOUS_COMPOSANTES_DU_PILIER: Record<Pilier, readonly SousComposante[]> = {
-  P1: ['completude_inventaires', 'completude_requisitions', 'completude_receptions'],
+  P1: ['completude_requisitions', 'completude_receptions'],
   P2: ['promptitude_inventaires', 'promptitude_requisitions'],
   P3: ['regularite_saisie'],
   P4: ['ecart_sdu', 'ecart_consommation'],
@@ -151,7 +152,6 @@ export const SOUS_COMPOSANTES_DU_PILIER: Record<Pilier, readonly SousComposante[
  * Une par sous-composante, sauf P3 et P6 qui n'ont qu'un couple.
  */
 export const MESURES_BRUTES = [
-  'p1_inventaires',
   'p1_requisitions',
   'p1_receptions',
   'p2_inventaires',
@@ -166,7 +166,6 @@ export const mesureBruteSchema = z.enum(MESURES_BRUTES);
 export type MesureBrute = z.infer<typeof mesureBruteSchema>;
 
 export const PILIER_DE_MESURE_BRUTE: Record<MesureBrute, Pilier> = {
-  p1_inventaires: 'P1',
   p1_requisitions: 'P1',
   p1_receptions: 'P1',
   p2_inventaires: 'P2',
@@ -180,11 +179,10 @@ export const PILIER_DE_MESURE_BRUTE: Record<MesureBrute, Pilier> = {
 
 /** Libellé du couple : « X sur Y <libellé> ». */
 export const LIBELLES_MESURE_BRUTE: Record<MesureBrute, string> = {
-  p1_inventaires: 'inventaires finalisés',
   p1_requisitions: 'réquisitions couvrant le mois',
-  p1_receptions: 'réceptions finalisées',
-  p2_inventaires: 'inventaires dans les délais',
-  p2_requisitions: 'réquisitions dans les délais',
+  p1_receptions: "factures acceptées dans leur mois d'émission",
+  p2_inventaires: 'inventaires finalisés dans le mois',
+  p2_requisitions: 'réquisitions soumises',
   p3_regularite: 'jours avec une sortie de stock',
   p4_ecart_sdu: 'produits dans la tolérance (écart SDU)',
   p4_ecart_consommation: 'produits dans la tolérance (écart consommation)',

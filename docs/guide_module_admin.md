@@ -25,6 +25,9 @@ migration : la **grille de paramètres** (rôle `coordination`), les **comptes**
 | `PUT` | `/api/admin/strates/:typeStructure` | coordination | `StrateStructure` (upsert : `strate` + `jourLimiteRequisition` + `estDistrict`) |
 | `DELETE` | `/api/admin/strates/:typeStructure` | coordination | 204 (404 si inconnu) |
 | `GET` | `/api/admin/traceurs` | tout rôle authentifié | `ProduitTraceur[]` (lecture seule, ADR 0015) |
+| `GET` | `/api/admin/programmes-sites` | tout rôle authentifié | `VueProgrammesSites` (sites du périmètre, programmes, activité depuis le 1er du mois M-2) |
+| `PUT` | `/api/admin/programmes-sites/:siteId/:programmeId` | coordination | `ProgrammeSite` (404 si le couple n'existe pas) |
+| `POST` | `/api/admin/programmes-sites/recalcul` | coordination | 204 (`rafraichir_et_geler(NULL)`) |
 
 ## Grille de paramètres (ADR 0003)
 
@@ -96,6 +99,24 @@ refus serveur.
   seule (contrôles masqués, refus serveur en doublure).
 - `dim_site.jour_limite_requisition` (ancien override par site) a été retiré du
   contrat d'extraction : l'échéance ne dépend plus que du `type_structure`.
+
+## Programmes éligibles (ADR 0020)
+
+Écran « Programmes ». Chaque couple site x programme de SITE_PROGRAMME porte
+`actif` (éligible à l'évaluation P1 / P2) et `origine` :
+
+- `fichier` : statut repris de l'extraction, mis à jour à chaque import ;
+- `application` : fixé par la coordination (`modifie_par`, `modifie_le`), que la
+  promotion ne modifie plus jamais, même si le fichier dit l'inverse.
+
+Un couple naît toujours d'un import (avec le statut du fichier), jamais de la
+console : un `PUT` sur un couple inconnu renvoie 404. L'écran affiche le
+nombre d'inventaires finalisés et de réquisitions depuis le 1er du mois M-2
+pour repérer les programmes rattachés mais non gérés.
+
+Les scores ne se recalculent pas à chaque bascule (un gel prend plusieurs
+secondes sur les données réelles) : la coordination fait ses choix puis lance
+« Recalculer les scores » ; l'import suivant recalcule aussi.
 
 ## Produits traceurs (ADR 0015)
 

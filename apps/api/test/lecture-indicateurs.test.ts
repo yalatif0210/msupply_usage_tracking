@@ -60,7 +60,7 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(res.body).toHaveLength(1);
     const s = res.body[0];
     expect(s.site.siteId).toBe('SITE-1');
-    // fixture : P1 = 100, P2 = 100 (inventaire le 29/08 + réquisition le 05/09
+    // fixture : P1 = 100 (réquisition du mois), P2 = 100 (inventaire le 29/08 + réquisition le 05/09
     // pour un ESPC, limite 5), P3 ALERTE (0), P5 = 100, P6 = 100.
     // P4 : SDU conforme (100) mais écart consommation à 0 % (un seul inventaire
     // du mois, pas de borne d'ouverture — ADR 0012) → P4 = 50.
@@ -96,12 +96,16 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(p4.sousComposantes.map((sc) => sc.sousComposante)).toEqual(['ecart_sdu', 'ecart_consommation']);
     expect(p4.sousComposantes[0]?.statut).toBe('CONFORME');
     expect(p4.sousComposantes[1]?.statut).toBe('ALERTE');
-    // P1 : inventaires + réquisitions conformes, réceptions NON_CALCULABLE (aucune facture)
+    // P1 : réquisitions conformes, réceptions NON_CALCULABLE (aucune facture) ;
+    // l'inventaire a quitté P1 (ADR 0019)
     const p1 = detail.piliers.find((p) => p.pilier === 'P1')!;
     expect(p1.sousComposantes.map((sc) => sc.sousComposante)).toEqual([
-      'completude_inventaires', 'completude_requisitions', 'completude_receptions',
+      'completude_requisitions', 'completude_receptions',
     ]);
-    expect(p1.sousComposantes[2]?.statut).toBe('NON_CALCULABLE');
+    expect(p1.sousComposantes[1]?.statut).toBe('NON_CALCULABLE');
+    expect(p1.sousComposantes[1]?.raison).toContain('Aucune facture');
+    // suivi des réceptions, hors score
+    expect(detail.suiviReceptions.facturesEnAttente).toEqual([]);
     expect(Number(p1.score)).toBe(100);
     // P2 : promptitude inventaires + réquisitions, toutes deux à l'heure
     const p2 = detail.piliers.find((p) => p.pilier === 'P2')!;
@@ -208,9 +212,9 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(pt.scoresPiliers.find((s) => s.pilier === 'P3')?.score).toBe(0);
     expect(pt.scoresPiliers.find((s) => s.pilier === 'P1')?.score).toBe(100);
     expect(pt.piliersCouverts).toBe(6);
-    // les dix valeurs de sous-composante gelées, ordre du contrat, statut déduit du seuil
+    // les neuf valeurs de sous-composante gelées, ordre du contrat, statut déduit du seuil
     expect(pt.sousComposantes.map((s) => s.sousComposante)).toEqual([
-      'completude_inventaires', 'completude_requisitions', 'completude_receptions',
+      'completude_requisitions', 'completude_receptions',
       'promptitude_inventaires', 'promptitude_requisitions', 'regularite_saisie',
       'ecart_sdu', 'ecart_consommation', 'concordance', 'ratio_ajustements',
     ]);
@@ -218,8 +222,8 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(reg.seuil).toBe(65);
     expect(reg.statut).toBe('ALERTE'); // 1 jour / 31 sous le seuil
     expect(typeof reg.valeur).toBe('number');
-    const inv = pt.sousComposantes.find((s) => s.sousComposante === 'completude_inventaires')!;
-    expect(inv.statut).toBe('CONFORME'); // 100 % >= 100
+    const req = pt.sousComposantes.find((s) => s.sousComposante === 'completude_requisitions')!;
+    expect(req.statut).toBe('CONFORME'); // 100 % >= 100
   });
 
   it('GET /api/sites/:id/historique : 404 hors périmètre, cycle absent → plus récent', async () => {

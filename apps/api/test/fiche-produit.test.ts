@@ -102,8 +102,8 @@ describe('ficheProduitMois', () => {
     await ligne('B', 'I3', 100, 40); // non traceur
 
     // réceptions dans l'intervalle (05, 28]
-    await mouvement('RC1', 'reception', '2026-08-10', 'I1', 30);
-    await mouvement('RC2', 'reception', '2026-08-20', 'I1', 10);
+    await mouvement('RC1', 'facture_fournisseur', '2026-08-10', 'I1', 30);
+    await mouvement('RC2', 'facture_fournisseur', '2026-08-20', 'I1', 10);
 
     // dispensations : 08-02 hors intervalle, 08-12 (x2 même jour), 08-19 dans l'intervalle
     await mouvement('D0', 'dispensation', '2026-08-02', 'I1', 8);

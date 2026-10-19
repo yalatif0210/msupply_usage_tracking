@@ -10,6 +10,13 @@ import type { ApexAnnotations } from 'ng-apexcharts';
 export const POLICE_GRAPHE = 'var(--font-sans)';
 export const VALEUR_ABSENTE_GRAPHE = 'n/d';
 
+const NOMBRE_FR = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
+
+/** Étiquette d'axe ou d'infobulle au format français (« 27,5 », pas « 27.5 »). */
+export function nombreGraphe(valeur: number | null | undefined): string {
+  return valeur === null || valeur === undefined || Number.isNaN(valeur) ? VALEUR_ABSENTE_GRAPHE : NOMBRE_FR.format(valeur);
+}
+
 /** Champs `chart` communs : à étaler dans chaque `ApexChart`. */
 export const CHART_BASE = {
   fontFamily: POLICE_GRAPHE,

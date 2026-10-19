@@ -49,6 +49,20 @@ describe('ValidationService — un cas passant et un cas échouant par règle', 
     expect(aCode(r, 'ONGLET_MANQUANT')).toBe(true);
     expect(r.bloquant).toBe(true);
   });
+  it('R2 passe sans signalement quand les colonnes du canevas v2.4 sont là', () => {
+    expect(aCode(valider(), 'COLONNE_V24_ABSENTE')).toBe(false);
+  });
+  it('R2 signale (avertissement) un classeur antérieur au canevas v2.4 sans le bloquer', () => {
+    const r = valider((o) => {
+      const t = o.jeux.find((j) => j.nom === 'TRANSACTIONS')!;
+      t.colonnes = t.colonnes.filter((c) => c !== 'date_finalisation');
+    });
+    const absentes = r.anomalies.filter((a) => a.code === 'COLONNE_V24_ABSENTE');
+    expect(absentes).toHaveLength(1);
+    expect(absentes[0]!.gravite).toBe('avertissement');
+    expect(absentes[0]!.message).toContain('date_finalisation');
+    expect(r.bloquant).toBe(false);
+  });
   it('R2 échoue (bloquant) quand une colonne est renommée', () => {
     const r = valider((o) => {
       const s = o.jeux.find((j) => j.nom === 'SITES')!;
@@ -125,6 +139,14 @@ describe('ValidationService — un cas passant et un cas échouant par règle', 
   it('R7 passe pour une nature du vocabulaire', () => {
     expect(aCode(valider(), 'NATURE_INCONNUE')).toBe(false);
   });
+  it('R7 passe pour encaissement, nature des reçus de paiement rc (canevas v2.4)', () => {
+    const r = valider((o) => {
+      const l = o.jeux.find((j) => j.nom === 'TRANSACTIONS')!.lignes[0]!;
+      l['nature'] = 'encaissement';
+      l['type_transaction'] = 'rc';
+    });
+    expect(aCode(r, 'NATURE_INCONNUE')).toBe(false);
+  });
   it('R7 signale (avertissement) une nature hors vocabulaire', () => {
     const r = valider((o) => {
       o.jeux.find((j) => j.nom === 'TRANSACTIONS')!.lignes[0]!['nature'] = 'bricolage';
@@ -164,6 +186,23 @@ describe('ValidationService — un cas passant et un cas échouant par règle', 
     expect(aCode(r, 'MOIS_COUVERT_INVALIDE')).toBe(true);
     expect(r.bloquant).toBe(false);
   });
+  it('R8 passe pour une réquisition ancienne citée par une facture si (complétude des réceptions)', () => {
+    const r = valider((o) => {
+      o.jeux.find((j) => j.nom === 'REQUISITIONS')!.lignes[0]!['mois_couvert_debut'] = '2026-01-01';
+      const t = o.jeux.find((j) => j.nom === 'TRANSACTIONS')!.lignes[0]!;
+      t['type_transaction'] = 'si';
+      t['nature'] = 'facture_fournisseur';
+      t['requisition_id'] = 'R-1';
+    });
+    expect(aCode(r, 'MOIS_COUVERT_INVALIDE')).toBe(false);
+  });
+  it('R8 signale une réquisition ancienne citée par une transaction autre qu\'une facture si', () => {
+    const r = valider((o) => {
+      o.jeux.find((j) => j.nom === 'REQUISITIONS')!.lignes[0]!['mois_couvert_debut'] = '2026-01-01';
+      o.jeux.find((j) => j.nom === 'TRANSACTIONS')!.lignes[0]!['requisition_id'] = 'R-1';
+    });
+    expect(aCode(r, 'MOIS_COUVERT_INVALIDE')).toBe(true);
+  });
   it('R8 signale (avertissement) un mois_couvert_debut postérieur au mois PAQD', () => {
     const r = valider((o) => {
       o.jeux.find((j) => j.nom === 'REQUISITIONS')!.lignes[0]!['mois_couvert_debut'] = '2026-09-01';
@@ -176,6 +215,30 @@ describe('ValidationService — un cas passant et un cas échouant par règle', 
       o.jeux.find((j) => j.nom === 'REQUISITIONS')!.lignes[0]!['mois_couvert_debut'] = 'aout 2026';
     });
     expect(aCode(r, 'MOIS_COUVERT_INVALIDE')).toBe(true);
+    expect(r.bloquant).toBe(false);
+  });
+
+  // R9 : type de structure contredit par la catégorie mSupply (ADR 0021)
+  it('R9 passe quand la catégorie mSupply confirme le type retenu', () => {
+    expect(aCode(valider(), 'TYPE_STRUCTURE_CONFLIT')).toBe(false);
+  });
+  it('R9 passe quand la catégorie ne désigne aucun type (NPSP, vide)', () => {
+    const r = valider((o) => {
+      o.jeux.find((j) => j.nom === 'SITES')!.lignes[0]!['type_structure_msupply'] = '';
+    });
+    expect(aCode(r, 'TYPE_STRUCTURE_CONFLIT')).toBe(false);
+  });
+  it('R9 signale (info) une catégorie contredite par le préfixe du nom, sans bloquer', () => {
+    const r = valider((o) => {
+      const l = o.jeux.find((j) => j.nom === 'SITES')!.lignes[0]!;
+      l['site_nom'] = 'CHR PUBLIC de BONDOUKOU';
+      l['type_structure'] = 'CHR';
+      l['type_structure_msupply'] = 'ESPC';
+    });
+    const conflits = r.anomalies.filter((a) => a.code === 'TYPE_STRUCTURE_CONFLIT');
+    expect(conflits).toHaveLength(1);
+    expect(conflits[0]!.gravite).toBe('info');
+    expect(conflits[0]!.message).toContain('CHR PUBLIC de BONDOUKOU');
     expect(r.bloquant).toBe(false);
   });
 });

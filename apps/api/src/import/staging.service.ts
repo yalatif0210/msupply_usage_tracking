@@ -16,7 +16,7 @@ export class StagingService {
     for (const def of JEUX) {
       const onglet = classeur.onglets.get(def.onglet);
       if (!onglet || onglet.lignes.length === 0) continue;
-      await this.inserer(exec, def.table, def.colonnes, onglet.lignes, lotId);
+      await this.inserer(exec, def.table, [...def.colonnes, ...(def.facultatives ?? [])], onglet.lignes, lotId);
     }
   }
 

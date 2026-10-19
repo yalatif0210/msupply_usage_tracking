@@ -1,7 +1,13 @@
 # Spécification d'extraction mSupply · SUM (Suivi de l'Utilisation de mSupply)
 
 **Destinataire :** DAP / Nouvelle PSP-CI (chargé de l'extraction)
-**Version :** 2.3 (2026-10-13) · révisions : INVENTAIRES gagne
+**Version :** 2.4 (2026-10-19) · révisions, après l'audit des piliers sur le
+premier fichier réel : fenêtre ouverte au 1ᵉʳ jour du 2ᵉ mois précédent ;
+toutes les factures fournisseur `si` (`nw`, `cn`, `fn`), avec leur date de
+finalisation et la livraison liée ; réquisitions citées par une facture ;
+`rc` transmis en nature `encaissement` ; type de structure tranché par le
+préfixe du nom, catégorie mSupply transmise à côté. Version 2.3 (2026-10-13) :
+INVENTAIRES gagne
 `heure_inventaire` et `numero_inventaire` ; quantités en unités, sans
 conversion par le conditionnement ; réquisition
 du site servi dans TRANSACTIONS ; paramètres contrôlés par le script. Version 2.2 : PRODUITS limité aux
@@ -26,11 +32,14 @@ semaine au tableau de bord.
 ## 1. Cadence et fenêtre
 
 - **Fréquence :** hebdomadaire, le même jour chaque semaine.
-- **Fenêtre d'extraction :** les **45 derniers jours** à chaque extraction (et
-  non « depuis le dernier envoi »). Ce recouvrement permet de rattraper une
-  semaine manquée.
+- **Fenêtre d'extraction :** du **1ᵉʳ jour du 2ᵉ mois avant la date
+  d'extraction** jusqu'à la date d'extraction (extraction du 12 octobre : du
+  1ᵉʳ août au 12 octobre), à chaque extraction et non « depuis le dernier
+  envoi ». Le mois M-2 est ainsi extrait en entier (une fenêtre de 45 jours
+  le notait sur ses derniers jours seulement), et le recouvrement permet de
+  rattraper une semaine manquée. Le script refuse un autre début.
 - **Période de calcul :** le **mois PAQD** en cours, déclaré dans METADATA. La
-  fenêtre de 45 jours est volontairement plus large que le mois.
+  fenêtre est volontairement plus large que le mois.
 - **Cycle PAQD :** 4 mois consécutifs, notés M+1 à M+4. Trois cycles par an sur
   l'année civile (C1 = janvier-avril, C2 = mai-août, C3 = septembre-décembre).
 
@@ -117,9 +126,10 @@ doivent donc figurer ici), avec marquage du périmètre DQA.
 | `site_nom` | texte | ● | `store.name` |
 | `district` | texte | ● | `store.name_id → name.category1_id → name_category1.description` |
 | `region` | texte | ● | `name_category1.parent_id → name_category1_level2.description` (lien direct, vérifié par la DAP le 2026-10-12) |
-| `type_structure` | texte | ● | `name.category3_id → name_category3.description` (le palier, voir §5.3) |
+| `type_structure` | texte | ● | le palier, tranché par le préfixe du nom du site, à défaut `name_category3` (voir §5.3) |
 | `actif` | OUI/NON | ● | `store.disabled = false` |
 | `dans_perimetre_dqa` | OUI/NON | ● | **liste fournie par la mission DQA** (annexe A) |
+| `type_structure_msupply` | texte | ○ | type déduit de la seule catégorie `name_category3` ; vide si elle ne désigne pas un type (`NPSP`). Différent de `type_structure` : catégorie à corriger dans mSupply (§5.3) |
 
 ### 4.3 SITE_PROGRAMME · grain : (site, programme)
 
@@ -155,6 +165,12 @@ nulle part ailleurs.
 Transactions dont la `finalised_date` **ou** la `confirm_date` tombe dans la
 fenêtre d'extraction. Inclure les annulations (marquées), exclure les brouillons.
 
+**Exception : les factures fournisseur `si`** sont toutes transmises, quel que
+soit leur statut (`nw`, `cn`, `fn`), dès que leur `entry_date` tombe dans la
+fenêtre. Une facture adressée au site et jamais confirmée est précisément ce
+que mesure la complétude des réceptions (ADR 0019) ; une facture n'est
+réceptionnée qu'au statut `fn`, à sa date de finalisation (ADR 0018).
+
 | Colonne | Type | Requis | Source mSupply |
 |---|---|---|---|
 | `transaction_id` | texte | ● | `transact.id` |
@@ -167,10 +183,13 @@ fenêtre d'extraction. Inclure les annulations (marquées), exclure les brouillo
 | `annulation` | OUI/NON | ● | `transact.is_cancellation` |
 | `date_saisie` | date | ● | `transact.entry_date` |
 | `date_confirmation` | date | ○ | `transact.confirm_date` |
-| `date_livraison` | date | ▶ | `transact.ship_date` (obligatoire si `nature = reception`) |
+| `date_livraison` | date | ○ | `transact.ship_date` |
 | `requisition_id` | texte | ○ | `transact.requisition_id` ; si cette réquisition appartient au magasin qui distribue et est liée (`linked_requisition_id`) à celle d'un autre magasin, l'identifiant de cette dernière (la réquisition du site servi) |
 | `goods_received_id` | texte | ○ | `transact.goods_received_id` |
 | `commentaire` | texte | ▶ | `transact.comment` (obligatoire si `nature` ∈ {`ajustement_positif`, `ajustement_negatif`}) |
+| `date_finalisation` | date | ▶ | `transact.finalised_date` (obligatoire si `statut = fn` ; pour une facture `si`, date de réception) |
+| `transaction_liee_id` | texte | ○ | facture `si` seulement : la livraison qui l'a produite, `transact.linked_transaction_id` de la facture, à défaut la transaction d'un autre magasin dont `linked_transaction_id` désigne la facture. Vide pour un site livré par la NPSP |
+| `date_finalisation_liee` | date | ○ | facture `si` seulement : `finalised_date` de cette livraison, qui fixe le mois où la facture doit être acceptée. Transmise directement : le district peut être hors périmètre |
 
 ### 4.6 LIGNES_TRANSACTIONS · grain : (transaction, produit, lot)
 
@@ -259,6 +278,11 @@ fenêtre, **et** dont le mois couvert tombe entre M-2 et M (M = mois PAQD) :
 c'est la plage que le tableau de bord exploite. Une réquisition saisie
 tardivement pour un mois plus ancien n'est pas transmise.
 
+**Exception :** une réquisition citée par une facture `si` transmise
+(`requisition_id` de TRANSACTIONS) l'est aussi, quels que soient sa date et
+son mois couvert. La complétude des réceptions part de la réquisition du mois
+M-1 (ADR 0019) : le mois M-2 de la fenêtre a besoin de celles du mois M-3.
+
 | Colonne | Type | Requis | Source mSupply |
 |---|---|---|---|
 | `requisition_id` | texte | ● | `requisition.id` |
@@ -288,37 +312,44 @@ tardivement pour un mois plus ancien n'est pas transmise.
 | 2 | `dispensation` | `type = 'ci'` **et** `mode = 'dispensary'` |
 | 3 | `distribution` | `type = 'ci'` **et** `mode = 'store'` |
 | 4 | `facture_fournisseur` | `type = 'si'` |
-| 5 | `reception` | `type = 'rc'` |
+| 5 | `encaissement` | `type = 'rc'` : reçu de paiement (« Reçu pour facture(s) … »), sans produit, exclu des piliers (ADR 0018) |
 | 6 | `retour_fournisseur` | `type = 'sc'` |
 | 7 | `retour_client` | `type = 'cc'` |
 | 8 | `autre` | tout le reste |
 
 ### 5.2 `statut` · valeurs mSupply attendues
 
-`fn` (finalisé) · `cn` (confirmé) · `sg` (suggéré) · `nw` (nouveau). Le tableau
-de bord ne calcule que les `fn`.
+Transactions : `fn` (finalisé) · `cn` (confirmé) · `nw` (nouveau). Le statut
+`sg` (suggéré) n'existe que pour les réquisitions et les inventaires. Le
+tableau de bord ne calcule que les `fn` ; les factures `cn` et `nw` servent au
+dénominateur de la complétude des réceptions.
 
-### 5.3 `type_structure` : le palier, pas le sous-type
+### 5.3 `type_structure` : tranché par le préfixe du nom
 
-`type_structure` porte la valeur de `name_category3.description` **telle
-quelle** : le palier de la pyramide sanitaire. Sur le jeu réel, trois valeurs :
-`ESPC`, `Hôpital de référence`, `District sanitaire`. Le sous-type (CSU vs CSR,
-CHR vs HG) n'est **pas** demandé : il reste lisible dans `site_nom` et le code.
+`type_structure` porte l'un des libellés `ESPC`, `HG`, `CHR`, `CHU`,
+`District sanitaire`. Le **préfixe du nom du site** l'emporte sur la
+catégorie mSupply (ADR 0021) : il suit la convention nationale de
+dénomination, alors qu'une catégorie mal saisie appliquerait au site le
+mauvais délai de réquisition et la mauvaise strate (lot du 2026-10-14 :
+26 sites en conflit, dont CHR PUBLIC de BONDOUKOU typé ESPC).
+
+1. Le nom commence par un sous-type reconnu : `CSU`, `CSR`, `CSUS`, `CSA`,
+   `FSU`, `CAT`, `DR`, `INFIRMERIE` donnent `ESPC` ; `CHR` donne `CHR` ;
+   `HG`, `HGS`, `HÔPITAL GÉNÉRAL` donnent `HG` ; `CHU` donne `CHU` ;
+   `DISTRICT SANITAIRE`, `DDS` donnent `District sanitaire`.
+2. Sinon, `name_category3` : `ESPC`, `CHU`, `District Sanitaire` ; `Hopital`,
+   trop large, départagé en `CHR` / `HG` d'après le nom (`HG` par défaut).
+3. Sinon vide (dépôts NPSP, magasins système).
+
+`type_structure_msupply` transmet le type que donnerait la seule règle 2.
+Quand il diffère de `type_structure`, le script liste le site en fin
+d'extraction et le tableau de bord le signale à l'import : la catégorie est à
+corriger dans mSupply.
 
 L'échéance de réquisition et le régime de scoring district ne sont plus dans
 l'extraction : ils sont administrés côté tableau de bord, dans le référentiel
-`strate_structure` (ADR 0013). Valeurs par défaut de ce référentiel :
-
-| `type_structure` | jour limite de réquisition | régime |
-|---|---|---|
-| `ESPC` | 5 | site de soins |
-| `Hôpital de référence` | 7 | site de soins |
-| `District sanitaire` | 10 | district |
-| `CHU`, `INSTITUT` | 10 | site de soins |
-| (palier inconnu) | 10 | site de soins |
-
-Fournir les libellés exacts tels qu'ils apparaissent dans `name_category3` ; un
-libellé nouveau se rattache dans la console, sans nouvelle livraison.
+des types de structure (ADR 0013). Un libellé nouveau s'y rattache dans la
+console, sans nouvelle livraison.
 
 ---
 
@@ -341,8 +372,10 @@ d'extraction de la DAP.
 1. **Périodes mSupply mensuelles :** existe-t-il un calendrier de périodes
    (`periodschedule` / `period`) où chaque période = un mois civil ? Sinon,
    `mois_couvert_*` sera dérivé de `date_stock_take` (§4.10).
-2. **Types `si` / `rc` :** confirmer que `si` correspond bien à la facture
-   fournisseur adressée au site et `rc` à la réception enregistrée par le site.
+2. **Types `si` / `rc` :** résolu le 2026-10-14 sur le premier fichier réel.
+   `si` est la facture fournisseur adressée au site (`nw`, puis `cn`, puis
+   `fn`) ; `rc` est un reçu de paiement, sans produit, transmis en nature
+   `encaissement` (ADR 0018). Point clos.
 3. **Ajustements hors INVAD :** des pertes, casses ou péremptions sont-elles
    parfois saisies autrement qu'en ajustement d'inventaire (ex. sortie manuelle
    vers un tiers) ? Si oui, en quel volume approximatif.

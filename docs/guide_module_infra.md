@@ -23,6 +23,8 @@ Puis <http://localhost:8081> — connexion `coordination` / `coordination-2026`
 
 - Le front (Nginx) écoute sur `:8080` ; `3000` / `4200` sont laissés libres
   pour `elyon-erp`.
+- Le port 8081 est publié sur `127.0.0.1` uniquement, jamais sur toutes les
+  interfaces : un collègue sur le même réseau ne peut pas atteindre la démo.
 - L'API n'est pas exposée sur l'hôte : Nginx relaie `/api` vers le conteneur.
 - La base de la démo est **isolée** (volume `demo_db`), aucun port publié —
   elle n'entre pas en conflit avec le `dqa-db-1` du dev.

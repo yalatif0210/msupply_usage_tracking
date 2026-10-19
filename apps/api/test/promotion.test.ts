@@ -194,6 +194,49 @@ describe('promotion staging → core', () => {
     expect(Number(rows[0]?.t)).toBe(30);
   });
 
+  it('canevas v2.4 : facture si promue avec sa finalisation et sa livraison liée, rc en encaissement', async () => {
+    const opts = optionsValides();
+    const tx = opts.jeux.find((j) => j.nom === 'TRANSACTIONS')!;
+    const base0 = tx.lignes[0]!;
+    tx.lignes.push(
+      { ...base0, transaction_id: 'TX-SI', nature: 'facture_fournisseur', type_transaction: 'si', mode: 'store',
+        statut: 'fn', date_saisie: '2026-08-11', date_finalisation: '2026-08-14',
+        transaction_liee_id: 'TX-DISTRICT', date_finalisation_liee: '2026-08-09' },
+      // script antérieur au v2.4 : rc libellé « reception »
+      { ...base0, transaction_id: 'TX-RC', nature: 'reception', type_transaction: 'rc', mode: 'store',
+        date_finalisation: '', transaction_liee_id: '', date_finalisation_liee: '' },
+    );
+    opts.metadata['nb_lignes_TRANSACTIONS'] = String(tx.lignes.length);
+    const res = await deposer(construireClasseur(opts), 'v24.xlsx');
+    expect(res.body.statut).toBe('valide');
+    const { rows } = await base.pool.query<{
+      transaction_id: string; nature: string; fin: string | null; liee: string | null; fin_liee: string | null;
+    }>(
+      `SELECT transaction_id, nature, date_finalisation::text AS fin, transaction_liee_id AS liee,
+              date_finalisation_liee::text AS fin_liee
+       FROM dqa.fact_transaction WHERE transaction_id IN ('TX-SI', 'TX-RC') ORDER BY transaction_id`,
+    );
+    expect(rows).toEqual([
+      { transaction_id: 'TX-RC', nature: 'encaissement', fin: null, liee: null, fin_liee: null },
+      { transaction_id: 'TX-SI', nature: 'facture_fournisseur', fin: '2026-08-14', liee: 'TX-DISTRICT', fin_liee: '2026-08-09' },
+    ]);
+  });
+
+  it('le type mSupply d\'origine du site est conservé à côté du type retenu', async () => {
+    const opts = optionsValides();
+    const site = opts.jeux.find((j) => j.nom === 'SITES')!.lignes[0]!;
+    site['site_nom'] = 'CHR PUBLIC de BONDOUKOU';
+    site['type_structure'] = 'CHR';
+    site['type_structure_msupply'] = 'ESPC';
+    const res = await deposer(construireClasseur(opts), 'type.xlsx');
+    expect(res.body.statut).toBe('valide');
+    const { rows } = await base.pool.query<{ t: string; m: string }>(
+      `SELECT type_structure AS t, type_structure_msupply AS m FROM dqa.dim_site WHERE site_id = 'SITE-1'`,
+    );
+    expect(rows[0]).toEqual({ t: 'CHR', m: 'ESPC' });
+    expect((res.body.anomalies as { code: string }[]).some((a) => a.code === 'TYPE_STRUCTURE_CONFLIT')).toBe(true);
+  });
+
   it('un même lot réparti sur plusieurs lignes de stock est agrégé en une photo', async () => {
     // mSupply scinde un lot en plusieurs item_line (emplacements, conditionnements) :
     // lot du 2026-10-12 rejeté par l'upsert faute d'agrégation.

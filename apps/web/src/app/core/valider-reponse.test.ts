@@ -62,6 +62,15 @@ const detailSixPiliers = (opts: { scoreComposite: unknown; classification: unkno
     pilier(c, c === 'P5' || c === 'P6' ? 100 : null),
   ),
   sousComposantes: sc10(),
+  suiviReceptions: {
+    nbRequisitions: 4,
+    nbAvecFacture: 3,
+    dateReference: '2026-09-02',
+    delaiAlerteJours: 7,
+    facturesEnAttente: [
+      { reference: null, statut: 'nw', moisCouvert: '2026-07', dateEmission: '2026-08-20', ancienneteJours: 13, enAlerte: true },
+    ],
+  },
 });
 
 describe('validerReponse (couture D)', () => {
@@ -121,6 +130,7 @@ describe('validerReponse (couture D)', () => {
       moyennesPiliers: (['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as Pilier[]).map((pilier) => ({
         pilier,
         moyenne: 50,
+        nbSites: 4,
       })),
       ...over,
     },
@@ -136,6 +146,13 @@ describe('validerReponse (couture D)', () => {
       nbAlerte: 1,
       nbNonCalculable: 1,
     })),
+    suiviReceptions: {
+      nbRequisitions: 10,
+      nbAvecFacture: 7,
+      nbFacturesEnAttente: 3,
+      nbFacturesEnAlerte: 1,
+      delaiAlerteJours: 7,
+    },
   });
 
   it('accepte une SyntheseNationale complète', () => {
@@ -342,7 +359,7 @@ describe('validerReponse (couture D)', () => {
     moisDisponibles: ['2026-08'],
     programmeId: null,
     comptesBruts: [
-      { mesure: 'p1_inventaires', libelle: 'inventaires', attendu: 2, realise: 1, aLHeure: null },
+      { mesure: 'p1_requisitions', libelle: 'réquisitions', attendu: 2, realise: 1, aLHeure: null },
     ],
     calculeLe: '2026-09-01T00:00:00.000Z',
     coreMajLe: '2026-09-02T00:00:00.000Z',
@@ -351,11 +368,15 @@ describe('validerReponse (couture D)', () => {
   const detailPilierP1 = (over: Record<string, unknown> = {}) => ({
     ...detailPilierBase,
     code: 'p1',
-    inventaires: [{ date: '2026-08-28', programme: 'VIH' }],
     requisitions: [{ programme: 'VIH', moisCouvert: '2026-08', dateSoumission: null }],
-    receptions: [{ date: '2026-08-10', reference: 'GRN-1' }],
-    factures: [{ date: '2026-08-05', reference: null }],
-    programmesGeres: [{ programme: 'VIH', aInventaire: true, aRequisition: false }],
+    echeanceRequisitions: '2026-09-05',
+    factures: [
+      {
+        reference: null, programme: 'VIH', moisCouvert: '2026-07', statut: 'fn',
+        dateEmission: '2026-08-05', dateReception: '2026-08-10', acceptee: true,
+      },
+    ],
+    programmesGeres: [{ programme: 'VIH', aRequisition: false }],
     ...over,
   });
   const detailPilierP2 = (over: Record<string, unknown> = {}) => ({
@@ -365,6 +386,8 @@ describe('validerReponse (couture D)', () => {
     requisitions: [
       { programme: 'VIH', dateSoumission: '2026-08-31', dateLimite: '2026-09-05', aLHeure: true },
     ],
+    echeanceInventaires: '2026-08-31',
+    echeanceRequisitions: '2026-09-05',
     ...over,
   });
   const detailPilierP3 = (over: Record<string, unknown> = {}) => ({

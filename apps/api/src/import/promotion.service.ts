@@ -35,16 +35,17 @@ const ETAPES: { nom: string; sql: string }[] = [
     nom: 'dim_site',
     sql: `
       INSERT INTO dqa.dim_site
-        (site_id, site_code, site_nom, district, region, type_structure,
+        (site_id, site_code, site_nom, district, region, type_structure, type_structure_msupply,
          actif, dans_perimetre_dqa, lot_id_source, maj_le)
-      SELECT site_id, site_code, coalesce(site_nom, ''), district, region, type_structure,
+      SELECT site_id, site_code, coalesce(site_nom, ''), district, region, type_structure, type_structure_msupply,
              ${B('actif')}, ${B('dans_perimetre_dqa')},
              $1, now()
       FROM dqa.stg_sites WHERE lot_id = $1 AND site_id IS NOT NULL
       ON CONFLICT (site_id) DO UPDATE SET
         site_code = EXCLUDED.site_code, site_nom = EXCLUDED.site_nom,
         district = EXCLUDED.district, region = EXCLUDED.region,
-        type_structure = EXCLUDED.type_structure, actif = EXCLUDED.actif,
+        type_structure = EXCLUDED.type_structure, type_structure_msupply = EXCLUDED.type_structure_msupply,
+        actif = EXCLUDED.actif,
         dans_perimetre_dqa = EXCLUDED.dans_perimetre_dqa,
         lot_id_source = EXCLUDED.lot_id_source, maj_le = now()`,
   },
@@ -106,7 +107,10 @@ const ETAPES: { nom: string; sql: string }[] = [
       JOIN dqa.dim_programme p ON p.programme_id = sp.programme_id
       WHERE sp.lot_id = $1
       ON CONFLICT (site_id, programme_id) DO UPDATE SET
-        actif = EXCLUDED.actif, lot_id_source = EXCLUDED.lot_id_source, maj_le = now()`,
+        -- Un statut fixé dans la console n'est jamais écrasé par un import (ADR 0020).
+        actif = CASE WHEN dim_site_programme.origine = 'application'
+                     THEN dim_site_programme.actif ELSE EXCLUDED.actif END,
+        lot_id_source = EXCLUDED.lot_id_source, maj_le = now()`,
   },
   {
     nom: 'fact_transaction',
@@ -121,16 +125,19 @@ const ETAPES: { nom: string; sql: string }[] = [
       INSERT INTO dqa.fact_transaction
         (transaction_id, site_id, nature, programme_id, type_transaction, mode, statut,
          annulation, date_saisie, date_confirmation, date_livraison, requisition_id,
-         goods_received_id, commentaire, lot_id_source, maj_le)
+         goods_received_id, commentaire, date_finalisation, transaction_liee_id,
+         date_finalisation_liee, lot_id_source, maj_le)
       SELECT t.transaction_id, t.site_id,
              COALESCE(
                (SELECT n FROM invad WHERE tx = t.transaction_id),
                CASE
+                 -- Reçu de paiement, jamais une réception de marchandises
+                 -- (ADR 0018), quel que soit le libellé du script d'extraction.
+                 WHEN lower(t.type_transaction) = 'rc' THEN 'encaissement'
                  WHEN t.nature IN (${NATURE_LISTE}) THEN t.nature
                  WHEN lower(t.type_transaction) = 'ci' AND lower(t.mode) = 'dispensary' THEN 'dispensation'
                  WHEN lower(t.type_transaction) = 'ci' AND lower(t.mode) = 'store' THEN 'distribution'
                  WHEN lower(t.type_transaction) = 'si' THEN 'facture_fournisseur'
-                 WHEN lower(t.type_transaction) = 'rc' THEN 'reception'
                  WHEN lower(t.type_transaction) = 'sc' THEN 'retour_fournisseur'
                  WHEN lower(t.type_transaction) = 'cc' THEN 'retour_client'
                  ELSE 'autre'
@@ -138,7 +145,8 @@ const ETAPES: { nom: string; sql: string }[] = [
              p.programme_id, t.type_transaction, t.mode, t.statut,
              ${B('t.annulation')}, ${D('t.date_saisie')}, ${D('t.date_confirmation')},
              ${D('t.date_livraison')}, nullif(t.requisition_id, ''), nullif(t.goods_received_id, ''),
-             nullif(t.commentaire, ''), $1, now()
+             nullif(t.commentaire, ''), ${D('t.date_finalisation')}, nullif(t.transaction_liee_id, ''),
+             ${D('t.date_finalisation_liee')}, $1, now()
       FROM dqa.stg_transactions t
       JOIN dqa.dim_site s ON s.site_id = t.site_id
       LEFT JOIN dqa.dim_programme p ON p.programme_id = t.programme_id
@@ -149,7 +157,10 @@ const ETAPES: { nom: string; sql: string }[] = [
         annulation = EXCLUDED.annulation, date_saisie = EXCLUDED.date_saisie,
         date_confirmation = EXCLUDED.date_confirmation, date_livraison = EXCLUDED.date_livraison,
         requisition_id = EXCLUDED.requisition_id, goods_received_id = EXCLUDED.goods_received_id,
-        commentaire = EXCLUDED.commentaire, lot_id_source = EXCLUDED.lot_id_source, maj_le = now()`,
+        commentaire = EXCLUDED.commentaire, date_finalisation = EXCLUDED.date_finalisation,
+        transaction_liee_id = EXCLUDED.transaction_liee_id,
+        date_finalisation_liee = EXCLUDED.date_finalisation_liee,
+        lot_id_source = EXCLUDED.lot_id_source, maj_le = now()`,
   },
   {
     nom: 'fact_ligne_transaction',

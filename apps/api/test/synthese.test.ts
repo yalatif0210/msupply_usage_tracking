@@ -339,7 +339,7 @@ describe('vue mv_synthese_nationale', () => {
     expect((await parSc('regularite_saisie', null, null, null, '2026-07'))?.nb_alerte).toBe(1);
   });
 
-  it('sous-composante : un site du périmètre sans ligne du mois pèse dix cellules NON_CALCULABLE', async () => {
+  it('sous-composante : un site du périmètre sans ligne du mois pèse une cellule NON_CALCULABLE par sous-composante', async () => {
     await site('S1', 'NORD', 'D1');
     await site('S2', 'NORD', 'D1'); // périmètre, aucune ligne hist
     await histSc('S1', null, '2026-08', { sc_regularite_saisie: 65 });
@@ -351,7 +351,7 @@ describe('vue mv_synthese_nationale', () => {
         [gid],
       )
     ).rows.map((r) => r.sous_composante);
-    expect(noms).toHaveLength(10);
+    expect(noms).toHaveLength(9); // la complétude des inventaires a quitté P1 (ADR 0019)
 
     for (const nom of noms) {
       const ligne = await parSc(nom, null, null);

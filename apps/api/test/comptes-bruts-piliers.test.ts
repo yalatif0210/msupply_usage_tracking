@@ -54,6 +54,22 @@ describe('vues de pilier : couples attendu / réalisé', () => {
        VALUES ($1,'S1',$2,$3,'fn',$4::date,1)`,
       [id, nature, prog, jour],
     );
+  /** Réquisition ordinaire finalisée couvrant juillet : base des réceptions d'août (ADR 0019). */
+  const reqJuillet = (id: string, prog: string) =>
+    db.query(
+      `INSERT INTO dqa.fact_requisition
+         (requisition_id, site_id, programme_id, mois_couvert, type_requisition, statut, lot_id_source)
+       VALUES ($1,'S1',$2,'2026-07','Ordinaire','fn',1)`,
+      [id, prog],
+    );
+  /** Facture `si` citant une réquisition ; acceptée si finalisée dans son mois d'émission. */
+  const facture = (id: string, requisitionId: string, statut: string, saisie: string, finalisation: string | null) =>
+    db.query(
+      `INSERT INTO dqa.fact_transaction
+         (transaction_id, site_id, nature, type_transaction, statut, requisition_id, date_saisie, date_finalisation, lot_id_source)
+       VALUES ($1,'S1','facture_fournisseur','si',$2,$3,$4::date,$5::date,1)`,
+      [id, statut, requisitionId, saisie, finalisation],
+    );
   const refresh = () => db.query(`CALL dqa.rafraichir_et_geler(NULL)`);
   const ligneP1 = <T extends Record<string, unknown>>(cols: string) =>
     db
@@ -63,40 +79,29 @@ describe('vues de pilier : couples attendu / réalisé', () => {
       )
       .then((r) => r.rows[0]);
 
-  it('P1 : inventaires et réquisitions réalisés sur programmes gérés', async () => {
-    // VIH : inventaire (dans les 3 derniers jours) + réquisition ; TB : rien
-    await inv('A', 'VIH', '2026-08-29');
+  it('P1 : réquisitions réalisées sur programmes éligibles', async () => {
+    // VIH : réquisition du mois ; TB : rien
     await req('R1', 'VIH', '2026-08-31');
     await refresh();
     const row = await ligneP1<{
-      nb_inventaires_realise: number;
-      nb_inventaires_attendu: number;
       nb_requisitions_realise: number;
       nb_requisitions_attendu: number;
-      completude_inventaires_pct: string;
-    }>(
-      'nb_inventaires_realise, nb_inventaires_attendu, nb_requisitions_realise, nb_requisitions_attendu, completude_inventaires_pct',
-    );
-    expect(row).toMatchObject({
-      nb_inventaires_realise: 1,
-      nb_inventaires_attendu: 2,
-      nb_requisitions_realise: 1,
-      nb_requisitions_attendu: 2,
-    });
-    expect(Number(row!.completude_inventaires_pct)).toBe(50);
+      completude_requisitions_pct: string;
+    }>('nb_requisitions_realise, nb_requisitions_attendu, completude_requisitions_pct');
+    expect(row).toMatchObject({ nb_requisitions_realise: 1, nb_requisitions_attendu: 2 });
+    expect(Number(row!.completude_requisitions_pct)).toBe(50);
   });
 
-  it('P1 : réceptions / factures fournisseur', async () => {
-    await tx('RC1', 'reception', '2026-08-10');
-    await tx('RC2', 'reception', '2026-08-12');
-    await tx('FA1', 'facture_fournisseur', '2026-08-05');
-    await tx('FA2', 'facture_fournisseur', '2026-08-06');
-    await tx('FA3', 'facture_fournisseur', '2026-08-07');
+  it('P1 : factures acceptées dans leur mois d\'émission / factures répondant aux réquisitions', async () => {
+    await reqJuillet('R7', 'VIH');
+    await facture('FA1', 'R7', 'fn', '2026-08-05', '2026-08-06');
+    await facture('FA2', 'R7', 'fn', '2026-08-06', '2026-08-20');
+    await facture('FA3', 'R7', 'nw', '2026-08-07', null);
     await refresh();
-    const row = await ligneP1<{ nb_receptions: number; nb_factures: number; completude_receptions_pct: string }>(
-      'nb_receptions, nb_factures, completude_receptions_pct',
+    const row = await ligneP1<{ nb_factures_acceptees: number; nb_factures: number; completude_receptions_pct: string }>(
+      'nb_factures_acceptees, nb_factures, completude_receptions_pct',
     );
-    expect(row).toMatchObject({ nb_receptions: 2, nb_factures: 3 });
+    expect(row).toMatchObject({ nb_factures_acceptees: 2, nb_factures: 3 });
     expect(Number(row!.completude_receptions_pct)).toBeCloseTo(66.7, 1);
   });
 
@@ -172,29 +177,28 @@ describe('vues de pilier : couples attendu / réalisé', () => {
         )
         .then((r) => r.rows[0]);
 
-    it('fige les trois mesures P1 au grain « tous programmes »', async () => {
-      await inv('A', 'VIH', '2026-08-29');
+    it('fige les deux mesures P1 au grain « tous programmes »', async () => {
       await req('R1', 'VIH', '2026-08-31');
-      await tx('RC1', 'reception', '2026-08-10');
-      await tx('FA1', 'facture_fournisseur', '2026-08-05');
-      await tx('FA2', 'facture_fournisseur', '2026-08-06');
+      await reqJuillet('R7', 'VIH');
+      await facture('FA1', 'R7', 'fn', '2026-08-05', '2026-08-06');
+      await facture('FA2', 'R7', 'cn', '2026-08-06', null);
       await geler();
-      expect(await brut('p1_inventaires')).toMatchObject({ nb_attendu: 2, nb_realise: 1, nb_a_lheure: null });
-      expect(await brut('p1_requisitions')).toMatchObject({ nb_attendu: 2, nb_realise: 1 });
+      expect(await brut('p1_requisitions')).toMatchObject({ nb_attendu: 2, nb_realise: 1, nb_a_lheure: null });
       expect(await brut('p1_receptions')).toMatchObject({ nb_attendu: 2, nb_realise: 1 });
-      expect((await brut('p1_inventaires')).lot_id).toBe(await lot());
+      expect((await brut('p1_requisitions')).lot_id).toBe(await lot());
+      expect(await brut('p1_inventaires')).toBeUndefined(); // sortie de P1 (ADR 0019)
     });
 
     it('ré-appliquer le gel écrase la ligne (upsert sur la clé mesure)', async () => {
-      await inv('A', 'VIH', '2026-08-29');
+      await req('R1', 'VIH', '2026-08-31');
       await geler();
-      expect((await brut('p1_inventaires')).nb_realise).toBe(1);
-      await inv('B', 'TB', '2026-08-30');
+      expect((await brut('p1_requisitions')).nb_realise).toBe(1);
+      await req('R2', 'TB', '2026-08-31');
       await geler();
-      expect((await brut('p1_inventaires')).nb_realise).toBe(2);
+      expect((await brut('p1_requisitions')).nb_realise).toBe(2);
       const { rows } = await db.query(
         `SELECT count(*)::int AS n FROM dqa.hist_pilier_brut
-         WHERE site_id='S1' AND mois_paqd='2026-08' AND programme_id IS NULL AND mesure='p1_inventaires'`,
+         WHERE site_id='S1' AND mois_paqd='2026-08' AND programme_id IS NULL AND mesure='p1_requisitions'`,
       );
       expect(rows[0]).toMatchObject({ n: 1 });
     });
@@ -220,18 +224,15 @@ describe('vues de pilier : couples attendu / réalisé', () => {
         )
         .then((r) => r.rows[0]);
 
-    it('P2 : attendu, réalisé (repris de P1) et à l\'heure figés', async () => {
+    it('P2 : attendu, réalisé (tout inventaire du mois) et à l\'heure figés', async () => {
       await inv('A', 'VIH', '2026-08-29'); // dans les 3 derniers jours
-      await inv('B', 'TB', '2026-08-10'); // hors des 3 derniers jours : ne compte plus (ADR 0012)
+      await inv('B', 'TB', '2026-08-10'); // réalisé, mais hors des 3 derniers jours
       await geler();
-      // Depuis l'ADR 0012, un inventaire hors des 3 derniers jours ne compte ni
-      // pour P1 ni pour P2 : seul VIH (le 29) est réalisé, et à l'heure.
       expect(await brut('p2_inventaires')).toMatchObject({
         nb_attendu: 2,
-        nb_realise: 1,
+        nb_realise: 2,
         nb_a_lheure: 1,
       });
-      expect((await brut('p1_inventaires')).nb_realise).toBe(1);
     });
 
     it('P3 : jours avec sortie / jours du mois', async () => {
@@ -244,7 +245,7 @@ describe('vues de pilier : couples attendu / réalisé', () => {
 
     it('P6 : ajustements / mouvements', async () => {
       await db.query(`INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom) VALUES ('x','X','X')`);
-      await tx('M1', 'reception', '2026-08-05');
+      await tx('M1', 'facture_fournisseur', '2026-08-05');
       await tx('M2', 'dispensation', '2026-08-06');
       await tx('AJ', 'ajustement_positif', '2026-08-07');
       for (const t of ['M1', 'M2', 'AJ']) {

@@ -3,7 +3,7 @@
 --  Une requête par onglet du gabarit Canevas_Extraction_mSupply_DQA_v2.xlsx
 --
 --  Destinataire  : DAP / Nouvelle PSP-CI (chargé de l'extraction)
---  Contrat       : docs/specification_extraction_dap.md (v2.0, 2026-08-28)
+--  Contrat       : docs/specification_extraction_dap.md (v2.4, 2026-10-19)
 --  Base cible    : mSupply (PostgreSQL). Script 100% lecture seule --
 --                  aucune ligne n'est créée, modifiée ni supprimée.
 --
@@ -23,6 +23,12 @@
 --  réquisition du site servi rattachée aux distributions des districts,
 --  heure et numéro des inventaires, sous-requêtes corrélées remplacées par
 --  des jointures (testé sur 30 000 transactions sans index).
+--  Canevas v2.4 (2026-10-19), après l'audit des piliers sur le premier
+--  fichier réel : fenêtre ouverte au 1er jour du 2e mois précédent, toutes
+--  les factures fournisseur `si` (y compris non finalisées) avec leur date
+--  de finalisation et la livraison qui les a produites, réquisitions citées
+--  par ces factures, `rc` classé en encaissement, type de structure arbitré
+--  par le préfixe du nom du site (ADR 0018, 0019, 0021).
 --
 --  Mode d'emploi
 --  -------------
@@ -143,14 +149,16 @@
 -- psql ne les ignore pas sur une méta-commande, ils seraient collés à la
 -- valeur (et une apostrophe dans le commentaire casse la ligne).
 --
--- fenetre_debut   : 45 jours avant la date d'extraction (spec §1)
+-- fenetre_debut   : 1er jour du 2e mois avant la date d'extraction (spec §1) :
+--                   extraction du 12 octobre -> 1er août. Le mois M-2 est
+--                   ainsi extrait en entier, jamais sur ses derniers jours.
 -- fenetre_fin     : date d'extraction (aujourd'hui)
 -- mois_debut/fin  : 1er et dernier jour du mois PAQD en cours
 -- cycle_paqd      : AAAA-CN
 -- mois_paqd       : M+1 à M+4 dans le cycle
 -- version_msupply : visible dans mSupply : Aide > À propos
 -- observations    : toute anomalie constatée pendant l'extraction (facultatif)
-\set fenetre_debut     2026-08-29
+\set fenetre_debut     2026-08-01
 \set fenetre_fin       2026-10-12
 \set mois_debut        2026-10-01
 \set mois_fin          2026-10-31
@@ -213,8 +221,12 @@ FROM tmp_parametres WHERE fenetre_fin > current_date;
 SELECT pg_temp.avertir('fenetre_fin ' || fenetre_fin || ' n''est pas la date du jour (' || current_date
                        || ') : les mouvements postérieurs ne seront pas extraits')
 FROM tmp_parametres WHERE fenetre_fin < current_date;
-SELECT pg_temp.avertir('fenêtre de ' || (fenetre_fin - fenetre_debut) || ' jours au lieu de 45 (spec §1)')
-FROM tmp_parametres WHERE fenetre_fin - fenetre_debut <> 45;
+-- Un début plus tardif amputerait le mois M-2 (le lot du 2026-10-14 notait
+-- août sur 3 jours de données) ; plus précoce, il alourdit l'envoi sans rien
+-- apporter aux indicateurs.
+SELECT pg_temp.echec('fenetre_debut ' || fenetre_debut || ' : attendu le 1er jour du 2e mois avant fenetre_fin, soit '
+                     || (date_trunc('month', fenetre_fin) - interval '2 months')::date)
+FROM tmp_parametres WHERE fenetre_debut <> (date_trunc('month', fenetre_fin) - interval '2 months')::date;
 
 
 -- ══ Listes fournies par la mission DQA (annexe A de la spécification) ═══════
@@ -252,15 +264,22 @@ FROM tmp_parametres WHERE fenetre_fin - fenetre_debut <> 45;
 -- remonte ensuite au pays dans `name_category1_level1`, inutile ici).
 --
 -- type_structure : le PALIER (spec §5.3), ramené au libellé exact attendu
--- par le gabarit : ESPC, HG, CHR, CHU ou District sanitaire.
---   1. name_category3 fait foi quand il est clair : ESPC, CHU, District
---      Sanitaire (-> « District sanitaire »).
---   2. « Hopital » est trop large : départagé en CHR / HG d'après le nom du
---      site (« CHR PUBLIC de ... », « HG PUBLIC de ... ») ; HG par défaut.
---   3. Palier vide ou « NPSP » (agences, dépôts, mais aussi des CSU/CAT mal
---      catégorisés dans mSupply) : déduit du nom du site si celui-ci commence
---      par un sous-type reconnu, sinon laissé vide (dépôts NPSP, magasins
---      système...). Ces sites sont à corriger dans mSupply à la source.
+-- par le gabarit : ESPC, HG, CHR, CHU ou District sanitaire. Le PRÉFIXE DU
+-- NOM du site l'emporte sur la catégorie mSupply (ADR 0021) : il suit la
+-- convention nationale de dénomination, alors qu'une catégorie mal saisie
+-- (lot du 2026-10-14 : 26 sites, dont CHR PUBLIC de BONDOUKOU typé ESPC)
+-- appliquerait au site le mauvais délai de réquisition et la mauvaise strate.
+--   1. Le nom commence par un sous-type reconnu (CSU, CSR... -> ESPC ; CHR ;
+--      HG ; CHU ; DISTRICT SANITAIRE) : ce type, quelle que soit la catégorie.
+--   2. Sinon, name_category3 : ESPC, CHU, District Sanitaire ; « Hopital »,
+--      trop large, départagé en CHR / HG d'après le nom (HG par défaut).
+--   3. Sinon vide (dépôts NPSP, magasins système...).
+--
+-- type_structure_msupply : le type déduit de la SEULE catégorie mSupply
+-- (règle 2), vide quand la catégorie ne désigne pas un type (« NPSP », vide).
+-- Quand il diffère de type_structure, la catégorie est à corriger dans
+-- mSupply : la liste s'affiche en fin d'extraction et le tableau de bord la
+-- signale à l'import.
 --
 -- jour_limite_requisition : déduit du palier normalisé (consigne du
 -- gabarit) -- 5 pour les ESPC, 7 pour HG/CHR, 10 pour CHU et districts.
@@ -274,18 +293,19 @@ WITH base AS (
         c1.description                                               AS district,
         c1l2.description                                              AS region,
         CASE
-            WHEN upper(trim(c3.description)) = 'ESPC'               THEN 'ESPC'
-            WHEN upper(trim(c3.description)) = 'CHU'                THEN 'CHU'
-            WHEN upper(trim(c3.description)) = 'DISTRICT SANITAIRE' THEN 'District sanitaire'
-            WHEN upper(trim(c3.description)) IN ('HOPITAL', 'HÔPITAL')
-                THEN CASE WHEN upper(s.name) ~ '\mCHR\M' THEN 'CHR' ELSE 'HG' END
-            -- palier vide ou NPSP : repli sur le début du nom du site
             WHEN upper(s.name) ~ '^(CSU|CSR|CSUS|CSA|FSU|CAT|DR|INFIRMERIE)\M' THEN 'ESPC'
             WHEN upper(s.name) ~ '^CHR\M'                           THEN 'CHR'
             WHEN upper(s.name) ~ '^(HG|HGS|H[OÔ]PITAL G[EÉ]N[EÉ]RAL)\M' THEN 'HG'
             WHEN upper(s.name) ~ '^CHU\M'                           THEN 'CHU'
             WHEN upper(s.name) ~ '^(DISTRICT SANITAIRE|DDS)\M'      THEN 'District sanitaire'
-        END                                                            AS type_structure,
+        END                                                            AS type_prefixe,
+        CASE
+            WHEN upper(trim(c3.description)) = 'ESPC'               THEN 'ESPC'
+            WHEN upper(trim(c3.description)) = 'CHU'                THEN 'CHU'
+            WHEN upper(trim(c3.description)) = 'DISTRICT SANITAIRE' THEN 'District sanitaire'
+            WHEN upper(trim(c3.description)) IN ('HOPITAL', 'HÔPITAL')
+                THEN CASE WHEN upper(s.name) ~ '\mCHR\M' THEN 'CHR' ELSE 'HG' END
+        END                                                            AS type_categorie,
         CASE WHEN s.disabled THEN 'NON' ELSE 'OUI' END                 AS actif,
         CASE WHEN p.site_id IS NOT NULL THEN 'OUI' ELSE 'NON' END       AS dans_perimetre_dqa
     FROM store s
@@ -300,17 +320,23 @@ WITH base AS (
     -- SITES, sinon chaque ligne lève une REFERENCE_CROISEE au dépôt. La
     -- colonne `actif` dit alors NON.
     WHERE s.disabled = false OR p.site_id IS NOT NULL
+),
+arbitre AS (
+    SELECT base.*, COALESCE(type_prefixe, type_categorie) AS type_structure
+    FROM base
 )
 SELECT
-    base.*,
+    site_id, site_code, site_nom, district, region, type_structure,
+    actif, dans_perimetre_dqa,
     CASE type_structure
         WHEN 'ESPC'               THEN '5'
         WHEN 'HG'                 THEN '7'
         WHEN 'CHR'                THEN '7'
         WHEN 'CHU'                THEN '10'
         WHEN 'District sanitaire' THEN '10'
-    END                                                                AS jour_limite_requisition
-FROM base;
+    END                                                                AS jour_limite_requisition,
+    type_categorie                                                     AS type_structure_msupply
+FROM arbitre;
 
 
 -- ══ 2. SITE_PROGRAMME ════════════════════════════════════════════════════
@@ -377,9 +403,25 @@ LEFT JOIN unit u ON u.id = i.unit_id;
 
 -- ══ 4. TRANSACTIONS ══════════════════════════════════════════════════════
 -- Grain : une transaction. Fenêtre : `finalised_date` OU `confirm_date`
--- dans les 45 jours (spec §4.5). Exclut les brouillons (`status = 'nw'`,
+-- dans la fenêtre (spec §4.5). Exclut les brouillons (`status = 'nw'`,
 -- spec §5.2) ; inclut les annulations, marquées comme telles plutôt
 -- qu'exclues. Restreint au périmètre DQA.
+--
+-- Exception : les factures fournisseur `si` sont TOUTES extraites, `nw`
+-- compris, dès que leur date de saisie tombe dans la fenêtre (ADR 0019). Une
+-- facture adressée au site mais jamais confirmée est justement ce que mesure
+-- la complétude des réceptions : sans elle, le taux tend mécaniquement vers
+-- 100 %. Seul le statut `fn` (réception admise) compte ensuite comme entrée
+-- de stock (ADR 0018).
+--
+-- date_finalisation : date de réception d'une facture `si` (ADR 0018).
+-- transaction_liee_id / date_finalisation_liee : pour une facture `si`, la
+-- livraison du district qui l'a produite et sa date de finalisation, qui fixe
+-- le mois où la facture doit être acceptée (ADR 0019). mSupply pose le lien
+-- sur la facture (`linked_transaction_id`) ou, selon la version, sur la
+-- livraison : les deux sens sont lus. Date transmise directement parce que le
+-- district peut être hors périmètre, donc absent du fichier. Vides pour une
+-- facture sans livraison liée (site livré par la NPSP).
 --
 -- `nature` est DÉRIVÉE, jamais recopiée depuis un champ mSupply (spec
 -- §5.1) : `transact.type` est un champ texte libre côté source, sans
@@ -395,7 +437,9 @@ LEFT JOIN unit u ON u.id = i.unit_id;
 --   2. dispensation        -- type 'ci' + mode 'dispensary'
 --   3. distribution         -- type 'ci' + mode 'store'
 --   4. facture_fournisseur  -- type 'si'
---   5. reception            -- type 'rc'
+--   5. encaissement         -- type 'rc' : reçu de paiement (« Reçu pour
+--                              facture(s) ... »), pas une réception de
+--                              marchandises ; exclu des piliers (ADR 0018)
 --   6. retour_fournisseur   -- type 'sc'
 --   7. retour_client        -- type 'cc'
 --   8. autre                -- tout le reste
@@ -409,11 +453,34 @@ WITH fenetre AS (
     SELECT t.*
     FROM transact t
     JOIN tmp_perimetre_dqa p ON p.site_id = t.store_id
-    WHERE t.status <> 'nw'
-      AND (
-            t.finalised_date BETWEEN :'fenetre_debut'::date AND :'fenetre_fin'::date
-         OR t.confirm_date   BETWEEN :'fenetre_debut'::date AND :'fenetre_fin'::date
+    WHERE (
+            t.status <> 'nw'
+        AND (
+              t.finalised_date BETWEEN :'fenetre_debut'::date AND :'fenetre_fin'::date
+           OR t.confirm_date   BETWEEN :'fenetre_debut'::date AND :'fenetre_fin'::date
+            )
           )
+       OR (
+            t.type = 'si' AND t.status IN ('nw', 'cn', 'fn')
+        AND t.entry_date BETWEEN :'fenetre_debut'::date AND :'fenetre_fin'::date
+          )
+),
+liee AS (
+    -- Livraison liée à chaque facture `si`, dans un sens ou dans l'autre ;
+    -- une livraison du même magasin n'en est pas une. Lien direct préféré.
+    SELECT DISTINCT ON (l.facture_id) l.facture_id, l.liee_id, l.liee_finalisation
+    FROM (
+        SELECT f.id AS facture_id, lt.id AS liee_id, lt.finalised_date AS liee_finalisation, 1 AS rang
+        FROM fenetre f
+        JOIN transact lt ON lt.id = f.linked_transaction_id AND lt.store_id <> f.store_id
+        WHERE f.type = 'si'
+        UNION ALL
+        SELECT f.id, lt.id, lt.finalised_date, 2
+        FROM fenetre f
+        JOIN transact lt ON lt.linked_transaction_id = f.id AND lt.store_id <> f.store_id
+        WHERE f.type = 'si'
+    ) l
+    ORDER BY l.facture_id, l.rang, l.liee_id
 ),
 adj_direct AS (
     -- Chemin fiable : la transaction EST directement référencée par
@@ -457,7 +524,7 @@ SELECT
             WHEN f.type = 'ci' AND f.mode = 'dispensary' THEN 'dispensation'
             WHEN f.type = 'ci' AND f.mode = 'store'      THEN 'distribution'
             WHEN f.type = 'si' THEN 'facture_fournisseur'
-            WHEN f.type = 'rc' THEN 'reception'
+            WHEN f.type = 'rc' THEN 'encaissement'
             WHEN f.type = 'sc' THEN 'retour_fournisseur'
             WHEN f.type = 'cc' THEN 'retour_client'
             ELSE 'autre'
@@ -484,10 +551,14 @@ SELECT
     -- liées), sh 42, im 32, vide 23, EPIWastageResponse 1.
     COALESCE(rq_site.id, f.requisition_id)                          AS requisition_id,
     f.goods_received_id                                             AS goods_received_id,
-    f.comment                                                       AS commentaire
+    f.comment                                                       AS commentaire,
+    to_char(f.finalised_date, 'YYYY-MM-DD')                         AS date_finalisation,
+    li.liee_id                                                      AS transaction_liee_id,
+    to_char(li.liee_finalisation, 'YYYY-MM-DD')                     AS date_finalisation_liee
 FROM fenetre f
 LEFT JOIN adj_direct ad  ON ad.transaction_id = f.id
 LEFT JOIN adj_lignes al  ON al.transaction_id = f.id
+LEFT JOIN liee li        ON li.facture_id = f.id
 LEFT JOIN requisition rq_rep  ON rq_rep.id = f.requisition_id AND rq_rep.store_id = f.store_id
                              AND rq_rep.type ~* 'response$'
 LEFT JOIN requisition rq_site ON rq_site.id = rq_rep.linked_requisition_id
@@ -659,23 +730,36 @@ FROM requisition r
 LEFT JOIN period per      ON per.id = r.periodid
 JOIN tmp_perimetre_dqa p  ON p.site_id = r.store_id
 WHERE coalesce(r.type, '') !~* 'response$'
+  -- Mois couvert indéterminable (ni période, ni date d'inventaire de
+  -- référence) : écarté, le tableau de bord ne pourrait pas le rattacher à
+  -- un mois.
+  AND COALESCE(per.startdate, r.date_stock_take) IS NOT NULL
   AND (
-        r.date_entered BETWEEN :'fenetre_debut'::date AND :'fenetre_fin'::date
-     OR (
-          COALESCE(per.startdate, date_trunc('month', r.date_stock_take)::date) <= :'fenetre_fin'::date
-      AND COALESCE(per.enddate,   (date_trunc('month', r.date_stock_take) + interval '1 month - 1 day')::date) >= :'fenetre_debut'::date
+        (
+              (
+                r.date_entered BETWEEN :'fenetre_debut'::date AND :'fenetre_fin'::date
+             OR (
+                  COALESCE(per.startdate, date_trunc('month', r.date_stock_take)::date) <= :'fenetre_fin'::date
+              AND COALESCE(per.enddate,   (date_trunc('month', r.date_stock_take) + interval '1 month - 1 day')::date) >= :'fenetre_debut'::date
+                )
+              )
+          -- Le mois couvert doit tomber entre M-2 et M (M = mois PAQD) : c'est
+          -- la fenêtre que le tableau de bord exploite (règle
+          -- MOIS_COUVERT_INVALIDE). Sans cette borne, une réquisition saisie
+          -- récemment pour un mois ancien (correction tardive) passe par
+          -- `date_entered` et lève un avertissement au dépôt (313 sur le lot du
+          -- 2026-10-12).
+          AND date_trunc('month', COALESCE(per.startdate, r.date_stock_take))
+              BETWEEN date_trunc('month', :'mois_debut'::date) - interval '2 months'
+                  AND date_trunc('month', :'mois_debut'::date)
         )
-      )
-  -- Le mois couvert doit tomber entre M-2 et M (M = mois PAQD) : c'est la
-  -- fenêtre que le tableau de bord exploite (règle MOIS_COUVERT_INVALIDE).
-  -- Sans cette borne, une réquisition saisie récemment pour un mois ancien
-  -- (correction tardive) passe par `date_entered` et lève un avertissement
-  -- au dépôt (313 sur le lot du 2026-10-12). Un mois couvert indéterminable
-  -- (ni période, ni date d'inventaire de référence) est écarté pour la même
-  -- raison : le tableau de bord ne pourrait pas le rattacher à un mois.
-  AND date_trunc('month', COALESCE(per.startdate, r.date_stock_take))
-      BETWEEN date_trunc('month', :'mois_debut'::date) - interval '2 months'
-          AND date_trunc('month', :'mois_debut'::date);
+     -- Une réquisition citée par une facture `si` extraite est transmise quels
+     -- que soient sa date et son mois couvert : la complétude des réceptions
+     -- part de la réquisition du mois M-1 (ADR 0019), et le mois M-2 de la
+     -- fenêtre a besoin de celles du mois M-3. Le tableau de bord ne la
+     -- signale pas en MOIS_COUVERT_INVALIDE.
+     OR r.id IN (SELECT requisition_id FROM tmp_transactions WHERE type_transaction = 'si')
+      );
 
 
 -- ══ METADATA ═════════════════════════════════════════════════════════════
@@ -732,13 +816,25 @@ UNION ALL SELECT 'observations',              :'observations';
 \copy (SELECT * FROM tmp_requisitions)        TO 'requisitions.csv'        WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
 
 
+-- ══ Types de structure à corriger dans mSupply ═════════════════════════════
+-- Sites dont la catégorie mSupply contredit le préfixe du nom (ADR 0021) : le
+-- classeur porte déjà le type tranché par le préfixe, la liste sert à
+-- corriger la catégorie à la source. Les sites du périmètre DQA d'abord.
+\echo
+\echo '== Types de structure : catégorie mSupply contredite par le préfixe du nom =='
+SELECT dans_perimetre_dqa AS perimetre_dqa, site_nom,
+       type_structure_msupply AS categorie_msupply, type_structure AS type_retenu
+FROM tmp_sites
+WHERE type_structure_msupply IS NOT NULL AND type_structure_msupply <> type_structure
+ORDER BY dans_perimetre_dqa DESC, site_nom;
+
 -- ══ Points encore ouverts avec la DAP (annexe B de la spécification) ════════
 -- 1. Calendrier de périodes : REQUISITIONS utilise `period` si `periodid`
 --    est renseigné, sinon dérive le mois depuis `date_stock_take`. À
 --    confirmer : le repli se déclenche-t-il souvent ?
--- 2. `si` / `rc` : la requête TRANSACTIONS suppose `si` = facture
---    fournisseur adressée au site, `rc` = réception enregistrée par le
---    site. À confirmer.
+-- 2. `si` / `rc` : RÉSOLU le 2026-10-14 sur le premier fichier réel. `si` =
+--    facture fournisseur adressée au site (nw -> cn -> fn) ; `rc` = reçu de
+--    paiement, sans produit, classé en encaissement (ADR 0018).
 -- 3. Ajustements hors INVAD : la branche `adj_lignes` de TRANSACTIONS est
 --    un repli pour ce cas. En surveiller la fréquence réelle.
 -- 4. `programid` / `periodid` : la requête les prend tels quels (NULL
@@ -748,7 +844,8 @@ UNION ALL SELECT 'observations',              :'observations';
 --    direct name_category1.parent_id -> name_category1_level2, vérifié par
 --    la DAP sur la base réelle (202/202 districts résolus).
 -- 6. type_structure : ce script produit ESPC / HG / CHR / CHU / District
---    sanitaire (consigne du gabarit DAP). Le référentiel du tableau de bord
+--    sanitaire (consigne du gabarit DAP), tranché par le préfixe du nom en
+--    cas de conflit avec la catégorie (ADR 0021). Le référentiel du tableau de bord
 --    (console « Types de structure ») doit connaître HG et CHR pour leur
 --    appliquer l'échéance de réquisition de 7 jours ; un libellé inconnu
 --    retombe sur 10 jours. Action côté coordination, pas côté extraction.

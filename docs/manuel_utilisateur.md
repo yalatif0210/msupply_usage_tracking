@@ -204,29 +204,40 @@ parfaitement conformes. Le calcul complet est repris section 6.
 
 ### P1 · Complétude des transactions (poids 10 %, seuil 100 %)
 
-Trois sous-composantes, chacune un ratio **programmes gérés avec l'activité
-attendue ÷ programmes gérés** :
+Deux sous-composantes. L'inventaire n'en fait plus partie : il était déjà
+mesuré, à l'identique, par la promptitude des inventaires (P2).
 
-- **Complétude des inventaires** : programmes gérés ayant reçu au moins un
-  inventaire finalisé **dans les trois derniers jours du mois**. Un inventaire
-  de milieu de mois ne tient pas lieu d'inventaire de fin de mois : cette
-  sous-composante et la promptitude des inventaires (P2) sont désormais
-  identiques, l'échéance de fin de mois pèse alors 10 % (P1) + 15 % (P2).
-- **Complétude des réquisitions** : programmes gérés ayant soumis au moins une
-  réquisition couvrant ce mois.
-- **Complétude des réceptions** : réceptions finalisées ce mois ÷ factures
-  fournisseur du mois (non calculable si aucune facture).
+- **Complétude des réquisitions** : programmes **éligibles** ayant soumis au
+  moins une réquisition couvrant ce mois ÷ programmes éligibles. Les programmes
+  éligibles se règlent dans l'écran **Programmes** : un programme rattaché au
+  site dans mSupply mais qu'il ne gère pas se désactive là, et un import ne
+  revient jamais sur ce choix. Avant le jour limite de soumission (5, 7 ou 10
+  du mois suivant selon le type de structure), la sous-composante est **non
+  calculable**, jamais 0.
+- **Complétude des réceptions** : on part des réquisitions **ordinaires**
+  finalisées du site qui couvrent le mois précédent, puis des factures
+  fournisseur qui y répondent. Taux = factures **acceptées (finalisées) dans
+  leur mois d'émission** ÷ toutes ces factures, y compris celles que le site
+  n'a pas encore prises en main. Le mois d'émission est celui de la livraison
+  du district, à défaut celui de la création de la facture (site livré par la
+  NPSP). Ce taux se suit **en continu** pendant le mois : un taux bas en cours
+  de mois signale des factures à faire accepter. Non calculable si aucune
+  facture ne répond aux réquisitions.
 
-**Exemple (CHR de Daloa, août 2026) :** l'hôpital gère 1 programme (VIH). 1
-inventaire finalisé le 29 août (dans les 3 derniers jours) sur 1 attendu
-→ 100 %. 1 réquisition sur 1 attendue → 100 %. 2 réceptions sur 2 factures
-fournisseur → 100 %. Les trois sous-composantes sont CONFORME (seuil 100 %) :
-**score P1 = 100**.
+**Exemple (CHR de Daloa, août 2026) :** l'hôpital a 1 programme éligible
+(VIH). 1 réquisition couvrant août sur 1 attendue → 100 %. La réquisition
+ordinaire de juillet a reçu 2 factures, acceptées toutes deux en août, leur
+mois d'émission → 100 %. Les deux sous-composantes sont CONFORME (seuil
+100 %) : **score P1 = 100**.
+
+Le bloc **Suivi des réceptions** de la fiche site (hors score) complète ce
+pilier : part des réquisitions du mois précédent qui ont reçu une facture, et
+liste des factures encore en attente, signalées au-delà de 7 jours.
 
 ### P2 · Promptitude des transactions (poids 15 %, seuil = 100 %)
 
-Deux sous-composantes, même dénominateur que P1 (programmes gérés), mais on
-compte cette fois ceux dont l'activité est arrivée **à temps** :
+Deux sous-composantes, même dénominateur que P1 (programmes éligibles), mais
+on compte cette fois ceux dont l'activité est arrivée **à temps** :
 
 - **Promptitude des inventaires** : inventaire finalisé dans les **trois
   derniers jours du mois**.
@@ -237,12 +248,14 @@ compte cette fois ceux dont l'activité est arrivée **à temps** :
   district sanitaire, un CHU ou un institut. La coordination peut l'ajuster
   par type sans nouvelle livraison.
 
-Un programme géré qui n'a rien soumis compte 0, jamais « non calculable » :
-ne rien transmettre pénalise ce pilier.
+Une fois l'échéance passée (dernier jour du mois pour l'inventaire, jour
+limite du mois suivant pour la réquisition), un programme éligible qui n'a rien
+soumis compte 0 : ne rien transmettre pénalise ce pilier. Avant l'échéance, la
+sous-composante est non calculable : le délai n'est pas écoulé.
 
 **Exemple :** la réquisition VIH du CHR de Daloa couvrant août est soumise le
 2026-09-04, limite le 2026-09-07 (hôpital de référence → 7 jours) : à l'heure,
-elle est arrivée par l'extraction du 5 septembre, dans la fenêtre de 45 jours.
+elle est arrivée par l'extraction du 5 septembre, dont la fenêtre couvre juillet, août et septembre.
 L'inventaire du 29 août est dans les 3 derniers jours. Inventaire et réquisition
 à l'heure :
 **score P2 = 100**.

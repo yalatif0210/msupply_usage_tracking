@@ -63,7 +63,7 @@ describe('socle base de données DQA', () => {
     );
     expect(Number(rows[0]?.somme)).toBe(100);
     const seuils = await db.query(`SELECT * FROM dqa.grille_seuil_sous_composante`);
-    expect(seuils.rowCount).toBe(10);
+    expect(seuils.rowCount).toBe(9); // la complétude des inventaires a quitté P1 (ADR 0019)
     // écart SDU et écart consommation portent une tolérance par produit
     const tol = await db.query<{ n: string }>(
       `SELECT count(*)::text AS n FROM dqa.grille_seuil_sous_composante

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, type OnInit, inject, input } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import type { FicheProduitMois } from '@dqa/contracts';
@@ -32,6 +32,7 @@ type FiltresProduit = {
     FormsModule,
     RouterLink,
     DecimalPipe,
+    DatePipe,
     Coquille,
     BarreAttente,
     HlmSkeleton,
@@ -131,10 +132,16 @@ type FiltresProduit = {
             }
 
             <h3 class="mt-5 text-sm font-medium text-muted-foreground">Photos de stock du mois</h3>
+            <p class="mt-1 text-xs text-muted-foreground">
+              Stock disponible dans mSupply le jour où la DAP a lancé l'extraction : une photo par extraction,
+              datée de ce jour, indépendante des inventaires. Elle n'entre dans aucun pilier.
+            </p>
             @if (f.snapshots.length > 0) {
               <ul class="mt-2 space-y-0.5 text-sm">
                 @for (s of f.snapshots; track s.datePhoto) {
-                  <li class="tabular-nums">{{ s.datePhoto }} : {{ s.quantiteDisponible | number: '1.0-3' }} disponibles</li>
+                  <li class="tabular-nums">
+                    {{ s.datePhoto | date: 'dd/MM/yyyy' }} (jour d'extraction) : {{ s.quantiteDisponible | number: '1.0-3' }} disponibles
+                  </li>
                 }
               </ul>
             } @else {
@@ -177,14 +184,17 @@ type FiltresProduit = {
             }
 
             <h3 class="mt-5 text-sm font-medium text-muted-foreground">Réceptions du mois</h3>
+            <p class="mt-1 text-xs text-muted-foreground">
+              Factures fournisseur finalisées (réception admise), datées de leur finalisation.
+            </p>
             @if (f.receptions.length > 0) {
               <ul class="mt-2 space-y-0.5 text-sm">
                 @for (r of f.receptions; track $index) {
-                  <li class="tabular-nums">{{ r.date }} : {{ r.quantite | number: '1.0-3' }}</li>
+                  <li class="tabular-nums">{{ r.date | date: 'dd/MM/yyyy' }} : {{ r.quantite | number: '1.0-3' }}</li>
                 }
               </ul>
             } @else {
-              <p class="mt-2 text-sm text-muted-foreground">Aucune réception finalisée ce mois.</p>
+              <p class="mt-2 text-sm text-muted-foreground">Aucune facture fournisseur finalisée ce mois.</p>
             }
           </section>
 
@@ -227,7 +237,7 @@ type FiltresProduit = {
           </section>
 
           @if (f.calculeLe) {
-            <p class="mt-8 text-xs text-muted-foreground tabular-nums">Comptes du mois gelés le {{ f.calculeLe }}</p>
+            <p class="mt-8 text-xs text-muted-foreground tabular-nums">Comptes du mois gelés le {{ f.calculeLe | date: "dd/MM/yyyy 'à' HH:mm" }}</p>
           }
         }
       } @else {

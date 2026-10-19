@@ -44,7 +44,7 @@ describe('synthèse « rapports & inventaires »', () => {
   const gere = async (siteId: string, prog: string) =>
     db.query(`INSERT INTO dqa.dim_site_programme (site_id, programme_id, actif) VALUES ($1,$2,true)`, [siteId, prog]);
 
-  /** Insère les quatre mesures P1 / P2 d'un (site, programme, mois). */
+  /** Insère les trois mesures P1 / P2 d'un (site, programme, mois). */
   const brut = async (
     siteId: string,
     prog: string | null,
@@ -55,8 +55,7 @@ describe('synthèse « rapports & inventaires »', () => {
     const lignes: [string, number | null, number | null, number | null][] = [
       ['p1_requisitions', req.attendu, req.realise, null],
       ['p2_requisitions', req.attendu, null, req.aLHeure],
-      ['p1_inventaires', inv.attendu, inv.realise, null],
-      ['p2_inventaires', inv.attendu, null, inv.aLHeure],
+      ['p2_inventaires', inv.attendu, inv.realise, inv.aLHeure],
     ];
     for (const [mesure, a, r, h] of lignes) {
       await db.query(
@@ -66,16 +65,8 @@ describe('synthèse « rapports & inventaires »', () => {
         [siteId, mois, prog, mesure, a, r, h],
       );
     }
-    // La colonne « Réalisés » des inventaires vient d'un inventaire finalisé
-    // réel du mois (migration 0041), pas de la mesure gelée : un seul par
-    // (site, programme, mois), quelle que soit sa date.
-    if (prog && inv.realise >= 1) {
-      await db.query(
-        `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut)
-         VALUES ($1,$2,$3,($4 || '-15')::date,'fn')`,
-        [`INV-${siteId}-${prog}-${mois}`, siteId, prog, mois],
-      );
-    }
+    // Depuis l'ADR 0019, attendus, réalisés et à l'heure des inventaires
+    // viennent tous trois de la mesure P2 gelée.
   };
 
   const rafraichir = () => db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_rapports`);

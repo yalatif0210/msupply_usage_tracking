@@ -68,11 +68,13 @@ d'extraction se répercute là.
 | `BORNES_MOIS_INCOHERENTES` | erreur | `mois_debut` / `mois_fin` ≠ mois attendu du cycle + rang |
 | `MOIS_PAQD_FUTUR`, `MOIS_PAQD_TROP_ANCIEN` | erreur | mois mesuré hors de la fenêtre [extraction − 1 mois, extraction] |
 | `ONGLET_MANQUANT`, `COLONNE_MANQUANTE` | erreur | onglet obligatoire absent, nom de colonne (ligne 5) modifié |
+| `COLONNE_V24_ABSENTE` | avertissement | colonne ajoutée par le canevas v2.4 (`date_finalisation`, `transaction_liee_id`, `date_finalisation_liee`, `type_structure_msupply`) absente : classeur d'un script antérieur, importé quand même |
 | `COMPTEUR_METADATA` | erreur | `nb_lignes_<JEU>` ≠ nombre de lignes réel |
 | `REFERENCE_CROISEE` | avertissement | `site_id` / `produit_id` / … cité mais absent du jeu de référence |
 | `DATE_MAL_FORMEE`, `NOMBRE_INVALIDE`, `BOOLEEN_INVALIDE`, `CHAMP_REQUIS_VIDE` | avertissement | format de champ |
 | `NATURE_INCONNUE` | avertissement | `nature` hors vocabulaire contrôlé |
-| `MOIS_COUVERT_INVALIDE` | avertissement | `mois_couvert_debut` d'une réquisition absent, mal formé, postérieur au mois PAQD ou plus de 2 mois avant lui (au-delà de la fenêtre de 45 jours) ; seule une date mal formée écarte la ligne de la promotion |
+| `MOIS_COUVERT_INVALIDE` | avertissement | `mois_couvert_debut` d'une réquisition absent, mal formé, postérieur au mois PAQD ou plus de 2 mois avant lui ; jamais pour une réquisition citée par une facture `si` du classeur ; seule une date mal formée écarte la ligne de la promotion |
+| `TYPE_STRUCTURE_CONFLIT` | info | `type_structure_msupply` (catégorie mSupply) différent de `type_structure` (préfixe du nom, ADR 0021) : catégorie à corriger dans mSupply, le site est importé avec le type du préfixe |
 | `REFERENCE_NON_PROMUE` | avertissement | ligne non promue au core faute de dépendance |
 | `RAFRAICHISSEMENT_DIFFERE` | avertissement | lot promu, rafraîchissement des scores échoué |
 
@@ -93,6 +95,14 @@ règle — voir `test/import-validation.test.ts`.
 - **`nature` : extraction d'abord, dérivation en secours.** La colonne `nature`
   du canevas V2 fait foi si elle est dans le vocabulaire ; sinon la promotion la
   dérive (`stock_take.invad_*` → ajustement ; puis `type_transaction` + `mode`).
+  Exception : un `rc` devient toujours `encaissement` (reçu de paiement, ADR
+  0018), même si un script antérieur au v2.4 l'a libellé `reception`.
+- **Colonnes v2.4 facultatives.** `contrat-jeux.ts` les déclare dans
+  `facultatives` : écrites en staging quand elles sont là, signalées
+  (`COLONNE_V24_ABSENTE`) quand elles manquent, pour qu'un classeur produit
+  par l'ancien script de la DAP reste importable pendant la transition. Les
+  calculs qui en dépendent (complétude des réceptions) n'ont alors pas de
+  donnée.
 - **Mois PAQD canonique = `to_char(mois_debut, 'YYYY-MM')`.** METADATA porte
   `mois_paqd` en `M+1..M+4` (rang dans le cycle) ; le mois calendaire vient de
   `mois_debut`. `import_lot.mois_paqd` stocke la forme `AAAA-MM`.
@@ -100,7 +110,7 @@ règle — voir `test/import-validation.test.ts`.
   `MOIS_PAQD_TROP_ANCIEN` — un mois de cycle clos est rejeté avant d'atteindre le
   gel. Le gel lui-même reconstitue **tous** les mois trouvables dans le core à
   l'instant de l'appel, pas seulement celui déclaré par le lot (ADR 0010) :
-  des données arrivées en avance via la fenêtre de 45 jours sont figées dès
+  des données arrivées en avance via la fenêtre d'extraction sont figées dès
   qu'elles apparaissent, sans attendre qu'un futur import redéclare leur mois.
 - **Promotion tout-ou-rien** dans la transaction du lot ; le rafraîchissement est
   volontairement **hors** transaction (ADR 0003) pour qu'un `REFRESH` lent ou
@@ -109,9 +119,11 @@ règle — voir `test/import-validation.test.ts`.
   = `to_char(mois_couvert_debut, 'YYYY-MM')`, jamais le mois de `date_soumission`.
   Une réquisition compte pour le mois de son inventaire de référence de fin de
   mois. La validation accepte `mois_couvert_debut` dans `[mois PAQD - 2, mois
-  PAQD]` : la fenêtre de 45 jours déborde volontairement du mois mesuré et peut
-  ramener des réquisitions des deux mois précédents (rattrapage), y compris à
-  cheval sur deux cycles. En dehors de cette plage : `MOIS_COUVERT_INVALIDE`
+  PAQD]` : la fenêtre (du 1ᵉʳ jour de M-2 à la date d'extraction) déborde
+  volontairement du mois mesuré et ramène des réquisitions des deux mois
+  précédents (rattrapage), y compris à cheval sur deux cycles. Une réquisition
+  citée par une facture `si` est admise quel que soit son mois : la
+  complétude des réceptions en a besoin (ADR 0019). En dehors de cette plage : `MOIS_COUVERT_INVALIDE`
   (avertissement, non bloquant), mais la ligne est **quand même promue**. Seul
   un `mois_couvert_debut` mal formé l'écarte réellement de la promotion (garde
   regex côté SQL).

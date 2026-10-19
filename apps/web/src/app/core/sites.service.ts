@@ -7,12 +7,14 @@ import {
   detailSiteSchema,
   ficheProduitMoisSchema,
   historiqueSiteSchema,
+  moisMesureSchema,
   programmeSchema,
   scoreSiteSchema,
   type DetailPilier,
   type DetailSite,
   type FicheProduitMois,
   type HistoriqueSite,
+  type MoisMesure,
   type Programme,
   type ScoreSite,
 } from '@dqa/contracts';
@@ -20,6 +22,7 @@ import { validerReponse } from './valider-reponse';
 
 const scoreSiteListe = z.array(scoreSiteSchema);
 const programmeListe = z.array(programmeSchema);
+const moisListe = z.array(moisMesureSchema);
 /** Référentiels servis en simple liste de chaînes (districts, régions). */
 const listeChaines = z.array(z.string());
 
@@ -27,11 +30,17 @@ export interface FiltresSites {
   district?: string;
   region?: string;
   programmeId?: string;
+  mois?: string;
 }
 
 @Injectable({ providedIn: 'root' })
 export class SitesService {
   private readonly http = inject(HttpClient);
+
+  /** Mois mesurés, du plus récent au plus ancien, avec leur état clos / provisoire. */
+  async moisMesures(): Promise<MoisMesure[]> {
+    return validerReponse(moisListe, await firstValueFrom(this.http.get<unknown>('/api/referentiel/mois')));
+  }
 
   async listerSites(filtres: FiltresSites = {}): Promise<ScoreSite[]> {
     let params = new HttpParams();

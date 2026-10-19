@@ -8,6 +8,12 @@ export interface DefinitionJeu {
   onglet: string;
   table: string; // table stg_* (schéma dqa)
   colonnes: readonly string[]; // noms attendus en ligne 5, dans l'ordre
+  /**
+   * Colonnes ajoutées par le canevas v2.4 : écrites en staging quand elles
+   * sont là, simplement signalées quand elles manquent, pour qu'un classeur
+   * produit par un script antérieur reste importable.
+   */
+  facultatives?: readonly string[];
   requis: readonly string[]; // colonnes qui ne doivent pas être vides
   /** Références croisées : colonne de ce jeu -> jeu de référence + sa colonne clé. */
   references?: readonly { colonne: string; jeu: string; cle: string }[];
@@ -24,6 +30,7 @@ export const JEUX: readonly DefinitionJeu[] = [
       'site_id', 'site_code', 'site_nom', 'district', 'region',
       'type_structure', 'actif', 'dans_perimetre_dqa',
     ],
+    facultatives: ['type_structure_msupply'],
     requis: ['site_id', 'site_nom', 'actif', 'dans_perimetre_dqa'],
     booleens: ['actif', 'dans_perimetre_dqa'],
   },
@@ -49,9 +56,10 @@ export const JEUX: readonly DefinitionJeu[] = [
       'mode', 'statut', 'annulation', 'date_saisie', 'date_confirmation',
       'date_livraison', 'requisition_id', 'goods_received_id', 'commentaire',
     ],
+    facultatives: ['date_finalisation', 'transaction_liee_id', 'date_finalisation_liee'],
     requis: ['transaction_id', 'site_id', 'nature', 'statut'],
     references: [{ colonne: 'site_id', jeu: 'SITES', cle: 'site_id' }],
-    dates: ['date_saisie', 'date_confirmation', 'date_livraison'],
+    dates: ['date_saisie', 'date_confirmation', 'date_livraison', 'date_finalisation', 'date_finalisation_liee'],
     booleens: ['annulation'],
   },
   {
@@ -120,9 +128,13 @@ export const JEUX: readonly DefinitionJeu[] = [
   },
 ] as const;
 
-/** Vocabulaire contrôlé de `nature` (canevas §4.5). */
+/**
+ * Vocabulaire contrôlé de `nature` (canevas §4.5). `reception` reste admis :
+ * c'est le libellé que les scripts antérieurs au canevas v2.4 donnaient à
+ * `rc`, que la promotion reclasse de toute façon en `encaissement`.
+ */
 export const NATURES = [
-  'dispensation', 'distribution', 'facture_fournisseur', 'reception',
+  'dispensation', 'distribution', 'facture_fournisseur', 'encaissement', 'reception',
   'ajustement_positif', 'ajustement_negatif', 'retour_fournisseur',
   'retour_client', 'cession_sortie', 'cession_entree', 'autre',
 ] as const;

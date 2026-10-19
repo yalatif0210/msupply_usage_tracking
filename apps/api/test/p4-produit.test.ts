@@ -101,7 +101,7 @@ describe('vue mv_p4_ecart_produit', () => {
     // I1 : SDU conforme (100/100) ; conso évaluable, non conforme (25 vs 30)
     await ligne('A', 'I1', 100, 100);
     await ligne('B', 'I1', 100, 100);
-    await mouvement('RC1', 'reception', '2026-08-10', 'I1', 30);
+    await mouvement('RC1', 'facture_fournisseur', '2026-08-10', 'I1', 30);
     await mouvement('DI1', 'dispensation', '2026-08-15', 'I1', 25);
     // I2 : un seul inventaire, SDU hors tolérance (100 vs 90)
     await ligne('B', 'I2', 100, 90);
@@ -116,7 +116,7 @@ describe('vue mv_p4_ecart_produit', () => {
     // reconstituée = 50 (début) + 20 (réception) − 50 (fin) = 20 ; déclarée = 20
     await ligne('A', 'I7', 50, 50);
     await ligne('B', 'I7', 50, 50);
-    await mouvement('RC7', 'reception', '2026-08-10', 'I7', 20);
+    await mouvement('RC7', 'facture_fournisseur', '2026-08-10', 'I7', 20);
     await mouvement('DI7', 'dispensation', '2026-08-15', 'I7', 20);
     // I3 non traceur → ignoré
     await ligne('B', 'I3', 100, 50);

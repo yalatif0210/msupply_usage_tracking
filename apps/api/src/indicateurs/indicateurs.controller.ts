@@ -18,6 +18,7 @@ import {
   historiqueQuerySchema,
   moisPaqdSchema,
   syntheseQuerySchema,
+  type MoisMesure,
 } from '@dqa/contracts';
 import { IndicateursRepository } from './indicateurs.repository.js';
 
@@ -118,6 +119,12 @@ export class IndicateursController {
   @Get('referentiel/districts')
   districts(): Promise<string[]> {
     return this.repo.districts();
+  }
+
+  /** Mois mesurés, du plus récent au plus ancien, avec leur état clos / provisoire. */
+  @Get('referentiel/mois')
+  mois(): Promise<MoisMesure[]> {
+    return this.repo.moisMesures();
   }
 
   @Get('referentiel/regions')

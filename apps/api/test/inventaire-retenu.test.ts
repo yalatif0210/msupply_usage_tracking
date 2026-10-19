@@ -58,7 +58,7 @@ describe('inventaire retenu et codes à plusieurs articles', () => {
   const reception = async (id: string, programme: string | null, jour: string, produit: string, qte: number) => {
     await db.query(
       `INSERT INTO dqa.fact_transaction (transaction_id, site_id, nature, programme_id, statut, date_confirmation, lot_id_source)
-       VALUES ($1, 'S1', 'reception', $2, 'fn', $3::date, 1)`,
+       VALUES ($1, 'S1', 'facture_fournisseur', $2, 'fn', $3::date, 1)`,
       [id, programme, jour],
     );
     await db.query(

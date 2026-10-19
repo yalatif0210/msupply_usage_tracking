@@ -46,6 +46,7 @@ export class ValidationService {
     anomalies.push(...this.reglesFormats(classeur));
     anomalies.push(...this.reglesReferencesCroisees(classeur));
     anomalies.push(...this.reglesRequisitions(classeur));
+    anomalies.push(...this.reglesTypeStructure(classeur));
 
     const bloquant = anomalies.some((a) => a.gravite === 'erreur');
     return { anomalies, bloquant, contexte: bloquant ? null : this.contexte(classeur) };
@@ -115,6 +116,13 @@ export class ValidationService {
         if (!presentes.has(col)) {
           out.push(ano({ onglet: def.onglet, ligneSource: 5, gravite: 'erreur', code: 'COLONNE_MANQUANTE',
             message: `colonne « ${col} » absente ou renommée en ligne 5`, valeurBrute: onglet.entetes.join(', ') }));
+        }
+      }
+      for (const col of def.facultatives ?? []) {
+        if (!presentes.has(col)) {
+          out.push(ano({ onglet: def.onglet, ligneSource: 5, gravite: 'avertissement', code: 'COLONNE_V24_ABSENTE',
+            message: `colonne « ${col} » absente : classeur produit par un script antérieur au canevas v2.4, `
+              + 'à remplacer par le script v2.4 de la DAP' }));
         }
       }
     }
@@ -233,6 +241,10 @@ export class ValidationService {
   // donc `mois_couvert_debut` dans [mois PAQD - 2, mois PAQD] ; en dehors (ou
   // absent / mal formé), on signale sans bloquer : la ligne est écartée de la
   // promotion, l'import reste valide.
+  // Exception (canevas v2.4) : une réquisition citée par une facture `si` est
+  // transmise quel que soit son mois couvert. La complétude des réceptions part
+  // de la réquisition du mois M-1 (ADR 0019) : celle d'un mois ancien est
+  // attendue, pas une anomalie.
   private reglesRequisitions(classeur: ClasseurLu): AnomalieImport[] {
     const onglet = classeur.onglets.get('REQUISITIONS');
     if (!onglet) return []; // absence d'onglet déjà signalée par R2
@@ -240,6 +252,11 @@ export class ValidationService {
     const md = /^(\d{4})-(\d{2})-\d{2}$/.exec(moisDebut);
     if (!md) return []; // bornes du mois elles-mêmes invalides → déjà bloquant (R4)
     const idxPaqd = Number(md[1]) * 12 + Number(md[2]) - 1;
+    const citees = new Set<string>();
+    for (const t of classeur.onglets.get('TRANSACTIONS')?.lignes ?? []) {
+      const r = t.valeurs['requisition_id'] ?? '';
+      if (r !== '' && (t.valeurs['type_transaction'] ?? '').toLowerCase() === 'si') citees.add(r);
+    }
     const out: AnomalieImport[] = [];
     for (const ligne of onglet.lignes) {
       const v = ligne.valeurs['mois_couvert_debut'] ?? '';
@@ -252,11 +269,31 @@ export class ValidationService {
         continue;
       }
       const idxCouvert = Number(m[1]) * 12 + Number(m[2]) - 1;
+      if (citees.has(ligne.valeurs['requisition_id'] ?? '')) continue;
       if (idxCouvert > idxPaqd || idxCouvert < idxPaqd - 2) {
         out.push(ano({ onglet: 'REQUISITIONS', ligneSource: ligne.ligneSource, gravite: 'avertissement',
           code: 'MOIS_COUVERT_INVALIDE',
           message: `mois_couvert_debut « ${v} » hors de la fenêtre d'extraction (au plus 2 mois avant ${moisDebut.slice(0, 7)})`,
           valeurBrute: v }));
+      }
+    }
+    return out;
+  }
+
+  // ── R9 : type de structure contredit par la catégorie mSupply ────────────
+  // Le préfixe du nom tranche (ADR 0021) ; le site reste typé et importé. Le
+  // signalement sert à la DAP pour corriger la catégorie dans mSupply : ce
+  // n'est pas un défaut du classeur, d'où la gravité « info ».
+  private reglesTypeStructure(classeur: ClasseurLu): AnomalieImport[] {
+    const out: AnomalieImport[] = [];
+    for (const ligne of classeur.onglets.get('SITES')?.lignes ?? []) {
+      const retenu = ligne.valeurs['type_structure'] ?? '';
+      const categorie = ligne.valeurs['type_structure_msupply'] ?? '';
+      if (categorie !== '' && categorie !== retenu) {
+        out.push(ano({ onglet: 'SITES', ligneSource: ligne.ligneSource, gravite: 'info', code: 'TYPE_STRUCTURE_CONFLIT',
+          message: `« ${ligne.valeurs['site_nom'] ?? ''} » : catégorie mSupply « ${categorie} », `
+            + `type « ${retenu} » retenu d'après le préfixe du nom ; catégorie à corriger dans mSupply`,
+          valeurBrute: categorie }));
       }
     }
     return out;

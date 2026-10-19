@@ -64,6 +64,13 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/admin-strates').then((m) => m.AdminStratesPage),
   },
   {
+    // Programmes éligibles (ADR 0020) : lecture ouverte à tout rôle, écriture
+    // refusée côté API hors rôle coordination.
+    path: 'admin/programmes',
+    canActivate: [gardeAuthentifie],
+    loadComponent: () => import('./pages/admin-programmes').then((m) => m.AdminProgrammesPage),
+  },
+  {
     // Harnais de revue des composants de graphe (ticket 04), données statiques.
     // À retirer au ticket 12 si la revue ne le conserve pas.
     path: '_graphes',

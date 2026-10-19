@@ -72,14 +72,15 @@ describe('vues d\'indicateurs, composite et gel', () => {
     await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S1','CSU',$1)`, [perimetre]);
     await db.query(`INSERT INTO dqa.dim_programme (programme_id, programme_nom) VALUES ('P1','VIH')`);
     await db.query(`INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom) VALUES ('I1','ARV','ARV')`);
-    // Mouvements P6 : les non-ajustements sont des `reception` (hors P3, qui ne
-    // compte que dispensation / distribution) — les tests P3 passent par `sorties`.
+    // Mouvements P6 : les non-ajustements sont de nature `autre` (hors P3, qui
+    // ne compte que dispensation / distribution, et hors P4) : les tests P3
+    // passent par `sorties`.
     for (let i = 0; i < nbMouvements; i++) {
       const ajust = i < nbAjustements;
       await db.query(
         `INSERT INTO dqa.fact_transaction (transaction_id, site_id, nature, programme_id, statut, date_confirmation, lot_id_source)
          VALUES ($1,'S1',$2,'P1','fn',$3::date,1)`,
-        [`T${i}`, ajust ? 'ajustement_negatif' : 'reception', jourTxn],
+        [`T${i}`, ajust ? 'ajustement_negatif' : 'autre', jourTxn],
       );
       await db.query(
         `INSERT INTO dqa.fact_ligne_transaction (ligne_id, transaction_id, produit_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
@@ -275,7 +276,7 @@ describe('vues d\'indicateurs, composite et gel', () => {
 
   // ── Gel des valeurs de sous-composante (sc_*) ────────────────────────────
   const COLONNES_SC = [
-    'sc_completude_inventaires', 'sc_completude_requisitions', 'sc_completude_receptions',
+    'sc_completude_requisitions', 'sc_completude_receptions',
     'sc_promptitude_inventaires', 'sc_promptitude_requisitions', 'sc_regularite_saisie',
     'sc_ecart_sdu', 'sc_ecart_consommation', 'sc_concordance', 'sc_ratio_ajustements',
   ];
@@ -299,11 +300,11 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect(sc?.sc_ecart_sdu).toBe('100.0'); // 1 produit traceur dans la tolérance
     expect(sc?.sc_concordance).toBe('100.0'); // compté = théorique
     expect(sc?.sc_ratio_ajustements).toBe('0.0'); // 0 ajustement sur 10 mouvements
-    expect(sc?.sc_completude_inventaires).toBeNull(); // P1 non calculable (aucun programme géré)
+    expect(sc?.sc_completude_requisitions).toBeNull(); // P1 non calculable (aucun programme éligible)
     expect(sc?.sc_ecart_consommation).toBe('0.0'); // traceur inventorié sans borne d'ouverture → 0 % (ADR 0012)
   });
 
-  it('le rattrapage repeuple les dix sc_* remis à NULL avec les mêmes valeurs', async () => {
+  it('le rattrapage repeuple les neuf sc_* remis à NULL avec les mêmes valeurs', async () => {
     await socle({
       comptee: 100, theorique: 100, nbMouvements: 10,
       sorties: joursAout.slice(0, 21).map((j) => ({ jour: j })),
@@ -444,7 +445,7 @@ describe('vues d\'indicateurs, composite et gel', () => {
   it('P4 écart consommation : produit évaluable et classé conforme', async () => {
     await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // INV1 le 28/08, stock fin = 50
     await inventaire('INV0', '2026-08-03', 'I1', 100, 100);        // stock début = 100
-    await mouvement('RC1', 'reception', '2026-08-10', 'I1', 30);   // + 30 dans l'intervalle
+    await mouvement('RC1', 'facture_fournisseur', '2026-08-10', 'I1', 30);   // + 30 dans l'intervalle
     await mouvement('DI1', 'dispensation', '2026-08-15', 'I1', 80); // déclarée = 80
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     // reconstituée = 100 + 30 − 50 = 80 ; |80 − 80| / 80 = 0 % ≤ 2 % → conforme
@@ -452,6 +453,31 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect(v?.nb_produits_conso).toBe(1);
     expect(v?.taux_conso_pct).toBe('100.0');
     expect(v?.score_conso).toBe('100.0');
+  });
+
+  it('P4 écart consommation : seules les factures finalisées sont des entrées de stock (ADR 0018)', async () => {
+    await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // stock fin = 50
+    await inventaire('INV0', '2026-08-03', 'I1', 100, 100);        // stock début = 100
+    await mouvement('RC1', 'facture_fournisseur', '2026-08-10', 'I1', 30); // finalisée : compte
+    await mouvement('RC2', 'facture_fournisseur', '2026-08-11', 'I1', 500);
+    await db.query(`UPDATE dqa.fact_transaction SET statut = 'cn' WHERE transaction_id = 'RC2'`); // non finalisée
+    await mouvement('EN1', 'encaissement', '2026-08-12', 'I1', 900); // reçu de paiement : jamais une entrée
+    await mouvement('DI1', 'dispensation', '2026-08-15', 'I1', 80);
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    // reconstituée = 100 + 30 − 50 = 80 = déclarée → conforme
+    const v = await p4();
+    expect(v?.taux_conso_pct).toBe('100.0');
+  });
+
+  it('P3 : une dispensation non finalisée (cn) ne compte pas comme jour de saisie (ADR 0018)', async () => {
+    await socle({ nbMouvements: 0, sorties: [{ jour: '2026-08-03' }, { jour: '2026-08-04' }] });
+    await db.query(`UPDATE dqa.fact_transaction SET statut = 'cn' WHERE transaction_id = 'SO1'`);
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    const { rows } = await db.query<{ nb_jours_avec_sortie: number }>(
+      `SELECT nb_jours_avec_sortie FROM dqa.mv_p3_regularite
+       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+    );
+    expect(Number(rows[0]?.nb_jours_avec_sortie)).toBe(1);
   });
 
   it('P4 écart consommation : un seul inventaire du mois → 0 % / ALERTE (ADR 0012)', async () => {
@@ -477,7 +503,7 @@ describe('vues d\'indicateurs, composite et gel', () => {
   it('P4 : score de pilier = moyenne des deux sous-composantes calculables', async () => {
     await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // SDU conforme (100)
     await inventaire('INV0', '2026-08-03', 'I1', 100, 100);
-    await mouvement('RC1', 'reception', '2026-08-10', 'I1', 0);
+    await mouvement('RC1', 'facture_fournisseur', '2026-08-10', 'I1', 0);
     await mouvement('DI1', 'dispensation', '2026-08-15', 'I1', 10); // déclarée 10 vs reconstituée 50 → 80 % > 2 % → ALERTE (0)
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     const v = await p4();
@@ -598,115 +624,158 @@ describe('vue P1 — complétude des transactions', () => {
     await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S1','CSU',true)`);
   });
 
-  const programmeGere = async (id: string) => {
+  const programmeGere = async (id: string, actif = true) => {
     await db.query(`INSERT INTO dqa.dim_programme (programme_id, programme_nom) VALUES ($1,$1)
                     ON CONFLICT DO NOTHING`, [id]);
-    await db.query(`INSERT INTO dqa.dim_site_programme (site_id, programme_id, actif) VALUES ('S1',$1,true)`, [id]);
+    await db.query(`INSERT INTO dqa.dim_site_programme (site_id, programme_id, actif) VALUES ('S1',$1,$2)`, [id, actif]);
   };
-  const inventaireFinalise = async (id: string, programme: string) => {
-    // daté dans les 3 derniers jours du mois : la complétude P1 des inventaires
-    // exige désormais cette fenêtre (ADR 0012).
+  const requisition = async (
+    id: string,
+    programme: string,
+    mois = '2026-08',
+    opts: { type?: 'Ordinaire' | 'Urgente'; statut?: string } = {},
+  ) => {
     await db.query(
-      `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
-       VALUES ($1,'S1',$2,'2026-08-29','fn',1)`,
-      [id, programme],
+      `INSERT INTO dqa.fact_requisition
+         (requisition_id, site_id, programme_id, mois_couvert, type_requisition, statut, lot_id_source)
+       VALUES ($1,'S1',$2,$3,$4,$5,1)`,
+      [id, programme, mois, opts.type ?? 'Ordinaire', opts.statut ?? 'fn'],
     );
   };
-  const requisition = async (id: string, programme: string, mois = '2026-08') => {
+  /** Facture `si` du site citant une réquisition (ADR 0018, 0019). */
+  const facture = async (
+    id: string,
+    requisitionId: string | null,
+    f: { statut: string; saisie: string; finalisation?: string; finalisationLiee?: string },
+  ) => {
     await db.query(
-      `INSERT INTO dqa.fact_requisition (requisition_id, site_id, programme_id, mois_couvert, lot_id_source)
-       VALUES ($1,'S1',$2,$3,1)`,
-      [id, programme, mois],
+      `INSERT INTO dqa.fact_transaction
+         (transaction_id, site_id, nature, type_transaction, statut, requisition_id,
+          date_saisie, date_finalisation, date_finalisation_liee, lot_id_source)
+       VALUES ($1,'S1','facture_fournisseur','si',$2,$3,$4::date,$5::date,$6::date,1)`,
+      [id, f.statut, requisitionId, f.saisie, f.finalisation ?? null, f.finalisationLiee ?? null],
     );
   };
-  const transactionRec = async (id: string, nature: 'reception' | 'facture_fournisseur') => {
-    await db.query(
-      `INSERT INTO dqa.fact_transaction (transaction_id, site_id, nature, statut, date_confirmation, lot_id_source)
-       VALUES ($1,'S1',$2,'fn','2026-08-12',1)`,
-      [id, nature],
-    );
-  };
-  const p1 = async (programme: string | null = null) => {
+  const p1 = async (programme: string | null = null, mois = '2026-08') => {
     const { rows } = await db.query<{
-      completude_inventaires_pct: string | null;
       completude_requisitions_pct: string | null;
       completude_receptions_pct: string | null;
-      score_inventaires: string | null;
       score_requisitions: string | null;
       score_receptions: string | null;
+      nb_factures: number;
+      nb_factures_acceptees: number;
       p_completude: string | null;
     }>(
-      `SELECT completude_inventaires_pct, completude_requisitions_pct, completude_receptions_pct,
-              score_inventaires, score_requisitions, score_receptions, p_completude
+      `SELECT completude_requisitions_pct, completude_receptions_pct,
+              score_requisitions, score_receptions, nb_factures, nb_factures_acceptees, p_completude
        FROM dqa.mv_p1_completude
-       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND coalesce(programme_id,'') = $1`,
-      [programme ?? ''],
+       WHERE site_id = 'S1' AND mois_paqd = $2 AND coalesce(programme_id,'') = $1`,
+      [programme ?? '', mois],
     );
     return rows[0];
   };
+  const moisCourant = async (): Promise<string> =>
+    (await db.query<{ m: string }>(`SELECT to_char(CURRENT_DATE, 'YYYY-MM') AS m`)).rows[0]!.m;
 
-  it('complétude inventaires : tous les programmes gérés inventoriés → 100 → CONFORME', async () => {
-    await programmeGere('VIH');
-    await inventaireFinalise('INV1', 'VIH');
-    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
-    expect((await p1())?.completude_inventaires_pct).toBe('100.0');
-    expect((await p1())?.score_inventaires).toBe('100.0');
-  });
-
-  it('complétude inventaires : un programme géré non inventorié → < 100 → ALERTE', async () => {
-    await programmeGere('VIH');
-    await programmeGere('TB');
-    await inventaireFinalise('INV1', 'VIH');
-    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
-    expect((await p1())?.completude_inventaires_pct).toBe('50.0'); // 1 / 2
-    expect((await p1())?.score_inventaires).toBe('0.0');
-    // grain par programme : VIH conforme, TB non
-    expect((await p1('VIH'))?.completude_inventaires_pct).toBe('100.0');
-    expect((await p1('TB'))?.completude_inventaires_pct).toBe('0.0');
-  });
-
-  it('complétude réquisitions : idem via mois_couvert', async () => {
+  it('complétude réquisitions : un programme éligible sans réquisition du mois → 50 → ALERTE', async () => {
     await programmeGere('VIH');
     await programmeGere('TB');
     await requisition('R1', 'VIH', '2026-08');
-    await requisition('R2', 'TB', '2026-07'); // couvre un autre mois → ne compte pas
+    await requisition('R2', 'TB', '2026-07'); // couvre un autre mois → ne compte pas pour août
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     expect((await p1())?.completude_requisitions_pct).toBe('50.0');
+    expect((await p1())?.score_requisitions).toBe('0.0');
+    expect((await p1('VIH'))?.completude_requisitions_pct).toBe('100.0');
+    expect((await p1('TB'))?.completude_requisitions_pct).toBe('0.0');
   });
 
-  it('complétude réceptions : réceptions = factures → CONFORME', async () => {
+  it('complétude réquisitions : un programme désactivé dans la console n\'est plus attendu (ADR 0020)', async () => {
     await programmeGere('VIH');
-    await requisition('R1', 'VIH');
-    await transactionRec('F1', 'facture_fournisseur');
-    await transactionRec('F2', 'facture_fournisseur');
-    await transactionRec('RC1', 'reception');
-    await transactionRec('RC2', 'reception');
+    await programmeGere('TB', false);
+    await requisition('R1', 'VIH', '2026-08');
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
-    expect((await p1())?.completude_receptions_pct).toBe('100.0');
-    expect((await p1())?.score_receptions).toBe('100.0');
+    expect((await p1())?.completude_requisitions_pct).toBe('100.0');
+    expect(await p1('TB')).toBeUndefined();
   });
 
-  it('complétude réceptions : aucune facture → NON_CALCULABLE', async () => {
+  it('complétude réquisitions : non calculable avant l\'échéance, jamais 0', async () => {
+    const mois = await moisCourant();
     await programmeGere('VIH');
-    await inventaireFinalise('INV1', 'VIH');
-    await transactionRec('RC1', 'reception'); // réception sans facture
+    await programmeGere('TB');
+    await requisition('R1', 'VIH', mois); // l'échéance tombe au jour limite du mois suivant
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    expect((await p1(null, mois))?.completude_requisitions_pct).toBeNull();
+    expect((await p1('TB', mois))?.completude_requisitions_pct).toBeNull();
+  });
+
+  it('complétude réceptions : seules les factures finalisées dans leur mois d\'émission comptent', async () => {
+    await programmeGere('VIH');
+    await requisition('R1', 'VIH', '2026-07'); // couvre juillet → évaluée en août
+    await facture('F1', 'R1', { statut: 'fn', saisie: '2026-08-05', finalisation: '2026-08-10' }); // acceptée
+    await facture('F2', 'R1', { statut: 'fn', saisie: '2026-08-25', finalisation: '2026-09-02' }); // le mois suivant
+    await facture('F3', 'R1', { statut: 'nw', saisie: '2026-08-20' });                             // jamais prise en main
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     const v = await p1();
+    expect(v?.nb_factures).toBe(3);
+    expect(v?.nb_factures_acceptees).toBe(1);
+    expect(v?.completude_receptions_pct).toBe('33.3');
+    expect(v?.score_receptions).toBe('0.0');
+  });
+
+  it('complétude réceptions : le mois d\'émission suit la livraison du district quand elle est connue', async () => {
+    await programmeGere('VIH');
+    await requisition('R1', 'VIH', '2026-07');
+    // livraison finalisée le 30/07, facture créée le 02/08 et acceptée le 03/08 :
+    // émise en juillet, acceptée en août → hors de son mois d'émission
+    await facture('F1', 'R1', { statut: 'fn', saisie: '2026-08-02', finalisation: '2026-08-03', finalisationLiee: '2026-07-30' });
+    await facture('F2', 'R1', { statut: 'fn', saisie: '2026-08-02', finalisation: '2026-08-04', finalisationLiee: '2026-08-01' });
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    expect((await p1())?.completude_receptions_pct).toBe('50.0');
+  });
+
+  it('complétude réceptions : réquisition urgente ou facture sans réquisition → hors périmètre', async () => {
+    await programmeGere('VIH');
+    await requisition('RU', 'VIH', '2026-07', { type: 'Urgente' });
+    await requisition('RN', 'VIH', '2026-07', { statut: 'nw' }); // non finalisée
+    await facture('F1', 'RU', { statut: 'nw', saisie: '2026-08-05' });
+    await facture('F2', 'RN', { statut: 'nw', saisie: '2026-08-05' });
+    await facture('F3', null, { statut: 'nw', saisie: '2026-08-05' });
+    await requisition('R8', 'VIH', '2026-08'); // une activité pour que le mois existe
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    const v = await p1();
+    expect(v?.nb_factures).toBe(0);
     expect(v?.completude_receptions_pct).toBeNull();
     expect(v?.score_receptions).toBeNull();
   });
 
   it('score de pilier P1 = moyenne des sous-composantes calculables', async () => {
     await programmeGere('VIH');
-    await inventaireFinalise('INV1', 'VIH');   // inventaires 100
-    await requisition('R1', 'VIH');            // réquisitions 100
-    // aucune facture → réceptions NON_CALCULABLE → moyenne de (100, 100) = 100
+    await requisition('R8', 'VIH', '2026-08');             // réquisitions 100
+    await requisition('R7', 'VIH', '2026-07');
+    await facture('F1', 'R7', { statut: 'cn', saisie: '2026-08-05' }); // réceptions 0
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
-    expect((await p1())?.p_completude).toBe('100.0');
+    expect((await p1())?.p_completude).toBe('50.0');
     const { rows } = await db.query<{ p_completude: string | null }>(
-      `SELECT p_completude FROM dqa.mv_score_pilier WHERE site_id = 'S1' AND programme_id IS NULL`,
+      `SELECT p_completude FROM dqa.mv_score_pilier
+       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
     );
-    expect(rows[0]?.p_completude).toBe('100.0');
+    expect(rows[0]?.p_completude).toBe('50.0');
+  });
+
+  it('un seuil propre à chaque sous-composante : abaisser celui des réquisitions change la note (ADR 0019)', async () => {
+    await programmeGere('VIH');
+    await programmeGere('TB');
+    await requisition('R1', 'VIH', '2026-08'); // 50 %
+    await db.query(`UPDATE dqa.grille_seuil_sous_composante SET seuil = 50 WHERE sous_composante = 'completude_requisitions'`);
+    try {
+      await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+      expect((await p1())?.score_requisitions).toBe('100.0');
+      await db.query(`UPDATE dqa.grille_seuil_sous_composante SET sens = 'inf', seuil = 40 WHERE sous_composante = 'completude_requisitions'`);
+      await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+      expect((await p1())?.score_requisitions).toBe('0.0'); // 50 n'est pas « au plus 40 »
+    } finally {
+      await db.query(`UPDATE dqa.grille_seuil_sous_composante SET seuil = 100, sens = 'sup' WHERE sous_composante = 'completude_requisitions'`);
+    }
   });
 
   it('aucune ligne P1 pour un mois sans activité', async () => {
@@ -792,6 +861,27 @@ describe('vue P2 — promptitude des transactions', () => {
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     expect((await p2())?.promptitude_inventaires_pct).toBe('100.0');
     expect((await p2())?.score_inventaires).toBe('100.0');
+  });
+
+  it('promptitude inventaires : mois en cours avec un inventaire du 10 → non calculable, jamais 0 (ADR 0019)', async () => {
+    const mois = (await db.query<{ m: string }>(`SELECT to_char(CURRENT_DATE, 'YYYY-MM') AS m`)).rows[0]!.m;
+    await site('ESPC');
+    await inventaire('INV1', `${mois}-10`);
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    const { rows } = await db.query<{ promptitude_inventaires_pct: string | null; promptitude_requisitions_pct: string | null }>(
+      `SELECT promptitude_inventaires_pct, promptitude_requisitions_pct FROM dqa.mv_p2_promptitude
+       WHERE site_id = 'S1' AND mois_paqd = $1 AND programme_id IS NULL`,
+      [mois],
+    );
+    expect(rows[0]?.promptitude_inventaires_pct).toBeNull();
+    expect(rows[0]?.promptitude_requisitions_pct).toBeNull();
+  });
+
+  it('promptitude inventaires : mois clos sans inventaire de fin de mois → 0', async () => {
+    await site('ESPC');
+    await requisition('R1', '2026-09-01'); // une activité d'août, sans inventaire
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    expect((await p2())?.promptitude_inventaires_pct).toBe('0.0');
   });
 
   it('promptitude inventaires : un inventaire le 28 ne compte pas (trop tôt)', async () => {

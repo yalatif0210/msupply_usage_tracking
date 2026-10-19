@@ -76,12 +76,31 @@ describe('détail ligne à ligne des piliers (P1, P2)', () => {
 
   // ── P1 ────────────────────────────────────────────────────────────────────
 
-  it('P1 nominal : listes, manques par programme et comptes bruts figés', async () => {
-    await inv('A', 'VIH', '2026-08-29'); // dans les 3 derniers jours
+  /** Réquisition ordinaire finalisée couvrant juillet, et facture `si` qui la cite (ADR 0019). */
+  const reqJuillet = (id: string, prog: string) =>
+    db.query(
+      `INSERT INTO dqa.fact_requisition
+         (requisition_id, site_id, programme_id, mois_couvert, type_requisition, statut, lot_id_source)
+       VALUES ($1,'S1',$2,'2026-07','Ordinaire','fn',1)`,
+      [id, prog],
+    );
+  const facture = (
+    id: string, requisitionId: string, statut: string, saisie: string, finalisation: string | null,
+    commentaire: string | null = null,
+  ) =>
+    db.query(
+      `INSERT INTO dqa.fact_transaction
+         (transaction_id, site_id, nature, type_transaction, programme_id, statut, requisition_id,
+          date_saisie, date_finalisation, commentaire, lot_id_source)
+       VALUES ($1,'S1','facture_fournisseur','si','VIH',$2,$3,$4::date,$5::date,$6,1)`,
+      [id, statut, requisitionId, saisie, finalisation, commentaire],
+    );
+
+  it('P1 nominal : réquisitions, factures et leur acceptation, manques par programme, comptes figés', async () => {
     await req('R1', 'VIH', '2026-08-31');
-    await tx('RC1', 'reception', '2026-08-10', 'VIH', 'GRN-1');
-    await tx('FA1', 'facture_fournisseur', '2026-08-05');
-    await tx('FA2', 'facture_fournisseur', '2026-08-06');
+    await reqJuillet('R7', 'VIH');
+    await facture('FA1', 'R7', 'fn', '2026-08-05', '2026-08-06', 'BL-1');
+    await facture('FA2', 'R7', 'nw', '2026-08-20', null);
     await geler();
 
     const d = await repo.detailPilier('S1', 'p1', {});
@@ -89,22 +108,27 @@ describe('détail ligne à ligne des piliers (P1, P2)', () => {
     if (d === null || d.code !== 'p1') throw new Error('variante p1 attendue');
 
     expect(d.moisPaqd).toBe('2026-08');
-    expect(d.inventaires).toEqual([{ date: '2026-08-29', programme: 'VIH' }]);
+    expect(d.echeanceRequisitions).toBe('2026-09-05'); // ESPC : 5 du mois suivant
     expect(d.requisitions).toEqual([
       { programme: 'VIH', moisCouvert: '2026-08', dateSoumission: '2026-08-31' },
     ]);
-    expect(d.receptions).toEqual([{ date: '2026-08-10', reference: 'GRN-1' }]);
-    expect(d.factures.map((f) => f.date)).toEqual(['2026-08-05', '2026-08-06']);
+    // non acceptées d'abord
+    expect(d.factures).toEqual([
+      {
+        reference: null, programme: 'VIH', moisCouvert: '2026-07', statut: 'nw',
+        dateEmission: '2026-08-20', dateReception: null, acceptee: false,
+      },
+      {
+        reference: 'BL-1', programme: 'VIH', moisCouvert: '2026-07', statut: 'fn',
+        dateEmission: '2026-08-05', dateReception: '2026-08-06', acceptee: true,
+      },
+    ]);
 
-    const vih = d.programmesGeres.find((p) => p.programme === 'VIH');
-    const tb = d.programmesGeres.find((p) => p.programme === 'TB');
-    expect(vih).toEqual({ programme: 'VIH', aInventaire: true, aRequisition: true });
-    expect(tb).toEqual({ programme: 'TB', aInventaire: false, aRequisition: false });
+    expect(d.programmesGeres.find((p) => p.programme === 'VIH')).toEqual({ programme: 'VIH', aRequisition: true });
+    expect(d.programmesGeres.find((p) => p.programme === 'TB')).toEqual({ programme: 'TB', aRequisition: false });
 
-    const inv1 = d.comptesBruts.find((c) => c.mesure === 'p1_inventaires');
-    const rec1 = d.comptesBruts.find((c) => c.mesure === 'p1_receptions');
-    expect(inv1).toMatchObject({ attendu: 2, realise: 1 });
-    expect(rec1).toMatchObject({ attendu: 2, realise: 1 });
+    expect(d.comptesBruts.find((c) => c.mesure === 'p1_requisitions')).toMatchObject({ attendu: 2, realise: 1 });
+    expect(d.comptesBruts.find((c) => c.mesure === 'p1_receptions')).toMatchObject({ attendu: 2, realise: 1 });
 
     expect(d.calculeLe).not.toBeNull();
     expect(d.coreMajLe).not.toBeNull();
@@ -112,19 +136,17 @@ describe('détail ligne à ligne des piliers (P1, P2)', () => {
   });
 
   it('P1 limite : aucune facture → p1_receptions non figée ; core modifié après le gel', async () => {
-    await inv('A', 'VIH', '2026-08-29');
     await req('R1', 'VIH', '2026-08-31');
     await geler();
 
     const d1 = await repo.detailPilier('S1', 'p1', {});
     if (d1 === null || d1.code !== 'p1') throw new Error('variante p1 attendue');
-    expect(d1.receptions).toEqual([]);
     expect(d1.factures).toEqual([]);
     expect(d1.comptesBruts.some((c) => c.mesure === 'p1_receptions')).toBe(false);
     expect(d1.reimporteDepuisLeGel).toBe(false);
 
     // le core bouge sans regel du mois → avertissement
-    await db.query(`UPDATE dqa.fact_inventaire SET maj_le = now() + interval '1 day' WHERE inventaire_id = 'A'`);
+    await db.query(`UPDATE dqa.fact_requisition SET maj_le = now() + interval '1 day' WHERE requisition_id = 'R1'`);
     const d2 = await repo.detailPilier('S1', 'p1', {});
     if (d2 === null || d2.code !== 'p1') throw new Error('variante p1 attendue');
     expect(d2.reimporteDepuisLeGel).toBe(true);

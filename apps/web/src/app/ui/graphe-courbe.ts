@@ -6,6 +6,7 @@ import {
   type ApexLegend,
   type ApexMarkers,
   type ApexStroke,
+  type ApexTooltip,
   type ApexXAxis,
   type ApexYAxis,
   ChartComponent,
@@ -13,7 +14,7 @@ import {
 
 /** Suffixe de la serie tracee en pointille (mois en cours, score provisoire). */
 const SUFFIXE_PROVISOIRE = ' (provisoire)';
-import { CHART_BASE, POLICE_GRAPHE, seuilsYAxis } from './graphe-commun';
+import { CHART_BASE, nombreGraphe, POLICE_GRAPHE, seuilsYAxis } from './graphe-commun';
 import { JetonsGraphe } from './graphe-jetons';
 
 /**
@@ -64,7 +65,7 @@ const SERIES_LEGENDE_SOUS_GRAPHE = 5;
         [annotations]="annotations()"
         [grid]="grid()"
         [dataLabels]="{ enabled: false }"
-        [tooltip]="{ shared: true, intersect: false }"
+        [tooltip]="infobulle"
       />
     </div>
   `,
@@ -154,12 +155,19 @@ export class GrapheCourbe {
     axisTicks: { show: true, color: this.jetons.jeton('--border') },
   }));
 
+  protected readonly infobulle: ApexTooltip = {
+    shared: true,
+    intersect: false,
+    y: { formatter: (v: number) => nombreGraphe(v) },
+  };
+
   protected readonly yaxis = computed<ApexYAxis>(() => ({
     min: this.min(),
     max: this.max(),
     tickAmount: 5,
     forceNiceScale: false,
     labels: {
+      formatter: (v: number) => nombreGraphe(v),
       style: { fontSize: '12px', fontFamily: POLICE, colors: this.jetons.jeton('--muted-foreground') },
     },
   }));

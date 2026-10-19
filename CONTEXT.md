@@ -28,7 +28,7 @@ la valeur et de la grille du mois.
 **Compte brut** :
 Le couple attendu / réalisé — et, quand la sous-composante porte un délai,
 réalisé à l'heure — qui produit le taux d'une sous-composante (« P1 réceptions :
-3 réceptions sur 5 factures »). Figé mois par mois dans `hist_pilier_brut`, au
+3 factures acceptées dans leur mois d'émission sur 5 »). Figé mois par mois dans `hist_pilier_brut`, au
 même titre que la valeur de sous-composante gelée, et réconcilié avec elle. Le
 détail transaction par transaction derrière un compte brut n'est pas figé : il
 est lu en direct du core, avec un avertissement si le core a été ré-importé
@@ -122,12 +122,39 @@ _Éviter_ : statut du site, niveau, catégorie
 
 **Complétude (P1)** :
 Part des transactions attendues d'un site qui ont effectivement été saisies, sur
-un mois PAQD. Attendu par mois : un inventaire et une réquisition par programme
-de santé géré ; une réception par facture fournisseur adressée au site.
-L'inventaire ne compte que s'il est daté dans les **trois derniers jours du
-mois** (même fenêtre que la promptitude P2) : un inventaire de milieu de mois ne
-tient pas lieu d'inventaire de fin de mois, ni pour la complétude ni pour la
-promptitude.
+un mois PAQD M. Deux sous-composantes (ADR 0019) : une réquisition couvrant M
+par programme éligible ; et l'acceptation des factures qui répondent aux
+réquisitions ordinaires du mois précédent (complétude des réceptions).
+L'inventaire n'y figure plus : il est mesuré par la promptitude (P2) et par
+P4 / P5.
+
+**Réception** :
+Une facture fournisseur `si` finalisée (statut `fn`) : la réception est admise
+à la date de finalisation (ADR 0018). Une facture `nw` (adressée au site) ou
+`cn` (confirmée) n'est pas encore une réception. Seule une facture finalisée
+dans son **mois d'émission** compte pour la complétude des réceptions. Mois
+d'émission : celui de la livraison du district qui a produit la facture, à
+défaut celui de la création de la facture (site livré par la NPSP).
+_Éviter_ : `rc`, reçu, bon de réception
+
+**Encaissement** :
+Un reçu de paiement mSupply (type `rc`, « Reçu pour facture(s) … »), sans
+produit. Il n'entre dans aucun pilier (ADR 0018).
+_Éviter_ : réception
+
+**Programme éligible** :
+Programme rattaché à un site (SITE_PROGRAMME) et actif : seul un programme
+éligible attend une réquisition (P1, P2) et un inventaire (P2). Le statut se
+règle dans la console (écran « Programmes ») ; un import ne revient jamais sur
+un choix de la coordination (ADR 0020).
+_Éviter_ : programme géré (quand il s'agit du statut administré)
+
+**Échéance** :
+Date après laquelle l'absence d'une transaction attendue compte 0 :
+jour limite du mois suivant pour une réquisition, dernier jour du mois pour
+l'inventaire de fin de mois. Avant l'échéance, la sous-composante est non
+calculable, jamais 0 (ADR 0019). La complétude des réceptions fait exception :
+elle se suit en continu pendant le mois, comme un signal d'action.
 
 **Promptitude (P2)** :
 Part des inventaires et réquisitions d'un site réalisés dans les délais
@@ -295,7 +322,7 @@ aux données.
 
 | Code | Pilier | Poids | Sous-composantes |
 |------|--------|-------|------------------|
-| P1 | Complétude des transactions | 10 % | complétude des inventaires, des réquisitions, des réceptions |
+| P1 | Complétude des transactions | 10 % | complétude des réquisitions, des réceptions |
 | P2 | Promptitude des transactions | 15 % | promptitude des inventaires, des réquisitions |
 | P3 | Régularité de saisie (dispensation) | 15 % | régularité de saisie |
 | P4 | Taux de conformité | 25 % | conformité SDU, conformité consommation |

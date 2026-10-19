@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { toast } from '@spartan-ng/brain/sonner';
 import { HlmBadge, type BadgeVariants } from '@spartan-ng/helm/badge';
 import { HlmButton } from '@spartan-ng/helm/button';
@@ -23,7 +23,7 @@ type Variante = BadgeVariants['variant'];
 @Component({
   selector: 'dqa-journal-imports',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, Coquille, HlmTableImports, HlmBadge, HlmButton, HlmInput],
+  imports: [DatePipe, DecimalPipe, Coquille, HlmTableImports, HlmBadge, HlmButton, HlmInput],
   template: `
     <dqa-coquille />
     <main class="mx-auto max-w-6xl px-6 py-6">
@@ -108,7 +108,15 @@ type Variante = BadgeVariants['variant'];
                     }
                   </td>
                   <td hlmTd class="text-xs tabular-nums text-muted-foreground">
-                    {{ resumeCompteurs(lot) }}
+                    <dl class="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                      @for (c of compteurs(lot); track c.jeu) {
+                        <dt>{{ c.jeu }}</dt>
+                        <dd class="text-right" [class.text-alerte-texte]="c.ecart"
+                            [attr.title]="c.ecart ? c.declare + ' ligne(s) déclarée(s) dans METADATA' : null">
+                          {{ c.recu | number }}{{ c.ecart ? ' sur ' + c.declare + ' déclarée(s)' : '' }}
+                        </dd>
+                      }
+                    </dl>
                   </td>
                   <td hlmTd class="text-right">
                     <button
@@ -249,11 +257,13 @@ export class JournalImportsPage {
     )[g];
   }
 
-  protected resumeCompteurs(lot: LotImport): string {
-    const jeux = Object.keys(lot.nbLignesReelles);
-    return jeux
-      .map((j) => `${j}: ${lot.nbLignesReelles[j] ?? 0}`)
-      .slice(0, 4)
-      .join(' · ');
+  /** Les neuf compteurs du lot (U14), lignes reçues et écart éventuel avec METADATA. */
+  protected compteurs(lot: LotImport): { jeu: string; recu: number; declare: number | null; ecart: boolean }[] {
+    const jeux = [...new Set([...Object.keys(lot.nbLignesDeclarees), ...Object.keys(lot.nbLignesReelles)])];
+    return jeux.map((jeu) => {
+      const recu = lot.nbLignesReelles[jeu] ?? 0;
+      const declare = lot.nbLignesDeclarees[jeu] ?? null;
+      return { jeu, recu, declare, ecart: declare !== null && declare !== recu };
+    });
   }
 }
