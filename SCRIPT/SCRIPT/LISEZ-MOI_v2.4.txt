@@ -1,0 +1,36 @@
+SCRIPT D'EXTRACTION mSupply - CANEVAS v2.4 (19 octobre 2026)
+=============================================================
+
+Cette livraison remplace intégralement celle du 14 octobre 2026.
+Utiliser ensemble les fichiers de ce dossier : un classeur produit avec un
+ancien script ou un ancien gabarit est accepté mais signalé, et le tableau de
+bord ne peut pas calculer la complétude des réceptions.
+
+Ce qui change
+-------------
+1. Fenêtre d'extraction : fenetre_debut = 1er jour du 2e mois avant la date
+   d'extraction (extraction en octobre : 1er août). Le script refuse un autre
+   début et indique la bonne date dans le message d'erreur.
+2. Factures fournisseur (si) : toutes sont extraites, y compris celles qui ne
+   sont pas encore finalisées (nw, cn), avec trois nouvelles colonnes dans
+   l'onglet TRANSACTIONS : date_finalisation, transaction_liee_id,
+   date_finalisation_liee.
+3. Les réquisitions citées par une facture sont extraites même si leur mois
+   couvert est ancien.
+4. rc (reçu de paiement) est transmis en nature « encaissement ».
+5. Type de structure : le préfixe du nom du site l'emporte sur la catégorie
+   mSupply. Nouvelle colonne type_structure_msupply dans l'onglet SITES. En
+   fin d'extraction, le script liste les sites dont la catégorie mSupply est
+   à corriger (sites du périmètre en premier) ; cette liste n'empêche pas
+   l'envoi.
+
+Ce qui ne change pas
+--------------------
+- Connexion par connexion.env (modèle : connexion.exemple.env), mot de passe
+  saisi à chaque lancement.
+- Lancement : bash lancer_extraction.sh
+- Paramètres de la section 0 de extraction_msupply.sql à mettre à jour avant
+  chaque envoi (voir la procédure, section 5).
+- Classeur à envoyer tel quel, sans l'ouvrir ni le réenregistrer dans Excel.
+
+Mode d'emploi détaillé : Procedure_execution_extraction_mSupply.docx
