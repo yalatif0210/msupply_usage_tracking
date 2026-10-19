@@ -25,7 +25,9 @@ migration : la **grille de paramètres** (rôle `coordination`), les **comptes**
 | `PUT` | `/api/admin/strates/:typeStructure` | coordination | `StrateStructure` (upsert : `strate` + `jourLimiteRequisition` + `estDistrict`) |
 | `DELETE` | `/api/admin/strates/:typeStructure` | coordination | 204 (404 si inconnu) |
 | `GET` | `/api/admin/traceurs` | tout rôle authentifié | `ProduitTraceur[]` (lecture seule, ADR 0015) |
-| `GET` | `/api/admin/programmes-sites` | tout rôle authentifié | `VueProgrammesSites` (sites du périmètre, programmes, activité depuis le 1er du mois M-2) |
+| `GET` | `/api/admin/programmes-sites?q=&district=&filtre=&page=` | tout rôle authentifié | `VueProgrammesSites` : une page de 25 sites résumés (programmes, éligibles, éligibles sans activité, modifiés) et les totaux du filtre |
+| `GET` | `/api/admin/programmes-sites/:siteId` | tout rôle authentifié | `ProgrammesDuSite` : les programmes du site avec leur activité (404 hors périmètre) |
+| `POST` | `/api/admin/programmes-sites/:siteId/desactiver-sans-activite` | coordination | `ResultatDesactivation` : désactive les programmes éligibles sans activité du site |
 | `PUT` | `/api/admin/programmes-sites/:siteId/:programmeId` | coordination | `ProgrammeSite` (404 si le couple n'existe pas) |
 | `POST` | `/api/admin/programmes-sites/recalcul` | coordination | 204 (`rafraichir_et_geler(NULL)`) |
 
@@ -110,9 +112,17 @@ refus serveur.
   promotion ne modifie plus jamais, même si le fichier dit l'inverse.
 
 Un couple naît toujours d'un import (avec le statut du fichier), jamais de la
-console : un `PUT` sur un couple inconnu renvoie 404. L'écran affiche le
-nombre d'inventaires finalisés et de réquisitions depuis le 1er du mois M-2
-pour repérer les programmes rattachés mais non gérés.
+console : un `PUT` sur un couple inconnu renvoie 404. L'activité (inventaires
+finalisés et réquisitions depuis le 1er du mois M-2) sert à repérer les
+programmes rattachés mais non gérés.
+
+L'écran est conçu pour un grand nombre de sites : une ligne par site, filtrée
+(recherche, district, « À revoir », « Modifiés ») et paginée côté serveur ;
+les programmes d'un site ne se chargent qu'au dépli. L'activité est agrégée
+en une passe par table (pas de sous-requête par ligne). « À revoir » isole les
+sites qui gardent un programme éligible sans activité ; la désactivation
+groupée les traite site par site, chaque couple passant en origine
+`application` comme une bascule une à une.
 
 Les scores ne se recalculent pas à chaque bascule (un gel prend plusieurs
 secondes sur les données réelles) : la coordination fait ses choix puis lance

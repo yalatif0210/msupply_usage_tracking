@@ -116,22 +116,73 @@ export const programmeSiteSchema = z.object({
 });
 export type ProgrammeSite = z.infer<typeof programmeSiteSchema>;
 
-export const sitesProgrammesSchema = z.object({
+/**
+ * Un site et le résumé de ses programmes : une ligne de la liste paginée.
+ * Le détail des programmes se charge à la demande (un site déplié).
+ */
+export const resumeProgrammesSiteSchema = z.object({
   siteId: z.string(),
   siteNom: z.string(),
   district: z.string().nullable(),
   typeStructure: z.string().nullable(),
-  programmes: z.array(programmeSiteSchema),
+  nbProgrammes: z.number().int().nonnegative(),
+  nbEligibles: z.number().int().nonnegative(),
+  /** Programmes sans inventaire ni réquisition depuis `activiteDepuis`. */
+  nbSansActivite: z.number().int().nonnegative(),
+  /** Programmes encore éligibles bien que sans activité : les candidats à désactiver. */
+  nbEligiblesSansActivite: z.number().int().nonnegative(),
+  /** Programmes dont le statut a été fixé par la coordination. */
+  nbModifies: z.number().int().nonnegative(),
 });
-export type SiteProgrammes = z.infer<typeof sitesProgrammesSchema>;
+export type ResumeProgrammesSite = z.infer<typeof resumeProgrammesSiteSchema>;
 
-/** `GET /api/admin/programmes-sites` : les sites du périmètre et leurs programmes. */
+/**
+ * Filtre de la liste : `a_revoir` = sites ayant au moins un programme éligible
+ * sans activité ; `modifies` = au moins un statut fixé par la coordination.
+ */
+export const FILTRES_PROGRAMMES_SITES = ['tous', 'a_revoir', 'modifies'] as const;
+export const filtreProgrammesSitesSchema = z.enum(FILTRES_PROGRAMMES_SITES);
+export type FiltreProgrammesSites = z.infer<typeof filtreProgrammesSitesSchema>;
+
+/** Taille de page de la liste des sites, plafonnée côté serveur. */
+export const TAILLE_PAGE_PROGRAMMES_SITES = 25;
+
+/** Requête `GET /api/admin/programmes-sites` : filtrage et pagination côté serveur. */
+export const requeteProgrammesSitesSchema = z.object({
+  /** Recherche sur le nom du site, le district ou un programme. */
+  q: z.string().max(100).optional(),
+  district: z.string().optional(),
+  filtre: filtreProgrammesSitesSchema.optional(),
+  page: z.coerce.number().int().min(1).optional(),
+});
+export type RequeteProgrammesSites = z.infer<typeof requeteProgrammesSitesSchema>;
+
 export const vueProgrammesSitesSchema = z.object({
   /** Début de la période d'activité affichée (1er jour du mois M-2). */
   activiteDepuis: dateIsoSchema,
-  sites: z.array(sitesProgrammesSchema),
+  page: z.number().int().min(1),
+  taillePage: z.number().int().min(1),
+  /** Sites correspondant au filtre, toutes pages confondues. */
+  totalSites: z.number().int().nonnegative(),
+  /** Candidats à désactiver dans les sites filtrés, toutes pages confondues. */
+  totalEligiblesSansActivite: z.number().int().nonnegative(),
+  sites: z.array(resumeProgrammesSiteSchema),
 });
 export type VueProgrammesSites = z.infer<typeof vueProgrammesSitesSchema>;
+
+/** `GET /api/admin/programmes-sites/:siteId` : les programmes d'un site. */
+export const programmesDuSiteSchema = z.object({
+  siteId: z.string(),
+  activiteDepuis: dateIsoSchema,
+  programmes: z.array(programmeSiteSchema),
+});
+export type ProgrammesDuSite = z.infer<typeof programmesDuSiteSchema>;
+
+/** Résultat d'une désactivation groupée : programmes passés à « non éligible ». */
+export const resultatDesactivationSchema = z.object({
+  nbDesactives: z.number().int().nonnegative(),
+});
+export type ResultatDesactivation = z.infer<typeof resultatDesactivationSchema>;
 
 /** Corps d'un `PUT /api/admin/programmes-sites/:siteId/:programmeId`. */
 export const entreeProgrammeSiteSchema = z.object({ actif: z.boolean() });
