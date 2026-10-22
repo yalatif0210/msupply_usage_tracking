@@ -100,6 +100,9 @@
   --color-nc-texte: var(--nc-texte);
   --color-partiel-fond: var(--partiel-fond);
   --color-partiel-texte: var(--partiel-texte);
+
+  /* Largeur des vues sous la barre de menu : 95 % de l'écran (`max-w-vue`). */
+  --container-vue: 95%;
 }
 
 /*

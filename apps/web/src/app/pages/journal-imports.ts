@@ -26,7 +26,7 @@ type Variante = BadgeVariants['variant'];
   imports: [DatePipe, DecimalPipe, Coquille, HlmTableImports, HlmBadge, HlmButton, HlmInput],
   template: `
     <dqa-coquille />
-    <main class="mx-auto max-w-6xl px-6 py-6">
+    <main class="mx-auto w-full max-w-vue py-6">
       <h1 class="text-2xl font-bold tracking-tight">Journal des imports</h1>
       <p class="mt-1 max-w-2xl text-sm text-muted-foreground">
         Historique des fichiers hebdomadaires. Un lot rejeté n'a modifié aucune donnée.

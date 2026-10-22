@@ -61,7 +61,7 @@ type FiltresTableauDeBord = {
   providers: [DecimalPipe, provideIcons({ lucideBuilding2, lucideCircleCheck, lucideCircleDashed, lucideGauge })],
   template: `
     <dqa-coquille />
-    <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+    <main class="mx-auto w-full max-w-vue py-6">
       <h1 class="text-2xl font-bold tracking-tight">Tableau de bord national</h1>
 
       @switch (res.phase()) {

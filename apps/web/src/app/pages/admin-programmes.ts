@@ -65,7 +65,7 @@ const LIBELLES_FILTRE: Record<FiltreProgrammesSites, string> = {
   ],
   template: `
     <dqa-coquille />
-    <main class="mx-auto max-w-6xl px-4 py-6">
+    <main class="mx-auto w-full max-w-vue py-6">
       <h1 class="text-2xl font-semibold tracking-tight">Programmes éligibles</h1>
       <p class="mt-1 max-w-3xl text-sm text-muted-foreground">
         Programmes évalués pour chaque site (réquisitions et inventaires attendus en P1 et P2).

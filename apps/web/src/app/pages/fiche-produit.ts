@@ -41,7 +41,7 @@ type FiltresProduit = {
   ],
   template: `
     <dqa-coquille />
-    <main class="mx-auto max-w-5xl px-4 py-6">
+    <main class="mx-auto w-full max-w-vue py-6">
       <a [routerLink]="['/sites', id()]" class="text-sm text-primary hover:underline">← Retour à la fiche site</a>
 
       @switch (res.phase()) {

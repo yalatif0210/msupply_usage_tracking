@@ -109,7 +109,7 @@ function reculerMois(mois: string, n: number): string {
   ],
   template: `
     <dqa-coquille />
-    <main class="mx-auto max-w-6xl px-4 py-6">
+    <main class="mx-auto w-full max-w-vue py-6">
       <a routerLink="/sites" class="text-sm text-primary hover:underline">← Tous les sites</a>
 
       @switch (res.phase()) {

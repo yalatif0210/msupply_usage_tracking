@@ -35,7 +35,7 @@ interface LigneStrate {
   imports: [FormsModule, Coquille, HlmTableImports, HlmBadge, HlmButton, HlmInput, HlmLabel],
   template: `
     <dqa-coquille />
-    <main class="mx-auto max-w-5xl px-6 py-6">
+    <main class="mx-auto w-full max-w-vue py-6">
       <h1 class="text-2xl font-bold tracking-tight">Types de structure</h1>
       <p class="mt-1 max-w-3xl text-sm text-muted-foreground">
         Référentiel des

@@ -40,7 +40,7 @@ const estRole = (v: unknown): v is Role =>
   ],
   template: `
     <dqa-coquille />
-    <main class="mx-auto max-w-6xl px-6 py-6">
+    <main class="mx-auto w-full max-w-vue py-6">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 class="text-2xl font-bold tracking-tight">Comptes</h1>

@@ -18,7 +18,7 @@ import { Coquille } from '../ui/coquille';
   imports: [DatePipe, Coquille, HlmTableImports, HlmBadge],
   template: `
     <dqa-coquille />
-    <main class="mx-auto max-w-5xl px-6 py-6">
+    <main class="mx-auto w-full max-w-vue py-6">
       <h1 class="text-2xl font-bold tracking-tight">Produits traceurs</h1>
       <p class="mt-1 max-w-2xl text-sm text-muted-foreground">
         Panier de produits retenu pour les piliers P4 (conformité SDU et

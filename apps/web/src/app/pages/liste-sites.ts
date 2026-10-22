@@ -46,7 +46,7 @@ const TAILLE_PAGE = 15;
   ],
   template: `
     <dqa-coquille />
-    <main class="mx-auto max-w-6xl px-4 py-6">
+    <main class="mx-auto w-full max-w-vue py-6">
       <h1 class="text-2xl font-semibold tracking-tight text-foreground">Sites du périmètre DQA</h1>
 
       <div class="mt-4 mb-4 flex flex-wrap items-end gap-4">

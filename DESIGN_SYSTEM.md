@@ -136,7 +136,8 @@ héritée d'ADR 0006).
   écran porte ses filtres dans son `<main>`.
 - Écran étroit : les barres s'empilent ; la navigation passe à la ligne (ou
   bascule en `dropdown-menu`, comme le `TopNav` de shadcn-admin).
-- Contenu : largeur max `72rem`, centré, gouttière `1.5rem`.
+- Contenu : 95 % de la largeur de l'écran, centré (`mx-auto w-full max-w-vue`, jeton
+  `--container-vue`) : le tableau de bord est projeté, la place sert aux tableaux.
 
 ---
 
