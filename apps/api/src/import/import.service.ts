@@ -95,20 +95,29 @@ export class ImportService {
     }
 
     // Rafraîchissement des indicateurs + gel de l'historique, HORS transaction
-    // (ADR 0003) : un échec ici ne perd pas le lot promu.
+    // (ADR 0003) : un échec ici ne perd pas le lot promu. Il est renvoyé avec
+    // les anomalies du lot : sans lui, l'écran annonçait « valide » alors
+    // qu'aucun score n'avait été produit (lot du 2026-10-22).
+    const anomaliesRafraichissement: AnomalieImport[] = [];
     try {
       await this.rafraichissement.rafraichir(lotId);
     } catch {
-      await this.enregistrerAnomalies(lotId, [
-        { onglet: null, ligneSource: null, gravite: 'avertissement',
-          code: 'RAFRAICHISSEMENT_DIFFERE',
-          message: 'lot promu ; le rafraîchissement des scores a échoué et sera rejoué',
-          valeurBrute: null },
-      ]);
+      anomaliesRafraichissement.push({
+        onglet: null, ligneSource: null, gravite: 'avertissement',
+        code: 'RAFRAICHISSEMENT_DIFFERE',
+        message: 'lot promu, mais le calcul des scores a échoué : les scores affichés ne tiennent pas '
+          + 'compte de ce lot ; il sera rejoué au prochain import ou au prochain recalcul',
+        valeurBrute: null,
+      });
+      await this.enregistrerAnomalies(lotId, anomaliesRafraichissement);
     }
 
     const lot = await this.repo.lot(lotId);
-    return { statut: 'valide', lot: lot!, anomalies: [...anomalies, ...anomaliesReferences] };
+    return {
+      statut: 'valide',
+      lot: lot!,
+      anomalies: [...anomalies, ...anomaliesReferences, ...anomaliesRafraichissement],
+    };
   }
 
   private compteursDeclares(classeur: ClasseurLu): Record<string, number> {

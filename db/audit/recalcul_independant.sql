@@ -96,6 +96,8 @@ ecarts_p1 AS (
                        WHERE programme_id IS NULL AND completude_receptions_pct IS NOT NULL) v
       ON v.site_id = p1.site_id AND v.mois_paqd = p1.mois
     WHERE p1.taux IS DISTINCT FROM v.completude_receptions_pct
+      -- une réquisition ancienne citée par une facture ne note pas son mois (migration 0050)
+      AND dqa.mois_mesurable(coalesce(p1.mois, v.mois_paqd))
 ),
 -- Composite gelé : moyenne des piliers calculables pondérée par la grille.
 composite AS (
