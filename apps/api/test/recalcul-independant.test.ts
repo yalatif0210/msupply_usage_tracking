@@ -77,7 +77,7 @@ describe('recalcul indépendant des piliers', () => {
       await client.query('BEGIN READ ONLY');
       const { rows } = await client.query<{ controle: string; nb_ecarts: string }>(sql);
       await client.query('ROLLBACK');
-      expect(rows).toHaveLength(5);
+      expect(rows).toHaveLength(6);
       for (const r of rows) expect(Number(r.nb_ecarts), r.controle).toBe(0);
     } finally {
       client.release();

@@ -511,6 +511,97 @@ export const syntheseRapportsSchema = z.object({
 });
 export type SyntheseRapports = z.infer<typeof syntheseRapportsSchema>;
 
+// ─── Synthèse par territoire (Région, zone de district, site) ──────────────
+
+/**
+ * Niveau d'une ligne de lecture par territoire (CONTEXT.md « Territoire »).
+ * `zone` = zone de district : tous les sites rattachés au district, magasin
+ * du district sanitaire compris.
+ */
+export const NIVEAUX_TERRITOIRE = ['region', 'zone', 'site'] as const;
+export const niveauTerritoireSchema = z.enum(NIVEAUX_TERRITOIRE);
+export type NiveauTerritoire = z.infer<typeof niveauTerritoireSchema>;
+
+/** Requête des lectures par territoire : celle de la synthèse, plus la strate. */
+export const syntheseTerritoireQuerySchema = syntheseQuerySchema.extend({
+  /** Strate de structure à retenir (ex. « ESPC ») ; absente = toutes. */
+  strate: z.string().optional(),
+});
+export type SyntheseTerritoireQuery = z.infer<typeof syntheseTerritoireQuerySchema>;
+
+/** Requête des sites d'une zone de district, chargés au dépli. */
+export const sitesTerritoireQuerySchema = syntheseTerritoireQuerySchema.extend({
+  mois: moisPaqdSchema,
+  region: z.string(),
+  district: z.string(),
+});
+export type SitesTerritoireQuery = z.infer<typeof sitesTerritoireQuerySchema>;
+
+/** Identité d'une ligne : région toujours, district et site selon le niveau. */
+const ligneTerritoireBaseSchema = z.object({
+  niveau: niveauTerritoireSchema,
+  /** Libellé de la région, « Région non renseignée » si vide dans mSupply. */
+  region: z.string(),
+  /** Libellé du district (zone et site), « District non renseigné » si vide. */
+  district: z.string().nullable(),
+  siteId: z.string().nullable(),
+  siteNom: z.string().nullable(),
+  typeStructure: z.string().nullable(),
+  /** Sites comptés à ce niveau. */
+  nbSites: z.number().int().nonnegative(),
+});
+
+/** Triplet attendu / réalisé / à l'heure et ses deux taux (NULL si rien d'attendu). */
+export const comptesTauxSchema = ligneRapportsSchema.shape.requisitions.extend({
+  tauxRealise: pourcentageSchema.nullable(),
+  tauxALHeure: pourcentageSchema.nullable(),
+});
+export type ComptesTaux = z.infer<typeof comptesTauxSchema>;
+
+export const ligneTerritoireRapportsSchema = ligneTerritoireBaseSchema.extend({
+  requisitions: comptesTauxSchema,
+  inventaires: comptesTauxSchema,
+});
+export type LigneTerritoireRapports = z.infer<typeof ligneTerritoireRapportsSchema>;
+
+export const ligneTerritoireScoresSchema = ligneTerritoireBaseSchema.extend({
+  nbMesures: z.number().int().nonnegative(),
+  scoreCompositeMoyen: pourcentageSchema.nullable(),
+  repartition: repartitionClassificationSchema,
+  /** Grain site seulement : sa classification et ses piliers couverts. */
+  classification: classificationSchema.nullable(),
+  piliersCouverts: z.number().int().min(0).max(6).nullable(),
+});
+export type LigneTerritoireScores = z.infer<typeof ligneTerritoireScoresSchema>;
+
+/** En-tête commun : le mois servi et s'il est dû. */
+const enteteTerritoireSchema = z.object({
+  moisPaqd: moisPaqdSchema.nullable(),
+  moisDisponibles: z.array(moisPaqdSchema),
+  /** Faux tant que l'échéance du mois n'est pas passée : comptes « pas encore dus ». */
+  moisClos: z.boolean(),
+  /** Dernier jour de soumission « à l'heure » du mois (10 du mois suivant). */
+  echeance: dateIsoSchema.nullable(),
+  programmeId: z.string().nullable(),
+  region: z.string().nullable(),
+  strate: z.string().nullable(),
+});
+
+/**
+ * Régions et leurs zones de district, chaque niveau trié du plus faible au
+ * plus élevé (niveaux sans aucun attendu en fin de liste). Les sites d'une
+ * zone se chargent à part.
+ */
+export const syntheseTerritoireRapportsSchema = enteteTerritoireSchema.extend({
+  lignes: z.array(ligneTerritoireRapportsSchema),
+});
+export type SyntheseTerritoireRapports = z.infer<typeof syntheseTerritoireRapportsSchema>;
+
+export const syntheseTerritoireScoresSchema = enteteTerritoireSchema.extend({
+  lignes: z.array(ligneTerritoireScoresSchema),
+});
+export type SyntheseTerritoireScores = z.infer<typeof syntheseTerritoireScoresSchema>;
+
 // ─── Tableau de bord national (page d'accueil) ──────────────────────────────
 
 /** Nombre de sous-composantes « en difficulté » affichées sur la page d'accueil. */

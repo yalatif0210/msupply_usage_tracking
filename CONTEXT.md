@@ -304,6 +304,20 @@ Un des trois attributs d'un *type de structure* : le regroupement d'affichage
 des lectures nationales « rapports & inventaires ». Distincte de la valeur
 brute `type_structure` et du *régime de scoring*.
 
+**Territoire** :
+La hiérarchie géographique Région, puis zone de district, puis site. Une
+lecture « par territoire » agrège chaque niveau sur tous les sites qu'il
+contient, quel que soit leur type de structure (la strate n'y est qu'un
+filtre).
+_Éviter_ : niveau, palier (réservés au type de structure)
+
+**Zone de district** :
+L'ensemble des sites rattachés à un même district (`dim_site.district`), y
+compris le magasin du district sanitaire lui-même. C'est le niveau « district »
+d'une lecture par territoire.
+_Éviter_ : district, employé seul quand il peut désigner le magasin du district
+sanitaire (un site, au régime de scoring district)
+
 **Régime de scoring** :
 Booléen `est_district` porté par le référentiel des *types de structure*. Un
 district (`est_district = true`) mesure P3 sur les réquisitions de sa zone

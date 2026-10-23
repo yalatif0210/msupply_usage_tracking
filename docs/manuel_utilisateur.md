@@ -132,16 +132,41 @@ consommation déclarée.
 
 ### Synthèse nationale (`/synthese`)
 
-Trois onglets, filtrables par mois, programme et région :
+Trois onglets, filtrables par mois, programme, région et strate. La page
+s'ouvre sur le **dernier mois clos** ; les filtres se retrouvent dans l'adresse
+de la page, qu'on peut partager pour retrouver la même lecture en réunion.
 
-- **Par pilier** : score moyen national, moyenne par pilier, tableau par
-  district (cliquer une ligne filtre `/sites` sur ce district), scores par
-  programme de santé ;
+- **Par pilier** : score moyen national, moyenne par pilier, lecture **par
+  territoire** (voir ci-dessous), scores par programme de santé ;
 - **Sous-composantes** : les dix sous-composantes, triables, avec leur taux
   d'atteinte moyen et leurs comptes de statut ;
 - **Rapports & inventaires** : réquisitions et inventaires de fin de mois
-  attendus, réalisés et réalisés dans les délais, agrégés par strate de
-  structure (District sanitaire, Hôpital de référence, ESPC ; « Non classé » pour un type non mappé).
+  attendus, réalisés et réalisés dans les délais. Deux lectures au choix :
+  **par strate** de structure (District sanitaire, Hôpital de référence, ESPC ;
+  « Non classé » pour un type non mappé) ou **par territoire**.
+
+**Lecture par territoire.** Un tableau en arborescence : chaque **région** se
+déplie en **zones de district**, chaque zone en **sites**. Une zone de district
+regroupe tous les sites du district, magasin du district sanitaire compris. Un
+site sans région ou sans district dans mSupply apparaît sous « Région non
+renseignée » ou « District non renseigné » : il n'est jamais écarté.
+
+- Rapports & inventaires : pour chaque ligne, les comptes attendus, réalisés et
+  à l'heure, avec les taux « % réalisés » et « % à l'heure » (« s/o » quand rien
+  n'était attendu). Les lignes sont triées du plus faible taux de réquisitions
+  à l'heure au plus élevé : les territoires en difficulté sont en tête.
+- Scores : pour une région ou une zone, le score composite moyen (sur les seuls
+  sites mesurés), le nombre de sites mesurés et la répartition des
+  classifications ; pour un site, son score, sa classification, le nombre de
+  piliers couverts et un lien vers sa fiche. Le lien « liste des sites » d'une
+  zone ouvre `/sites` filtré sur ce district. Tri du plus faible score moyen au
+  plus élevé.
+- Le filtre **Strate** (par exemple « ESPC ») ne garde que les sites de cette
+  strate ; il ne s'applique qu'aux lectures par territoire. Un filtre de région
+  affiche cette région déjà dépliée.
+- Pour un mois dont l'échéance n'est pas passée, la lecture des rapports
+  indique « pas encore dus (échéance le JJ/MM) » au lieu de chiffres
+  provisoires.
 
 ### Imports (`/imports`, coordination uniquement)
 
@@ -523,5 +548,7 @@ principe des scores immuables, section 1).
 | Produit traceur | Un produit suivi de près pour les piliers P4, P5 et P6 ; la liste est tenue dans le script d'extraction de la DAP et reprise à chaque import |
 | Programme de santé | Un programme vertical géré par un site (VIH, paludisme, etc.) ; le nombre de programmes gérés détermine le nombre d'inventaires et de réquisitions attendus chaque mois |
 | Type de structure | La valeur `name_category3` d'un site (District sanitaire, Hôpital de référence, ESPC, CHU, Institut). Administré dans l'écran « Types de structure » : il porte la strate d'affichage, le jour limite de réquisition et le régime de scoring |
-| Strate | Un des trois attributs d'un type de structure : le regroupement utilisé pour la synthèse « Rapports & inventaires » (« Non classé » pour un type non renseigné) |
+| Strate | Un des trois attributs d'un type de structure : le regroupement utilisé pour la synthèse « Rapports & inventaires » et le filtre des lectures par territoire (« Non classé » pour un type non renseigné) |
+| Territoire | Le découpage géographique de la synthèse : région, puis zone de district, puis site |
+| Zone de district | Tous les sites d'un district, magasin du district sanitaire compris |
 | Régime de scoring | District ou site de soins. Seule différence : un district mesure P3 sur les réquisitions de sa zone servies et P4 sur les quantités distribuées |

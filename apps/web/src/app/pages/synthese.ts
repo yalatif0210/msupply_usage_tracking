@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { Router } from '@angular/router';
 import {
   LIBELLES_PILIER,
   LIBELLES_SOUS_COMPOSANTE,
@@ -11,6 +10,7 @@ import {
   type SyntheseNationale,
   type SyntheseRapports,
 } from '@dqa/contracts';
+import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmCardImports } from '@spartan-ng/helm/card';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { HlmSkeletonImports } from '@spartan-ng/helm/skeleton';
@@ -23,14 +23,25 @@ import { SyntheseService } from '../core/synthese.service';
 import { BarreAttente } from '../ui/barre-attente';
 import { Coquille } from '../ui/coquille';
 import { RepartitionClassificationComponent } from '../ui/repartition-classification';
+import { TerritoireRapports } from './territoire-rapports';
+import { TerritoireScores } from './territoire-scores';
 
 type TriColonne = 'libelle' | 'pilier' | 'tauxAtteinteMoyen' | 'nbConforme' | 'nbAlerte' | 'nbNonCalculable';
+
+/** Lecture de l'onglet « Rapports & inventaires ». */
+type VueRapports = 'strate' | 'territoire';
 
 type FiltresSynthese = {
   mois: string;
   programmeId: string;
   region: string;
+  /** Lectures par territoire seulement ; vide = toutes les strates. */
+  strate: string;
+  /** Vide = par strate (lecture historique de l'onglet). */
+  vueRapports: '' | VueRapports;
 }
+
+const FILTRES_INITIAUX: FiltresSynthese = { mois: '', programmeId: '', region: '', strate: '', vueRapports: '' };
 
 const COLONNES: readonly { cle: TriColonne; libelle: string; num: boolean }[] = [
   { cle: 'libelle', libelle: 'Sous-composante', num: false },
@@ -52,6 +63,9 @@ const TH = 'text-xs font-medium text-muted-foreground';
     Coquille,
     BarreAttente,
     RepartitionClassificationComponent,
+    TerritoireRapports,
+    TerritoireScores,
+    HlmButton,
     HlmSkeletonImports,
     HlmSelectImports,
     HlmTabsImports,
@@ -120,6 +134,22 @@ const TH = 'text-xs font-medium text-muted-foreground';
                 <hlm-select-item value="">Toutes</hlm-select-item>
                 @for (r of regions(); track r) {
                   <hlm-select-item [value]="r">{{ r }}</hlm-select-item>
+                }
+              </hlm-select-content>
+            </hlm-select>
+          </label>
+
+          <label class="grid gap-1.5 text-xs font-medium text-muted-foreground"
+                 title="S'applique aux lectures par territoire">
+            Strate (par territoire)
+            <hlm-select [value]="res.filtres().strate" (valueChange)="majStrate($event)">
+              <hlm-select-trigger class="w-56">
+                <hlm-select-value placeholder="Toutes" />
+              </hlm-select-trigger>
+              <hlm-select-content *hlmSelectPortal>
+                <hlm-select-item value="">Toutes</hlm-select-item>
+                @for (st of strates(); track st) {
+                  <hlm-select-item [value]="st">{{ st }}</hlm-select-item>
                 }
               </hlm-select-content>
             </hlm-select>
@@ -225,41 +255,15 @@ const TH = 'text-xs font-medium text-muted-foreground';
 
                   <section hlmCard>
                     <div hlmCardHeader>
-                      <h2 hlmCardTitle>Par district</h2>
+                      <h2 hlmCardTitle>Par territoire</h2>
+                      <p class="text-sm text-muted-foreground">
+                        Région, zone de district puis site{{ res.filtres().strate ? ' · strate ' + res.filtres().strate : '' }}.
+                        Déplier une région pour ses zones, une zone pour ses sites.
+                      </p>
                     </div>
                     <div hlmCardContent>
-                      @if (s.parDistrict.length === 0) {
-                        <p class="text-sm text-muted-foreground">Aucun district ne correspond à ce filtre.</p>
-                      } @else {
-                        <div hlmTableContainer>
-                          <table hlmTable>
-                            <thead hlmTHead>
-                              <tr hlmTr>
-                                <th hlmTh [class]="TH">District</th>
-                                <th hlmTh [class]="TH + ' text-right'">Sites</th>
-                                <th hlmTh [class]="TH + ' text-right'">Mesurés</th>
-                                <th hlmTh [class]="TH + ' text-right'">Score moyen</th>
-                                <th hlmTh [class]="TH">Répartition</th>
-                              </tr>
-                            </thead>
-                            <tbody hlmTBody>
-                              @for (d of s.parDistrict; track d.district) {
-                                <tr hlmTr class="cursor-pointer" (click)="ouvrirDistrict(d.district)">
-                                  <td hlmTd>{{ d.district }}</td>
-                                  <td hlmTd class="text-right tabular-nums">{{ d.nbSites }}</td>
-                                  <td hlmTd class="text-right tabular-nums">{{ d.nbMesures }}</td>
-                                  <td hlmTd class="text-right tabular-nums">
-                                    {{ d.scoreCompositeMoyen === null ? absent : (d.scoreCompositeMoyen | number: '1.0-1') }}
-                                  </td>
-                                  <td hlmTd class="whitespace-normal">
-                                    <dqa-repartition-classification [repartition]="d.repartition" [compact]="true" />
-                                  </td>
-                                </tr>
-                              }
-                            </tbody>
-                          </table>
-                        </div>
-                      }
+                      <dqa-territoire-scores [mois]="s.moisPaqd" [programmeId]="res.filtres().programmeId"
+                                             [region]="res.filtres().region" [strate]="res.filtres().strate" />
                     </div>
                   </section>
 
@@ -356,7 +360,28 @@ const TH = 'text-xs font-medium text-muted-foreground';
                   </section>
                 </div>
 
-                <div hlmTabsContent="rapports" class="pt-4">
+                <div hlmTabsContent="rapports" class="flex flex-col gap-4 pt-4">
+                  <div class="flex gap-2" role="group" aria-label="Lecture des rapports et inventaires">
+                    <button hlmBtn size="sm" type="button" [variant]="vueRapports() === 'strate' ? 'default' : 'outline'"
+                            [attr.aria-pressed]="vueRapports() === 'strate'" (click)="majVueRapports('strate')">Par strate</button>
+                    <button hlmBtn size="sm" type="button" [variant]="vueRapports() === 'territoire' ? 'default' : 'outline'"
+                            [attr.aria-pressed]="vueRapports() === 'territoire'" (click)="majVueRapports('territoire')">Par territoire</button>
+                  </div>
+                  @if (vueRapports() === 'territoire') {
+                    <section hlmCard>
+                      <div hlmCardHeader>
+                        <h2 hlmCardTitle>Rapports et inventaires par territoire</h2>
+                        <p class="text-sm text-muted-foreground">
+                          Région, zone de district puis site{{ res.filtres().strate ? ' · strate ' + res.filtres().strate : '' }}.
+                          L'attendu est compté par programme géré.
+                        </p>
+                      </div>
+                      <div hlmCardContent>
+                        <dqa-territoire-rapports [mois]="s.moisPaqd" [programmeId]="res.filtres().programmeId"
+                                                 [region]="res.filtres().region" [strate]="res.filtres().strate" />
+                      </div>
+                    </section>
+                  } @else {
                   <section hlmCard>
                     <div hlmCardHeader>
                       <h2 hlmCardTitle>Rapports et inventaires par strate de structure</h2>
@@ -367,7 +392,11 @@ const TH = 'text-xs font-medium text-muted-foreground';
                     </div>
                     <div hlmCardContent>
                       @if (rapports(); as r) {
-                        @if (r.strates.length === 0) {
+                        @if (r.moisPaqd !== s.moisPaqd && !resRapports.enCours()) {
+                          <p class="text-sm text-muted-foreground" role="status">
+                            Aucun compte figé pour {{ s.moisPaqd }} : les rapports et inventaires de ce mois ne sont pas encore dus.
+                          </p>
+                        } @else if (r.strates.length === 0) {
                           <p class="text-sm text-muted-foreground">
                             Aucune strate n'a de comptes figés pour ce mois{{ s.programmeId || s.region ? ' avec ce filtre' : '' }}.
                           </p>
@@ -419,6 +448,7 @@ const TH = 'text-xs font-medium text-muted-foreground';
                       }
                     </div>
                   </section>
+                  }
                 </div>
               </hlm-tabs>
             }
@@ -436,10 +466,10 @@ export class SynthesePage {
   protected readonly TH = TH;
   private readonly service = inject(SyntheseService);
   private readonly sites = inject(SitesService);
-  private readonly router = inject(Router);
 
   protected readonly regions = signal<string[]>([]);
   protected readonly programmes = signal<Programme[]>([]);
+  protected readonly strates = signal<string[]>([]);
   protected readonly tri = signal<{ colonne: TriColonne; sens: 1 | -1 }>({
     colonne: 'tauxAtteinteMoyen',
     sens: 1,
@@ -453,7 +483,7 @@ export class SynthesePage {
         programmeId: f.programmeId || undefined,
       }),
     germe: null,
-    filtresInitiaux: { mois: '', programmeId: '', region: '' },
+    filtresInitiaux: FILTRES_INITIAUX,
     // aligne le mois affiché sur celui que le serveur a réellement servi
     apresChargement: (s) => (s ? { mois: s.moisPaqd ?? '' } : undefined),
   });
@@ -470,12 +500,17 @@ export class SynthesePage {
         programmeId: f.programmeId || undefined,
       }),
     germe: null,
-    filtresInitiaux: { mois: '', programmeId: '', region: '' },
-    apresChargement: (r) => (r ? { mois: r.moisPaqd ?? '' } : undefined),
+    filtresInitiaux: FILTRES_INITIAUX,
+    // n'aligne que le mois par défaut : un mois choisi sans comptes figés (pas encore dû) reste affiché tel quel
+    apresChargement: (r, f) => (r && !f.mois ? { mois: r.moisPaqd ?? '' } : undefined),
   });
 
   protected rapports(): SyntheseRapports | null {
     return this.resRapports.valeur();
+  }
+
+  protected vueRapports(): VueRapports {
+    return this.res.filtres().vueRapports || 'strate';
   }
 
   constructor() {
@@ -483,9 +518,19 @@ export class SynthesePage {
   }
 
   private async init(): Promise<void> {
-    const [r, p] = await Promise.all([this.sites.regions(), this.sites.programmes()]);
+    const [r, p, st] = await Promise.all([
+      this.sites.regions(),
+      this.sites.programmes(),
+      this.service.strates().catch((): string[] => []),
+    ]);
     this.regions.set(r);
     this.programmes.set(p);
+    this.strates.set(st);
+    // sans mois dans l'URL, la synthèse s'ouvre sur le dernier mois clos, pas sur un mois provisoire
+    if (!this.res.filtres().mois) {
+      const dernierClos = await this.service.territoireScores({}).then((t) => t.moisPaqd, () => null);
+      if (dernierClos) this.majFiltreLocal({ mois: dernierClos });
+    }
     await Promise.all([this.res.demarrer(), this.resRapports.demarrer()]);
   }
 
@@ -510,10 +555,24 @@ export class SynthesePage {
     this.majFiltre({ region: versChaine(valeur) });
   }
 
+  /** Strate et vue ne servent qu'aux lectures par territoire : rien à recharger côté synthèse. */
+  protected majStrate(valeur: unknown): void {
+    this.majFiltreLocal({ strate: versChaine(valeur) });
+  }
+
+  protected majVueRapports(vue: VueRapports): void {
+    this.majFiltreLocal({ vueRapports: vue === 'strate' ? '' : vue });
+  }
+
   /** Propage un changement de filtre aux deux ressources de la page. */
   private majFiltre(modif: Partial<FiltresSynthese>): void {
     this.res.definir(modif);
     this.resRapports.definir(modif);
+  }
+
+  private majFiltreLocal(modif: Partial<FiltresSynthese>): void {
+    this.res.definirLocal(modif);
+    this.resRapports.definirLocal(modif);
   }
 
   protected trier(colonne: TriColonne): void {
@@ -538,10 +597,6 @@ export class SynthesePage {
       if (y === null) return -1;
       return (x < y ? -1 : 1) * sens;
     });
-  }
-
-  protected ouvrirDistrict(district: string): void {
-    void this.router.navigate(['/sites'], { queryParams: { district } });
   }
 }
 

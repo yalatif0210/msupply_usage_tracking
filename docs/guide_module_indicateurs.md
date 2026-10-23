@@ -20,6 +20,11 @@ Emplacement : `apps/api/src/indicateurs/` (API) et `apps/web/src/app/pages/`
 | `GET` | `/api/sites/:id/piliers/:code?mois=&programmeId=` | `DetailPilier` (union sur `code` ; `p4` = tableau produit P4 · P5) | tout authentifié |
 | `GET` | `/api/sites/:id/produits/:code?mois=&programmeId=` | `FicheProduitMois` (produits traceurs uniquement) | tout authentifié |
 | `GET` | `/api/synthese?mois=&programmeId=&region=` | `SyntheseNationale` | tout authentifié |
+| `GET` | `/api/synthese/territoire/rapports?mois=&programmeId=&region=&strate=` | `SyntheseTerritoireRapports` (régions et zones) | tout authentifié |
+| `GET` | `/api/synthese/territoire/rapports/sites?mois=&region=&district=&programmeId=&strate=` | `LigneTerritoireRapports[]` (sites d'une zone) | tout authentifié |
+| `GET` | `/api/synthese/territoire/scores?mois=&programmeId=&region=&strate=` | `SyntheseTerritoireScores` (régions et zones) | tout authentifié |
+| `GET` | `/api/synthese/territoire/scores/sites?mois=&region=&district=&programmeId=&strate=` | `LigneTerritoireScores[]` (sites d'une zone) | tout authentifié |
+| `GET` | `/api/synthese/territoire/strates` | `string[]` | tout authentifié |
 | `GET` | `/api/tableau-de-bord?mois=` | `TableauDeBord` | tout authentifié |
 | `GET` | `/api/referentiel/programmes` | `Programme[]` | tout authentifié |
 | `GET` | `/api/referentiel/districts` | `string[]` | tout authentifié |
@@ -40,6 +45,8 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 | `mv_synthese_nationale` | agrégats nationaux / région / district / programme par mois PAQD |
 | `mv_synthese_sous_composante` | mêmes grains, par sous-composante : comptes de statut + taux d'atteinte moyen |
 | `mv_synthese_rapports` | comptes P1 / P2 des réquisitions et inventaires de fin de mois, agrégés par strate de structure (× région × programme) par mois PAQD |
+| `mv_synthese_territoire_rapports` | mêmes comptes de réquisitions et d'inventaires, et leurs taux, par région, zone de district et site (× programme × strate) par mois PAQD |
+| `mv_synthese_territoire_scores` | score composite moyen, sites mesurés et répartition par région, zone de district et site (× programme × strate) par mois PAQD |
 | `mv_p1_completude` | taux de complétude inventaires / réquisitions / réceptions (%), scores et p_completude |
 | `mv_p2_promptitude` | taux de promptitude inventaires / réquisitions (%), scores et p_promptitude |
 | `mv_p3_regularite` | taux de jours du mois avec sortie de stock (%) |
@@ -342,6 +349,42 @@ onglet « Rapports & inventaires » de `/synthese` (tableau strate × { réquisi
 inventaires } × { attendu, réalisé, à l'heure }, ligne de total, `tabular-nums`),
 avec les mêmes sélecteurs mois / région / programme que les deux autres onglets.
 
+**Par territoire.** Migration 0051. Deux vues au grain région / zone de
+district / site, par mois PAQD, programme (`NULL` = tous) et strate (`NULL` =
+toutes), dans des `GROUPING SETS` croisés :
+
+- `mv_synthese_territoire_rapports` lit `hist_pilier_brut` comme
+  `mv_synthese_rapports` (lignes par programme seulement) et ajoute les taux
+  `req_taux_realise`, `req_taux_a_lheure`, `inv_taux_realise`,
+  `inv_taux_a_lheure` (`NULL` quand rien n'était attendu, affiché « s/o ») ;
+- `mv_synthese_territoire_scores` reprend la construction de
+  `mv_synthese_nationale` (mois × sites du périmètre, sites gérants pour un
+  programme) ; au niveau site elle porte la classification et le nombre de
+  piliers couverts.
+
+Une **zone de district** compte tous les sites rattachés au district, magasin du
+district sanitaire compris. Région ou district vide : regroupés sous « Région
+non renseignée » / « District non renseigné » (`dqa.libelle_region`,
+`dqa.libelle_district`), jamais écartés. Les vues existantes ne changent pas.
+
+`TerritoireRepository` sert les régions et leurs zones en une lecture, dans
+l'ordre d'affichage (régions triées du plus faible au plus élevé, chacune
+suivie de ses zones triées ; sans valeur en fin de liste), et les sites d'une
+zone à la demande. Clé de tri : taux de réquisitions à l'heure pour les
+rapports, score composite moyen pour les scores. Mois par défaut : le dernier
+mois clos (`dqa.mois_est_clos`) ; la réponse porte `moisClos` et `echeance`
+(1er du mois + 1 mois + 9 jours, soit le 10 du mois suivant) pour le message
+« pas encore dû ».
+
+La procédure `rafraichir_et_geler` rafraîchit les deux vues. Elle purge
+aussi, pour un mois encore ouvert, les comptes bruts P1 / P2 d'une clé que le
+dernier calcul n'a plus produite : sans cela, des comptes figés par un import
+antérieur restaient comptés (76 réquisitions d'octobre 2026 constatées sur la
+démo, absentes de `mv_score_pilier`).
+
+Le recalcul indépendant (`db/audit/recalcul_independant.sql`) vérifie qu'une
+zone est exactement la somme de ses sites.
+
 **Tableau de bord national.** `GET /api/tableau-de-bord?mois=` (`TableauDeBord`)
 sert la page d'accueil `/` : `national` (bloc du mois affiché, lu sur
 `mv_synthese_nationale` au grain tous nuls), `progression` (score composite
@@ -360,12 +403,19 @@ de réquisition la plus tardive) distinguent un score définitif d'un score
 encore provisoire ; l'écran affiche un repère « mois en cours » tant qu'il est
 faux, pour qu'une valeur partielle ne soit pas lue comme un verdict final.
 
-Écran `pages/synthese.ts` (route `/synthese`) : deux onglets. « Par pilier » :
+Écran `pages/synthese.ts` (route `/synthese`) : trois onglets. « Par pilier » :
 bloc national (score moyen en grand, barre de répartition à quatre segments
-`ui/repartition-classification`), six moyennes de pilier, tableau par district
-(ligne cliquable → `/sites` filtré), section « scores par programme ».
-« Sous-composantes » : tableau des dix sous-composantes, triable. Sélecteurs
-mois / programme / région. Écran `pages/tableau-de-bord.ts` (route `/`) :
+`ui/repartition-classification`), six moyennes de pilier, arborescence « Par
+territoire » (`pages/territoire-scores.ts` : région, zone avec lien vers
+`/sites` filtré sur le district, site avec lien vers sa fiche), section
+« scores par programme ». « Sous-composantes » : tableau des dix
+sous-composantes, triable. « Rapports & inventaires » : bascule « Par strate »
+(tableau historique) / « Par territoire » (`pages/territoire-rapports.ts`).
+Sélecteurs mois / programme / région / strate, tous dans l'URL avec la
+bascule (`vueRapports`). Sans mois dans l'URL, la page s'ouvre sur le dernier
+mois clos. La strate ne s'applique qu'aux lectures par territoire. Les sites
+d'une zone se chargent au dépli et restent en cache jusqu'au prochain
+changement de filtre ; un filtre de région affiche cette région déjà dépliée. Écran `pages/tableau-de-bord.ts` (route `/`) :
 tuiles, `ui/graphe-sparkline`, top 5 en difficulté ; la liste des sites est sur
 `/sites` (`pages/liste-sites.ts`).
 

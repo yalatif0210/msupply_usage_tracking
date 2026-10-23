@@ -111,9 +111,25 @@ composite AS (
 ),
 ecarts_composite AS (
     SELECT count(*) AS n FROM composite WHERE recalcule IS DISTINCT FROM score_composite
+),
+-- Synthèse par territoire (0051) : une zone de district est la somme de ses sites.
+ecarts_territoire AS (
+    SELECT count(*) AS n
+    FROM (SELECT * FROM dqa.mv_synthese_territoire_rapports
+          WHERE niveau = 'zone' AND programme_id IS NULL AND strate IS NULL) z
+    FULL JOIN (SELECT mois_paqd, region, district, count(*) AS nb_sites,
+                      sum(req_attendu) AS req_attendu, sum(req_realise) AS req_realise, sum(req_a_lheure) AS req_a_lheure,
+                      sum(inv_attendu) AS inv_attendu, sum(inv_realise) AS inv_realise, sum(inv_a_lheure) AS inv_a_lheure
+               FROM dqa.mv_synthese_territoire_rapports
+               WHERE niveau = 'site' AND programme_id IS NULL AND strate IS NULL
+               GROUP BY 1, 2, 3) s
+      ON s.mois_paqd = z.mois_paqd AND s.region = z.region AND s.district = z.district
+    WHERE (z.nb_sites, z.req_attendu, z.req_realise, z.req_a_lheure, z.inv_attendu, z.inv_realise, z.inv_a_lheure)
+          IS DISTINCT FROM (s.nb_sites, s.req_attendu, s.req_realise, s.req_a_lheure, s.inv_attendu, s.inv_realise, s.inv_a_lheure)
 )
 SELECT 'P1 complétude des réceptions' AS controle, (SELECT n FROM ecarts_p1) AS nb_ecarts
 UNION ALL SELECT 'P4 conformité SDU',      (SELECT n FROM ecarts_p4)
 UNION ALL SELECT 'P5 concordance',          (SELECT n FROM ecarts_p5)
 UNION ALL SELECT 'P6 ratio d''ajustements', (SELECT n FROM ecarts_p6)
-UNION ALL SELECT 'Score composite gelé',    (SELECT n FROM ecarts_composite);
+UNION ALL SELECT 'Score composite gelé',    (SELECT n FROM ecarts_composite)
+UNION ALL SELECT 'Territoire : zone = somme de ses sites', (SELECT n FROM ecarts_territoire);
