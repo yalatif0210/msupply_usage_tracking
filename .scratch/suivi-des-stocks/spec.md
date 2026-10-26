@@ -35,7 +35,7 @@ dernier import) : on peut ainsi conjecturer le stock disponible à n'importe
 quelle date, passée ou future, avec les seules données connues à cette date.
 
 L'écran se lit site, puis programme, puis produit, avec un encadré des couples
-site × produit en alerte (rupture prévue dans moins de 15 jours). Aucun effet sur
+site × produit à signaler (couverture de 15 jours ou moins) ou à surveiller. Aucun effet sur
 le score.
 
 ## User Stories
@@ -56,7 +56,8 @@ le score.
 13. En tant que lecteur, je veux filtrer par région, district, site et programme, filtres reflétés dans l'adresse de la page, afin de partager une lecture en réunion.
 14. En tant que lecteur, je veux, pour un couple site × produit, la courbe du stock projeté jour par jour avec les inventaires, les réceptions et les photos mSupply, afin de comprendre la projection.
 15. En tant que lecteur, je veux qu'un couple sans CMM calculable le dise et dise pourquoi (pas deux inventaires, sorties nulles ou négatives), afin de ne pas lire un vide comme une absence de risque.
-16. En tant que coordination, je veux régler le délai d'alerte (15 jours par défaut), afin de l'adapter aux délais de livraison.
+16. En tant que coordination, je veux régler le seuil de couverture qui fait signaler une rupture (15 jours par défaut), afin de l'adapter aux délais de livraison.
+17. En tant que coordination, je veux voir à part les couples « à surveiller » (rupture prévue au-delà du seuil), afin d'anticiper sans les confondre avec l'urgence.
 
 ## Implementation Decisions
 
@@ -94,8 +95,14 @@ le score.
   valeur au jour t.
 - **Rupture prévue** = premier jour où le stock projeté atteint 0 ;
   **couverture** = stock projeté à t ÷ (CMM ÷ 30,4), en jours.
-- **En alerte** = rupture prévue avant t + délai d'alerte (strictement). Délai dans
-  `parametre_suivi` (`delai_alerte_rupture_jours`, 15).
+- **Statut d'un couple à t**, calculé en base :
+  - `en_rupture` : stock projeté à 0 à t ;
+  - `rupture_signalee` : couverture de 15 jours ou moins (seuil inclus) ;
+  - `a_surveiller` : couverture au-delà de 15 jours, mais rupture prévue dans
+    l'horizon de projection (t + 90 jours) ;
+  - `sans_risque` : aucune rupture prévue dans l'horizon ;
+  - `non_calculable` : CMM non calculable.
+  Seuil dans `parametre_suivi` (`seuil_couverture_rupture_jours`, 15).
 - **Comparaison aux photos** : pour chaque date de photo mSupply postérieure à
   la borne de fin, stock projeté, stock mSupply (somme des lots) et écart,
   affichés sans seuil.
@@ -130,7 +137,7 @@ le score.
     rupture, couverture ;
   - date t passée : inventaire et réception postérieurs à t ignorés ; date t
     future : aucune réception supposée ;
-  - alerte au délai paramétré ;
+  - statuts : couverture de 15 jours pile signalée, 16 jours à surveiller, au-delà de l'horizon sans risque, stock à 0 en rupture ;
   - programme parent ; site district (distributions) ;
   - écart à une photo mSupply.
 - Tests unitaires web des fonctions de mise en forme et d'arborescence.

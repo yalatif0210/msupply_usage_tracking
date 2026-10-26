@@ -335,7 +335,9 @@ reconstituée mesure les pertes non saisies.
 Stock d'un produit sur un site estimé jour par jour, en ligne droite : dernier
 stock compté, plus les réceptions connues, moins la CMM reconstituée ramenée
 au jour. Il donne la **rupture prévue** (premier jour à 0) et la
-**couverture** (jours de stock restants à la date de référence).
+**couverture** (jours de stock restants à la date de référence). Une rupture
+est **signalée** quand la couverture est de 15 jours ou moins ; au-delà, un
+produit dont la rupture est prévue dans les 90 jours est **à surveiller**.
 _Éviter_ : stock théorique (celui de mSupply, qui ignore les pertes non saisies)
 
 **Photo de stock** :
