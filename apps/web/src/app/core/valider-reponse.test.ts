@@ -334,6 +334,8 @@ describe('validerReponse (couture D)', () => {
 
   const consoEvaluable = {
     evaluable: true,
+    dateDebut: '2026-07-31',
+    dateFin: '2026-08-30',
     stockDebut: 100,
     stockFin: 80,
     receptions: 10,
@@ -347,6 +349,8 @@ describe('validerReponse (couture D)', () => {
     produitCode: 'T1',
     libelle: 'Traceur 1',
     article: null,
+    dateInventaire: '2026-08-30',
+    lots: [{ lot: 'L1', theorique: 100, comptee: 95 }],
     sdu: { theorique: 100, comptee: 95, ecartPct: 5.3, conforme: false },
     consommation: consoEvaluable,
     concordance: { tauxPct: 95, conforme: true },
@@ -417,7 +421,7 @@ describe('validerReponse (couture D)', () => {
         produitId: 'I2',
         produitCode: 'T2',
         article: { rang: 1, nombre: 2, unite: 'FL' },
-        consommation: { evaluable: false, raisonExclusion: 'aucune_borne' },
+        consommation: { evaluable: false, raisonExclusion: 'aucune_borne', bornes: null },
         concordance: { tauxPct: null, conforme: false },
       }),
     ],

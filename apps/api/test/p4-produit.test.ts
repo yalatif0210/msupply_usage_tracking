@@ -221,6 +221,18 @@ describe('vue mv_p4_ecart_produit', () => {
       expect(t2.consommation.evaluable).toBe(false);
       if (!t2.consommation.evaluable) expect(t2.consommation.raisonExclusion).toBe('aucune_borne');
 
+      // dates et lots lisibles à l'écran (migration 0052)
+      expect(t1.dateInventaire).toBe('2026-08-28');
+      expect(t1.lots).toEqual([{ lot: 'X', theorique: 100, comptee: 100 }]);
+      if (t1.consommation.evaluable) {
+        expect(t1.consommation).toMatchObject({ dateDebut: '2026-08-05', dateFin: '2026-08-28', reconstituee: 30 });
+      }
+      if (!t2.consommation.evaluable) expect(t2.consommation.bornes).toBeNull();
+      // exclu pour reconstituée ≤ 0 : ses grandeurs restent servies
+      const t6 = d.produits.find((p) => p.produitCode === 'T6')!;
+      if (t6.consommation.evaluable) throw new Error('T6 doit être exclu');
+      expect(t6.consommation.bornes).toMatchObject({ stockDebut: 10, stockFin: 100, reconstituee: -90 });
+
       // comptes bruts figés du pilier P4 + horodatage du gel
       expect(d.comptesBruts.some((c) => c.mesure === 'p4_ecart_sdu')).toBe(true);
       expect(d.calculeLe).not.toBeNull();

@@ -710,16 +710,28 @@ export const ecartSduProduitSchema = z.object({
 export type EcartSduProduit = z.infer<typeof ecartSduProduitSchema>;
 
 /**
- * Union discriminée sur `evaluable` : un produit non évaluable n'a qu'une
- * raison ; un produit évaluable porte les cinq grandeurs et son statut.
+ * Grandeurs de la consommation reconstituée entre deux inventaires bornants
+ * (`AAAA-MM-JJ`) : `reconstituee = stockDebut + receptions - stockFin`.
+ */
+export const bornesConsoSchema = z.object({
+  dateDebut: z.string(),
+  dateFin: z.string(),
+  stockDebut: z.number(),
+  stockFin: z.number(),
+  receptions: z.number(),
+  declaree: z.number(),
+  reconstituee: z.number(),
+});
+export type BornesConso = z.infer<typeof bornesConsoSchema>;
+
+/**
+ * Union discriminée sur `evaluable` : un produit évaluable porte ses bornes,
+ * son écart et son statut ; un produit non évaluable porte sa raison et, s'il
+ * a des bornes (reconstituée nulle ou négative), leurs grandeurs pour lecture.
  */
 export const ecartConsoProduitSchema = z.discriminatedUnion('evaluable', [
-  z.object({
+  bornesConsoSchema.extend({
     evaluable: z.literal(true),
-    stockDebut: z.number(),
-    stockFin: z.number(),
-    receptions: z.number(),
-    declaree: z.number(),
     reconstituee: z.number().positive(),
     ecartPct: z.number(),
     conforme: z.boolean(),
@@ -727,6 +739,7 @@ export const ecartConsoProduitSchema = z.discriminatedUnion('evaluable', [
   z.object({
     evaluable: z.literal(false),
     raisonExclusion: raisonExclusionConsoSchema,
+    bornes: bornesConsoSchema.nullable(),
   }),
 ]);
 export type EcartConsoProduit = z.infer<typeof ecartConsoProduitSchema>;
@@ -757,6 +770,10 @@ export const ligneProduitP4P5Schema = z.object({
   article: z
     .object({ rang: z.number().int().positive(), nombre: z.number().int().min(2), unite: z.string().nullable() })
     .nullable(),
+  /** Inventaire retenu pour le SDU et la concordance (`AAAA-MM-JJ`). */
+  dateInventaire: z.string(),
+  /** Lots de cet inventaire : `sdu.theorique` / `sdu.comptee` en sont la somme. */
+  lots: z.array(z.object({ lot: z.string(), theorique: z.number().nullable(), comptee: z.number().nullable() })),
   sdu: ecartSduProduitSchema,
   consommation: ecartConsoProduitSchema,
   concordance: concordanceProduitP5Schema,

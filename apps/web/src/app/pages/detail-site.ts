@@ -8,7 +8,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -29,7 +29,6 @@ import {
   type HistoriqueSite,
   type Pilier,
   type Programme,
-  type RaisonExclusionConso,
   type SousComposante,
   type SousComposanteBref,
 } from '@dqa/contracts';
@@ -49,7 +48,7 @@ import { Coquille } from '../ui/coquille';
 import { GrapheCourbe, type SerieGrapheCourbe } from '../ui/graphe-courbe';
 import { GrapheRadar, type AxeGrapheRadar } from '../ui/graphe-radar';
 import { construireCalendrierP3, type CalendrierP3 } from './calendrier-p3';
-import { grouperProduitsP4P5 } from './groupes-produits-p4p5';
+import { bornesDe, dateCommune, ecartConso, ecartSdu, jourMoisCourt, libelleLots, pourcent } from './tableaux-produits-p4p5';
 
 type Granularite = 'composite' | 'pilier' | 'sousComposante';
 type ModeRadar = '6' | '10';
@@ -94,6 +93,7 @@ function reculerMois(mois: string, n: number): string {
     RouterLink,
     DecimalPipe,
     DatePipe,
+    NgTemplateOutlet,
     Coquille,
     BadgeStatut,
     BadgeClassification,
@@ -509,7 +509,7 @@ function reculerMois(mois: string, n: number): string {
 
           <details class="mt-6" [open]="tableauP4P5Ouvert()" #dtP4 (toggle)="basculerTableauP4P5(dtP4.open)">
             <summary class="cursor-pointer text-sm text-primary">
-              Tableau produit P4 · P5 (écart SDU, concordance, écart consommation)
+              Tableaux produit P4 · P5 (conformité SDU, conformité consommation, concordance)
             </summary>
             <div class="mt-3" [attr.aria-busy]="chargeP4P5() ? 'true' : null">
               <dqa-barre-attente [actif]="chargeP4P5()" />
@@ -517,102 +517,144 @@ function reculerMois(mois: string, n: number): string {
                 <p class="mt-2 text-xs text-alerte-texte">Données du core modifiées depuis le gel du mois : le détail ci-dessous peut différer des comptes figés.</p>
               }
               @if (produitsP4P5().length > 0) {
-                <p class="mt-3 text-xs text-muted-foreground">
-                  Réceptions : factures fournisseur finalisées entre les deux inventaires bornants.
-                  Faire défiler le tableau vers la droite pour le détail de la {{ fluxP4() }}.
+                <ng-template #nomProduit let-pr let-avecLots="avecLots">
+                  <a
+                    class="text-primary hover:underline"
+                    [routerLink]="['/sites', d.site.siteId, 'produits', pr.produitCode]"
+                    [queryParams]="{ mois: d.moisPaqd }"
+                  >{{ pr.libelle ?? pr.produitCode }}</a>
+                  <div class="font-mono text-xs text-muted-foreground">
+                    {{ pr.produitCode }}@if (pr.article; as art) { · article {{ art.rang }} sur {{ art.nombre }}@if (art.unite) { ({{ art.unite }}) } }
+                  </div>
+                  @if (avecLots && libelleLots(pr.lots)) {
+                    <div class="text-xs text-muted-foreground tabular-nums">{{ libelleLots(pr.lots) }}</div>
+                  }
+                </ng-template>
+
+                <h3 class="mt-4 text-sm font-semibold">
+                  Conformité SDU@if (inventaireCommun(); as di) { · inventaire du {{ jourMoisCourt(di) }} }
+                </h3>
+                <p class="text-xs text-muted-foreground">
+                  Au dernier inventaire finalisé du mois. Écart = |théorique - compté| ÷ compté ; conforme dans la tolérance de la grille.
                 </p>
                 <div hlmTableContainer class="mt-2">
-                  <table hlmTable>
+                  <table hlmTable class="border border-border">
                     <thead hlmTHead>
                       <tr hlmTr>
-                        <th hlmTh class="sticky left-0 z-10 bg-background">Produit</th>
-                        <th hlmTh>Statuts</th>
-                        <th hlmTh class="text-right">Stock théorique</th>
-                        <th hlmTh class="text-right">Stock physique compté</th>
-                        <th hlmTh class="text-right">Écart SDU</th>
-                        <th hlmTh class="text-right">Concordance</th>
-                        <th hlmTh class="text-right">Écart {{ fluxP4() }}</th>
-                        <th hlmTh class="text-right">Stock début</th>
-                        <th hlmTh class="text-right">Réceptions</th>
-                        <th hlmTh class="text-right">Stock fin</th>
-                        <th hlmTh class="text-right">{{ fluxP4Majuscule() }} reconstituée</th>
-                        <th hlmTh class="text-right">{{ fluxP4Majuscule() }} déclarée</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Produit</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Théorique</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Compté</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Écart</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Conforme ?</th>
                       </tr>
                     </thead>
                     <tbody hlmTBody>
-                      @for (g of groupesP4P5(); track g.produitCode) {
-                        @if (g.articles.length > 1) {
-                          <tr hlmTr>
-                            <td hlmTd class="sticky left-0 z-10 bg-background">
-                              <a
-                                class="text-primary hover:underline"
-                                [routerLink]="['/sites', d.site.siteId, 'produits', g.produitCode]"
-                                [queryParams]="{ mois: d.moisPaqd }"
-                              >{{ g.libelle ?? g.produitCode }}</a>
-                              <div class="font-mono text-xs text-muted-foreground">{{ g.produitCode }}</div>
-                              <div class="text-xs text-muted-foreground">{{ g.articles.length }} articles mSupply sous ce code</div>
-                            </td>
-                            <td hlmTd>
-                              <div class="flex flex-wrap items-center gap-2">
-                                <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="g.sduConforme ? 'CONFORME' : 'ALERTE'" /> SDU</span>
-                                <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="g.concordanceConforme ? 'CONFORME' : 'ALERTE'" /> concordance</span>
-                                @if (g.consoConforme !== null) {
-                                  <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="g.consoConforme ? 'CONFORME' : 'ALERTE'" /> {{ fluxP4() }}</span>
-                                }
-                              </div>
-                            </td>
-                            <td hlmTd class="text-muted-foreground" colspan="10">
-                              Compté une fois : conforme seulement si tous ses articles le sont.
-                            </td>
-                          </tr>
-                        }
-                        @for (pr of g.articles; track pr.produitId) {
+                      @for (pr of produitsP4P5(); track pr.produitId) {
                         <tr hlmTr>
-                          <td hlmTd class="sticky left-0 z-10 bg-background">
-                            @if (pr.article; as art) {
-                              <div class="pl-4 text-sm">
-                                article {{ art.rang }} sur {{ art.nombre }}@if (art.unite) { · {{ art.unite }} }
-                              </div>
-                            } @else {
-                              <a
-                                class="text-primary hover:underline"
-                                [routerLink]="['/sites', d.site.siteId, 'produits', pr.produitCode]"
-                                [queryParams]="{ mois: d.moisPaqd }"
-                              >{{ pr.libelle ?? pr.produitCode }}</a>
-                              <div class="font-mono text-xs text-muted-foreground">{{ pr.produitCode }}</div>
+                          <td hlmTd class="border-r border-border text-left last:border-r-0 whitespace-normal">
+                            <ng-container *ngTemplateOutlet="nomProduit; context: { $implicit: pr, avecLots: true }" />
+                            @if (!inventaireCommun()) {
+                              <div class="text-xs text-muted-foreground">inventaire du {{ jourMoisCourt(pr.dateInventaire) }}</div>
                             }
                           </td>
-                          <td hlmTd>
-                            <div class="flex flex-wrap items-center gap-2">
-                              <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="pr.sdu.conforme ? 'CONFORME' : 'ALERTE'" /> SDU</span>
-                              <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="pr.concordance.conforme ? 'CONFORME' : 'ALERTE'" /> concordance</span>
-                              @if (pr.consommation.evaluable) {
-                                <span class="inline-flex items-center gap-1"><dqa-badge-statut [statut]="pr.consommation.conforme ? 'CONFORME' : 'ALERTE'" /> {{ fluxP4() }}</span>
-                              }
-                            </div>
-                          </td>
-                          <td hlmTd class="text-right tabular-nums">{{ pr.sdu.theorique === null ? absent : (pr.sdu.theorique | number: '1.0-0') }}</td>
-                          <td hlmTd class="text-right tabular-nums">{{ pr.sdu.comptee === null ? absent : (pr.sdu.comptee | number: '1.0-0') }}</td>
-                          <td hlmTd class="text-right tabular-nums">{{ pr.sdu.ecartPct === null ? '∞' : (pr.sdu.ecartPct | number: '1.0-1') + ' %' }}</td>
-                          <td hlmTd class="text-right tabular-nums">{{ pr.concordance.tauxPct === null ? absent : (pr.concordance.tauxPct | number: '1.0-1') + ' %' }}</td>
-                          @if (pr.consommation; as c) {
-                            @if (c.evaluable) {
-                              <td hlmTd class="text-right tabular-nums">{{ c.ecartPct | number: '1.0-1' }} %</td>
-                              <td hlmTd class="text-right tabular-nums">{{ c.stockDebut | number: '1.0-0' }}</td>
-                              <td hlmTd class="text-right tabular-nums">{{ c.receptions | number: '1.0-0' }}</td>
-                              <td hlmTd class="text-right tabular-nums">{{ c.stockFin | number: '1.0-0' }}</td>
-                              <td hlmTd class="text-right tabular-nums">{{ c.reconstituee | number: '1.0-0' }}</td>
-                              <td hlmTd class="text-right tabular-nums">{{ c.declaree | number: '1.0-0' }}</td>
-                            } @else {
-                              <td hlmTd class="text-muted-foreground" colspan="6">{{ fluxP4() }} non évaluable : {{ raisonConso(c.raisonExclusion) }}</td>
-                            }
-                          }
+                          <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ pr.sdu.theorique === null ? absent : (pr.sdu.theorique | number: '1.0-3') }}</td>
+                          <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ pr.sdu.comptee === null ? absent : (pr.sdu.comptee | number: '1.0-3') }}</td>
+                          <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ ecartSdu(pr.sdu.ecartPct) }}</td>
+                          <td hlmTd class="border-r border-border text-center last:border-r-0 font-medium" [class]="pr.sdu.conforme ? 'text-conforme-texte' : 'text-alerte-texte'">{{ pr.sdu.conforme ? 'oui' : 'non' }}</td>
                         </tr>
-                        }
                       }
                     </tbody>
                   </table>
                 </div>
+
+                <h3 class="mt-6 text-sm font-semibold">Conformité {{ fluxP4() }}</h3>
+                <p class="text-xs text-muted-foreground">
+                  Reconstituée = début + réceptions - fin, entre deux inventaires ; déclarée = {{ d.estDistrict ? 'distributions' : 'dispensations' }} finalisées sur la même période.
+                  Réceptions : factures fournisseur finalisées. Écart = |déclarée - reconstituée| ÷ reconstituée.
+                </p>
+                <div hlmTableContainer class="mt-2">
+                  <table hlmTable class="border border-border">
+                    <thead hlmTHead>
+                      <tr hlmTr>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Produit</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Début@if (debutCommun(); as dd) { ({{ jourMoisCourt(dd) }}) }</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Réceptions</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Fin@if (finCommune(); as df) { ({{ jourMoisCourt(df) }}) }</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Reconstituée</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Déclarée</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Écart</th>
+                      </tr>
+                    </thead>
+                    <tbody hlmTBody>
+                      @for (pr of produitsP4P5(); track pr.produitId) {
+                        <tr hlmTr>
+                          <td hlmTd class="border-r border-border text-left last:border-r-0 whitespace-normal">
+                            <ng-container *ngTemplateOutlet="nomProduit; context: { $implicit: pr, avecLots: false }" />
+                          </td>
+                          @if (bornesDe(pr); as b) {
+                            <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">
+                              {{ b.stockDebut | number: '1.0-3' }}
+                              @if (!debutCommun()) { <div class="text-xs text-muted-foreground">{{ jourMoisCourt(b.dateDebut) }}</div> }
+                            </td>
+                            <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ b.receptions | number: '1.0-3' }}</td>
+                            <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">
+                              {{ b.stockFin | number: '1.0-3' }}
+                              @if (!finCommune()) { <div class="text-xs text-muted-foreground">{{ jourMoisCourt(b.dateFin) }}</div> }
+                            </td>
+                            <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ b.reconstituee | number: '1.0-3' }}</td>
+                            <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ b.declaree | number: '1.0-3' }}</td>
+                          } @else {
+                            <td hlmTd class="border-r border-border text-center last:border-r-0 text-muted-foreground">
+                              @if (debutCommun(); as dd) { absent du {{ jourMoisCourt(dd) }} } @else { aucune borne }
+                            </td>
+                            <td hlmTd class="border-r border-border text-center last:border-r-0"></td><td hlmTd class="border-r border-border text-center last:border-r-0"></td><td hlmTd class="border-r border-border text-center last:border-r-0"></td><td hlmTd class="border-r border-border text-center last:border-r-0"></td>
+                          }
+                          <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums"
+                              [class]="pr.consommation.evaluable ? (pr.consommation.conforme ? 'text-conforme-texte font-medium' : 'text-alerte-texte font-medium') : 'text-muted-foreground'">
+                            {{ ecartConso(pr) }}
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+
+                <h3 class="mt-6 text-sm font-semibold">Concordance physique / théorique (P5)</h3>
+                <p class="text-xs text-muted-foreground">
+                  Au même inventaire : plus petite quantité ÷ plus grande, entre théorique et compté.
+                </p>
+                <div hlmTableContainer class="mt-2">
+                  <table hlmTable class="border border-border">
+                    <thead hlmTHead>
+                      <tr hlmTr>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Produit</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Théorique</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Compté</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Concordance</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Conforme ?</th>
+                      </tr>
+                    </thead>
+                    <tbody hlmTBody>
+                      @for (pr of produitsP4P5(); track pr.produitId) {
+                        <tr hlmTr>
+                          <td hlmTd class="border-r border-border text-left last:border-r-0 whitespace-normal">
+                            <ng-container *ngTemplateOutlet="nomProduit; context: { $implicit: pr, avecLots: false }" />
+                          </td>
+                          <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ pr.sdu.theorique === null ? absent : (pr.sdu.theorique | number: '1.0-3') }}</td>
+                          <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ pr.sdu.comptee === null ? absent : (pr.sdu.comptee | number: '1.0-3') }}</td>
+                          <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ pr.concordance.tauxPct === null ? absent : pourcent(pr.concordance.tauxPct) }}</td>
+                          <td hlmTd class="border-r border-border text-center last:border-r-0 font-medium" [class]="pr.concordance.conforme ? 'text-conforme-texte' : 'text-alerte-texte'">{{ pr.concordance.conforme ? 'oui' : 'non' }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+
+                @if (articlesMultiples()) {
+                  <p class="mt-2 text-xs text-muted-foreground">
+                    Un code produit porté par plusieurs articles mSupply compte une fois : il n'est conforme que si tous ses articles le sont.
+                  </p>
+                }
               } @else if (!chargeP4P5()) {
                 <p class="mt-3 text-sm text-muted-foreground">{{ raisonTableauVide() }}</p>
               }
@@ -917,8 +959,6 @@ export class DetailSitePage {
 
   /** Un district distribue, un site de soins dispense (ADR 0012). */
   protected readonly fluxP4 = computed(() => (this.detail()?.estDistrict ? 'distribution' : 'consommation'));
-  protected readonly fluxP4Majuscule = computed(() =>
-    this.detail()?.estDistrict ? 'Distribution' : 'Consommation');
 
   /** Tableau P4 vide : la même explication que la sous-composante non calculable. */
   protected readonly raisonTableauVide = computed(() => {
@@ -1013,12 +1053,6 @@ export class DetailSitePage {
     return e > 0 ? `+${e}` : String(e);
   }
 
-  private readonly RAISONS_CONSO: Record<RaisonExclusionConso, string> = {
-    aucune_borne: "pas de borne d'ouverture (dernier inventaire du mois précédent ou deux dans le mois)",
-    reconstituee_non_positive: 'reconstituée ≤ 0',
-  };
-  protected raisonConso = (r: RaisonExclusionConso) => this.RAISONS_CONSO[r];
-
   // ── Tableau produit P4 · P5 fusionné ─────────────────────────────────────
   // Servi par la variante `p4` de /piliers/:code ; chargé au premier dépli,
   // pas au chargement de la fiche. Les cartes P4 et P5 l'ouvrent toutes deux.
@@ -1027,7 +1061,17 @@ export class DetailSitePage {
   protected readonly tableauP4P5Ouvert = signal(false);
 
   protected readonly produitsP4P5 = computed(() => this.tableauP4P5()?.produits ?? []);
-  protected readonly groupesP4P5 = computed(() => grouperProduitsP4P5(this.produitsP4P5()));
+  protected readonly bornesDe = bornesDe;
+  protected readonly ecartConso = ecartConso;
+  protected readonly ecartSdu = ecartSdu;
+  protected readonly jourMoisCourt = jourMoisCourt;
+  protected readonly libelleLots = libelleLots;
+  protected readonly pourcent = pourcent;
+  /** Dates partagées par toutes les lignes : portées en en-tête plutôt que ligne à ligne. */
+  protected readonly inventaireCommun = computed(() => dateCommune(this.produitsP4P5().map((p) => p.dateInventaire)));
+  protected readonly debutCommun = computed(() => dateCommune(this.produitsP4P5().map((p) => bornesDe(p)?.dateDebut ?? null)));
+  protected readonly finCommune = computed(() => dateCommune(this.produitsP4P5().map((p) => bornesDe(p)?.dateFin ?? null)));
+  protected readonly articlesMultiples = computed(() => this.produitsP4P5().some((p) => p.article !== null));
   protected readonly reimportP4P5 = computed(() => this.tableauP4P5()?.reimporteDepuisLeGel ?? false);
 
   protected ouvrirTableauP4P5(): void {

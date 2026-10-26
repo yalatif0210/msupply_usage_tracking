@@ -118,6 +118,12 @@ sélecteur **Mois affiché**. Puis :
 - un **détail ligne à ligne**, dépliable, pour chaque pilier : la liste des
   inventaires, réquisitions, transactions ou ajustements qui ont produit le
   chiffre affiché ;
+- trois **tableaux produit P4 · P5**, dépliables, sur les produits traceurs
+  inventoriés : conformité SDU (stock théorique et compté au dernier
+  inventaire du mois, détail des lots, écart, conforme ou non), conformité
+  consommation (stock de début, réceptions, stock de fin, consommation
+  reconstituée et déclarée, écart ; un produit exclu indique pourquoi) et
+  concordance (P5) ;
 - une section **Analyse fine** : tableau des dix sous-composantes, un radar
   forces/faiblesses, et des courbes d'évolution sur une plage de mois libre
   (préréglages « cycle courant », « 12 derniers mois », « tout »).
@@ -418,8 +424,8 @@ résultat en apparence.
   une unité différente). Chaque article est contrôlé séparément, pour ne pas
   masquer une confusion entre les deux ; mais dans les taux de P4 et P5, le
   code ne compte **qu'une fois**, et il n'est conforme que si **tous** ses
-  articles le sont. Dans le tableau produit de la fiche site, ce code
-  apparaît sur une ligne de synthèse suivie d'une ligne par article.
+  articles le sont. Dans les tableaux produit de la fiche site, chaque
+  article a sa ligne (« article 1 sur 2 ») et une note rappelle cette règle.
 
 ### P6 · Ratio d'ajustements (poids 10 %, seuil ≤ 5 %)
 

@@ -1798,6 +1798,10 @@ export class IndicateursRepository {
       conso_conforme: boolean;
       concordance_pct: string | null;
       concordance_conforme: boolean;
+      date_inventaire: string;
+      date_debut: string | null;
+      date_fin: string | null;
+      lots: { lot: string; theorique: number | null; comptee: number | null }[] | null;
     }>(
       `SELECT ep.produit_id, ep.produit_code, ep.libelle, nullif(p.unite, '') AS unite,
               (row_number() OVER (PARTITION BY ep.produit_code ORDER BY ep.produit_id))::int AS rang_article,
@@ -1806,7 +1810,11 @@ export class IndicateursRepository {
               ep.ecart_sdu_pct, ep.sdu_conforme,
               ep.stock_debut, ep.stock_fin, ep.receptions, ep.declaree, ep.reconstituee,
               ep.conso_evaluable, ep.conso_raison_exclusion, ep.ecart_conso_pct, ep.conso_conforme,
-              ep.concordance_pct, ep.concordance_conforme
+              ep.concordance_pct, ep.concordance_conforme,
+              to_char(ep.date_inventaire, 'YYYY-MM-DD') AS date_inventaire,
+              to_char(ep.date_debut, 'YYYY-MM-DD') AS date_debut,
+              to_char(ep.date_fin, 'YYYY-MM-DD') AS date_fin,
+              ep.lots
        FROM dqa.mv_p4_ecart_produit ep
        JOIN dqa.dim_produit p ON p.produit_id = ep.produit_id
        WHERE ep.site_id = $1 AND ep.mois_paqd = $2 AND ep.programme_id IS NOT DISTINCT FROM $3
@@ -1836,34 +1844,43 @@ export class IndicateursRepository {
       params,
     );
 
-    const produits: LigneProduitP4P5[] = rows.map((r) => ({
-      produitId: r.produit_id,
-      produitCode: r.produit_code,
-      libelle: r.libelle,
-      article: r.nb_articles > 1 ? { rang: r.rang_article, nombre: r.nb_articles, unite: r.unite } : null,
-      sdu: {
-        theorique: nombreOuNull(r.theorique),
-        comptee: nombreOuNull(r.comptee),
-        ecartPct: nombreOuNull(r.ecart_sdu_pct),
-        conforme: r.sdu_conforme,
-      },
-      consommation: r.conso_evaluable
-        ? {
-            evaluable: true,
-            stockDebut: Number(r.stock_debut),
-            stockFin: Number(r.stock_fin),
-            receptions: Number(r.receptions),
-            declaree: Number(r.declaree),
-            reconstituee: Number(r.reconstituee),
-            ecartPct: Number(r.ecart_conso_pct),
-            conforme: r.conso_conforme,
-          }
-        : { evaluable: false, raisonExclusion: r.conso_raison_exclusion ?? 'aucune_borne' },
-      concordance: {
-        tauxPct: nombreOuNull(r.concordance_pct),
-        conforme: r.concordance_conforme,
-      },
-    }));
+    const produits: LigneProduitP4P5[] = rows.map((r) => {
+      const bornes =
+        r.date_debut !== null && r.date_fin !== null && r.reconstituee !== null
+          ? {
+              dateDebut: r.date_debut,
+              dateFin: r.date_fin,
+              stockDebut: Number(r.stock_debut),
+              stockFin: Number(r.stock_fin),
+              receptions: Number(r.receptions),
+              declaree: Number(r.declaree),
+              reconstituee: Number(r.reconstituee),
+            }
+          : null;
+      return {
+        produitId: r.produit_id,
+        produitCode: r.produit_code,
+        libelle: r.libelle,
+        article: r.nb_articles > 1 ? { rang: r.rang_article, nombre: r.nb_articles, unite: r.unite } : null,
+        dateInventaire: r.date_inventaire,
+        // jsonb : les quantités numeric arrivent en nombres
+        lots: (r.lots ?? []).map((l) => ({ lot: l.lot, theorique: l.theorique, comptee: l.comptee })),
+        sdu: {
+          theorique: nombreOuNull(r.theorique),
+          comptee: nombreOuNull(r.comptee),
+          ecartPct: nombreOuNull(r.ecart_sdu_pct),
+          conforme: r.sdu_conforme,
+        },
+        consommation:
+          r.conso_evaluable && bornes
+            ? { evaluable: true, ...bornes, ecartPct: Number(r.ecart_conso_pct), conforme: r.conso_conforme }
+            : { evaluable: false, raisonExclusion: r.conso_raison_exclusion ?? 'aucune_borne', bornes },
+        concordance: {
+          tauxPct: nombreOuNull(r.concordance_pct),
+          conforme: r.concordance_conforme,
+        },
+      };
+    });
 
     return { produits, estDistrict, coreMajLe: maj.rows[0]?.core_maj_le ?? null };
   }

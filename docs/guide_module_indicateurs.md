@@ -215,10 +215,11 @@ clos, **NON_CALCULABLE** tant qu'il est en cours (ADR 0014) — et comme la
 sous-composante est unique, P5 entier suit. NON_CALCULABLE aussi si le site a
 inventorié mais sans produit traceur exploitable.
 
-**Tableau produit P4 · P5** (`mv_p4_ecart_produit`, variante `p4` de
+**Tableaux produit P4 · P5** (`mv_p4_ecart_produit`, variante `p4` de
 `GET /api/sites/:id/piliers/:code`) : une ligne par article de produit traceur
 inventorié (`produitId`, `article` = rang et unité quand le code en a
-plusieurs ; l'écran les regroupe sous une ligne de code portant le verdict),
+plusieurs ; l'écran les affiche ligne à ligne, avec une note rappelant qu'un
+code ne compte qu'une fois),
 avec l'écart SDU (théorique / compté au dernier inventaire, statut), l'écart
 consommation (stock début-fin / réceptions / déclarée / reconstituée, statut,
 ou « non évaluable » + raison) **et** la concordance P5 par produit
@@ -230,7 +231,23 @@ repository ne fait que lire ces colonnes). La route `/piliers/p4` a remplacé
 l'ancien endpoint
 `DetailP4Produits` : P4 et P5 partagent désormais ce tableau. Rendu dans un
 `<details>` sous les cartes de pilier ; les cartes P4 et P5 l'ouvrent toutes
-deux, le code produit est un lien vers la fiche produit-mois. Comme les autres
+deux, le code produit est un lien vers la fiche produit-mois.
+
+Depuis la migration 0052, l'écran présente **trois tableaux** au lieu d'un :
+conformité SDU (théorique, compté, écart, conforme ?), conformité consommation
+(début, réceptions, fin, reconstituée, déclarée, écart) et concordance P5
+(théorique, compté, concordance, conforme ?). La vue expose pour cela
+`date_inventaire` et `inventaire_id` (inventaire retenu), `lots` (jsonb des
+lots de cet inventaire, `{lot, theorique, comptee}`, dont la ligne est la
+somme) et `date_debut` / `date_fin` (inventaires bornant la consommation).
+Contrat : `dateInventaire`, `lots`, et dans `consommation` les dates des bornes
+(`dateDebut`, `dateFin`) ; un produit exclu porte `bornes` (ses grandeurs quand
+la reconstituée est nulle ou négative, `null` sans borne d'ouverture). Une date
+partagée par toutes les lignes passe dans l'en-tête de colonne (« Début
+(30/8) ») ; sinon elle s'affiche ligne à ligne. Aucun calcul ne change : la
+migration recrée `mv_p4_ecart_produit` et ses dépendantes (`mv_p4_ecart`,
+`mv_p5_concordance`, `mv_score_pilier`) à définition identique, contenu vérifié
+ligne à ligne sur la base de démonstration. Comme les autres
 variantes de `DetailPilier`, la réponse porte `comptesBruts`, `calculeLe`,
 `coreMajLe` et `reimporteDepuisLeGel`.
 
