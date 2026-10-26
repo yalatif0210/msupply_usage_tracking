@@ -602,6 +602,84 @@ export const syntheseTerritoireScoresSchema = enteteTerritoireSchema.extend({
 });
 export type SyntheseTerritoireScores = z.infer<typeof syntheseTerritoireScoresSchema>;
 
+// ─── Suivi des stocks : CMM reconstituée et stock projeté ───────────────────
+
+/**
+ * Requête du suivi des stocks. `date` = date t du calcul (« comme si l'on
+ * était à t ») ; absente = fin de fenêtre du dernier import validé.
+ */
+export const suiviStocksQuerySchema = z.object({
+  date: dateIsoSchema.optional(),
+  region: z.string().optional(),
+  district: z.string().optional(),
+  siteId: z.string().optional(),
+  programmeId: z.string().optional(),
+});
+export type SuiviStocksQuery = z.infer<typeof suiviStocksQuerySchema>;
+
+export const RAISONS_CMM_NON_CALCULABLE = ['un_seul_inventaire', 'sorties_non_positives'] as const;
+export const raisonCmmNonCalculableSchema = z.enum(RAISONS_CMM_NON_CALCULABLE);
+export type RaisonCmmNonCalculable = z.infer<typeof raisonCmmNonCalculableSchema>;
+
+/**
+ * CMM d'un couple site × produit. Calculable : bornes, sorties, les deux CMM
+ * (unités par mois de 30,4 jours) et la projection à t. Non calculable : la
+ * raison seule (un seul inventaire, sorties reconstituées nulles ou négatives).
+ */
+export const cmmStockSchema = z.discriminatedUnion('calculable', [
+  z.object({
+    calculable: z.literal(true),
+    dateDebut: dateIsoSchema,
+    stockDebut: z.number(),
+    jours: z.number().int().positive(),
+    nbMois: z.number().int().nonnegative(),
+    receptions: z.number(),
+    sortiesReconstituees: z.number().positive(),
+    declaree: z.number(),
+    cmmReconstituee: z.number().positive(),
+    cmmDeclaree: z.number(),
+    /** Stock disponible conjecturé à la date t. */
+    stockProjete: z.number().nonnegative(),
+    /** Premier jour à 0 entre la borne de fin et t + 90 jours ; `null` au-delà. */
+    dateRupture: dateIsoSchema.nullable(),
+    couvertureJours: z.number().nonnegative(),
+  }),
+  z.object({
+    calculable: z.literal(false),
+    raison: raisonCmmNonCalculableSchema,
+  }),
+]);
+export type CmmStock = z.infer<typeof cmmStockSchema>;
+
+/** Un couple site × produit traceur du suivi des stocks. */
+export const ligneStockSchema = z.object({
+  siteId: z.string(),
+  siteNom: z.string(),
+  region: z.string().nullable(),
+  district: z.string().nullable(),
+  /** Programme parent : celui sous lequel le site inventorie le produit. */
+  programmeId: z.string().nullable(),
+  programmeNom: z.string().nullable(),
+  produitId: z.string(),
+  produitCode: z.string(),
+  libelle: z.string(),
+  /** Dernier inventaire au plus tard à t : point de départ de la projection. */
+  dateFin: dateIsoSchema,
+  stockFin: z.number(),
+  /** Réceptions connues entre la borne de fin et t. */
+  receptionsApresFin: z.number(),
+  cmm: cmmStockSchema,
+});
+export type LigneStock = z.infer<typeof ligneStockSchema>;
+
+export const suiviStocksSchema = z.object({
+  date: dateIsoSchema,
+  dateParDefaut: dateIsoSchema,
+  /** Triées par site (région, district, nom), programme, produit. */
+  lignes: z.array(ligneStockSchema),
+});
+export type SuiviStocks = z.infer<typeof suiviStocksSchema>;
+
 // ─── Tableau de bord national (page d'accueil) ──────────────────────────────
 
 /** Nombre de sous-composantes « en difficulté » affichées sur la page d'accueil. */

@@ -5,9 +5,10 @@ import { DatabaseModule } from './database/database.module.js';
 import { HealthController } from './health/health.controller.js';
 import { ImportModule } from './import/import.module.js';
 import { IndicateursModule } from './indicateurs/indicateurs.module.js';
+import { StocksModule } from './stocks/stocks.module.js';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, ImportModule, IndicateursModule, AdminModule],
+  imports: [DatabaseModule, AuthModule, ImportModule, IndicateursModule, AdminModule, StocksModule],
   controllers: [HealthController],
 })
 export class AppModule {}

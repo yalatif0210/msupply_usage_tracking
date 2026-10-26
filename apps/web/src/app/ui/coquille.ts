@@ -11,6 +11,7 @@ import {
   lucideListChecks,
   lucideLogOut,
   lucideMenu,
+  lucidePackage,
   lucideTarget,
   lucideUpload,
   lucideUsers,
@@ -52,6 +53,7 @@ interface LienSection {
       lucideListChecks,
       lucideLogOut,
       lucideMenu,
+      lucidePackage,
       lucideTarget,
       lucideUpload,
       lucideUsers,
@@ -160,6 +162,7 @@ export class Coquille {
       { chemin: '/', libelle: 'Tableau de bord', icone: 'lucideLayoutDashboard', exact: true },
       { chemin: '/sites', libelle: 'Sites', icone: 'lucideBuilding2', exact: false },
       { chemin: '/synthese', libelle: 'Synthèse', icone: 'lucideChartColumn', exact: false },
+      { chemin: '/stocks', libelle: 'Suivi des stocks', icone: 'lucidePackage', exact: false },
     ];
 
     if (this.aAcces(u.role, ['coordination'])) {
