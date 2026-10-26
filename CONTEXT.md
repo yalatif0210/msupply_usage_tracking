@@ -318,6 +318,30 @@ d'une lecture par territoire.
 _Éviter_ : district, employé seul quand il peut désigner le magasin du district
 sanitaire (un site, au régime de scoring district)
 
+**CMM reconstituée** :
+Consommation moyenne mensuelle d'un produit traceur sur un site, déduite des
+sorties physiques entre deux inventaires distants d'environ 90 jours :
+(stock compté au début + réceptions - stock compté à la fin) ÷ jours × 30,4.
+Elle inclut les pertes non saisies ; c'est une orientation, pas une donnée de
+mSupply. Sert à projeter le stock.
+_Éviter_ : AMC, CMM tout court quand la déclarée est aussi en jeu
+
+**CMM déclarée** :
+Même moyenne sur les mêmes bornes, mais à partir des sorties saisies dans
+mSupply (dispensations ; distributions pour un district). L'écart avec la CMM
+reconstituée mesure les pertes non saisies.
+
+**Stock projeté** :
+Stock d'un produit sur un site estimé jour par jour, en ligne droite : dernier
+stock compté, plus les réceptions connues, moins la CMM reconstituée ramenée
+au jour. Il donne la **rupture prévue** (premier jour à 0) et la
+**couverture** (jours de stock restants à la date de référence).
+_Éviter_ : stock théorique (celui de mSupply, qui ignore les pertes non saisies)
+
+**Photo de stock** :
+Stock disponible par lot que mSupply affiche à la date d'extraction : un stock
+théorique, pas un comptage. Point de comparaison du stock projeté.
+
 **Régime de scoring** :
 Booléen `est_district` porté par le référentiel des *types de structure*. Un
 district (`est_district = true`) mesure P3 sur les réquisitions de sa zone
