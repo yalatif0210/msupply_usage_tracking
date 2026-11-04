@@ -198,7 +198,8 @@ export type UniteMesure = z.infer<typeof uniteMesureSchema>;
  *
  * `valeur` est nulle quand `statut` vaut NON_CALCULABLE ; `raison` porte alors
  * l'explication. Le front doit traiter ce cas explicitement, jamais l'afficher
- * comme un zéro.
+ * comme un zéro. `raison` explique aussi un 0 imposé par sanction (P4, P5 sans
+ * inventaire de clôture ou d'ouverture, ADR 0022), statut ALERTE.
  */
 export const mesureSousComposanteSchema = z.object({
   sousComposante: sousComposanteSchema,
@@ -810,13 +811,16 @@ export type HistoriqueQuery = z.infer<typeof historiqueQuerySchema>;
 /**
  * Raison pour laquelle un produit est exclu du calcul de l'écart consommation.
  *
- * - `aucune_borne` : pas de borne d'ouverture exploitable (ni dernier inventaire
- *   du mois M-1, ni deux inventaires de dates différentes dans le mois M).
+ * - `sans_ouverture` : le site n'a pas d'inventaire de clôture du mois M-1,
+ *   donc pas d'ouverture pour M (ADR 0022) ; P4 est sanctionné.
+ * - `absent_ouverture` : le site a une ouverture, mais le produit n'y figure
+ *   pas ; seul ce produit est écarté.
  * - `reconstituee_non_positive` : bornes présentes mais la consommation
  *   reconstituée (`stock ouverture + réceptions − stock clôture`) est ≤ 0.
  */
 export const raisonExclusionConsoSchema = z.enum([
-  'aucune_borne',
+  'sans_ouverture',
+  'absent_ouverture',
   'reconstituee_non_positive',
 ]);
 export type RaisonExclusionConso = z.infer<typeof raisonExclusionConsoSchema>;

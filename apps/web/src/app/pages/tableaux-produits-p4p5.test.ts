@@ -47,8 +47,8 @@ describe('tableaux produit P4 · P5', () => {
     const nulle = ligne({ evaluable: false, raisonExclusion: 'reconstituee_non_positive', bornes: { ...bornes, reconstituee: 0 } });
     expect(ecartConso(nulle)).toBe('exclu (reconstituée ≤ 0)');
     expect(bornesDe(nulle)?.stockDebut).toBe(99);
-    const sansBorne = ligne({ evaluable: false, raisonExclusion: 'aucune_borne', bornes: null });
-    expect(ecartConso(sansBorne)).toBe('exclu (aucune borne)');
+    const sansBorne = ligne({ evaluable: false, raisonExclusion: 'sans_ouverture', bornes: null });
+    expect(ecartConso(sansBorne)).toBe("exclu (pas d'inventaire d'ouverture)");
     expect(bornesDe(sansBorne)).toBeNull();
   });
 });

@@ -55,7 +55,7 @@ describe('consultation des produits traceurs', () => {
     await base.pool.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('SX','x',true)`);
     await base.pool.query(`INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom) VALUES ('IX','3100014-ARV','ARV')`);
     await base.pool.query(`INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, date_inventaire, statut, lot_id_source)
-      SELECT 'INVX','SX','2026-08-20','fn', id FROM dqa.import_lot WHERE nom_fichier='x'`);
+      SELECT 'INVX','SX','2026-08-31','fn', id FROM dqa.import_lot WHERE nom_fichier='x'`);
     await base.pool.query(`INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
       SELECT 'INVX','IX','L',100,100, id FROM dqa.import_lot WHERE nom_fichier='x'`);
 

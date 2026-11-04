@@ -405,24 +405,22 @@ tolérance (12 / 13 = 92 %) ; à 11 sur 13 (85 %), il passe en ALERTE. Le mot
 tableau produit de la fiche site, fiche produit-mois) ; le taux du site
 s'appelle « conformité ».
 
-- **Conformité SDU (stock disponible utilisable)** : au dernier inventaire
-  finalisé du mois, pour chaque produit traceur,
+- **Conformité SDU (stock disponible utilisable)** : à l'**inventaire de
+  clôture** (voir plus bas), pour chaque produit traceur,
   `|théorique - compté| / compté`. En dessous de la tolérance (2 %) : le
-  produit est conforme. Si le site n'a fait aucun inventaire du mois : **0 %**
-  une fois le mois **clos**, mais **non calculable** tant qu'il est **en
-  cours** (l'inventaire de fin de mois n'est pas encore attendu).
+  produit est conforme. Sans inventaire de clôture : **0 %** une fois le mois
+  jugé.
 - **Conformité consommation** : on compare la consommation **déclarée**
   (dispensations enregistrées ; pour un district, quantités **distribuées**,
   la sous-composante se lit alors « conformité distribution ») à la consommation
-  **reconstituée** `stock_ouverture + réceptions - stock_clôture` entre deux
-  bornes **inter-mois** : ouverture = dernier inventaire finalisé du **mois
-  précédent**, clôture = dernier inventaire finalisé du mois. Un seul inventaire
-  de fin de mois par mois suffit donc. À défaut d'inventaire le mois précédent,
-  on retombe sur le premier et le dernier inventaire du mois (s'il y en a deux).
+  **reconstituée** `stock_ouverture + réceptions - stock_clôture` entre
+  l'**inventaire d'ouverture** (la clôture du mois précédent) et l'inventaire
+  de clôture du mois. Un inventaire de clôture par mois suffit donc.
   Écart `|déclarée - reconstituée| / reconstituée` en dessous de la tolérance :
-  conforme. Sans aucune borne d'ouverture exploitable : **0 %** si le mois est
-  clos, **non calculable** s'il est en cours. « Non calculable » aussi quand
-  des bornes existent mais qu'aucune consommation reconstituée n'est positive.
+  conforme. Un produit absent de l'inventaire d'ouverture est écarté, lui
+  seul. Sans inventaire d'ouverture : **0 %** une fois le mois jugé. « Non
+  calculable » quand les deux inventaires existent mais qu'aucune
+  consommation reconstituée n'est positive.
 
 **Exemple, conformité SDU (le CHR de Daloa, août 2026) :** sur le DTG/3TC/TDF (ARV),
 théorique 402, compté 388 → écart |402 - 388| / 388 = **3,6 %**, au-dessus de
@@ -431,7 +429,7 @@ conforme. 1 produit conforme sur 2 → **conformité SDU = 50 %**, sous le seuil
 de taux de 90 % → ALERTE.
 
 **Exemple, conformité consommation (même site) :** sur l'ARV, stock d'ouverture
-(dernier inventaire de juillet) 386, réceptions d'août 46, stock de clôture
+(inventaire de clôture de juillet) 386, réceptions d'août 46, stock de clôture
 (inventaire du 29 août) 388 → reconstituée = 386 + 46 - 388 = 44. Déclarée = 44
 (somme des dispensations d'août). Écart = |44 - 44| / 44 = **0 %**, conforme.
 Le test VIH est également conforme → **conformité consommation = 100 %** →
@@ -442,13 +440,12 @@ CONFORME.
 
 ### P5 · Concordance physique / théorique (poids 25 %, seuil = 100 %)
 
-Une sous-composante : au dernier inventaire finalisé du mois, pour chaque
+Une sous-composante : à l'inventaire de clôture, pour chaque
 produit traceur (tous ses lots additionnés),
 `min(|théorique|, |compté|) / max(|théorique|, |compté|)`, moyenné sur tous
-les produits inventoriés du site. Si le site n'a fait aucun
-inventaire du mois : **0 %** une fois le mois clos (ne pas inventorier est
-alors un manquement, pas une absence de données), mais **non calculable** tant
-que le mois est en cours. P5 n'ayant qu'une sous-composante, le pilier entier
+les produits inventoriés du site. Sans inventaire de clôture : **0 %** une fois
+le mois jugé (ne pas inventorier en fin de mois est un manquement, pas une
+absence de données). P5 n'ayant qu'une sous-composante, le pilier entier
 suit.
 
 **Exemple :** sur les 2 produits traceurs du CHR de Daloa en août, la concordance
@@ -461,6 +458,25 @@ résultat en apparence.
 
 ### Quel inventaire compte pour P4 et P5 ?
 
+- **L'inventaire de clôture.** Seul compte un inventaire finalisé fait dans les
+  **3 derniers jours du mois** ou le **1er du mois suivant** (le 1er novembre
+  clôture octobre). S'il y en a plusieurs dans cette fenêtre, le dernier est
+  retenu. Un inventaire fait le 15, ou le 5 du mois suivant, ne compte ni pour
+  P4 ni pour P5. L'**inventaire d'ouverture** d'un mois est l'inventaire de
+  clôture du mois précédent.
+- **La sanction.** Une fois le mois **jugé** (les données importées couvrent
+  le 1er du mois suivant) :
+
+  | Inventaire de clôture | Inventaire d'ouverture | P4 | P5 |
+  |---|---|---|---|
+  | oui | oui | calculé | calculé |
+  | oui | non | conformité consommation à 0 | calculé |
+  | non | - | 0 | 0 |
+
+  Tant que le mois n'est pas jugé, rien n'est sanctionné : ce qui manque reste
+  « non calculable ». La fiche site affiche la raison d'une sanction sous la
+  sous-composante (par exemple « Inventaire du 20/08/2026 hors de la fenêtre
+  de clôture »).
 - **Plusieurs inventaires le même jour.** Un site peut finaliser plusieurs
   inventaires le même jour sur le même produit, par exemple un recomptage
   après une erreur de saisie. Seul le **dernier finalisé** compte (heure de

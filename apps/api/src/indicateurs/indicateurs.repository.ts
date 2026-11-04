@@ -585,57 +585,82 @@ export class IndicateursRepository {
   }
 
   /**
-   * Pourquoi P4 / P5 ne sont pas calculables pour ce site, ce mois et ce
-   * programme : une seule explication, celle qui s'applique. Le cas le plus
-   * fréquent sur données réelles est un inventaire de fin de mois saisi les
-   * premiers jours du mois suivant : il compte pour le mois de sa date.
+   * Pourquoi P4 / P5 ne sont pas calculables, ou valent 0 par sanction, pour ce
+   * site, ce mois et ce programme (ADR 0022) : une seule explication par
+   * sous-composante, celle qui s'applique. `inventaire` vaut pour l'écart SDU et
+   * la concordance (clôture) ; `consommation` ajoute l'ouverture.
    */
-  private async causeInventaire(
+  private async causesCloture(
     siteId: string,
     mois: string,
     prog: string | null,
-    moisClos: boolean,
-  ): Promise<string> {
+    flux: string,
+  ): Promise<{ inventaire: string; consommation: string }> {
     const { rows } = await this.pool.query<{
-      inv_mois: boolean;
-      inv_traceur: boolean;
-      inv_suivant: string | null;
+      cloture: boolean;
+      cloture_traceur: boolean;
+      ouverture: boolean;
+      juge: boolean;
+      juge_precedent: boolean;
+      hors_fenetre: string | null;
       prog_a_traceur: boolean;
+      fenetre_debut: string;
+      fenetre_fin: string;
     }>(
-      `SELECT
-         EXISTS (SELECT 1 FROM dqa.fact_inventaire fi
-                  WHERE fi.site_id = $1 AND fi.statut = 'fn'
-                    AND to_char(fi.date_inventaire, 'YYYY-MM') = $2
-                    AND ($3::text IS NULL OR fi.programme_id = $3)) AS inv_mois,
-         EXISTS (SELECT 1 FROM dqa.fact_inventaire fi
-                  JOIN dqa.fact_inventaire_ligne fil ON fil.inventaire_id = fi.inventaire_id
-                  JOIN dqa.dim_produit p ON p.produit_id = fil.produit_id
-                  JOIN dqa.dim_produit_traceur tr ON tr.produit_code = p.produit_code AND tr.actif
-                  WHERE fi.site_id = $1 AND fi.statut = 'fn'
-                    AND to_char(fi.date_inventaire, 'YYYY-MM') = $2
-                    AND ($3::text IS NULL OR fi.programme_id = $3)) AS inv_traceur,
-         (SELECT to_char(min(fi.date_inventaire), 'YYYY-MM-DD') FROM dqa.fact_inventaire fi
+      `WITH f AS (
+         SELECT (($2 || '-01')::date + interval '1 month')::date - 3 AS debut,
+                (($2 || '-01')::date + interval '1 month')::date     AS fin)
+       SELECT
+         EXISTS (SELECT 1 FROM dqa.v_cloture_inventaire vc
+                  WHERE vc.site_id = $1 AND vc.programme_id IS NOT DISTINCT FROM $3
+                    AND vc.mois_paqd = $2) AS cloture,
+         EXISTS (SELECT 1 FROM dqa.mv_p4_ecart_produit ep
+                  WHERE ep.site_id = $1 AND ep.programme_id IS NOT DISTINCT FROM $3
+                    AND ep.mois_paqd = $2) AS cloture_traceur,
+         EXISTS (SELECT 1 FROM dqa.v_cloture_inventaire vc
+                  WHERE vc.site_id = $1 AND vc.programme_id IS NOT DISTINCT FROM $3
+                    AND vc.mois_paqd = dqa.mois_precedent($2)) AS ouverture,
+         dqa.mois_juge_p4_p5($2) AS juge,
+         dqa.mois_juge_p4_p5(dqa.mois_precedent($2)) AS juge_precedent,
+         (SELECT to_char(max(fi.date_inventaire), 'YYYY-MM-DD') FROM dqa.fact_inventaire fi
            WHERE fi.site_id = $1 AND fi.statut = 'fn'
              AND ($3::text IS NULL OR fi.programme_id = $3)
-             AND fi.date_inventaire BETWEEN ($2 || '-01')::date + interval '1 month'
-                                        AND ($2 || '-01')::date + interval '1 month 4 days') AS inv_suivant,
+             AND to_char(fi.date_inventaire, 'YYYY-MM') = $2
+             AND dqa.mois_cloture_inventaire(fi.date_inventaire) IS NULL) AS hors_fenetre,
          ($3::text IS NULL OR EXISTS (
            SELECT 1 FROM dqa.dim_produit p
            JOIN dqa.dim_produit_traceur tr ON tr.produit_code = p.produit_code AND tr.actif
            JOIN dqa.dim_programme dp ON dp.programme_id = $3
-           WHERE dp.programme_code = ANY (p.programmes))) AS prog_a_traceur`,
+           WHERE dp.programme_code = ANY (p.programmes))) AS prog_a_traceur,
+         to_char(f.debut, 'YYYY-MM-DD') AS fenetre_debut,
+         to_char(f.fin, 'YYYY-MM-DD')   AS fenetre_fin
+       FROM f`,
       [siteId, mois, prog],
     );
     const c = rows[0];
-    if (c && !c.prog_a_traceur) return 'Aucun produit traceur ne relève de ce programme';
-    if (c?.inv_mois && !c.inv_traceur) return "L'inventaire du mois ne porte aucun produit traceur";
-    if (c?.inv_mois) return 'Produits traceurs inventoriés, mais aucun stock compté exploitable';
-    if (c?.inv_suivant) {
-      return `Inventaire de fin de mois daté du mois suivant (${dateCourte(c.inv_suivant)}) : il compte pour le mois de sa date`;
-    }
-    return moisClos
-      ? 'Aucun inventaire finalisé ce mois'
-      : 'Inventaire de fin de mois pas encore attendu (mois en cours)';
+    if (!c) return { inventaire: 'Aucun inventaire de clôture', consommation: 'Aucun inventaire de clôture' };
+    const fenetre = `du ${dateCourte(c.fenetre_debut)} au ${dateCourte(c.fenetre_fin)}`;
+    const inventaire = !c.prog_a_traceur
+      ? 'Aucun produit traceur ne relève de ce programme'
+      : c.cloture && !c.cloture_traceur
+        ? "L'inventaire de clôture ne porte aucun produit traceur"
+        : c.cloture
+          ? 'Produits traceurs inventoriés, mais aucun stock compté exploitable'
+          : !c.juge
+            ? `Clôture pas encore couverte par les données : inventaire attendu ${fenetre}`
+            : c.hors_fenetre
+              ? `Inventaire du ${dateCourte(c.hors_fenetre)} hors de la fenêtre de clôture (${fenetre}) : P4 et P5 à 0`
+              : `Aucun inventaire de clôture (${fenetre}) : P4 et P5 à 0`;
+    const consommation = !c.cloture || !c.prog_a_traceur
+      ? inventaire
+      : c.ouverture
+        ? `Les inventaires d'ouverture et de clôture existent mais aucune ${flux} reconstituée n'est évaluable`
+        : !c.juge_precedent
+          ? "Inventaire d'ouverture antérieur au début des données importées"
+          : !c.juge
+            ? `Pas d'inventaire d'ouverture (clôture du mois précédent) : l'écart de ${flux} sera à 0 une fois le mois jugé`
+            : `Pas d'inventaire d'ouverture (clôture du mois précédent) : écart de ${flux} à 0`;
+    return { inventaire, consommation };
   }
 
   /** Suivi des réceptions du site, hors score (ADR 0019). */
@@ -853,8 +878,10 @@ export class IndicateursRepository {
       taux_conso_pct: string | null;
       score_sdu: string | null;
       score_conso: string | null;
-      nb_conso_borne_ok: number | null;
+      nb_produits_sdu: number | null;
+      nb_produits_conso: number | null;
       taux_concordance_pct: string | null;
+      nb_produits_concordance: number | null;
       ratio_ajustements_pct: string | null;
       echeance_requisitions: string;
       echeance_inventaire: string;
@@ -870,10 +897,9 @@ export class IndicateursRepository {
               p2.score_requisitions AS p2_score_requisitions,
               p3.taux_regularite_pct, coalesce(p3.est_district, false) AS est_district,
               p4.taux_sdu_pct, p4.taux_conso_pct, p4.score_sdu, p4.score_conso,
-              p5.taux_concordance_pct, p6.ratio_ajustements_pct,
-              (SELECT count(*)::int FROM dqa.mv_p4_ecart_produit ep
-                WHERE ep.site_id = h.site_id AND ep.mois_paqd = h.mois_paqd
-                  AND ep.programme_id IS NOT DISTINCT FROM h.programme_id AND ep.conso_borne_ok) AS nb_conso_borne_ok,
+              p4.nb_produits_sdu::int AS nb_produits_sdu, p4.nb_produits_conso::int AS nb_produits_conso,
+              p5.taux_concordance_pct, p5.nb_produits::int AS nb_produits_concordance,
+              p6.ratio_ajustements_pct,
               to_char(dqa.echeance_requisition(h.mois_paqd, s.type_structure), 'YYYY-MM-DD') AS echeance_requisitions,
               to_char(dqa.echeance_inventaire(h.mois_paqd), 'YYYY-MM-DD') AS echeance_inventaire
        FROM dqa.hist_score_site h
@@ -903,7 +929,7 @@ export class IndicateursRepository {
     const h = rows[0];
     const moisClos = await this.moisEstClos(mois);
     const seuils = await this.seuilsGrille(h?.grille_id ?? null, mois, estDistrict);
-    const causeInventaire = await this.causeInventaire(siteId, mois, prog, moisClos);
+    const causes = await this.causesCloture(siteId, mois, prog, estDistrict ? 'distribution' : 'consommation');
     const aujourdhui = await this.dateDuJour();
     const echeanceReq = h?.echeance_requisitions ?? `${mois}-28`;
     const echeanceInv = h?.echeance_inventaire ?? `${mois}-28`;
@@ -936,9 +962,10 @@ export class IndicateursRepository {
         seuilSdu: seuils.ecart_sdu ?? null,
         conso: brute(h?.taux_conso_pct, h?.score_conso),
         seuilConso: seuils.ecart_consommation ?? null,
-      }, estDistrict, causeInventaire, (h?.nb_conso_borne_ok ?? 0) > 0),
+        nbProduitsConso: h?.nb_produits_conso ?? 0,
+      }, estDistrict, causes, h?.nb_produits_sdu ?? 0),
       this.pilierP5(h?.p_concordance ?? null, seuils.concordance ?? null,
-        brute(h?.taux_concordance_pct, h?.p_concordance), causeInventaire),
+        brute(h?.taux_concordance_pct, h?.p_concordance), causes.inventaire, h?.nb_produits_concordance ?? 0),
       this.pilierP6(h?.p_ajustements ?? null, seuils.ratio_ajustements ?? null,
         brute(h?.ratio_ajustements_pct, h?.p_ajustements)),
     ];
@@ -1056,13 +1083,18 @@ export class IndicateursRepository {
     };
   }
 
-  /** Une sous-composante rendue : statut binaire dérivé du score de sous-composante. */
+  /**
+   * Une sous-composante rendue : statut binaire dérivé du score de
+   * sous-composante. `sanction` : la valeur est un 0 imposé faute de donnée
+   * (ADR 0022), pas une mesure ; la raison l'explique.
+   */
   private mesure(
     sc: SousComposante,
     m: ValeurBrute,
     seuil: string | null,
     raisonNC: string,
     libelle: string = LIBELLES_SOUS_COMPOSANTE[sc],
+    sanction = false,
   ): MesureSousComposante {
     const statut = m.score === null ? 'NON_CALCULABLE' : Number(m.score) >= 100 ? 'CONFORME' : 'ALERTE';
     return {
@@ -1072,7 +1104,7 @@ export class IndicateursRepository {
       unite: 'pct',
       seuil: nombreOuNull(seuil),
       statut,
-      raison: statut === 'NON_CALCULABLE' ? raisonNC : null,
+      raison: statut === 'NON_CALCULABLE' || (sanction && statut === 'ALERTE') ? raisonNC : null,
     };
   }
 
@@ -1133,25 +1165,26 @@ export class IndicateursRepository {
 
   private pilierP4(
     score: string | null,
-    m: { sdu: ValeurBrute; seuilSdu: string | null; conso: ValeurBrute; seuilConso: string | null },
+    m: {
+      sdu: ValeurBrute; seuilSdu: string | null;
+      conso: ValeurBrute; seuilConso: string | null; nbProduitsConso: number;
+    },
     estDistrict: boolean,
-    causeInventaire: string,
-    bornesPresentes: boolean,
+    causes: { inventaire: string; consommation: string },
+    nbProduitsSdu: number,
   ): ScorePilier {
     // Pour un district, l'écart consommation se lit « écart distribution » :
     // la consommation déclarée compte les quantités distribuées (ADR 0012).
-    const flux = estDistrict ? 'distribution' : 'consommation';
-    const raisonConso = bornesPresentes
-      ? `Les inventaires bornants existent mais aucune ${flux} reconstituée n'est positive`
-      : causeInventaire;
     return this.envelopper('P4', score, [
-      this.mesure('ecart_sdu', m.sdu, m.seuilSdu, causeInventaire),
+      this.mesure('ecart_sdu', m.sdu, m.seuilSdu, causes.inventaire,
+        LIBELLES_SOUS_COMPOSANTE.ecart_sdu, nbProduitsSdu === 0),
       this.mesure(
         'ecart_consommation',
         m.conso,
         m.seuilConso,
-        raisonConso,
+        causes.consommation,
         libelleSousComposante('ecart_consommation', estDistrict),
+        m.nbProduitsConso === 0,
       ),
     ]);
   }
@@ -1161,8 +1194,11 @@ export class IndicateursRepository {
     seuil: string | null,
     m: ValeurBrute,
     causeInventaire: string,
+    nbProduits: number,
   ): ScorePilier {
-    return this.envelopper('P5', score, [this.mesure('concordance', m, seuil, causeInventaire)]);
+    return this.envelopper('P5', score, [
+      this.mesure('concordance', m, seuil, causeInventaire, LIBELLES_SOUS_COMPOSANTE.concordance, nbProduits === 0),
+    ]);
   }
 
   private pilierP6(score: string | null, seuil: string | null, m: ValeurBrute): ScorePilier {
@@ -1874,7 +1910,7 @@ export class IndicateursRepository {
         consommation:
           r.conso_evaluable && bornes
             ? { evaluable: true, ...bornes, ecartPct: Number(r.ecart_conso_pct), conforme: r.conso_conforme }
-            : { evaluable: false, raisonExclusion: r.conso_raison_exclusion ?? 'aucune_borne', bornes },
+            : { evaluable: false, raisonExclusion: r.conso_raison_exclusion ?? 'sans_ouverture', bornes },
         concordance: {
           tauxPct: nombreOuNull(r.concordance_pct),
           conforme: r.concordance_conforme,

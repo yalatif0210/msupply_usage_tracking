@@ -41,7 +41,7 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 | `hist_pilier_brut` | couples attendu / réalisé (et réalisé à l'heure) figés par (site, mois PAQD, programme, mesure) au même passage que `hist_score_site` — ADR 0009 |
 | `v_mois_cycle` | rang M+1..M+4 de chaque mois PAQD dans son cycle (depuis `dim_temps`) |
 | `v_sous_composante_atteinte` | taux d'atteinte du seuil + statut par (site, mois, programme, sous-composante), depuis `hist_score_site.sc_*` |
-| `mv_p4_ecart_produit` | détail par produit traceur : écarts SDU / consommation (P4) + quantités du dernier inventaire dont se déduit la concordance par produit (P5) |
+| `mv_p4_ecart_produit` | détail par produit traceur : écarts SDU / consommation (P4) + quantités de l'inventaire de clôture dont se déduit la concordance par produit (P5) |
 | `mv_synthese_nationale` | agrégats nationaux / région / district / programme par mois PAQD |
 | `mv_synthese_sous_composante` | mêmes grains, par sous-composante : comptes de statut + taux d'atteinte moyen |
 | `mv_synthese_rapports` | comptes P1 / P2 des réquisitions et inventaires de fin de mois, agrégés par strate de structure (× région × programme) par mois PAQD |
@@ -166,27 +166,35 @@ et `jours` (mois non-district) ne liste que les jours écoulés.
 conformité » ; deux sous-composantes (`ecart_sdu`, `ecart_consommation`) en
 **taux de conformité** (part des produits traceurs dans la tolérance de la
 grille, pas une amplitude d'écart).
-- `ecart_sdu` : `|théorique − compté| / compté ≤ tolérance` au dernier
-  inventaire finalisé du mois par produit ; compté (réalité) au dénominateur.
+**Clôture de mois (ADR 0022, migration 0056).** P4 et P5 ne lisent que
+l'**inventaire de clôture** : `dqa.mois_cloture_inventaire(date)` rend le mois
+clôturé par un inventaire des 3 derniers jours du mois ou du 1er du mois
+suivant, NULL hors fenêtre (inventaire ignoré). `mv_p4_ecart_produit.mois_paqd`
+est ce mois de clôture ; le dernier inventaire de la fenêtre est retenu.
+`dqa.v_cloture_inventaire` liste les clôtures par site, programme (NULL = tous)
+et mois. Un mois est **jugé** (`dqa.mois_juge_p4_p5`) quand les fenêtres des
+imports validés couvrent toute sa fenêtre de clôture (`dqa.date_debut_donnees`,
+`dqa.date_fin_donnees`, repli sur la date du jour sans fenêtre). Sanction une
+fois jugé : sans clôture, SDU, consommation et concordance à 0 ; sans
+ouverture (et mois précédent jugé), consommation à 0. Avant : NULL. Le
+repository (`causesCloture`) explique la sanction dans `raison`, statut ALERTE.
+`dqa.mois_est_clos` ne sert plus à P4 ni P5.
+
+- `ecart_sdu` : `|théorique − compté| / compté ≤ tolérance` à l'inventaire de
+  clôture, par produit ; compté (réalité) au dénominateur.
   Cas limites : compté 0 / théorique 0 → conforme ; compté 0 / théorique > 0 →
-  non conforme. Si le site n'a aucun inventaire finalisé daté dans le mois
-  (grain tous programmes) : **0 %** une fois le mois **clos**
-  (`dqa.mois_est_clos`), **NON_CALCULABLE** tant qu'il est **en cours**
-  (l'inventaire de fin de mois n'est pas encore dû — ADR 0012 amendé par
-  ADR 0014).
+  non conforme.
 - `ecart_consommation` : `|déclarée − reconstituée| / reconstituée ≤ tolérance`.
-  Bornes **inter-mois** (migration 0037) : `d_début` = dernier inventaire
-  finalisé du mois **M-1**, `d_fin` = dernier inventaire finalisé de **M** ;
-  à défaut d'inventaire en M-1, fallback sur le premier / dernier inventaire de
-  M (s'il y en a deux). `reconstituée = stock(d_début) + réceptions − stock(d_fin)`
+  `d_début` = clôture retenue du mois **M-1** (ouverture), `d_fin` = clôture
+  retenue de **M** ; plus de repli sur deux inventaires du mois.
+  `reconstituée = stock(d_début) + réceptions − stock(d_fin)`
   sur `(d_début, d_fin]` ; `déclarée` = Σ dispensations sur l'intervalle, ou
   Σ quantités distribuées pour un **district** (`nature = distribution`, la
-  sous-composante se lit « écart distribution »). Produit sans borne
-  d'ouverture → exclu (`conso_raison_exclusion = 'aucune_borne'`) ;
-  reconstituée ≤ 0 → exclu (`'reconstituee_non_positive'`). Sans aucune borne
-  d'ouverture exploitable (grain tous programmes) : **0 %** si le mois est
-  clos, **NON_CALCULABLE** s'il est en cours (ADR 0014). NON_CALCULABLE aussi
-  quand des bornes existent mais qu'aucune reconstituée n'est positive.
+  sous-composante se lit « écart distribution »). Raisons d'exclusion
+  (`conso_raison_exclusion`) : `sans_ouverture` (le site n'a pas d'ouverture),
+  `absent_ouverture` (le produit manque à l'ouverture, lui seul est écarté),
+  `reconstituee_non_positive`. NON_CALCULABLE quand ouverture et clôture
+  existent mais qu'aucun produit n'est évaluable.
 
 **Inventaire retenu et codes à plusieurs articles (ADR 0016, migration
 0044).** Pour un (site, jour, produit), un seul inventaire compte : le dernier

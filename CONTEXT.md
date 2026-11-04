@@ -193,15 +193,34 @@ termes internes `ecart_sdu` / `ecart_consommation` (enum, contrats, base)
 restent inchangés ; « écart » ne désigne plus à l'écran que l'écart d'un
 produit (tableau produit de la fiche site, fiche produit).
 
+**Inventaire de clôture** :
+Inventaire finalisé daté des **3 derniers jours du mois** ou du **1er du mois
+suivant** ; s'il y en a plusieurs, le dernier. Seul inventaire qui compte pour
+P4 et P5 (ADR 0022). Un inventaire hors de cette fenêtre ne compte pas.
+_Éviter_ : inventaire du mois, borne de fin
+
+**Inventaire d'ouverture** :
+L'inventaire de clôture du mois précédent. Sert de stock de départ à la
+conformité consommation.
+_Éviter_ : borne d'ouverture, premier inventaire du mois
+
+**Mois jugé (P4, P5)** :
+Mois dont toute la fenêtre de clôture est couverte par les données importées
+(jusqu'au 1er du mois suivant). Avant, aucune sanction : ce qui n'est pas
+encore calculable reste NON_CALCULABLE.
+
+**Sanction (P4, P5)** :
+Note 0 imposée une fois le mois jugé : sans inventaire de clôture, P4 et P5 ;
+sans inventaire d'ouverture, la conformité consommation. La fiche site en
+affiche la raison.
+
 **Conformité SDU (P4)** :
-Part des produits traceurs dont le stock physiquement compté au dernier
-inventaire du mois est **dans la tolérance** de la quantité théorique mSupply :
+Part des produits traceurs dont le stock physiquement compté à l'inventaire de
+clôture est **dans la tolérance** de la quantité théorique mSupply :
 `|théorique − compté| / compté ≤ tolérance` (le compté, la réalité, au
 dénominateur). Statut CONFORME si ce taux atteint le seuil de la grille.
-Tolérance et seuil viennent de la grille. Si le site n'a aucun inventaire
-finalisé daté dans le mois : **0 %** (ALERTE) une fois le mois clos (ne pas
-inventorier est alors un manquement), **NON_CALCULABLE** tant qu'il est en
-cours (l'inventaire de fin de mois n'est pas encore dû).
+Tolérance et seuil viennent de la grille. Sans inventaire de clôture : 0 %
+(sanction) une fois le mois jugé.
 
 **Conformité consommation (P4)** :
 Part des produits traceurs dont la consommation *déclarée* (somme des
@@ -209,14 +228,11 @@ dispensations saisies ; pour un district, somme des **quantités distribuées**)
 est dans la tolérance de la consommation *reconstituée* :
 `|déclarée − reconstituée| / reconstituée ≤ tolérance`. La consommation
 reconstituée d'un produit = `stock ouverture + réceptions − stock clôture` entre
-deux inventaires bornants : **ouverture** = dernier inventaire finalisé du mois
-**M-1** (le stock de clôture de M-1 est le stock d'entrée de M) ; **clôture** =
-dernier inventaire finalisé du mois M. À défaut d'inventaire en M-1, on retombe
-sur le premier et le dernier inventaire de M (s'il y en a deux). Un produit sans
-borne d'ouverture exploitable ou dont la reconstituée est ≤ 0 est exclu. Sans
-aucune borne d'ouverture exploitable pour le site : **0 %** (ALERTE) si le mois
-est clos, **NON_CALCULABLE** s'il est en cours. NON_CALCULABLE aussi si des
-bornes existent mais qu'aucune reconstituée n'est positive.
+l'**inventaire d'ouverture** et l'**inventaire de clôture**. Un produit absent de
+l'ouverture, ou dont la reconstituée est ≤ 0, est exclu (pour ce produit
+seulement). Sans inventaire d'ouverture ou de clôture : **0 %** (sanction) une
+fois le mois jugé. NON_CALCULABLE si les deux inventaires existent mais
+qu'aucun produit n'est évaluable.
 _Éviter_ : écart SDU, écart consommation (pour la sous-composante : c'est un taux, pas un écart)
 
 **Conformité distribution (P4)** :
@@ -225,8 +241,9 @@ reconstruction, mais la consommation déclarée est la somme des quantités
 distribuées (et non dispensées). Un district ne dispense pas.
 
 **Concordance physique / théorique (P5)** :
-Rapport moyen entre stock compté et stock théorique au dernier inventaire du
-mois, sur les produits traceurs. Statut binaire selon le seuil de la grille.
+Rapport moyen entre stock compté et stock théorique à l'inventaire de
+clôture, sur les produits traceurs. Sans inventaire de clôture : 0 % (sanction)
+une fois le mois jugé. Statut binaire selon le seuil de la grille.
 Si le site n'a aucun inventaire finalisé daté dans le mois : **0 %** (ALERTE)
 une fois le mois clos, **NON_CALCULABLE** tant qu'il est en cours. P5 n'ayant
 qu'une sous-composante, le pilier entier suit.

@@ -96,8 +96,8 @@ describe('vue mv_p4_ecart_produit', () => {
       produit('I3', 'X3', false),
     ]);
     await db.query(`INSERT INTO dqa.dim_site_programme (site_id, programme_id, actif) VALUES ('S1','P1',true)`);
-    await inventaire('A', '2026-08-05');
-    await inventaire('B', '2026-08-28');
+    await inventaire('A', '2026-07-31');
+    await inventaire('B', '2026-08-31');
     // I1 : SDU conforme (100/100) ; conso évaluable, non conforme (25 vs 30)
     await ligne('A', 'I1', 100, 100);
     await ligne('B', 'I1', 100, 100);
@@ -124,7 +124,7 @@ describe('vue mv_p4_ecart_produit', () => {
     await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S9','HORS',false)`);
     await db.query(
       `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
-       VALUES ('Z','S9','P1','2026-08-28','fn',1)`,
+       VALUES ('Z','S9','P1','2026-08-31','fn',1)`,
     );
     await db.query(
       `INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
@@ -162,8 +162,8 @@ describe('vue mv_p4_ecart_produit', () => {
     expect(p['T7']).toMatchObject({
       conso_evaluable: true, reconstituee: '20.000', ecart_conso_pct: '0.0', conso_conforme: true,
     });
-    // I2 : un seul inventaire du mois, pas de borne d'ouverture (M-1 absent)
-    expect(p['T2']).toMatchObject({ conso_evaluable: false, conso_raison_exclusion: 'aucune_borne' });
+    // I2 : absent de l'inventaire d'ouverture (ADR 0022)
+    expect(p['T2']).toMatchObject({ conso_evaluable: false, conso_raison_exclusion: 'absent_ouverture' });
     // I6 : reconstituée = 10 + 0 − 100 = −90 ≤ 0
     expect(p['T6']).toMatchObject({ conso_evaluable: false, conso_raison_exclusion: 'reconstituee_non_positive' });
   });
@@ -219,13 +219,13 @@ describe('vue mv_p4_ecart_produit', () => {
       if (t1.consommation.evaluable) expect(t1.consommation.conforme).toBe(false);
       const t2 = d.produits.find((p) => p.produitCode === 'T2')!;
       expect(t2.consommation.evaluable).toBe(false);
-      if (!t2.consommation.evaluable) expect(t2.consommation.raisonExclusion).toBe('aucune_borne');
+      if (!t2.consommation.evaluable) expect(t2.consommation.raisonExclusion).toBe('absent_ouverture');
 
       // dates et lots lisibles à l'écran (migration 0052)
-      expect(t1.dateInventaire).toBe('2026-08-28');
+      expect(t1.dateInventaire).toBe('2026-08-31');
       expect(t1.lots).toEqual([{ lot: 'X', theorique: 100, comptee: 100 }]);
       if (t1.consommation.evaluable) {
-        expect(t1.consommation).toMatchObject({ dateDebut: '2026-08-05', dateFin: '2026-08-28', reconstituee: 30 });
+        expect(t1.consommation).toMatchObject({ dateDebut: '2026-07-31', dateFin: '2026-08-31', reconstituee: 30 });
       }
       if (!t2.consommation.evaluable) expect(t2.consommation.bornes).toBeNull();
       // exclu pour reconstituée ≤ 0 : ses grandeurs restent servies

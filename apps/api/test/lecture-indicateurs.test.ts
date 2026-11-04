@@ -62,11 +62,12 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(s.site.siteId).toBe('SITE-1');
     // fixture : P1 = 100 (réquisition du mois), P2 = 100 (inventaire le 29/08 + réquisition le 05/09
     // pour un ESPC, limite 5), P3 ALERTE (0), P5 = 100, P6 = 100.
-    // P4 : SDU conforme (100) mais écart consommation à 0 % (un seul inventaire
-    // du mois, pas de borne d'ouverture — ADR 0012) → P4 = 50.
-    // → (100·10 + 100·15 + 0·15 + 50·25 + 100·25 + 100·10) / 100 = 7250 / 100 = 72.5
-    expect(Number(s.scoreComposite)).toBe(72.5);
-    expect(s.classification).toBe('NON_CONFORME');
+    // P4 : SDU conforme (100) ; écart consommation non calculable, pas 0 : la
+    // fenêtre d'extraction s'arrête au 18/08, avant la fin de la fenêtre de
+    // clôture (1er/09), août n'est pas encore jugé (ADR 0022) → P4 = 100.
+    // → (100·10 + 100·15 + 0·15 + 100·25 + 100·25 + 100·10) / 100 = 8500 / 100 = 85
+    expect(Number(s.scoreComposite)).toBe(85);
+    expect(s.classification).toBe('PARTIELLEMENT_CONFORME');
     expect(s.piliersCouverts).toBe(6);
     expect(s.scoresPiliers.map((p: { pilier: string }) => p.pilier).sort()).toEqual([
       'P1', 'P2', 'P3', 'P4', 'P5', 'P6',
@@ -80,8 +81,8 @@ describe('API de lecture — sites et détail P5/P6', () => {
     const detail = detailSiteSchema.parse(res.body);
     expect(detail.piliersCouverts).toBe(6); // les six piliers sont mesurés
     expect(detail.piliersTotal).toBe(6);
-    expect(Number(detail.scoreComposite)).toBe(72.5);
-    expect(detail.classification).toBe('NON_CONFORME');
+    expect(Number(detail.scoreComposite)).toBe(85);
+    expect(detail.classification).toBe('PARTIELLEMENT_CONFORME');
     expect(detail.piliers.map((p) => p.pilier)).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']);
     const p5 = detail.piliers.find((p) => p.pilier === 'P5')!;
     expect(p5.sousComposantes[0]?.sousComposante).toBe('concordance');
@@ -90,12 +91,12 @@ describe('API de lecture — sites et détail P5/P6', () => {
     const p3 = detail.piliers.find((p) => p.pilier === 'P3')!;
     expect(p3.sousComposantes[0]?.sousComposante).toBe('regularite_saisie');
     expect(p3.sousComposantes[0]?.statut).toBe('ALERTE');
-    // P4 : écart SDU conforme ; écart consommation à 0 % / ALERTE (un seul
-    // inventaire du mois, pas de borne d'ouverture — ADR 0012)
+    // P4 : écart SDU conforme ; écart consommation non calculable, août n'étant
+    // pas encore jugé (fenêtre d'extraction close au 18/08, ADR 0022)
     const p4 = detail.piliers.find((p) => p.pilier === 'P4')!;
     expect(p4.sousComposantes.map((sc) => sc.sousComposante)).toEqual(['ecart_sdu', 'ecart_consommation']);
     expect(p4.sousComposantes[0]?.statut).toBe('CONFORME');
-    expect(p4.sousComposantes[1]?.statut).toBe('ALERTE');
+    expect(p4.sousComposantes[1]?.statut).toBe('NON_CALCULABLE');
     // P1 : réquisitions conformes, réceptions NON_CALCULABLE (aucune facture) ;
     // l'inventaire a quitté P1 (ADR 0019)
     const p1 = detail.piliers.find((p) => p.pilier === 'P1')!;
@@ -152,12 +153,12 @@ describe('API de lecture — sites et détail P5/P6', () => {
     const s = syntheseNationaleSchema.parse(res.body);
     expect(s.moisPaqd).toBe('2026-08');
     expect(s.moisDisponibles).toContain('2026-08');
-    // une seule structure importée : SITE-1, NON CONFORME (composite 72,5 —
-    // écart consommation à 0 % faute de borne d'ouverture, ADR 0012)
+    // une seule structure importée : SITE-1, PARTIELLEMENT CONFORME (composite 85 ;
+    // août pas encore jugé pour l'écart consommation, ADR 0022)
     expect(s.national.nbSites).toBe(1);
     expect(s.national.nbMesures).toBe(1);
-    expect(Number(s.national.scoreCompositeMoyen)).toBe(72.5);
-    expect(s.national.repartition.NON_CONFORME).toBe(1);
+    expect(Number(s.national.scoreCompositeMoyen)).toBe(85);
+    expect(s.national.repartition.PARTIELLEMENT_CONFORME).toBe(1);
     expect(
       s.national.repartition.CONFORME +
         s.national.repartition.PARTIELLEMENT_CONFORME +
@@ -259,7 +260,7 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(ligne.concordance.conforme).toBe(true);
     expect(ligne.consommation.evaluable).toBe(false);
     if (!ligne.consommation.evaluable) {
-      expect(ligne.consommation.raisonExclusion).toBe('aucune_borne');
+      expect(ligne.consommation.raisonExclusion).toBe('sans_ouverture');
     }
     // la variante porte l'horodatage du gel et le drapeau de ré-import
     expect(d.calculeLe).not.toBeNull();

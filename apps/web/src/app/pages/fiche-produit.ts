@@ -155,8 +155,9 @@ type FiltresProduit = {
             @if (f.consommation.reconstituee === null) {
               <p class="mt-2 text-sm text-muted-foreground">
                 Écart consommation non évaluable ce mois : il faut un inventaire de
-                clôture et une borne d'ouverture (dernier inventaire du mois
-                précédent, ou deux inventaires dans le mois).
+                clôture (3 derniers jours du mois ou 1er du mois suivant) et un
+                inventaire d'ouverture (la clôture du mois précédent), le produit
+                figurant dans les deux.
               </p>
             } @else {
               <dl class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">

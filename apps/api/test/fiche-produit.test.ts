@@ -94,19 +94,19 @@ describe('ficheProduitMois', () => {
     await produit('I2', 'T2', true);
     await produit('I3', 'X3', false);
 
-    await inventaire('A', '2026-08-05');
-    await inventaire('B', '2026-08-28');
+    await inventaire('A', '2026-08-01'); // clôture de juillet = ouverture d'août (ADR 0022)
+    await inventaire('B', '2026-08-31'); // clôture d'août
     await ligne('A', 'I1', 100, 90);
     await ligne('B', 'I1', 60, 50);
     await ligne('B', 'I2', 100, 95); // un seul inventaire pour T2
     await ligne('B', 'I3', 100, 40); // non traceur
 
-    // réceptions dans l'intervalle (05, 28]
+    // réceptions dans l'intervalle (01, 31]
     await mouvement('RC1', 'facture_fournisseur', '2026-08-10', 'I1', 30);
     await mouvement('RC2', 'facture_fournisseur', '2026-08-20', 'I1', 10);
 
-    // dispensations : 08-02 hors intervalle, 08-12 (x2 même jour), 08-19 dans l'intervalle
-    await mouvement('D0', 'dispensation', '2026-08-02', 'I1', 8);
+    // dispensations : 08-01 hors intervalle (jour de l'ouverture), 08-12 (x2 même jour), 08-19 dans l'intervalle
+    await mouvement('D0', 'dispensation', '2026-08-01', 'I1', 8);
     await mouvement('D1', 'dispensation', '2026-08-12', 'I1', 25);
     await mouvement('D2', 'dispensation', '2026-08-12', 'I1', 5);
     await mouvement('D3', 'dispensation', '2026-08-19', 'I1', 20);
@@ -135,8 +135,8 @@ describe('ficheProduitMois', () => {
 
     // inventaires du mois portant T1
     expect(f.inventaires).toEqual([
-      { date: '2026-08-05', statut: 'fn', theorique: 100, comptee: 90, ecart: -10 },
-      { date: '2026-08-28', statut: 'fn', theorique: 60, comptee: 50, ecart: -10 },
+      { date: '2026-08-01', statut: 'fn', theorique: 100, comptee: 90, ecart: -10 },
+      { date: '2026-08-31', statut: 'fn', theorique: 60, comptee: 50, ecart: -10 },
     ]);
 
     // photos : celles du mois seulement, triées
@@ -176,7 +176,7 @@ describe('ficheProduitMois', () => {
     if (f === null) throw new Error('fiche attendue');
 
     expect(f.inventaires).toEqual([
-      { date: '2026-08-28', statut: 'fn', theorique: 100, comptee: 95, ecart: -5 },
+      { date: '2026-08-31', statut: 'fn', theorique: 100, comptee: 95, ecart: -5 },
     ]);
     expect(f.consommation).toEqual({ reconstituee: null, declaree: null, ecart: null });
     expect(f.stockDebut).toBeNull();

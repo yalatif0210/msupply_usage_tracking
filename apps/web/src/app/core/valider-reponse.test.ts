@@ -421,7 +421,7 @@ describe('validerReponse (couture D)', () => {
         produitId: 'I2',
         produitCode: 'T2',
         article: { rang: 1, nombre: 2, unite: 'FL' },
-        consommation: { evaluable: false, raisonExclusion: 'aucune_borne', bornes: null },
+        consommation: { evaluable: false, raisonExclusion: 'sans_ouverture', bornes: null },
         concordance: { tauxPct: null, conforme: false },
       }),
     ],

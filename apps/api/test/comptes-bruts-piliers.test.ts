@@ -133,7 +133,7 @@ describe('vues de pilier : couples attendu / réalisé', () => {
     await db.query(`INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom)
       VALUES ('p1','C1','C1'),('p2','C2','C2')`);
     await db.query(`INSERT INTO dqa.dim_produit_traceur (produit_code, libelle) VALUES ('C1','C1'),('C2','C2')`);
-    await inv('A', 'VIH', '2026-08-28');
+    await inv('A', 'VIH', '2026-08-31');
     // C1 : 100/100 → concordance 100, conforme ; C2 : 100/50 → 50, non conforme
     await db.query(`INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
       VALUES ('A','p1','X',100,100,1),('A','p2','X',100,50,1)`);
@@ -151,7 +151,7 @@ describe('vues de pilier : couples attendu / réalisé', () => {
       VALUES ('p1','C1','C1'),('p2','C2','C2'),('p3','C3','C3')`);
     await db.query(`INSERT INTO dqa.dim_produit_traceur (produit_code, libelle)
       VALUES ('C1','C1'),('C2','C2'),('C3','C3')`);
-    await inv('A', 'VIH', '2026-08-28');
+    await inv('A', 'VIH', '2026-08-31');
     // C1 100/100 conforme ; C2 100/101 (~1%) conforme (tol 2%) ; C3 100/90 non conforme
     await db.query(`INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
       VALUES ('A','p1','X',100,100,1),('A','p2','X',100,101,1),('A','p3','X',100,90,1)`);

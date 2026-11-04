@@ -63,7 +63,7 @@ describe('vues d\'indicateurs, composite et gel', () => {
       mois = '2026-08', sorties = [],
     } = opts;
     const jourTxn = `${mois}-02`;
-    const jourInv = `${mois}-28`;
+    const jourInv = finDeMois(mois); // inventaire de clôture (ADR 0022)
     await db.query(
       `INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, statut)
        VALUES ('t.xlsx',$1,$2,$3,$4,'valide')`,
@@ -262,11 +262,11 @@ describe('vues d\'indicateurs, composite et gel', () => {
     // → (0·15 + 100·25 + 100·25 + 100·10) / (15 + 25 + 25 + 10) = 6000 / 75 = 80.0
     await socle({
       comptee: 100, theorique: 100, nbMouvements: 0,
-      sorties: joursAout.slice(0, 4).map((j) => ({ jour: j })),  // 1 sortie dans (03/08, 28/08] : le 04/08
+      sorties: joursAout.slice(0, 4).map((j) => ({ jour: j })),  // 4 sorties dans (31/07, 31/08]
     });
-    // borne d'ouverture pour que l'écart consommation soit conforme (P4 = 100) :
-    // reconstituée = 101 − 100 = 1 = déclarée (04/08).
-    await inventaire('INV0', '2026-08-03', 'I1', 101, 101);
+    // ouverture pour que l'écart consommation soit conforme (P4 = 100) :
+    // reconstituée = 104 − 100 = 4 = déclarée.
+    await inventaire('INV0', '2026-07-31', 'I1', 104, 104);
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     const sp = await scorePilier(null);
     expect(sp?.p_regularite).toBe('0.0');
@@ -434,8 +434,13 @@ describe('vues d\'indicateurs, composite et gel', () => {
   it('P4 écart SDU NON_CALCULABLE sans produit traceur inventorié', async () => {
     await db.query(`DELETE FROM dqa.dim_produit_traceur`);
     await socle({ nbMouvements: 4 }); // mouvements → P6 calculable, mais aucun traceur
-    // le site a un inventaire du mois mais sans traceur exploitable → ligne forcée
-    // (grain tous programmes), taux SDU et conso NULL (ADR 0012).
+    // ouverture et clôture présentes mais sans traceur exploitable → ligne forcée
+    // (grain tous programmes), taux SDU et conso NULL (ADR 0012, ADR 0022).
+    await db.query(
+      `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
+       VALUES ('INV0','S1','P1','2026-07-31','fn',1)`,
+    );
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     const v = await p4();
     expect(v?.taux_sdu_pct).toBeNull();
     expect(v?.taux_conso_pct).toBeNull();
@@ -443,8 +448,8 @@ describe('vues d\'indicateurs, composite et gel', () => {
   });
 
   it('P4 écart consommation : produit évaluable et classé conforme', async () => {
-    await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // INV1 le 28/08, stock fin = 50
-    await inventaire('INV0', '2026-08-03', 'I1', 100, 100);        // stock début = 100
+    await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // INV1 le 31/08, stock fin = 50
+    await inventaire('INV0', '2026-07-31', 'I1', 100, 100);        // stock début = 100
     await mouvement('RC1', 'facture_fournisseur', '2026-08-10', 'I1', 30);   // + 30 dans l'intervalle
     await mouvement('DI1', 'dispensation', '2026-08-15', 'I1', 80); // déclarée = 80
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
@@ -457,7 +462,7 @@ describe('vues d\'indicateurs, composite et gel', () => {
 
   it('P4 écart consommation : seules les factures finalisées sont des entrées de stock (ADR 0018)', async () => {
     await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // stock fin = 50
-    await inventaire('INV0', '2026-08-03', 'I1', 100, 100);        // stock début = 100
+    await inventaire('INV0', '2026-07-31', 'I1', 100, 100);        // stock début = 100
     await mouvement('RC1', 'facture_fournisseur', '2026-08-10', 'I1', 30); // finalisée : compte
     await mouvement('RC2', 'facture_fournisseur', '2026-08-11', 'I1', 500);
     await db.query(`UPDATE dqa.fact_transaction SET statut = 'cn' WHERE transaction_id = 'RC2'`); // non finalisée
@@ -481,7 +486,7 @@ describe('vues d\'indicateurs, composite et gel', () => {
   });
 
   it('P4 écart consommation : un seul inventaire du mois → 0 % / ALERTE (ADR 0012)', async () => {
-    await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // seul INV1, pas de borne d'ouverture
+    await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // seul INV1, pas d'inventaire d'ouverture
     const v = await p4();
     expect(v?.taux_sdu_pct).not.toBeNull();     // SDU reste calculable
     expect(v?.nb_produits_conso).toBe(0);
@@ -493,7 +498,7 @@ describe('vues d\'indicateurs, composite et gel', () => {
 
   it('P4 écart consommation : reconstituée ≤ 0 → produit exclu', async () => {
     await socle({ nbMouvements: 0, comptee: 100, theorique: 100 }); // stock fin = 100
-    await inventaire('INV0', '2026-08-03', 'I1', 10, 10);           // stock début = 10, aucune réception
+    await inventaire('INV0', '2026-07-31', 'I1', 10, 10);           // stock début = 10, aucune réception
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     // reconstituée = 10 + 0 − 100 = −90 ≤ 0 → exclu
     expect((await p4())?.nb_produits_conso).toBe(0);
@@ -502,7 +507,7 @@ describe('vues d\'indicateurs, composite et gel', () => {
 
   it('P4 : score de pilier = moyenne des deux sous-composantes calculables', async () => {
     await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // SDU conforme (100)
-    await inventaire('INV0', '2026-08-03', 'I1', 100, 100);
+    await inventaire('INV0', '2026-07-31', 'I1', 100, 100);
     await mouvement('RC1', 'facture_fournisseur', '2026-08-10', 'I1', 0);
     await mouvement('DI1', 'dispensation', '2026-08-15', 'I1', 10); // déclarée 10 vs reconstituée 50 → 80 % > 2 % → ALERTE (0)
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
@@ -556,8 +561,8 @@ describe('vues d\'indicateurs, composite et gel', () => {
       comptee: 100, theorique: 100, nbMouvements: 10, nbAjustements: 0,
       sorties: joursAout.slice(0, 25).map((j) => ({ jour: j })), // 25 / 31 → P3 conforme
     });
-    // borne d'ouverture : 22 sorties dans (03/08, 28/08] → reconstituée = 22 = déclarée
-    await inventaire('INVOUV', '2026-08-03', 'I1', 122, 122);
+    // ouverture : 25 sorties dans (31/07, 31/08] → reconstituée = 25 = déclarée
+    await inventaire('INVOUV', '2026-07-31', 'I1', 125, 125);
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     const tous = await scorePilier(null);
     expect(tous?.p_regularite).toBe('100.0');
