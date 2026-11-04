@@ -19,6 +19,7 @@ Emplacement : `apps/api/src/indicateurs/` (API) et `apps/web/src/app/pages/`
 | `GET` | `/api/sites/:id/historique?cycle=&de=&a=&programmeId=` | `HistoriqueSite` | tout authentifié |
 | `GET` | `/api/sites/:id/piliers/:code?mois=&programmeId=` | `DetailPilier` (union sur `code` ; `p4` = tableau produit P4 · P5) | tout authentifié |
 | `GET` | `/api/sites/:id/produits/:code?mois=&programmeId=` | `FicheProduitMois` (produits traceurs uniquement) | tout authentifié |
+| `GET` | `/api/methode-calcul?mois=` | `MethodeCalcul` (404 sans grille ; sans mois : dernier mois mesuré) | tout authentifié |
 | `GET` | `/api/synthese?mois=&programmeId=&region=` | `SyntheseNationale` | tout authentifié |
 | `GET` | `/api/synthese/territoire/rapports?mois=&programmeId=&region=&strate=` | `SyntheseTerritoireRapports` (régions et zones) | tout authentifié |
 | `GET` | `/api/synthese/territoire/rapports/sites?mois=&region=&district=&programmeId=&strate=` | `LigneTerritoireRapports[]` (sites d'une zone) | tout authentifié |
@@ -199,9 +200,18 @@ fois (CTE `clotures`) : la fonction lit la grille, l'appeler ligne à ligne
 multipliait le temps de rafraîchissement par vingt. Une sanction se reconnaît
 dans les vues (aucun produit évalué, taux 0) ; `mv_score_pilier` lui donne la
 note `dqa.note_sanction(mois)`. Classification :
-`dqa.classer_composite(score, grille_id)`, bornes de la grille. Piège : la fiche
-site déduit encore le statut d'une sous-composante sanctionnée de la note brute
-(0), pas de la note de sanction ; sans effet tant que la note vaut 0.
+`dqa.classer_composite(score, grille_id)`, bornes de la grille.
+
+**Transparence du calcul (migration 0059).** `mv_score_pilier` expose la note
+de chaque sous-composante (`note_*` : 100, 0, note de sanction ou NULL), celle
+qui entre dans le score de son pilier. La fiche site (`detailSite`) lit ces
+notes : chaque `MesureSousComposante` porte `note` et `sanction`, son statut se
+déduit de la note ; chaque `ScorePilier` porte `poidsCalculables` et le poids
+du pilier lu dans la grille ; `calcul` donne la grille, ses règles et le poids
+des piliers calculables. `GET /api/methode-calcul?mois=` (tout authentifié,
+404 sans grille) décrit la grille d'un mois pour le dépliable « Comment ces
+scores sont calculés » (`ui/methode-calcul`). L'écran ne recalcule rien : un
+test vérifie que la décomposition redonne exactement les scores affichés.
 
 - `ecart_sdu` : `|théorique − compté| / compté ≤ tolérance` à l'inventaire de
   clôture, par produit ; compté (réalité) au dénominateur.

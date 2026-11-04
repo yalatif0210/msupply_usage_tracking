@@ -25,6 +25,7 @@ import { Coquille } from '../ui/coquille';
 import { RepartitionClassificationComponent } from '../ui/repartition-classification';
 import { TerritoireRapports } from './territoire-rapports';
 import { TerritoireScores } from './territoire-scores';
+import { MethodeCalculComponent } from '../ui/methode-calcul';
 
 type TriColonne = 'libelle' | 'pilier' | 'tauxAtteinteMoyen' | 'nbConforme' | 'nbAlerte' | 'nbNonCalculable';
 
@@ -59,6 +60,7 @@ const TH = 'text-xs font-medium text-muted-foreground';
   selector: 'dqa-synthese',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    MethodeCalculComponent,
     DecimalPipe,
     Coquille,
     BarreAttente,
@@ -457,6 +459,9 @@ const TH = 'text-xs font-medium text-muted-foreground';
       }
       }
       }
+      <div class="mt-8">
+        <dqa-methode-calcul [mois]="res.valeur()?.moisPaqd ?? null" />
+      </div>
     </main>
   `,
 })

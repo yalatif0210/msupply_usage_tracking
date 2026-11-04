@@ -203,6 +203,37 @@ function reculerMois(mois: string, n: number): string {
                 }
               </div>
             </div>
+            @if (d.calcul; as c) {
+              <details class="border-t border-border px-6 py-3 text-sm">
+                <summary class="cursor-pointer font-medium">Calcul du score composite</summary>
+                <ul class="mt-2 space-y-1 tabular-nums">
+                  @for (pil of d.piliers; track pil.pilier) {
+                    <li>
+                      {{ pil.pilier }} · {{ pil.libelle }} :
+                      @if (pil.score === null) {
+                        <span class="text-muted-foreground">non calculable, hors du calcul</span>
+                      } @else {
+                        score {{ pil.score | number: '1.0-1' }} · poids {{ pil.poids | number: '1.0-1' }} %
+                      }
+                    </li>
+                  }
+                </ul>
+                <p class="mt-2">
+                  @if (d.scoreComposite === null) {
+                    Aucun pilier calculable : pas de score composite.
+                  } @else {
+                    Score composite = moyenne des scores de pilier pondérée sur
+                    {{ c.poidsPiliersCalculables | number: '1.0-1' }} % de poids
+                    = <b class="font-semibold tabular-nums">{{ d.scoreComposite | number: '1.0-1' }}</b>.
+                    Conforme à partir de {{ c.regles.borneConforme | number: '1.0-1' }}, partiellement conforme à partir de
+                    {{ c.regles.bornePartiellementConforme | number: '1.0-1' }}.
+                  }
+                </p>
+                <p class="mt-1 text-muted-foreground">
+                  Grille {{ c.grille.version }}, en vigueur depuis le {{ c.grille.effetAPartirDe | date: 'dd/MM/yyyy' }}.
+                </p>
+              </details>
+            }
           </div>
 
           <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -240,6 +271,31 @@ function reculerMois(mois: string, n: number): string {
                       </div>
                     </div>
                   }
+                  <details class="border-t border-border pt-3 text-xs">
+                    <summary class="cursor-pointer font-medium text-muted-foreground">Calcul du score</summary>
+                    <ul class="mt-2 space-y-1">
+                      @for (sc of pil.sousComposantes; track sc.sousComposante) {
+                        <li class="tabular-nums">
+                          {{ sc.libelle }} :
+                          @if (!sc.retenue) {
+                            <span class="text-muted-foreground">non retenue, hors du calcul</span>
+                          } @else if (sc.note === null) {
+                            <span class="text-muted-foreground">non calculable, hors du calcul</span>
+                          } @else {
+                            note {{ sc.note | number: '1.0-1' }}@if (sc.sanction) { (sanction) } · poids {{ sc.poidsDansPilierPct | number: '1.0-1' }} %
+                          }
+                        </li>
+                      }
+                    </ul>
+                    <p class="mt-2">
+                      @if (pil.score === null) {
+                        Aucune sous-composante retenue n'est calculable : le pilier sort du score composite.
+                      } @else {
+                        Score du pilier = moyenne des notes pondérée sur {{ pil.poidsCalculables | number: '1.0-1' }} % de poids
+                        = <b class="font-semibold tabular-nums">{{ pil.score | number: '1.0-1' }}</b>
+                      }
+                    </p>
+                  </details>
                   @if (pil.comptesBruts.length) {
                     <dl class="space-y-1 border-t border-border pt-3 text-xs">
                       @for (cb of pil.comptesBruts; track cb.mesure) {
@@ -542,7 +598,7 @@ function reculerMois(mois: string, n: number): string {
                   Conformité SDU@if (inventaireCommun(); as di) { · inventaire du {{ jourMoisCourt(di) }} }
                 </h3>
                 <p class="text-xs text-muted-foreground">
-                  Au dernier inventaire finalisé du mois. Écart = |théorique - compté| ÷ compté ; conforme dans la tolérance de la grille.
+                  À l'inventaire de clôture (fin du mois ou 1er du mois suivant). Écart = |théorique - compté| ÷ compté ; conforme dans la tolérance de la grille.
                 </p>
                 <div hlmTableContainer class="mt-2">
                   <table hlmTable class="border border-border">
@@ -576,7 +632,7 @@ function reculerMois(mois: string, n: number): string {
 
                 <h3 class="mt-6 text-sm font-semibold">Conformité {{ fluxP4() }}</h3>
                 <p class="text-xs text-muted-foreground">
-                  Reconstituée = début + réceptions - fin, entre deux inventaires ; déclarée = {{ d.estDistrict ? 'distributions' : 'dispensations' }} finalisées sur la même période.
+                  Reconstituée = ouverture + réceptions - clôture, de l'inventaire de clôture du mois précédent à celui du mois ; déclarée = {{ d.estDistrict ? 'distributions' : 'dispensations' }} finalisées sur la même période.
                   Réceptions : factures fournisseur finalisées. Écart = |déclarée - reconstituée| ÷ reconstituée.
                 </p>
                 <div hlmTableContainer class="mt-2">

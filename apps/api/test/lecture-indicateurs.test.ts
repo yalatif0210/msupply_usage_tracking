@@ -6,6 +6,7 @@ import {
   detailPilierSchema,
   detailSiteSchema,
   historiqueSiteSchema,
+  methodeCalculSchema,
   syntheseNationaleSchema,
 } from '@dqa/contracts';
 import { AppModule } from '../src/app.module.js';
@@ -278,5 +279,52 @@ describe('API de lecture — sites et détail P5/P6', () => {
     if (d.code !== 'p4') throw new Error('variante p4 attendue');
     expect(d.programmeId).toBe('PROG-1');
     expect(d.produits).toHaveLength(1);
+  });
+
+  // ── Transparence du calcul (ticket 04) ─────────────────────────────────────
+  it('GET /api/sites/:id : la décomposition redonne exactement les scores affichés', async () => {
+    const a = await lecteur();
+    const detail = detailSiteSchema.parse((await a.get('/api/sites/SITE-1')).body);
+    expect(detail.calcul?.grille.version).toBe('v1');
+    expect(detail.calcul?.regles).toMatchObject({ borneConforme: 90, bornePartiellementConforme: 75 });
+    for (const pil of detail.piliers) {
+      const notes = pil.sousComposantes.filter((sc) => sc.retenue && sc.note !== null);
+      if (pil.score === null) {
+        expect(notes).toHaveLength(0);
+        continue;
+      }
+      const poids = notes.reduce((t, sc) => t + sc.poidsDansPilierPct, 0);
+      expect(pil.poidsCalculables).toBe(poids);
+      const moyenne = notes.reduce((t, sc) => t + (sc.note ?? 0) * sc.poidsDansPilierPct, 0) / poids;
+      expect(pil.score).toBeCloseTo(Math.round(moyenne * 10) / 10, 5);
+    }
+    const calculables = detail.piliers.filter((p) => p.score !== null);
+    const poidsPiliers = calculables.reduce((t, p) => t + p.poids, 0);
+    expect(detail.calcul?.poidsPiliersCalculables).toBe(poidsPiliers);
+    const composite = calculables.reduce((t, p) => t + (p.score ?? 0) * p.poids, 0) / poidsPiliers;
+    expect(detail.scoreComposite).toBeCloseTo(Math.round(composite * 10) / 10, 5);
+    // poids des piliers lus dans la grille v1
+    expect(detail.piliers.map((p) => p.poids)).toEqual([10, 15, 15, 25, 25, 10]);
+  });
+
+  it('GET /api/methode-calcul décrit la grille du mois', async () => {
+    const a = await lecteur();
+    const res = await a.get('/api/methode-calcul?mois=2026-08');
+    expect(res.status).toBe(200);
+    const m = methodeCalculSchema.parse(res.body);
+    expect(m.moisPaqd).toBe('2026-08');
+    expect(m.grille.version).toBe('v1');
+    expect(m.piliers.map((p) => p.pilier)).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']);
+    const p4 = m.piliers.find((p) => p.pilier === 'P4')!;
+    expect(p4.sousComposantes.map((sc) => [sc.sousComposante, sc.retenue, sc.poidsDansPilierPct])).toEqual([
+      ['ecart_sdu', false, 0],
+      ['ecart_consommation', true, 100],
+    ]);
+    expect(m.regles.joursClotureFinMois).toBe(3);
+    // sans mois : dernier mois mesuré
+    expect(methodeCalculSchema.parse((await a.get('/api/methode-calcul')).body).moisPaqd).toBe('2026-08');
+    // un mois antérieur à toute grille
+    await a.get('/api/methode-calcul?mois=2020-01').expect(404);
+    await request(app.getHttpServer()).get('/api/methode-calcul').expect(401);
   });
 });

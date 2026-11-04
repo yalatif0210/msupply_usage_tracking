@@ -9,10 +9,20 @@ vient de la base ; l'écran ne recalcule rien.
 
 **Blocked by:** 02, 03
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Contrat Zod de la décomposition d'un score et de la description d'une grille.
-- [ ] API : décomposition par site et mois ; description de la grille d'un mois.
-- [ ] Fiche site : dépliable par pilier et pour le composite, raison de sanction ou de non-calcul.
-- [ ] Tableau de bord, liste des sites, synthèse, scores par territoire : dépliable de méthode.
-- [ ] Tests : la décomposition redonne exactement le score affiché.
+- [x] Contrat Zod de la décomposition d'un score et de la description d'une grille.
+- [x] API : décomposition par site et mois ; description de la grille d'un mois.
+- [x] Fiche site : dépliable par pilier et pour le composite, raison de sanction ou de non-calcul.
+- [x] Tableau de bord, liste des sites, synthèse, scores par territoire : dépliable de méthode.
+- [x] Tests : la décomposition redonne exactement le score affiché.
+
+## Comments
+
+- Migration 0059 : `mv_score_pilier` expose les notes des sous-composantes
+  (sanction comprise) ; la fiche site en déduit le statut, ce qui corrige le
+  statut d'une sous-composante sanctionnée à note non nulle (reste du ticket 03).
+- Le poids d'un pilier sur la fiche site vient désormais de la grille du mois
+  (il venait d'une constante du code).
+- Les scores par territoire sont un bloc de la synthèse nationale : le
+  dépliable de la synthèse les couvre.

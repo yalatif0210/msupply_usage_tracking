@@ -169,7 +169,7 @@ type FiltresProduit = {
                 <div class="rounded-lg border border-border p-3">
                   <dt class="text-xs text-muted-foreground">Consommation déclarée</dt>
                   <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ nb(f.consommation.declaree) }}</dd>
-                  <dd class="mt-1 text-xs text-muted-foreground">somme des dispensations entre les deux inventaires bornants</dd>
+                  <dd class="mt-1 text-xs text-muted-foreground">somme des dispensations entre l'ouverture et la clôture</dd>
                 </div>
                 <div class="rounded-lg border border-border p-3">
                   <dt class="text-xs text-muted-foreground">Écart (déclarée moins reconstituée)</dt>
@@ -179,8 +179,8 @@ type FiltresProduit = {
                 </div>
               </dl>
               <p class="mt-3 text-sm tabular-nums">
-                Stock au premier inventaire bornant : {{ nb(f.stockDebut) }} ·
-                Stock au dernier inventaire bornant : {{ nb(f.stockFin) }}
+                Stock à l'inventaire d'ouverture : {{ nb(f.stockDebut) }} ·
+                Stock à l'inventaire de clôture : {{ nb(f.stockFin) }}
               </p>
             }
 

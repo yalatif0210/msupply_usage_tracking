@@ -195,6 +195,35 @@ export type EntreeProgrammeSite = z.infer<typeof entreeProgrammeSiteSchema>;
 export const uniteMesureSchema = z.enum(['pct', 'jours', 'nombre', 'ratio']);
 export type UniteMesure = z.infer<typeof uniteMesureSchema>;
 
+/** Version de grille qui s'applique à un mois. */
+export const grilleResumeSchema = z.object({
+  id: z.number().int().positive(),
+  version: z.string(),
+  effetAPartirDe: dateIsoSchema,
+});
+export type GrilleResume = z.infer<typeof grilleResumeSchema>;
+
+/**
+ * Valeurs des règles de calcul portées par la grille (migration 0058) :
+ * fenêtre de clôture des inventaires (ADR 0022), note d'une sous-composante
+ * P4 / P5 sanctionnée, bornes de classification du composite.
+ */
+export const reglesCalculSchema = z
+  .object({
+    /** Un inventaire des N derniers jours du mois le clôture. */
+    joursClotureFinMois: z.number().int().min(1).max(10),
+    /** Un inventaire des N premiers jours du mois suivant clôture le mois. */
+    joursClotureMoisSuivant: z.number().int().min(0).max(10),
+    noteSanction: pourcentageSchema,
+    borneConforme: pourcentageSchema,
+    bornePartiellementConforme: pourcentageSchema,
+  })
+  .refine((r) => r.bornePartiellementConforme > 0 && r.bornePartiellementConforme < r.borneConforme, {
+    message: 'Bornes de classification : 0 < partiellement conforme < conforme ≤ 100',
+    path: ['bornePartiellementConforme'],
+  });
+export type ReglesCalcul = z.infer<typeof reglesCalculSchema>;
+
 /**
  * Mesure d'une sous-composante pour un site et un mois PAQD.
  *
@@ -215,6 +244,13 @@ export const mesureSousComposanteSchema = z.object({
   retenue: z.boolean(),
   /** Poids dans le pilier (les retenues d'un pilier font 100) ; 0 si non retenue. */
   poidsDansPilierPct: pourcentageSchema,
+  /**
+   * Note qui entre dans le score du pilier : 100 (seuil atteint), 0, la note de
+   * sanction de la grille, ou `null` (non calculable). Le statut s'en déduit.
+   */
+  note: pourcentageSchema.nullable(),
+  /** Vrai si la note est imposée par sanction (P4, P5 : ADR 0022). */
+  sanction: z.boolean(),
 });
 export type MesureSousComposante = z.infer<typeof mesureSousComposanteSchema>;
 
@@ -241,6 +277,11 @@ export const scorePilierSchema = z.object({
   /** Score sur 100, ou `null` si toutes les sous-composantes sont NON_CALCULABLE. */
   score: pourcentageSchema.nullable(),
   sousComposantes: z.array(mesureSousComposanteSchema),
+  /**
+   * Somme des poids des sous-composantes retenues et calculables : le score du
+   * pilier est la moyenne de leurs notes pondérée sur ce total.
+   */
+  poidsCalculables: z.number().nonnegative(),
   /**
    * Couples attendu / réalisé figés du pilier, un par sous-composante mesurée.
    * Vide tant que le mois n'a pas de gel de comptes bruts (mois antérieurs au
@@ -330,6 +371,15 @@ export const detailSiteSchema = z.object({
   scoreComposite: pourcentageSchema.nullable(),
   classification: classificationSchema.nullable(),
   piliers: z.array(scorePilierSchema),
+  /** Grille et règles qui ont produit les scores du mois, pour en déplier le calcul. */
+  calcul: z
+    .object({
+      grille: grilleResumeSchema,
+      regles: reglesCalculSchema,
+      /** Somme des poids des piliers calculables : dénominateur du composite. */
+      poidsPiliersCalculables: z.number().nonnegative(),
+    })
+    .nullable(),
   /**
    * Les sous-composantes du mois affiché (ordre canonique), valeurs gelées
    * + taux d'atteinte (`v_sous_composante_atteinte`) ; toutes NON_CALCULABLE si
@@ -1315,26 +1365,6 @@ export const seuilSousComposanteSchema = z.object({
 });
 export type SeuilSousComposante = z.infer<typeof seuilSousComposanteSchema>;
 
-/**
- * Valeurs des règles de calcul portées par la grille (migration 0058) :
- * fenêtre de clôture des inventaires (ADR 0022), note d'une sous-composante
- * P4 / P5 sanctionnée, bornes de classification du composite.
- */
-export const reglesCalculSchema = z
-  .object({
-    /** Un inventaire des N derniers jours du mois le clôture. */
-    joursClotureFinMois: z.number().int().min(1).max(10),
-    /** Un inventaire des N premiers jours du mois suivant clôture le mois. */
-    joursClotureMoisSuivant: z.number().int().min(0).max(10),
-    noteSanction: pourcentageSchema,
-    borneConforme: pourcentageSchema,
-    bornePartiellementConforme: pourcentageSchema,
-  })
-  .refine((r) => r.bornePartiellementConforme > 0 && r.bornePartiellementConforme < r.borneConforme, {
-    message: 'Bornes de classification : 0 < partiellement conforme < conforme ≤ 100',
-    path: ['bornePartiellementConforme'],
-  });
-export type ReglesCalcul = z.infer<typeof reglesCalculSchema>;
 
 export const grilleDetailSchema = grilleParametreSchema.extend({
   poids: z.array(poidsPilierSchema).length(6),
@@ -1397,6 +1427,29 @@ export const entreeGrilleSchema = z
     path: ['seuils'],
   });
 export type EntreeGrille = z.infer<typeof entreeGrilleSchema>;
+
+// ─── Méthode de calcul d'un mois (transparence, lecture) ───────────────────
+
+export const methodeCalculQuerySchema = z.object({ mois: moisPaqdSchema.optional() });
+export type MethodeCalculQuery = z.infer<typeof methodeCalculQuerySchema>;
+
+/** La grille d'un mois décrite pour les écrans de lecture : composition, seuils, règles. */
+export const methodeCalculSchema = z.object({
+  moisPaqd: moisPaqdSchema,
+  grille: grilleResumeSchema,
+  regles: reglesCalculSchema,
+  piliers: z.array(
+    z.object({
+      pilier: pilierSchema,
+      libelle: z.string(),
+      poidsPct: pourcentageSchema,
+      sousComposantes: z.array(
+        seuilSousComposanteSchema.extend({ libelle: z.string() }),
+      ),
+    }),
+  ),
+});
+export type MethodeCalcul = z.infer<typeof methodeCalculSchema>;
 
 // ─── Administration : comptes ──────────────────────────────────────────────
 

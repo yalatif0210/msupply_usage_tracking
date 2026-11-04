@@ -13,6 +13,7 @@ import { SitesService } from '../core/sites.service';
 import { BadgeClassification } from '../ui/badge-classification';
 import { BarreAttente } from '../ui/barre-attente';
 import { Coquille } from '../ui/coquille';
+import { MethodeCalculComponent } from '../ui/methode-calcul';
 
 /** Filtres de l'ecran. `district` et `page` sont purement client : ils ne rechargent pas. */
 type FiltresListe = {
@@ -33,6 +34,7 @@ const TAILLE_PAGE = 15;
   selector: 'dqa-liste-sites',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    MethodeCalculComponent,
     RouterLink,
     Coquille,
     BadgeClassification,
@@ -192,6 +194,9 @@ const TAILLE_PAGE = 15;
         </div>
       }
       }
+      <div class="mt-8">
+        <dqa-methode-calcul [mois]="moisAffiche() || null" />
+      </div>
     </main>
   `,
 })

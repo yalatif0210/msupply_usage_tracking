@@ -10,7 +10,9 @@ import {
   PILIER_DE_MESURE_BRUTE,
   PILIER_DE_SOUS_COMPOSANTE,
   POIDS_PILIER,
+  PILIERS,
   SOUS_COMPOSANTES,
+  SOUS_COMPOSANTES_DU_PILIER,
   type BlocSynthese,
   type Classification,
   type CodeDetailPilier,
@@ -27,6 +29,10 @@ import {
   type FicheProduitMois,
   type FicheProduitMoisQuery,
   type FiltreSites,
+  type GrilleResume,
+  type MethodeCalcul,
+  type MethodeCalculQuery,
+  type ReglesCalcul,
   type HistoriqueQuery,
   type HistoriqueSite,
   type LigneProduitP4P5,
@@ -857,6 +863,7 @@ export class IndicateursRepository {
         scoreComposite: null,
         classification: null,
         piliers: [],
+        calcul: null,
         sousComposantes: sousComposantesDuMois(null),
         suiviReceptions: await this.suiviReceptions(siteId, null),
       };
@@ -894,6 +901,9 @@ export class IndicateursRepository {
       taux_concordance_pct: string | null;
       nb_produits_concordance: number | null;
       ratio_ajustements_pct: string | null;
+      note_regularite_saisie: string | null;
+      note_concordance: string | null;
+      note_ratio_ajustements: string | null;
       echeance_requisitions: string;
       echeance_inventaire: string;
     }>(
@@ -902,12 +912,15 @@ export class IndicateursRepository {
               h.p_completude, h.p_promptitude, h.p_regularite,
               h.p_ecart_sdu, h.p_concordance, h.p_ajustements,
               p1.completude_requisitions_pct, p1.completude_receptions_pct,
-              p1.score_requisitions, p1.score_receptions, p1.nb_requisitions_attendu,
+              sp.note_completude_requisitions AS score_requisitions,
+              sp.note_completude_receptions AS score_receptions, p1.nb_requisitions_attendu,
               p2.promptitude_inventaires_pct, p2.promptitude_requisitions_pct,
-              p2.score_inventaires AS p2_score_inventaires,
-              p2.score_requisitions AS p2_score_requisitions,
+              sp.note_promptitude_inventaires AS p2_score_inventaires,
+              sp.note_promptitude_requisitions AS p2_score_requisitions,
               p3.taux_regularite_pct, coalesce(p3.est_district, false) AS est_district,
-              p4.taux_sdu_pct, p4.taux_conso_pct, p4.score_sdu, p4.score_conso,
+              sp.note_regularite_saisie, sp.note_concordance, sp.note_ratio_ajustements,
+              p4.taux_sdu_pct, p4.taux_conso_pct,
+              sp.note_ecart_sdu AS score_sdu, sp.note_ecart_consommation AS score_conso,
               p4.nb_produits_sdu::int AS nb_produits_sdu, p4.nb_produits_conso::int AS nb_produits_conso,
               p5.taux_concordance_pct, p5.nb_produits::int AS nb_produits_concordance,
               p6.ratio_ajustements_pct,
@@ -933,6 +946,10 @@ export class IndicateursRepository {
        LEFT JOIN dqa.mv_p6_ajustements p6
               ON p6.site_id = h.site_id AND p6.mois_paqd = h.mois_paqd
              AND p6.programme_id IS NOT DISTINCT FROM h.programme_id
+       -- notes des sous-composantes, sanction comprise (migration 0059)
+       LEFT JOIN dqa.mv_score_pilier sp
+              ON sp.site_id = h.site_id AND sp.mois_paqd = h.mois_paqd
+             AND sp.programme_id IS NOT DISTINCT FROM h.programme_id
        ${ATTEINTE_JSONB_SQL}
        WHERE h.site_id = $1 AND h.mois_paqd = $2 AND h.programme_id IS NOT DISTINCT FROM $3`,
       [siteId, mois, prog],
@@ -967,7 +984,7 @@ export class IndicateursRepository {
           : 'Aucun programme éligible pour ce site (voir l\'écran Programmes)',
       }),
       this.pilierP3(h?.p_regularite ?? null, seuils.regularite_saisie,
-        brute(h?.taux_regularite_pct, h?.p_regularite), estDistrict),
+        brute(h?.taux_regularite_pct, h?.note_regularite_saisie), estDistrict),
       this.pilierP4(h?.p_ecart_sdu ?? null, {
         sdu: brute(h?.taux_sdu_pct, h?.score_sdu),
         regleSdu: seuils.ecart_sdu,
@@ -976,12 +993,18 @@ export class IndicateursRepository {
         nbProduitsConso: h?.nb_produits_conso ?? 0,
       }, estDistrict, causes, h?.nb_produits_sdu ?? 0),
       this.pilierP5(h?.p_concordance ?? null, seuils.concordance,
-        brute(h?.taux_concordance_pct, h?.p_concordance), causes.inventaire, h?.nb_produits_concordance ?? 0),
+        brute(h?.taux_concordance_pct, h?.note_concordance), causes.inventaire, h?.nb_produits_concordance ?? 0),
       this.pilierP6(h?.p_ajustements ?? null, seuils.ratio_ajustements,
-        brute(h?.ratio_ajustements_pct, h?.p_ajustements)),
+        brute(h?.ratio_ajustements_pct, h?.note_ratio_ajustements)),
     ];
 
     const comptesParPilier = await this.comptesBrutsParPilier(siteId, mois, prog, estDistrict);
+    const grille = h?.grille_id ? await this.grilleDuCalcul(h.grille_id) : null;
+    const piliersDuMois = piliers.map((p) => ({
+      ...p,
+      poids: grille?.poids.get(p.pilier) ?? p.poids,
+      comptesBruts: comptesParPilier.get(p.pilier) ?? [],
+    }));
 
     return {
       site: versSite(siteRow),
@@ -994,9 +1017,101 @@ export class IndicateursRepository {
       piliersTotal: 6,
       scoreComposite: nombreOuNull(h?.score_composite ?? null),
       classification: h?.classification ?? null,
-      piliers: piliers.map((p) => ({ ...p, comptesBruts: comptesParPilier.get(p.pilier) ?? [] })),
+      piliers: piliersDuMois,
+      calcul: grille
+        ? {
+            grille: grille.resume,
+            regles: grille.regles,
+            poidsPiliersCalculables: piliersDuMois
+              .filter((p) => p.score !== null)
+              .reduce((t, p) => t + p.poids, 0),
+          }
+        : null,
       sousComposantes: sousComposantesDuMois(h?.sc ?? null),
       suiviReceptions: await this.suiviReceptions(siteId, mois),
+    };
+  }
+
+  /** Grille qui a produit les scores d'un mois : version, règles, poids des piliers. */
+  private async grilleDuCalcul(grilleId: string): Promise<{
+    resume: GrilleResume; regles: ReglesCalcul; poids: Map<Pilier, number>;
+  } | null> {
+    const g = await this.pool.query<{
+      id: number; version: string; effet: string;
+      jours_cloture_fin_mois: number; jours_cloture_mois_suivant: number;
+      note_sanction: string; borne_conforme: string; borne_partiellement_conforme: string;
+    }>(
+      `SELECT id::int, version, to_char(effet_a_partir_de, 'YYYY-MM-DD') AS effet,
+              jours_cloture_fin_mois, jours_cloture_mois_suivant, note_sanction,
+              borne_conforme, borne_partiellement_conforme
+       FROM dqa.grille_parametre WHERE id = $1`,
+      [grilleId],
+    );
+    const r = g.rows[0];
+    if (!r) return null;
+    const poids = await this.pool.query<{ pilier: Pilier; poids_pct: string }>(
+      `SELECT pilier, poids_pct FROM dqa.grille_poids_pilier WHERE grille_id = $1`,
+      [grilleId],
+    );
+    return {
+      resume: { id: r.id, version: r.version, effetAPartirDe: r.effet },
+      regles: {
+        joursClotureFinMois: r.jours_cloture_fin_mois,
+        joursClotureMoisSuivant: r.jours_cloture_mois_suivant,
+        noteSanction: Number(r.note_sanction),
+        borneConforme: Number(r.borne_conforme),
+        bornePartiellementConforme: Number(r.borne_partiellement_conforme),
+      },
+      poids: new Map(poids.rows.map((p) => [p.pilier, Number(p.poids_pct)])),
+    };
+  }
+
+  /** La grille d'un mois décrite pour les écrans de lecture (dépliable « méthode »). */
+  async methodeCalcul(q: MethodeCalculQuery): Promise<MethodeCalcul | null> {
+    const m = await this.pool.query<{ mois: string | null; grille_id: string | null }>(
+      `SELECT m.mois, dqa.grille_pour_mois(m.mois)::text AS grille_id
+       FROM (SELECT coalesce($1::text, (SELECT max(mois_paqd) FROM dqa.hist_score_site),
+                             to_char(CURRENT_DATE, 'YYYY-MM')) AS mois) m`,
+      [q.mois ?? null],
+    );
+    const mois = m.rows[0]?.mois;
+    const grilleId = m.rows[0]?.grille_id;
+    if (!mois || !grilleId) return null;
+    const grille = await this.grilleDuCalcul(grilleId);
+    if (!grille) return null;
+    const seuils = await this.pool.query<{
+      sous_composante: SousComposante; seuil: string; sens: 'sup' | 'inf';
+      tolerance: string | null; seuil_district: string | null; retenue: boolean; poids_pct: string;
+    }>(
+      `SELECT sous_composante, seuil, sens, tolerance, seuil_district, retenue, poids_pct
+       FROM dqa.grille_seuil_sous_composante WHERE grille_id = $1`,
+      [grilleId],
+    );
+    const parSc = new Map(seuils.rows.map((r) => [r.sous_composante, r]));
+    return {
+      moisPaqd: mois,
+      grille: grille.resume,
+      regles: grille.regles,
+      piliers: PILIERS.map((pilier) => ({
+        pilier,
+        libelle: LIBELLES_PILIER[pilier],
+        poidsPct: grille.poids.get(pilier) ?? 0,
+        sousComposantes: SOUS_COMPOSANTES_DU_PILIER[pilier].flatMap((sc) => {
+          const r = parSc.get(sc);
+          return r
+            ? [{
+                sousComposante: sc,
+                libelle: LIBELLES_SOUS_COMPOSANTE[sc],
+                seuil: Number(r.seuil),
+                sens: r.sens,
+                tolerance: nombreOuNull(r.tolerance),
+                seuilDistrict: nombreOuNull(r.seuil_district),
+                retenue: r.retenue,
+                poidsDansPilierPct: Number(r.poids_pct),
+              }]
+            : [];
+        }),
+      })),
     };
   }
 
@@ -1108,6 +1223,7 @@ export class IndicateursRepository {
     sanction = false,
   ): MesureSousComposante {
     const statut = m.score === null ? 'NON_CALCULABLE' : Number(m.score) >= 100 ? 'CONFORME' : 'ALERTE';
+    const sanctionnee = sanction && m.pct !== null && Number(m.pct) === 0;
     return {
       sousComposante: sc,
       libelle,
@@ -1115,9 +1231,11 @@ export class IndicateursRepository {
       unite: 'pct',
       seuil: nombreOuNull(regle?.seuil ?? null),
       statut,
-      raison: statut === 'NON_CALCULABLE' || (sanction && statut === 'ALERTE') ? raisonNC : null,
+      raison: statut === 'NON_CALCULABLE' || sanctionnee ? raisonNC : null,
       retenue: regle?.retenue ?? true,
       poidsDansPilierPct: Number(regle?.poidsPct ?? 0),
+      note: nombreOuNull(m.score),
+      sanction: sanctionnee,
     };
   }
 
@@ -1228,9 +1346,13 @@ export class IndicateursRepository {
     return {
       pilier,
       libelle: LIBELLES_PILIER[pilier],
+      // poids de la grille du mois, posé par detailSite ; constante en repli
       poids: POIDS_PILIER[pilier] * 100,
       score: score === null ? null : Number(score),
       sousComposantes,
+      poidsCalculables: sousComposantes
+        .filter((sc) => sc.retenue && sc.note !== null)
+        .reduce((t, sc) => t + sc.poidsDansPilierPct, 0),
       comptesBruts: [],
     };
   }

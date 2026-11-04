@@ -4,6 +4,7 @@ import type {
   DetailSite,
   FicheProduitMois,
   HistoriqueSite,
+  MethodeCalcul,
   Programme,
   ScoreSite,
   SyntheseNationale,
@@ -16,6 +17,7 @@ import {
   ficheProduitMoisQuerySchema,
   filtreSitesSchema,
   historiqueQuerySchema,
+  methodeCalculQuerySchema,
   moisPaqdSchema,
   syntheseQuerySchema,
   type MoisMesure,
@@ -91,6 +93,14 @@ export class IndicateursController {
     const fiche = await this.repo.ficheProduitMois(id, code, q);
     if (!fiche) throw new NotFoundException('Produit traceur ou site introuvable');
     return fiche;
+  }
+
+  /** Grille d'un mois décrite pour les écrans de lecture : composition, seuils, règles. */
+  @Get('methode-calcul')
+  async methodeCalcul(@Query() query: Record<string, string>): Promise<MethodeCalcul> {
+    const m = await this.repo.methodeCalcul(methodeCalculQuerySchema.parse(query));
+    if (m === null) throw new NotFoundException('Aucune grille en vigueur pour ce mois');
+    return m;
   }
 
   @Get('synthese')

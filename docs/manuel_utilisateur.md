@@ -111,22 +111,33 @@ L'écran le plus détaillé. En tête : filtre par programme de santé et
 sélecteur **Mois affiché**. Puis :
 
 - le **score composite** du site sur 100, sa classification, et sa
-  **progression** par rapport au mois précédent ;
+  **progression** par rapport au mois précédent. Le dépliable **Calcul du
+  score composite** liste le score et le poids de chaque pilier, ceux qui
+  sortent du calcul, et la grille appliquée ;
 - une **carte par pilier** (P1 à P6) avec le score du pilier, ses
   sous-composantes, et les couples **attendu / réalisé** (par exemple
-  « 2 inventaires attendus, 2 réalisés ») ;
+  « 2 inventaires attendus, 2 réalisés »). Le dépliable **Calcul du score**
+  donne la note de chaque sous-composante (100, 0, note de sanction), son
+  poids dans le pilier, et celles qui sont hors du calcul (non retenues ou
+  non calculables) ;
 - un **détail ligne à ligne**, dépliable, pour chaque pilier : la liste des
   inventaires, réquisitions, transactions ou ajustements qui ont produit le
   chiffre affiché ;
 - trois **tableaux produit P4 · P5**, dépliables, sur les produits traceurs
-  inventoriés : conformité SDU (stock théorique et compté au dernier
-  inventaire du mois, détail des lots, écart, conforme ou non), conformité
+  inventoriés : conformité SDU (stock théorique et compté à l'inventaire de
+  clôture, détail des lots, écart, conforme ou non), conformité
   consommation (stock de début, réceptions, stock de fin, consommation
   reconstituée et déclarée, écart ; un produit exclu indique pourquoi) et
   concordance (P5) ;
 - une section **Analyse fine** : tableau des dix sous-composantes, un radar
   forces/faiblesses, et des courbes d'évolution sur une plage de mois libre
   (préréglages « cycle courant », « 12 derniers mois », « tout »).
+
+Le tableau de bord, la liste des sites et la synthèse nationale portent en bas
+de page un dépliable **Comment ces scores sont calculés** : la grille du mois
+affiché (poids des piliers, sous-composantes retenues et leur poids, seuils,
+fenêtre de clôture, note de sanction, bornes de classification), sans les
+valeurs d'un site.
 
 ### Fiche produit-mois (`/sites/:id/produits/:code`)
 

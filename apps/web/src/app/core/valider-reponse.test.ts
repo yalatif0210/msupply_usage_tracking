@@ -35,7 +35,10 @@ const pilier = (code: Pilier, score: number | null) => ({
     raison: score === null ? 'pas de donnée' : null,
     retenue: true,
     poidsDansPilierPct: 100 / SOUS_COMPOSANTES_DU_PILIER[code].length,
+    note: score === null ? null : 100,
+    sanction: false,
   })),
+  poidsCalculables: score === null ? 0 : 100,
   comptesBruts: [],
 });
 
@@ -63,6 +66,11 @@ const detailSixPiliers = (opts: { scoreComposite: unknown; classification: unkno
   piliers: (['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as Pilier[]).map((c) =>
     pilier(c, c === 'P5' || c === 'P6' ? 100 : null),
   ),
+  calcul: {
+    grille: { id: 1, version: 'v1', effetAPartirDe: '2026-01-01' },
+    regles: { joursClotureFinMois: 3, joursClotureMoisSuivant: 1, noteSanction: 0, borneConforme: 90, bornePartiellementConforme: 75 },
+    poidsPiliersCalculables: 35,
+  },
   sousComposantes: sc10(),
   suiviReceptions: {
     nbRequisitions: 4,

@@ -21,6 +21,7 @@ import { BarreAttente } from '../ui/barre-attente';
 import { Coquille } from '../ui/coquille';
 import { GrapheCourbe, type SerieGrapheCourbe } from '../ui/graphe-courbe';
 import { RepartitionClassificationComponent } from '../ui/repartition-classification';
+import { MethodeCalculComponent } from '../ui/methode-calcul';
 
 interface CarteKpi {
   readonly libelle: string;
@@ -45,6 +46,7 @@ type FiltresTableauDeBord = {
   selector: 'dqa-tableau-de-bord',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    MethodeCalculComponent,
     DecimalPipe,
     RouterLink,
     NgIcon,
@@ -224,6 +226,9 @@ type FiltresTableauDeBord = {
       }
       }
       }
+      <div class="mt-8">
+        <dqa-methode-calcul [mois]="res.valeur()?.moisPaqd ?? null" />
+      </div>
     </main>
   `,
 })

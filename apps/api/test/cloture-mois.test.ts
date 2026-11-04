@@ -248,6 +248,19 @@ describe('clôture de mois (P4, P5)', () => {
     expect(rows[0]).toEqual({ p_ecart_sdu: '40.0', p_concordance: '100.0' }); // consommation sanctionnée à 40
   });
 
+  it('fiche site : une sanction à note non nulle garde son statut et sa raison', async () => {
+    await grilleV2('2026-08-01', { note_sanction: 40 });
+    await inventaire('C', '2026-08-31', [['I1', 70, 70]]); // clôture sans ouverture
+    await calculer();
+    const d = await new IndicateursRepository(db).detailSite('S1', '2026-08', undefined);
+    const p4 = d?.piliers.find((p) => p.pilier === 'P4');
+    const conso = p4?.sousComposantes.find((sc) => sc.sousComposante === 'ecart_consommation');
+    expect(conso).toMatchObject({ note: 40, sanction: true, statut: 'ALERTE', valeur: 0 });
+    expect(conso?.raison).toContain("Pas d'inventaire d'ouverture");
+    expect(p4?.score).toBe(40);
+    expect(d?.calcul?.regles.noteSanction).toBe(40);
+  });
+
   it('grille datée : bornes de classification', async () => {
     const { rows } = await db.query<{ v1: string; v2: string }>(
       `SELECT dqa.classer_composite(85, dqa.grille_pour_mois('2026-01')) AS v1,
