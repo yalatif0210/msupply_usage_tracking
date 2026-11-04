@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import type { Pool } from 'pg';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { suiviStocksSchema, type LigneStock } from '@dqa/contracts';
+import { detailStockSchema, suiviStocksSchema, type LigneStock } from '@dqa/contracts';
 import { AppModule } from '../src/app.module.js';
 import { closePool } from '../src/db/pool.js';
 import { StocksRepository } from '../src/stocks/stocks.repository.js';
@@ -96,6 +96,24 @@ describe('suivi des stocks', () => {
     await inventaire('S1', '2026-07-01', 'I3', 10, 'P2');
     await inventaire('S1', '2026-09-29', 'I3', 10, 'P2');
 
+    // Statuts à t = 10/10 : bornes 01/07 → 29/09 (90 jours), 90 sorties, soit
+    // 1 unité par jour ; stock à t = compté fin - 11.
+    for (const [id, code, fin] of [['I4', 'T4', 310], ['I5', 'T5', 26], ['I6', 'T6', 27], ['I7', 'T7', 0]] as const) {
+      await produit(id, code);
+      await inventaire('S1', '2026-07-01', id, fin + 90);
+      await inventaire('S1', '2026-09-29', id, fin);
+    }
+
+    // Photos mSupply de T1 : avant la borne de fin (ignorée), le 08/10 (deux
+    // lots), après t (ignorée).
+    for (const [jour, lot, q] of [['2026-09-20', 'A', 999], ['2026-10-08', 'A', 40], ['2026-10-08', 'B', 30], ['2026-10-15', 'A', 5]] as const) {
+      await db.query(
+        `INSERT INTO dqa.fact_stock_snapshot (date_photo, site_id, produit_id, lot, quantite_disponible, lot_id_source)
+         VALUES ($1::date,'S1','I1',$2,$3,1)`,
+        [jour, lot, q],
+      );
+    }
+
     // T1 au district S2 : la CMM déclarée compte les distributions
     await inventaire('S2', '2026-07-01', 'I1', 300);
     await inventaire('S2', '2026-09-29', 'I1', 120);
@@ -159,11 +177,70 @@ describe('suivi des stocks', () => {
     expect(ligne(lignes, 'S1', 'T1').programmeNom).toBe('VIH');
   });
 
+  it('statuts : 15 jours pile signalé, 16 à surveiller, au-delà de l\'horizon sans risque, 0 en rupture', async () => {
+    const { lignes } = await repo.suivi({ date: '2026-10-10' });
+    expect(ligne(lignes, 'S1', 'T5').statut).toBe('rupture_signalee'); // 26 - 11 = 15 jours
+    expect(ligne(lignes, 'S1', 'T6').statut).toBe('a_surveiller'); // 16 jours
+    expect(ligne(lignes, 'S1', 'T4').statut).toBe('sans_risque'); // 299 jours, au-delà de t + 90
+    expect(ligne(lignes, 'S1', 'T7').statut).toBe('en_rupture');
+    expect(ligne(lignes, 'S1', 'T1').statut).toBe('a_surveiller'); // 50 jours
+    expect(ligne(lignes, 'S1', 'T2').statut).toBe('non_calculable');
+  });
+
+  it('le seuil de couverture est un paramètre', async () => {
+    await db.query(`UPDATE dqa.parametre_suivi SET valeur = 16 WHERE cle = 'seuil_couverture_rupture_jours'`);
+    const { lignes } = await repo.suivi({ date: '2026-10-10' });
+    expect(ligne(lignes, 'S1', 'T6').statut).toBe('rupture_signalee');
+    await db.query(`UPDATE dqa.parametre_suivi SET valeur = 15 WHERE cle = 'seuil_couverture_rupture_jours'`);
+  });
+
+  it('photo mSupply : dernière connue à t et postérieure à la borne de fin, lots sommés', async () => {
+    const { lignes } = await repo.suivi({ date: '2026-10-10' });
+    // projeté le 08/10 : 50 + 10 - 90/91 × 9 = 51,1
+    expect(ligne(lignes, 'S1', 'T1').photo).toEqual({ date: '2026-10-08', stockMsupply: 70, stockProjete: 51.1 });
+    expect(ligne(lignes, 'S1', 'T2').photo).toBeNull();
+    // au 05/10, seule la photo du 20/09 est connue, antérieure à la borne de fin
+    expect(ligne((await repo.suivi({ date: '2026-10-05' })).lignes, 'S1', 'T1').photo).toBeNull();
+  });
+
+  it('détail d\'un couple : série de la borne de fin à t + 90, faits connus à t depuis la borne de début', async () => {
+    const d = await repo.detail('S1', 'I1', { date: '2026-10-10' });
+    if (!d) throw new Error('détail attendu');
+    expect(d.serie[0]).toEqual({ jour: '2026-09-29', stockProjete: 50 });
+    expect(d.serie.at(-1)?.jour).toBe('2027-01-08');
+    // 05/10 : 50 - 90/91 × 6 + 10 reçus = 54,1
+    expect(d.serie.find((p) => p.jour === '2026-10-05')?.stockProjete).toBe(54.1);
+    expect(d.inventaires.map((i) => [i.date, i.compte])).toEqual([
+      ['2026-06-30', 100], ['2026-07-31', 80], ['2026-08-30', 60], ['2026-09-29', 50],
+    ]);
+    expect(d.receptions).toEqual([{ jour: '2026-08-10', quantite: 40 }, { jour: '2026-10-05', quantite: 10 }]); // 20/10 : après t
+    expect(d.photos).toEqual([{ date: '2026-09-20', stockMsupply: 999 }, { date: '2026-10-08', stockMsupply: 70 }]);
+    expect(d.ligne.statut).toBe('a_surveiller');
+  });
+
+  it('détail : CMM non calculable, série sans projection ; couple inconnu → 404', async () => {
+    const d = await repo.detail('S1', 'I2', { date: '2026-10-10' });
+    expect(d?.serie.every((p) => p.stockProjete === null)).toBe(true);
+    expect(await repo.detail('S1', 'INCONNU', { date: '2026-10-10' })).toBeNull();
+    const a = request.agent(app.getHttpServer());
+    await a.post('/api/auth/connexion').send({ identifiant: 'lecteur', motDePasse: 'lecteur-2026' });
+    expect((await a.get('/api/stocks/S1/INCONNU')).status).toBe(404);
+    detailStockSchema.parse((await a.get('/api/stocks/S1/I1').query({ date: '2026-10-10' })).body);
+  });
+
+  it('API : filtre par statut', async () => {
+    const a = request.agent(app.getHttpServer());
+    await a.post('/api/auth/connexion').send({ identifiant: 'lecteur', motDePasse: 'lecteur-2026' });
+    const r = suiviStocksSchema.parse((await a.get('/api/stocks').query({ statut: 'en_rupture' })).body);
+    expect(r.lignes.map((l) => l.produitCode)).toEqual(['T7']);
+    expect((await a.get('/api/stocks').query({ statut: 'inconnu' })).status).toBe(400);
+  });
+
   it('API : date par défaut = fin de fenêtre du dernier import, filtre programme, contrat respecté', async () => {
     const a = request.agent(app.getHttpServer());
     await a.post('/api/auth/connexion').send({ identifiant: 'lecteur', motDePasse: 'lecteur-2026' });
     const r = suiviStocksSchema.parse((await a.get('/api/stocks')).body);
-    expect(r).toMatchObject({ date: '2026-10-10', dateParDefaut: '2026-10-10' });
+    expect(r).toMatchObject({ date: '2026-10-10', dateParDefaut: '2026-10-10', seuilCouvertureJours: 15 });
     const p2 = suiviStocksSchema.parse((await a.get('/api/stocks').query({ programmeId: 'P2' })).body);
     expect(p2.lignes.map((l) => l.produitCode)).toEqual(['T3']);
     expect((await a.get('/api/stocks').query({ date: '10/10/2026' })).status).toBe(400);

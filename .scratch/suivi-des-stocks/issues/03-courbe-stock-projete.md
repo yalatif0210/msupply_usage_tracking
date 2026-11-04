@@ -7,9 +7,9 @@ et le rappel du calcul de la CMM.
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Série journalière calculée en base (vue ou fonction SQL), jamais dans l'API.
-- [ ] API et contrat : détail d'un couple (série, inventaires bornants, réceptions, photos).
-- [ ] Écran : courbe ApexCharts, légende complète, lien depuis la liste ; filtres conservés au retour.
-- [ ] Tests : série jusqu'à la rupture, réception qui relève la courbe, horizon de 90 jours.
+- [x] Série journalière calculée en base (vue ou fonction SQL), jamais dans l'API.
+- [x] API et contrat : détail d'un couple (série, inventaires bornants, réceptions, photos).
+- [x] Écran : courbe ApexCharts, légende complète, lien depuis la liste ; filtres conservés au retour.
+- [x] Tests : série jusqu'à la rupture, réception qui relève la courbe, horizon de 90 jours.

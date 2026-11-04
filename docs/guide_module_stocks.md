@@ -13,16 +13,23 @@ score ni sur les piliers. Spec : `.scratch/suivi-des-stocks/spec.md`.
 
 | Méthode | Chemin | Retour | Rôle |
 |---|---|---|---|
-| `GET` | `/api/stocks?date=&region=&district=&siteId=&programmeId=` | `SuiviStocks` | tout authentifié |
+| `GET` | `/api/stocks?date=&region=&district=&siteId=&programmeId=&statut=` | `SuiviStocks` | tout authentifié |
+| `GET` | `/api/stocks/:siteId/:produitId?date=` | `DetailStock` (404 sans stock compté connu à t) | tout authentifié |
 
 `date` (`AAAA-MM-JJ`) absente : fin de fenêtre du dernier import validé
-(`dqa.date_reference_stocks()`). La réponse porte `date` (servie),
-`dateParDefaut` et `lignes`, triées par site (région, district, nom), puis
+(`dqa.date_reference_stocks()`). Filtre `statut` possible. La réponse porte
+`date` (servie), `dateParDefaut`, `seuilCouvertureJours` et `lignes` (avec
+`statut` et `photo`), triées par site (région, district, nom), puis
 programme, puis produit.
 
 Écran : menu « Suivi des stocks », route `/stocks` (`pages/suivi-stocks.ts`).
-Filtres date, région, district, programme dans l'URL ; tableau site, puis
-programme, puis produit, dépliable par site.
+Filtres date, région, district, programme, statut et lecture (`lecture=programme`)
+dans l'URL ; tableau site, puis programme, puis produit (ou programme, puis
+site, puis produit), dépliable au premier niveau. Le nom d'un produit ouvre
+`/stocks/:siteId/:produitId` (`pages/detail-stock.ts`) : cartes de synthèse,
+courbe `ui/graphe-stock` (projection pleine jusqu'à t puis pointillée, stocks
+comptés et photos en points, réceptions, date choisie et rupture en repères),
+tableau du calcul de la CMM.
 
 ## Données manipulées
 
@@ -34,6 +41,16 @@ Fonctions SQL de la migration 0053, lues par `StocksRepository` :
 | `dqa.stocks_a_date(t)` | une ligne par couple : bornes, CMM, stock projeté à t, rupture, couverture, programme parent |
 | `dqa.serie_stock(site, produit, t)` | la série d'un couple (détail, ticket 03) |
 | `dqa.date_reference_stocks()` | la date t par défaut |
+
+Vues de lecture (migration 0055), partagées par ces fonctions et par le
+détail d'un couple, pour que la courbe montre exactement les faits utilisés par
+la projection :
+
+| Vue | Rend |
+|---|---|
+| `dqa.v_stock_compte_jour` | stock compté par site, produit et jour (dernier inventaire finalisé du jour, lots sommés) |
+| `dqa.v_mouvement_stock_jour` | réceptions, dispensations, distributions par site, produit et jour |
+| `dqa.v_photo_stock_jour` | photo de stock mSupply par site, produit et jour (lots sommés) |
 
 Sources : `fact_inventaire` / `fact_inventaire_ligne` (stocks comptés),
 `fact_transaction` / `fact_ligne_transaction` (réceptions, dispensations,
@@ -67,6 +84,24 @@ datés après t sont ignorés.
   t + 90 jours. **Couverture** : stock projeté à t ÷ CMM journalière.
 - **Programme parent** : celui du dernier inventaire du produit au site, à
   défaut celui de son dernier mouvement. Il sert à grouper, jamais au calcul.
+- **Statut** (migration 0054), d'après la couverture exacte (non arrondie) :
+  `en_rupture` (stock projeté à 0 à t), `rupture_signalee` (couverture
+  inférieure ou égale au seuil, 15 jours), `a_surveiller` (au-delà du seuil,
+  mais rupture prévue avant t + 90 jours), `sans_risque` (aucune rupture dans
+  l'horizon), `non_calculable`. Seuil dans `parametre_suivi`
+  (`seuil_couverture_rupture_jours`), renvoyé par l'API
+  (`seuilCouvertureJours`) pour que l'écran ne le code pas en dur.
+- **Photo mSupply** (migration 0054) : la dernière photo de stock
+  (`fact_stock_snapshot`, lots sommés) datée au plus tard de t et au plus tôt
+  de la borne de fin, avec le stock projeté ce jour-là. L'écart (projeté -
+  mSupply) est affiché sans seuil : négatif, mSupply compte plus de stock que
+  la projection, signe probable de pertes non saisies depuis le dernier
+  inventaire.
+
+L'écran ajoute un **encadré** en tête : couples en rupture puis à signaler, par
+couverture croissante, et à part (dépliable) les couples à surveiller. Il suit
+les filtres de territoire et de programme. Le filtre **Statut** se fait côté
+écran, sur la donnée déjà chargée.
 
 ## Décisions de conception
 

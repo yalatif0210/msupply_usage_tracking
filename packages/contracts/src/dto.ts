@@ -605,11 +605,21 @@ export type SyntheseTerritoireScores = z.infer<typeof syntheseTerritoireScoresSc
 // ─── Suivi des stocks : CMM reconstituée et stock projeté ───────────────────
 
 /**
+ * Statut d'un couple à t, d'après la couverture : `en_rupture` (stock projeté
+ * à 0), `rupture_signalee` (couverture ≤ seuil, 15 jours), `a_surveiller`
+ * (au-delà, rupture prévue dans les 90 jours), `sans_risque`, `non_calculable`.
+ */
+export const STATUTS_STOCK = ['en_rupture', 'rupture_signalee', 'a_surveiller', 'sans_risque', 'non_calculable'] as const;
+export const statutStockSchema = z.enum(STATUTS_STOCK);
+export type StatutStock = z.infer<typeof statutStockSchema>;
+
+/**
  * Requête du suivi des stocks. `date` = date t du calcul (« comme si l'on
  * était à t ») ; absente = fin de fenêtre du dernier import validé.
  */
 export const suiviStocksQuerySchema = z.object({
   date: dateIsoSchema.optional(),
+  statut: statutStockSchema.optional(),
   region: z.string().optional(),
   district: z.string().optional(),
   siteId: z.string().optional(),
@@ -651,6 +661,18 @@ export const cmmStockSchema = z.discriminatedUnion('calculable', [
 ]);
 export type CmmStock = z.infer<typeof cmmStockSchema>;
 
+/**
+ * Dernière photo de stock mSupply connue à t et postérieure au dernier
+ * inventaire : stock théorique du logiciel, comparé au stock projeté ce
+ * jour-là (`null` si la CMM n'est pas calculable).
+ */
+export const photoStockSchema = z.object({
+  date: dateIsoSchema,
+  stockMsupply: z.number(),
+  stockProjete: z.number().nullable(),
+});
+export type PhotoStock = z.infer<typeof photoStockSchema>;
+
 /** Un couple site × produit traceur du suivi des stocks. */
 export const ligneStockSchema = z.object({
   siteId: z.string(),
@@ -669,16 +691,41 @@ export const ligneStockSchema = z.object({
   /** Réceptions connues entre la borne de fin et t. */
   receptionsApresFin: z.number(),
   cmm: cmmStockSchema,
+  statut: statutStockSchema,
+  photo: photoStockSchema.nullable(),
 });
 export type LigneStock = z.infer<typeof ligneStockSchema>;
 
 export const suiviStocksSchema = z.object({
   date: dateIsoSchema,
   dateParDefaut: dateIsoSchema,
+  /** Couverture (jours) à partir de laquelle, et en dessous, une rupture est signalée. */
+  seuilCouvertureJours: z.number().nonnegative(),
   /** Triées par site (région, district, nom), programme, produit. */
   lignes: z.array(ligneStockSchema),
 });
 export type SuiviStocks = z.infer<typeof suiviStocksSchema>;
+
+/** Requête du détail d'un couple site × produit : la date t seule. */
+export const detailStockQuerySchema = suiviStocksQuerySchema.pick({ date: true });
+export type DetailStockQuery = z.infer<typeof detailStockQuerySchema>;
+
+/**
+ * Détail d'un couple site × produit à la date t : sa ligne du suivi, le stock
+ * projeté jour par jour (de la borne de fin à t + 90 jours ; `null` si la CMM
+ * n'est pas calculable), et les faits connus à t depuis la borne de début :
+ * stocks comptés, réceptions, photos mSupply.
+ */
+export const detailStockSchema = z.object({
+  date: dateIsoSchema,
+  seuilCouvertureJours: z.number().nonnegative(),
+  ligne: ligneStockSchema,
+  serie: z.array(z.object({ jour: dateIsoSchema, stockProjete: z.number().nullable() })),
+  inventaires: z.array(z.object({ date: dateIsoSchema, compte: z.number() })),
+  receptions: z.array(z.object({ jour: dateIsoSchema, quantite: z.number() })),
+  photos: z.array(z.object({ date: dateIsoSchema, stockMsupply: z.number() })),
+});
+export type DetailStock = z.infer<typeof detailStockSchema>;
 
 // ─── Tableau de bord national (page d'accueil) ──────────────────────────────
 

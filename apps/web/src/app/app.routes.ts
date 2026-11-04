@@ -27,6 +27,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/suivi-stocks').then((m) => m.SuiviStocksPage),
   },
   {
+    path: 'stocks/:siteId/:produitId',
+    canActivate: [gardeAuthentifie],
+    loadComponent: () => import('./pages/detail-stock').then((m) => m.DetailStockPage),
+  },
+  {
     path: 'sites/:id',
     canActivate: [gardeAuthentifie],
     loadComponent: () => import('./pages/detail-site').then((m) => m.DetailSitePage),

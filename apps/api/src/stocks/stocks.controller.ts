@@ -1,5 +1,12 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { suiviStocksQuerySchema, type SuiviStocks, type SuiviStocksQuery } from '@dqa/contracts';
+import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
+import {
+  detailStockQuerySchema,
+  suiviStocksQuerySchema,
+  type DetailStock,
+  type DetailStockQuery,
+  type SuiviStocks,
+  type SuiviStocksQuery,
+} from '@dqa/contracts';
 import { ZodValidationPipe } from '../commun/zod-validation.pipe.js';
 import { StocksRepository } from './stocks.repository.js';
 
@@ -11,5 +18,16 @@ export class StocksController {
   @Get()
   suivi(@Query(new ZodValidationPipe(suiviStocksQuerySchema)) q: SuiviStocksQuery): Promise<SuiviStocks> {
     return this.repo.suivi(q);
+  }
+
+  @Get(':siteId/:produitId')
+  async detail(
+    @Param('siteId') siteId: string,
+    @Param('produitId') produitId: string,
+    @Query(new ZodValidationPipe(detailStockQuerySchema)) q: DetailStockQuery,
+  ): Promise<DetailStock> {
+    const d = await this.repo.detail(siteId, produitId, q);
+    if (!d) throw new NotFoundException('Aucun stock compté connu à cette date pour ce site et ce produit');
+    return d;
   }
 }

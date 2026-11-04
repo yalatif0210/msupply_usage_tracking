@@ -174,6 +174,59 @@ renseignée » ou « District non renseigné » : il n'est jamais écarté.
   indique « pas encore dus (échéance le JJ/MM) » au lieu de chiffres
   provisoires.
 
+### Suivi des stocks (`/stocks`)
+
+Pour chaque site et chaque produit traceur, le stock **conjecturé** à une date
+choisie, et la date à laquelle il risque de manquer. Ce menu n'a aucun effet
+sur le score.
+
+**Le principe.** Entre deux inventaires distants d'environ 90 jours, on
+reconstitue ce qui est réellement sorti du stock :
+`stock compté au début + réceptions - stock compté à la fin`. Ramené à un mois
+(30,4 jours), c'est la **CMM reconstituée**. Elle compte les pertes non saisies
+dans mSupply ; la **CMM déclarée**, calculée sur les dispensations (les
+distributions pour un district) des mêmes jours, est affichée à côté :
+l'écart entre les deux mesure ces pertes. On projette ensuite le stock jour
+par jour, en ligne droite : dernier stock compté, plus les réceptions connues,
+moins la CMM reconstituée ramenée au jour, jamais sous 0.
+
+- **Date.** Par défaut, la fin de la période couverte par le dernier import.
+  On peut choisir n'importe quelle date, passée ou future : le calcul ne
+  retient alors que les inventaires et réceptions connus à cette date. Une
+  date passée permet de comparer après coup la conjecture au stock compté.
+- **Statut** de chaque produit d'un site :
+
+| Statut | Règle |
+|---|---|
+| En rupture | stock projeté déjà à 0 |
+| Rupture signalée | couverture de 15 jours ou moins |
+| À surveiller | couverture au-delà de 15 jours, mais rupture prévue dans les 90 jours |
+| Sans risque | aucune rupture prévue dans les 90 jours |
+| Non calculable | un seul inventaire dans les 90 jours, ou aucune sortie constatée |
+
+  La **couverture** est le nombre de jours que le stock projeté peut encore
+  couvrir. Le seuil de 15 jours est réglable par la coordination.
+- **Encadré en tête.** Les produits en rupture ou à signaler, du plus urgent
+  au moins urgent, puis (dépliables) ceux à surveiller.
+- **Tableau.** Lecture **par site** (site, programme, produit) ou **par
+  programme** (programme, site, produit). Pour chaque produit : dernier
+  inventaire, réceptions depuis, les deux CMM et la période sur laquelle elles
+  portent (« sur 2 mois »), stock projeté, couverture, rupture prévue, statut,
+  et la dernière **photo de stock mSupply** avec l'écart au stock projeté. Un
+  écart négatif signifie que mSupply compte plus de stock que la projection :
+  des pertes n'ont probablement pas été saisies depuis le dernier inventaire.
+- **Filtres** : date, région, district, programme, statut. Ils sont repris dans
+  l'adresse de la page.
+- **Détail d'un produit** (cliquer son nom) : la courbe du stock jour par jour,
+  en trait plein jusqu'à la date choisie puis en pointillé (aucune réception
+  supposée au-delà), avec les stocks comptés, les photos mSupply, les
+  réceptions et la rupture prévue ; et le tableau du calcul de la CMM.
+
+Le programme d'un produit sur un site est celui sous lequel le site
+l'inventorie. Avec l'historique actuel (depuis août 2026), beaucoup de CMM
+portent encore sur un ou deux mois ; elles atteindront trois mois au fil des
+imports.
+
 ### Imports (`/imports`, coordination uniquement)
 
 Historique des classeurs reçus : date, fichier, mois PAQD, statut, compteurs,
@@ -557,4 +610,7 @@ principe des scores immuables, section 1).
 | Strate | Un des trois attributs d'un type de structure : le regroupement utilisé pour la synthèse « Rapports & inventaires » et le filtre des lectures par territoire (« Non classé » pour un type non renseigné) |
 | Territoire | Le découpage géographique de la synthèse : région, puis zone de district, puis site |
 | Zone de district | Tous les sites d'un district, magasin du district sanitaire compris |
+| CMM reconstituée | Consommation moyenne mensuelle déduite des sorties physiques entre deux inventaires (pertes comprises) : sert à projeter le stock |
+| CMM déclarée | Même moyenne, calculée sur les sorties saisies dans mSupply (dispensations ou distributions) |
+| Couverture | Nombre de jours que le stock projeté peut encore couvrir au rythme de la CMM reconstituée |
 | Régime de scoring | District ou site de soins. Seule différence : un district mesure P3 sur les réquisitions de sa zone servies et P4 sur les quantités distribuées |

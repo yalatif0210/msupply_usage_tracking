@@ -1,7 +1,13 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { suiviStocksSchema, type SuiviStocks, type SuiviStocksQuery } from '@dqa/contracts';
+import {
+  detailStockSchema,
+  suiviStocksSchema,
+  type DetailStock,
+  type SuiviStocks,
+  type SuiviStocksQuery,
+} from '@dqa/contracts';
 import { validerReponse } from './valider-reponse';
 
 @Injectable({ providedIn: 'root' })
@@ -16,5 +22,14 @@ export class StocksService {
     }
     const data = await firstValueFrom(this.http.get<unknown>('/api/stocks', { params }));
     return validerReponse(suiviStocksSchema, data);
+  }
+
+  /** Détail d'un couple site × produit à une date t (absente : date par défaut). */
+  async detail(siteId: string, produitId: string, date: string): Promise<DetailStock> {
+    const params = date ? new HttpParams().set('date', date) : undefined;
+    const data = await firstValueFrom(
+      this.http.get<unknown>(`/api/stocks/${encodeURIComponent(siteId)}/${encodeURIComponent(produitId)}`, { params }),
+    );
+    return validerReponse(detailStockSchema, data);
   }
 }

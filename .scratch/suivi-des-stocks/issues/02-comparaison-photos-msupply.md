@@ -7,9 +7,9 @@ stock.
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Projection évaluée à chaque date de photo postérieure à la borne de fin.
-- [ ] API et contrat : dernière photo et écart dans la liste ; toutes les photos dans le détail.
-- [ ] Écran : colonnes photo mSupply, stock projeté à cette date, écart.
-- [ ] Tests : écart chiffré à la main ; photo antérieure à la borne de fin ignorée ; couple sans photo.
+- [x] Projection évaluée à chaque date de photo postérieure à la borne de fin.
+- [x] API et contrat : dernière photo et écart dans la liste ; toutes les photos dans le détail.
+- [x] Écran : colonnes photo mSupply, stock projeté à cette date, écart.
+- [x] Tests : écart chiffré à la main ; photo antérieure à la borne de fin ignorée ; couple sans photo.
