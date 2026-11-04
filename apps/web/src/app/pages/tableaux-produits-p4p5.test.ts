@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { LigneProduitP4P5 } from '@dqa/contracts';
-import { bornesDe, dateCommune, ecartConso, ecartSdu, jourMoisCourt, libelleLots } from './tableaux-produits-p4p5';
+import {
+  bornesDe, calculAbsence, dateCommune, ecartConso, ecartSdu, jourMoisCourt, libelleLots, LIBELLES_QUALIFICATION,
+} from './tableaux-produits-p4p5';
 
 const bornes = {
   dateDebut: '2026-08-30', dateFin: '2026-09-29',
@@ -50,5 +52,17 @@ describe('tableaux produit P4 · P5', () => {
     const sansBorne = ligne({ evaluable: false, raisonExclusion: 'sans_ouverture', bornes: null });
     expect(ecartConso(sansBorne)).toBe("exclu (pas d'inventaire d'ouverture)");
     expect(bornesDe(sansBorne)).toBeNull();
+  });
+
+  it("absence d'un inventaire : le calcul qui la qualifie", () => {
+    const base = {
+      produitCode: 'T1', libelle: 'T1', dateOuverture: '2026-08-31', dateCloture: '2026-09-30',
+      stockConnu: 3927, receptions: 0, sortiesDeclarees: 5000, stockCalcule: 8927,
+    };
+    expect(calculAbsence({ ...base, sens: 'absent_ouverture', qualification: 'oubli_demontre' }))
+      .toBe("3 927 comptés à la clôture + 5 000 sorties déclarées - 0 reçus = 8 927 au moins à l'ouverture");
+    expect(calculAbsence({ ...base, sens: 'absent_cloture', qualification: 'epuise', stockConnu: 10, receptions: 0, sortiesDeclarees: 12, stockCalcule: -2 }))
+      .toBe("10 comptés à l'ouverture + 0 reçus - 12 sorties déclarées = -2 attendus à la clôture");
+    expect(LIBELLES_QUALIFICATION.oubli_probable).toBe('oubli probable');
   });
 });

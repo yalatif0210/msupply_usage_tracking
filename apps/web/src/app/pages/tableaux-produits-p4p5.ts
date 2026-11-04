@@ -1,4 +1,4 @@
-import type { LigneProduitP4P5, RaisonExclusionConso } from '@dqa/contracts';
+import type { LigneProduitP4P5, ProduitEcarte, RaisonExclusionConso } from '@dqa/contracts';
 
 /**
  * Mise en forme des trois tableaux produit de la fiche site (conformité SDU,
@@ -51,4 +51,22 @@ const RAISONS: Record<RaisonExclusionConso, string> = {
 
 export function ecartConso(l: LigneProduitP4P5): string {
   return l.consommation.evaluable ? pourcent(l.consommation.ecartPct) : RAISONS[l.consommation.raisonExclusion];
+}
+
+export const LIBELLES_QUALIFICATION: Record<ProduitEcarte['qualification'], string> = {
+  oubli_demontre: 'oubli démontré',
+  indetermine: 'cause indéterminée',
+  oubli_probable: 'oubli probable',
+  epuise: 'épuisé',
+};
+
+/**
+ * Le calcul qui qualifie une absence, avec les valeurs servies par l'API :
+ * « 3 927 comptés à la clôture + 5 000 sorties déclarées - 0 reçus = 8 927 ».
+ */
+export function calculAbsence(pe: ProduitEcarte): string {
+  const q = (v: number) => QUANTITE.format(v);
+  return pe.sens === 'absent_ouverture'
+    ? `${q(pe.stockConnu)} comptés à la clôture + ${q(pe.sortiesDeclarees)} sorties déclarées - ${q(pe.receptions)} reçus = ${q(pe.stockCalcule)} au moins à l'ouverture`
+    : `${q(pe.stockConnu)} comptés à l'ouverture + ${q(pe.receptions)} reçus - ${q(pe.sortiesDeclarees)} sorties déclarées = ${q(pe.stockCalcule)} attendus à la clôture`;
 }

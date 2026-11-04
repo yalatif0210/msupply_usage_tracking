@@ -85,11 +85,15 @@ describe('clôture de mois (P4, P5)', () => {
       );
     }
   };
-  const dispensation = async (id: string, jour: string, prod: string, qte: number) => {
+  const dispensation = (id: string, jour: string, prod: string, qte: number) =>
+    mouvement(id, 'dispensation', jour, prod, qte);
+  const reception = (id: string, jour: string, prod: string, qte: number) =>
+    mouvement(id, 'facture_fournisseur', jour, prod, qte);
+  const mouvement = async (id: string, nature: string, jour: string, prod: string, qte: number) => {
     await db.query(
       `INSERT INTO dqa.fact_transaction (transaction_id, site_id, nature, programme_id, statut, date_confirmation, lot_id_source)
-       VALUES ($1,'S1','dispensation','P1','fn',$2::date,1)`,
-      [id, jour],
+       VALUES ($1,'S1',$2,'P1','fn',$3::date,1)`,
+      [id, nature, jour],
     );
     await db.query(
       `INSERT INTO dqa.fact_ligne_transaction (ligne_id, transaction_id, produit_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
@@ -281,5 +285,83 @@ describe('clôture de mois (P4, P5)', () => {
     await dispensation('D1', '2026-08-15', 'I1', 30);
     await calculer();
     expect(await p4p5()).toEqual({ taux_sdu_pct: '0.0', taux_conso_pct: '0.0', taux_concordance_pct: '0.0' });
+  });
+
+  // ── Produits absents d'un inventaire (ticket 05) ──────────────────────────
+  const ecartes = async () => {
+    const { rows } = await db.query<{ produit_code: string; sens: string; qualification: string; stock_calcule: string; lot_id: string | null }>(
+      `SELECT produit_code, sens, qualification, stock_calcule, lot_id::text FROM dqa.hist_produit_ecarte
+       WHERE site_id = 'S1' AND mois_paqd = '2026-08' ORDER BY sens, produit_code`,
+    );
+    return rows;
+  };
+
+  it("absent de l'ouverture : stock minimal positif, oubli démontré", async () => {
+    await inventaire('O', '2026-07-31', [['I1', 100, 100]]);
+    await inventaire('C', '2026-08-31', [['I1', 70, 70], ['I2', 10, 10]]);
+    await dispensation('D2', '2026-08-15', 'I2', 5);
+    await calculer();
+    // 10 comptés à la clôture + 5 sortis - 0 reçus = 15 au moins à l'ouverture
+    expect(await ecartes()).toEqual([
+      { produit_code: 'T2', sens: 'absent_ouverture', qualification: 'oubli_demontre', stock_calcule: '15.000', lot_id: '1' },
+    ]);
+  });
+
+  it("absent de l'ouverture : tout peut venir des réceptions, cause indéterminée", async () => {
+    await inventaire('O', '2026-07-31', [['I1', 100, 100]]);
+    await inventaire('C', '2026-08-31', [['I1', 70, 70], ['I2', 10, 10]]);
+    await reception('R2', '2026-08-10', 'I2', 20);
+    await dispensation('D2', '2026-08-15', 'I2', 5);
+    await calculer();
+    // 10 + 5 - 20 = -5 : le produit a pu être à 0 à l'ouverture
+    expect(await ecartes()).toMatchObject([{ produit_code: 'T2', qualification: 'indetermine', stock_calcule: '-5.000' }]);
+  });
+
+  it('absent de la clôture : stock attendu positif, oubli probable ; nul, épuisé', async () => {
+    await inventaire('O', '2026-07-31', [['I1', 100, 100], ['I2', 10, 10]]);
+    await inventaire('C', '2026-08-31', [['I1', 70, 70]]);
+    await dispensation('D2', '2026-08-15', 'I2', 3);
+    await calculer();
+    // 10 comptés à l'ouverture + 0 reçus - 3 sortis = 7 attendus à la clôture
+    expect(await ecartes()).toMatchObject([{ produit_code: 'T2', sens: 'absent_cloture', qualification: 'oubli_probable', stock_calcule: '7.000' }]);
+    await dispensation('D3', '2026-08-20', 'I2', 9);
+    await calculer();
+    expect(await ecartes()).toMatchObject([{ produit_code: 'T2', qualification: 'epuise', stock_calcule: '-2.000' }]);
+  });
+
+  it("sans inventaire d'ouverture : pas de constat d'absence (c'est une sanction de site)", async () => {
+    await inventaire('C', '2026-08-31', [['I1', 70, 70], ['I2', 10, 10]]);
+    await calculer();
+    expect(await ecartes()).toEqual([]);
+  });
+
+  it("historisé : un ré-import qui corrige l'absence la retire", async () => {
+    await inventaire('O', '2026-07-31', [['I1', 100, 100]]);
+    await inventaire('C', '2026-08-31', [['I1', 70, 70], ['I2', 10, 10]]);
+    await calculer();
+    expect(await ecartes()).toHaveLength(1);
+    await db.query(
+      `INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
+       VALUES ('O','I2','X',10,10,1)`,
+    );
+    await calculer();
+    expect(await ecartes()).toEqual([]);
+  });
+
+  it('servi par le détail P4 et compté dans la synthèse par territoire', async () => {
+    await inventaire('O', '2026-07-31', [['I1', 100, 100], ['I2', 10, 10]]);
+    await inventaire('C', '2026-08-31', [['I1', 70, 70]]);
+    await calculer();
+    const d = await new IndicateursRepository(db).detailPilier('S1', 'p4', { mois: '2026-08' });
+    if (d === null || d.code !== 'p4') throw new Error('variante p4 attendue');
+    expect(d.produitsEcartes).toMatchObject([
+      { produitCode: 'T2', sens: 'absent_cloture', qualification: 'oubli_probable', stockConnu: 10, stockCalcule: 10 },
+    ]);
+    const { rows } = await db.query(
+      `SELECT nb_absents_ouverture, nb_oublis_ouverture, nb_absents_cloture, nb_oublis_cloture
+       FROM dqa.mv_synthese_territoire_scores
+       WHERE mois_paqd = '2026-08' AND niveau = 'site' AND site_id = 'S1' AND programme_id IS NULL AND strate IS NULL`,
+    );
+    expect(rows[0]).toEqual({ nb_absents_ouverture: 0, nb_oublis_ouverture: 0, nb_absents_cloture: 1, nb_oublis_cloture: 1 });
   });
 });

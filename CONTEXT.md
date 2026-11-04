@@ -221,6 +221,16 @@ Note 0 imposée une fois le mois jugé : sans inventaire de clôture, P4 et P5 ;
 sans inventaire d'ouverture, la conformité consommation. La fiche site en
 affiche la raison.
 
+**Produit absent d'un inventaire** :
+Produit traceur présent à l'inventaire d'ouverture ou de clôture d'un mois et
+absent de l'autre, le site ayant fait les deux. Constat de site (tous
+programmes, par code), historisé, sans effet sur le score. Absent de
+l'ouverture : **oubli démontré** si compté clôture + sorties déclarées -
+réceptions > 0, sinon cause indéterminée. Absent de la clôture : **oubli
+probable** si compté ouverture + réceptions - sorties déclarées > 0 (des pertes
+non saisies restent possibles), sinon **épuisé**.
+_Éviter_ : produit oublié (sans qualification), produit manquant
+
 **Conformité SDU (P4)** :
 Part des produits traceurs dont le stock physiquement compté à l'inventaire de
 clôture est **dans la tolérance** de la quantité théorique mSupply :

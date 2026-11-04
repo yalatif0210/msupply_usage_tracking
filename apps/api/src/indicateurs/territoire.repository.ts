@@ -45,6 +45,10 @@ interface LigneScoresBrute extends IdentiteBrute {
   nb_sans_mesure: number;
   classification: Classification | null;
   piliers_couverts: number | null;
+  nb_absents_ouverture: number | null;
+  nb_oublis_ouverture: number | null;
+  nb_absents_cloture: number | null;
+  nb_oublis_cloture: number | null;
 }
 
 const nombreOuNull = (v: string | null): number | null => (v === null ? null : Number(v));
@@ -85,6 +89,16 @@ const versScores = (r: LigneScoresBrute): LigneTerritoireScores => ({
   },
   classification: r.niveau === 'site' ? r.classification : null,
   piliersCouverts: r.niveau === 'site' ? r.piliers_couverts : null,
+  produitsEcartes:
+    r.nb_absents_ouverture === null || r.nb_oublis_ouverture === null
+    || r.nb_absents_cloture === null || r.nb_oublis_cloture === null
+      ? null
+      : {
+          absentsOuverture: r.nb_absents_ouverture,
+          oublisOuverture: r.nb_oublis_ouverture,
+          absentsCloture: r.nb_absents_cloture,
+          oublisCloture: r.nb_oublis_cloture,
+        },
 });
 
 /**
@@ -194,7 +208,8 @@ export class TerritoireRepository {
     const { rows } = await this.pool.query<LigneScoresBrute>(
       `SELECT ${COLONNES_IDENTITE},
               v.nb_mesures, v.score_composite_moyen, v.nb_conforme, v.nb_partiellement_conforme,
-              v.nb_non_conforme, v.nb_sans_mesure, v.classification, v.piliers_couverts
+              v.nb_non_conforme, v.nb_sans_mesure, v.classification, v.piliers_couverts,
+              v.nb_absents_ouverture, v.nb_oublis_ouverture, v.nb_absents_cloture, v.nb_oublis_cloture
        FROM dqa.mv_synthese_territoire_scores v
        LEFT JOIN dqa.dim_site s ON s.site_id = v.site_id
        WHERE v.mois_paqd = $1 AND v.niveau IN ('region', 'zone')
@@ -210,7 +225,8 @@ export class TerritoireRepository {
     const { rows } = await this.pool.query<LigneScoresBrute>(
       `SELECT ${COLONNES_IDENTITE},
               v.nb_mesures, v.score_composite_moyen, v.nb_conforme, v.nb_partiellement_conforme,
-              v.nb_non_conforme, v.nb_sans_mesure, v.classification, v.piliers_couverts
+              v.nb_non_conforme, v.nb_sans_mesure, v.classification, v.piliers_couverts,
+              v.nb_absents_ouverture, v.nb_oublis_ouverture, v.nb_absents_cloture, v.nb_oublis_cloture
        FROM dqa.mv_synthese_territoire_scores v
        JOIN dqa.dim_site s ON s.site_id = v.site_id
        WHERE v.mois_paqd = $1 AND v.niveau = 'site'

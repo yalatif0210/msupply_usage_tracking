@@ -128,7 +128,10 @@ sélecteur **Mois affiché**. Puis :
   clôture, détail des lots, écart, conforme ou non), conformité
   consommation (stock de début, réceptions, stock de fin, consommation
   reconstituée et déclarée, écart ; un produit exclu indique pourquoi) et
-  concordance (P5) ;
+  concordance (P5). Dessous, les **produits absents d'un inventaire** : un
+  produit présent à l'ouverture ou à la clôture mais absent de l'autre, avec le
+  calcul qui qualifie l'absence (voir « Produits absents d'un inventaire »
+  plus bas) ;
 - une section **Analyse fine** : tableau des dix sous-composantes, un radar
   forces/faiblesses, et des courbes d'évolution sur une plage de mois libre
   (préréglages « cycle courant », « 12 derniers mois », « tout »).
@@ -177,7 +180,10 @@ renseignée » ou « District non renseigné » : il n'est jamais écarté.
   classifications ; pour un site, son score, sa classification, le nombre de
   piliers couverts et un lien vers sa fiche. Le lien « liste des sites » d'une
   zone ouvre `/sites` filtré sur ce district. Tri du plus faible score moyen au
-  plus élevé.
+  plus élevé. Deux colonnes comptent les **produits absents de l'ouverture** et
+  **absents de la clôture**, avec le nombre d'oublis (« 7 · 5 oublis ») ; elles
+  restent vides pour un filtre programme, le constat se faisant tous programmes
+  confondus.
 - Le filtre **Strate** (par exemple « ESPC ») ne garde que les sites de cette
   strate ; il ne s'applique qu'aux lectures par territoire. Un filtre de région
   affiche cette région déjà dépliée.
@@ -519,6 +525,29 @@ résultat en apparence.
   code ne compte **qu'une fois**, et il n'est conforme que si **tous** ses
   articles le sont. Dans les tableaux produit de la fiche site, chaque
   article a sa ligne (« article 1 sur 2 ») et une note rappelle cette règle.
+
+### Produits absents d'un inventaire
+
+Quand un site a fait ses deux inventaires du mois (ouverture et clôture), un
+produit traceur peut figurer dans l'un et pas dans l'autre. Le constat se fait
+par code produit, tous programmes confondus, et n'a **aucun effet sur le
+score** : il sert à repérer les oublis. Il est figé à chaque import, comme les
+scores, et conservé mois par mois.
+
+- **Absent de l'ouverture** (présent à la clôture). Stock minimal à
+  l'ouverture = compté à la clôture + sorties déclarées - réceptions. Les
+  sorties réelles sont au moins les sorties déclarées : si ce stock est
+  positif, le produit existait à l'ouverture, c'est un **oubli démontré**.
+  Sinon, la **cause est indéterminée** (le produit a pu être à 0).
+- **Absent de la clôture** (présent à l'ouverture). Le produit sort alors de
+  P4 et de P5 pour le mois. Stock attendu à la clôture = compté à l'ouverture
+  + réceptions - sorties déclarées. Des pertes non saisies peuvent expliquer
+  un stock attendu positif : c'est un **oubli probable**, pas démontré. Nul ou
+  négatif, le produit est **épuisé**, son absence est plausible.
+
+**Exemple (district de Daloa, septembre) :** vitamine A 100 000 UI absente de
+l'ouverture du 1er septembre ; 3 927 comptés à la clôture + 5 000 distribués -
+0 reçu = **8 927** au moins à l'ouverture : oubli démontré.
 
 ### P6 · Ratio d'ajustements (poids 10 %, seuil ≤ 5 %)
 

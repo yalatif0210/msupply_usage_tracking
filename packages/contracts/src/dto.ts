@@ -628,6 +628,18 @@ export const ligneTerritoireScoresSchema = ligneTerritoireBaseSchema.extend({
   /** Grain site seulement : sa classification et ses piliers couverts. */
   classification: classificationSchema.nullable(),
   piliersCouverts: z.number().int().min(0).max(6).nullable(),
+  /**
+   * Produits absents d'un inventaire (constat de site) : `null` pour un filtre
+   * programme, ce constat se faisant tous programmes confondus.
+   */
+  produitsEcartes: z
+    .object({
+      absentsOuverture: z.number().int().nonnegative(),
+      oublisOuverture: z.number().int().nonnegative(),
+      absentsCloture: z.number().int().nonnegative(),
+      oublisCloture: z.number().int().nonnegative(),
+    })
+    .nullable(),
 });
 export type LigneTerritoireScores = z.infer<typeof ligneTerritoireScoresSchema>;
 
@@ -1128,6 +1140,33 @@ export type DetailPilierP6 = z.infer<typeof detailPilierP6Schema>;
  * traceur inventorié, écart SDU hors tolérance en tête (comme `mv_p4_ecart_produit`).
  * Alimente les cartes P4 **et** P5 de la fiche site.
  */
+/**
+ * Produit présent à l'un des deux inventaires du mois et absent de l'autre
+ * (le site ayant fait les deux), historisé à chaque gel. Sans effet sur le score.
+ * - `absent_ouverture` : stock minimal à l'ouverture = compté clôture +
+ *   sorties déclarées - réceptions ; > 0 : `oubli_demontre`, sinon `indetermine`.
+ * - `absent_cloture` : stock attendu à la clôture = compté ouverture +
+ *   réceptions - sorties déclarées (borne haute, pertes non saisies) ; > 0 :
+ *   `oubli_probable`, sinon `epuise`.
+ */
+export const SENS_ABSENCE = ['absent_ouverture', 'absent_cloture'] as const;
+export const QUALIFICATIONS_ABSENCE = ['oubli_demontre', 'indetermine', 'oubli_probable', 'epuise'] as const;
+export const produitEcarteSchema = z.object({
+  produitCode: z.string(),
+  libelle: z.string().nullable(),
+  sens: z.enum(SENS_ABSENCE),
+  qualification: z.enum(QUALIFICATIONS_ABSENCE),
+  dateOuverture: dateIsoSchema,
+  dateCloture: dateIsoSchema,
+  /** Compté à l'inventaire où le produit figure (clôture ou ouverture). */
+  stockConnu: z.number(),
+  receptions: z.number(),
+  sortiesDeclarees: z.number(),
+  /** Stock minimal à l'ouverture, ou stock attendu à la clôture. */
+  stockCalcule: z.number(),
+});
+export type ProduitEcarte = z.infer<typeof produitEcarteSchema>;
+
 export const detailPilierP4Schema = detailPilierBaseSchema.extend({
   code: z.literal('p4'),
   /**
@@ -1137,6 +1176,8 @@ export const detailPilierP4Schema = detailPilierBaseSchema.extend({
    */
   estDistrict: z.boolean(),
   produits: z.array(ligneProduitP4P5Schema),
+  /** Produits absents de l'un des deux inventaires du mois (site, tous programmes). */
+  produitsEcartes: z.array(produitEcarteSchema),
 });
 export type DetailPilierP4 = z.infer<typeof detailPilierP4Schema>;
 

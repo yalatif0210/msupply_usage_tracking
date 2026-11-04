@@ -41,6 +41,12 @@ const TH = 'text-xs font-medium text-muted-foreground';
                   <th hlmTh [class]="TH + ' text-right'">Mesurés</th>
                   <th hlmTh [class]="TH + ' text-right'">Score moyen</th>
                   <th hlmTh [class]="TH">Répartition / classification</th>
+                  <th hlmTh [class]="TH + ' text-right'" title="Produits présents à la clôture mais absents de l'inventaire d'ouverture ; oubli démontré : le stock existait à l'ouverture">
+                    Absents de l'ouverture
+                  </th>
+                  <th hlmTh [class]="TH + ' text-right'" title="Produits présents à l'ouverture mais absents de l'inventaire de clôture ; oubli probable : du stock était attendu à la clôture">
+                    Absents de la clôture
+                  </th>
                 </tr>
               </thead>
               <tbody hlmTBody>
@@ -58,6 +64,8 @@ const TH = 'text-xs font-medium text-muted-foreground';
                       <td hlmTd class="text-right tabular-nums">{{ l.nbMesures }}</td>
                       <td hlmTd class="text-right tabular-nums">{{ l.scoreCompositeMoyen === null ? absent : (l.scoreCompositeMoyen | number: '1.0-1') }}</td>
                       <td hlmTd class="whitespace-normal"><dqa-repartition-classification [repartition]="l.repartition" [compact]="true" /></td>
+                      <td hlmTd class="text-right tabular-nums">{{ absents(l, 'ouverture') }}</td>
+                      <td hlmTd class="text-right tabular-nums">{{ absents(l, 'cloture') }}</td>
                     </tr>
                   } @else {
                     <tr hlmTr class="cursor-pointer" (click)="basculerZone(l)">
@@ -76,6 +84,8 @@ const TH = 'text-xs font-medium text-muted-foreground';
                       <td hlmTd class="text-right tabular-nums">{{ l.nbMesures }}</td>
                       <td hlmTd class="text-right tabular-nums">{{ l.scoreCompositeMoyen === null ? absent : (l.scoreCompositeMoyen | number: '1.0-1') }}</td>
                       <td hlmTd class="whitespace-normal"><dqa-repartition-classification [repartition]="l.repartition" [compact]="true" /></td>
+                      <td hlmTd class="text-right tabular-nums">{{ absents(l, 'ouverture') }}</td>
+                      <td hlmTd class="text-right tabular-nums">{{ absents(l, 'cloture') }}</td>
                     </tr>
                     @if (zonesOuvertes().has(cle(l))) {
                       @if (sites().get(cle(l)); as liste) {
@@ -95,12 +105,14 @@ const TH = 'text-xs font-medium text-muted-foreground';
                             </td>
                             <td hlmTd class="text-right tabular-nums">{{ s.scoreCompositeMoyen === null ? absent : (s.scoreCompositeMoyen | number: '1.0-1') }}</td>
                             <td hlmTd><dqa-badge-classification [classification]="s.classification" /></td>
+                            <td hlmTd class="text-right tabular-nums">{{ absents(s, 'ouverture') }}</td>
+                            <td hlmTd class="text-right tabular-nums">{{ absents(s, 'cloture') }}</td>
                           </tr>
                         } @empty {
-                          <tr hlmTr><td hlmTd colspan="5" class="pl-14 text-sm text-muted-foreground">Aucun site pour ce filtre.</td></tr>
+                          <tr hlmTr><td hlmTd colspan="7" class="pl-14 text-sm text-muted-foreground">Aucun site pour ce filtre.</td></tr>
                         }
                       } @else {
-                        <tr hlmTr><td hlmTd colspan="5" class="pl-14 text-sm text-muted-foreground">Chargement des sites…</td></tr>
+                        <tr hlmTr><td hlmTd colspan="7" class="pl-14 text-sm text-muted-foreground">Chargement des sites…</td></tr>
                       }
                     }
                   }
@@ -110,7 +122,8 @@ const TH = 'text-xs font-medium text-muted-foreground';
           </div>
           <p class="mt-2 text-xs text-muted-foreground">
             Triés du plus faible score moyen au plus élevé. La moyenne d'un territoire porte sur ses seuls sites mesurés ;
-            une zone de district compte tous ses sites, magasin du district sanitaire compris.
+            une zone de district compte tous ses sites, magasin du district sanitaire compris. Produits absents d'un
+            inventaire : constat de site, tous programmes confondus, sans effet sur le score (non affiché pour un filtre programme).
           </p>
         }
       } @else if (!enCours()) {
@@ -130,6 +143,17 @@ export class TerritoireScores {
 
   protected readonly TH = TH;
   protected readonly absent = VALEUR_ABSENTE;
+
+  /** « 7 · 5 oublis » ; rien à signaler : « 0 ». */
+  protected absents(l: LigneTerritoireScores, sens: 'ouverture' | 'cloture'): string {
+    const pe = l.produitsEcartes;
+    if (pe === null) return VALEUR_ABSENTE;
+    const [n, oublis] = sens === 'ouverture'
+      ? [pe.absentsOuverture, pe.oublisOuverture]
+      : [pe.absentsCloture, pe.oublisCloture];
+    if (n === 0) return '0';
+    return `${n} · ${oublis} oubli${oublis > 1 ? 's' : ''}`;
+  }
   protected readonly cle = cleZone;
 
   protected readonly donnees = signal<SyntheseTerritoireScores | null>(null);

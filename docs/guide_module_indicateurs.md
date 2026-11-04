@@ -202,6 +202,21 @@ dans les vues (aucun produit évalué, taux 0) ; `mv_score_pilier` lui donne la
 note `dqa.note_sanction(mois)`. Classification :
 `dqa.classer_composite(score, grille_id)`, bornes de la grille.
 
+**Produits absents d'un inventaire (migration 0060).** `mv_produit_ecarte`
+compare, par site (tous programmes) et code produit, la clôture retenue d'un
+mois et celle du mois précédent (ouverture), quand les deux existent :
+`absent_ouverture` qualifié `oubli_demontre` / `indetermine` (stock minimal à
+l'ouverture = compté clôture + sorties déclarées - réceptions, borne basse
+sûre), `absent_cloture` qualifié `oubli_probable` / `epuise` (stock attendu à la
+clôture = compté ouverture + réceptions - sorties déclarées, borne haute).
+Mouvements : `v_mouvement_stock_jour` sur (date d'ouverture, date de clôture],
+distributions pour un district. Le gel les fige dans `hist_produit_ecarte`
+(upsert, puis retrait des absences disparues du core) avant les synthèses ;
+`mv_synthese_territoire_scores` en compte les lignes (`nb_absents_ouverture`,
+`nb_oublis_ouverture`, `nb_absents_cloture`, `nb_oublis_cloture`, grain tous
+programmes, NULL avec un filtre programme). Servis par `DetailPilierP4.produitsEcartes`
+et `LigneTerritoireScores.produitsEcartes`. Sans effet sur le score.
+
 **Transparence du calcul (migration 0059).** `mv_score_pilier` expose la note
 de chaque sous-composante (`note_*` : 100, 0, note de sanction ou NULL), celle
 qui entre dans le score de son pilier. La fiche site (`detailSite`) lit ces

@@ -425,6 +425,11 @@ describe('validerReponse (couture D)', () => {
     ...detailPilierBase,
     code: 'p4',
     estDistrict: false,
+    produitsEcartes: [{
+      produitCode: 'T3', libelle: 'T3', sens: 'absent_ouverture', qualification: 'oubli_demontre',
+      dateOuverture: '2026-07-31', dateCloture: '2026-08-31',
+      stockConnu: 10, receptions: 0, sortiesDeclarees: 5, stockCalcule: 15,
+    }],
     produits: [
       ligneP4P5(),
       ligneP4P5({

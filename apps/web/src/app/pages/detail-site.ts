@@ -48,7 +48,9 @@ import { Coquille } from '../ui/coquille';
 import { GrapheCourbe, type SerieGrapheCourbe } from '../ui/graphe-courbe';
 import { GrapheRadar, type AxeGrapheRadar } from '../ui/graphe-radar';
 import { construireCalendrierP3, type CalendrierP3 } from './calendrier-p3';
-import { bornesDe, dateCommune, ecartConso, ecartSdu, jourMoisCourt, libelleLots, pourcent } from './tableaux-produits-p4p5';
+import {
+  bornesDe, calculAbsence, dateCommune, ecartConso, ecartSdu, jourMoisCourt, libelleLots, LIBELLES_QUALIFICATION, pourcent,
+} from './tableaux-produits-p4p5';
 
 type Granularite = 'composite' | 'pilier' | 'sousComposante';
 type ModeRadar = '6' | '10';
@@ -718,6 +720,51 @@ function reculerMois(mois: string, n: number): string {
                     Un code produit porté par plusieurs articles mSupply compte une fois : il n'est conforme que si tous ses articles le sont.
                   </p>
                 }
+
+                <h3 class="mt-6 text-sm font-semibold">Produits absents d'un inventaire</h3>
+                <p class="text-xs text-muted-foreground">
+                  Présents à l'un des deux inventaires du mois (ouverture, clôture) et absents de l'autre, tous programmes
+                  confondus. Un produit absent de la clôture sort de P4 et de P5 pour le mois. Sans effet sur le score.
+                </p>
+                @if (produitsEcartes().length === 0) {
+                  <p class="mt-2 text-sm text-muted-foreground">Aucun produit absent de l'un des deux inventaires.</p>
+                } @else {
+                  <div hlmTableContainer class="mt-2">
+                    <table hlmTable class="border border-border">
+                      <thead hlmTHead>
+                        <tr hlmTr>
+                          <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Produit</th>
+                          <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Absent de</th>
+                          <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Qualification</th>
+                          <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Calcul</th>
+                        </tr>
+                      </thead>
+                      <tbody hlmTBody>
+                        @for (pe of produitsEcartes(); track pe.produitCode + pe.sens) {
+                          <tr hlmTr>
+                            <td hlmTd class="border-r border-border text-left last:border-r-0 whitespace-normal">
+                              <div>{{ pe.libelle ?? pe.produitCode }}</div>
+                              <div class="text-xs text-muted-foreground">{{ pe.produitCode }}</div>
+                            </td>
+                            <td hlmTd class="border-r border-border text-center last:border-r-0">
+                              {{ pe.sens === 'absent_ouverture' ? "l'ouverture du " + jourMoisCourt(pe.dateOuverture) : 'la clôture du ' + jourMoisCourt(pe.dateCloture) }}
+                            </td>
+                            <td hlmTd class="border-r border-border text-center last:border-r-0 font-medium"
+                                [class]="pe.qualification === 'oubli_demontre' || pe.qualification === 'oubli_probable' ? 'text-alerte-texte' : 'text-muted-foreground'">
+                              {{ libellesQualification[pe.qualification] }}
+                            </td>
+                            <td hlmTd class="border-r border-border text-left last:border-r-0 whitespace-normal text-xs tabular-nums">{{ calculAbsence(pe) }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                  <p class="mt-2 text-xs text-muted-foreground">
+                    Absent de l'ouverture : les sorties réelles sont au moins les sorties déclarées, un stock minimal positif
+                    prouve que le produit existait (oubli démontré). Absent de la clôture : des pertes non saisies peuvent
+                    expliquer un stock attendu positif (oubli probable) ; nul ou négatif, le produit est épuisé.
+                  </p>
+                }
               } @else if (!chargeP4P5()) {
                 <p class="mt-3 text-sm text-muted-foreground">{{ raisonTableauVide() }}</p>
               }
@@ -1124,6 +1171,9 @@ export class DetailSitePage {
   protected readonly tableauP4P5Ouvert = signal(false);
 
   protected readonly produitsP4P5 = computed(() => this.tableauP4P5()?.produits ?? []);
+  protected readonly produitsEcartes = computed(() => this.tableauP4P5()?.produitsEcartes ?? []);
+  protected readonly calculAbsence = calculAbsence;
+  protected readonly libellesQualification = LIBELLES_QUALIFICATION;
   protected readonly bornesDe = bornesDe;
   protected readonly ecartConso = ecartConso;
   protected readonly ecartSdu = ecartSdu;

@@ -38,6 +38,7 @@ import {
   type LigneProduitP4P5,
   type MesureSousComposante,
   type MoisMesure,
+  type ProduitEcarte,
   type RaisonExclusionConso,
   type Pilier,
   type Programme,
@@ -1456,7 +1457,7 @@ export class IndicateursRepository {
         case 'p3':
           return { ...vide, code, jours: [], reponseZone: null };
         case 'p4':
-          return { ...vide, code, estDistrict, produits: [] };
+          return { ...vide, code, estDistrict, produits: [], produitsEcartes: [] };
         case 'p6':
           return { ...vide, code, ajustements: [], nbMouvements: 0 };
       }
@@ -1488,6 +1489,37 @@ export class IndicateursRepository {
     }
     const { coreMajLe, ...lignes } = await this.detailPilierP6(siteId, mois, prog);
     return { ...commun, ...horo(coreMajLe), code, ...lignes };
+  }
+
+  /** Produits absents d'un des deux inventaires du mois, tels que figés au gel (constat de site). */
+  private async produitsEcartes(siteId: string, mois: string): Promise<ProduitEcarte[]> {
+    const { rows } = await this.pool.query<{
+      produit_code: string; libelle: string | null;
+      sens: ProduitEcarte['sens']; qualification: ProduitEcarte['qualification'];
+      date_ouverture: string; date_cloture: string;
+      stock_connu: string; receptions: string; sorties_declarees: string; stock_calcule: string;
+    }>(
+      `SELECT produit_code, libelle, sens, qualification,
+              to_char(date_ouverture, 'YYYY-MM-DD') AS date_ouverture,
+              to_char(date_cloture, 'YYYY-MM-DD') AS date_cloture,
+              stock_connu, receptions, sorties_declarees, stock_calcule
+       FROM dqa.hist_produit_ecarte
+       WHERE site_id = $1 AND mois_paqd = $2
+       ORDER BY sens DESC, qualification, produit_code`,
+      [siteId, mois],
+    );
+    return rows.map((r) => ({
+      produitCode: r.produit_code,
+      libelle: r.libelle,
+      sens: r.sens,
+      qualification: r.qualification,
+      dateOuverture: r.date_ouverture,
+      dateCloture: r.date_cloture,
+      stockConnu: Number(r.stock_connu),
+      receptions: Number(r.receptions),
+      sortiesDeclarees: Number(r.sorties_declarees),
+      stockCalcule: Number(r.stock_calcule),
+    }));
   }
 
   /** Horodatage du gel des comptes bruts du pilier, à défaut celui du score. */
@@ -1942,7 +1974,7 @@ export class IndicateursRepository {
     mois: string,
     prog: string | null,
     estDistrict: boolean,
-  ): Promise<Pick<DetailPilierP4, 'produits' | 'estDistrict'> & { coreMajLe: Date | null }> {
+  ): Promise<Pick<DetailPilierP4, 'produits' | 'estDistrict' | 'produitsEcartes'> & { coreMajLe: Date | null }> {
     const params = [siteId, mois, prog];
 
     // `mv_p4_ecart_produit` restreint déjà aux sites du périmètre et aux
@@ -2053,7 +2085,12 @@ export class IndicateursRepository {
       };
     });
 
-    return { produits, estDistrict, coreMajLe: maj.rows[0]?.core_maj_le ?? null };
+    return {
+      produits,
+      estDistrict,
+      produitsEcartes: await this.produitsEcartes(siteId, mois),
+      coreMajLe: maj.rows[0]?.core_maj_le ?? null,
+    };
   }
 
   /**
