@@ -111,7 +111,7 @@ sous-composantes (ADR 0019 : l'inventaire a quitté P1).
 
 Une ligne P1 existe pour un mois où le site a un inventaire, une réquisition,
 ou une facture répondant à une réquisition du mois précédent. Score de pilier
-P1 = moyenne simple des sous-composantes calculables.
+P1 : voir « Composition des piliers » ci-dessous.
 
 **P2 — promptitude des transactions** (`mv_p2_promptitude`) : deux
 sous-composantes, **seuil grille 100 %**, dénominateur = **programmes gérés**
@@ -129,8 +129,18 @@ Une fois l'échéance passée, un programme éligible sans inventaire (ou sans
 réquisition) du mois compte **0** : ne rien soumettre pénalise P2. Avant
 l'échéance, NULL. `nb_inventaires_realise` compte tout inventaire finalisé du
 mois (alimente la synthèse « Rapports & inventaires »), `nb_inventaires_a_lheure`
-ceux des trois derniers jours. Score de pilier P2 = moyenne simple des
-sous-composantes calculables.
+ceux des trois derniers jours. Score de pilier P2 : voir « Composition des
+piliers » ci-dessous.
+
+**Composition des piliers (migration 0057).** `mv_score_pilier` calcule les six
+scores de pilier avec `dqa.score_pilier(grille_id, notes jsonb)` : moyenne
+pondérée des notes (100, 0) des sous-composantes **retenues** et calculables,
+selon `grille_seuil_sous_composante.retenue` et `.poids_pct` (poids dans le
+pilier, les retenues font 100, une non retenue pèse 0). Grille actuelle :
+poids égaux, sauf P4 = `ecart_consommation` 100 %, `ecart_sdu` non retenue.
+Les colonnes `p_completude` / `p_promptitude` / `p_ecart_sdu` des vues de
+pilier restent des moyennes simples, sans usage pour le score. La fiche site
+reçoit `retenue` et `poidsDansPilierPct` sur chaque `MesureSousComposante`.
 
 **P3 — régularité de saisie** (`mv_p3_regularite`, branche `UNION ALL`) :
 
@@ -180,6 +190,19 @@ ouverture (et mois précédent jugé), consommation à 0. Avant : NULL. Le
 repository (`causesCloture`) explique la sanction dans `raison`, statut ALERTE.
 `dqa.mois_est_clos` ne sert plus à P4 ni P5.
 
+**Règles dans la grille (migration 0058).** La fenêtre de clôture d'un mois
+suit la grille de ce mois (`dqa.fenetre_cloture(mois)` : du
+`jours_cloture_fin_mois`-ième dernier jour au `jours_cloture_mois_suivant`-ième
+jour du mois suivant). `mv_p4_ecart_produit` calcule le mois de clôture une fois
+par inventaire (CTE `inv_cloture`) et les vues P4 / P5 lisent les clôtures une
+fois (CTE `clotures`) : la fonction lit la grille, l'appeler ligne à ligne
+multipliait le temps de rafraîchissement par vingt. Une sanction se reconnaît
+dans les vues (aucun produit évalué, taux 0) ; `mv_score_pilier` lui donne la
+note `dqa.note_sanction(mois)`. Classification :
+`dqa.classer_composite(score, grille_id)`, bornes de la grille. Piège : la fiche
+site déduit encore le statut d'une sous-composante sanctionnée de la note brute
+(0), pas de la note de sanction ; sans effet tant que la note vaut 0.
+
 - `ecart_sdu` : `|théorique − compté| / compté ≤ tolérance` à l'inventaire de
   clôture, par produit ; compté (réalité) au dénominateur.
   Cas limites : compté 0 / théorique 0 → conforme ; compté 0 / théorique > 0 →
@@ -207,8 +230,10 @@ dans « tous programmes ». Le calcul reste fait **par article** mSupply
 tous ses articles le sont (CTE `par_code` de `mv_p4_ecart` et
 `mv_p5_concordance`).
 
-Le score de pilier P4 (`p_ecart_sdu`, hérité du nom historique) est la moyenne
-simple des scores des deux sous-composantes calculables. Tolérance (2 %) et
+Le score de pilier P4 (`p_ecart_sdu`, hérité du nom historique) suit la
+composition de la grille (migration 0057) : par défaut la conformité
+consommation seule, la conformité SDU étant non retenue. La colonne
+`mv_p4_ecart.p_ecart_sdu` reste une moyenne simple, sans usage pour le score. Tolérance (2 %) et
 seuil de taux (90 %) viennent de `grille_seuil_sous_composante.tolerance` /
 `.seuil` — à confirmer avec la coordination PAQD.
 

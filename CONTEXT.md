@@ -54,10 +54,17 @@ Sert d'axe commun aux radars et aux courbes fines de la fiche site.
 _Éviter_ : score de sous-composante (binaire, réservé au calcul du pilier)
 
 **Score de pilier** :
-Note sur 100 d'un site pour un pilier, égale à la moyenne simple des scores de
-ses sous-composantes calculables (CONFORME = 100, ALERTE = 0 ; une sous-composante
-NON_CALCULABLE est exclue de la moyenne). Un pilier n'a pas de statut, seulement
-un score.
+Note sur 100 d'un site pour un pilier, égale à la moyenne pondérée des scores de
+ses sous-composantes **retenues** et calculables (CONFORME = 100, ALERTE = 0 ; une
+sous-composante NON_CALCULABLE est exclue, les poids restants sont renormalisés).
+Un pilier n'a pas de statut, seulement un score.
+
+**Composition d'un pilier** :
+Pour chaque pilier, dans la grille datée : les sous-composantes **retenues** et
+leur poids dans le pilier (les retenues font 100). Une sous-composante non
+retenue reste mesurée et affichée, sans effet sur le score. Grille actuelle :
+P4 ne retient que la conformité consommation.
+_Éviter_ : sous-composante désactivée (elle est toujours calculée)
 
 **Score composite** :
 Note sur 100 d'un site pour un mois PAQD, tous programmes confondus, égale à la
@@ -195,7 +202,7 @@ produit (tableau produit de la fiche site, fiche produit).
 
 **Inventaire de clôture** :
 Inventaire finalisé daté des **3 derniers jours du mois** ou du **1er du mois
-suivant** ; s'il y en a plusieurs, le dernier. Seul inventaire qui compte pour
+suivant** (fenêtre de la grille du mois) ; s'il y en a plusieurs, le dernier. Seul inventaire qui compte pour
 P4 et P5 (ADR 0022). Un inventaire hors de cette fenêtre ne compte pas.
 _Éviter_ : inventaire du mois, borne de fin
 

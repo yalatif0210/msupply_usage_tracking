@@ -7,9 +7,20 @@ bornes de classification (90 et 75).
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Paramètres de règle rattachés à la grille, avec contrôles de bornes.
-- [ ] Fenêtre de clôture, sanction et classification lues dans la grille du mois.
-- [ ] Écran d'administration : modification de ces valeurs.
-- [ ] Tests : une grille datée change la fenêtre à partir de sa date d'effet seulement.
+- [x] Paramètres de règle rattachés à la grille, avec contrôles de bornes.
+- [x] Fenêtre de clôture, sanction et classification lues dans la grille du mois.
+- [x] Écran d'administration : modification de ces valeurs.
+- [x] Tests : une grille datée change la fenêtre à partir de sa date d'effet seulement.
+
+## Comments
+
+- Migration 0058 : colonnes de `grille_parametre`, valeurs par défaut égales
+  aux règles en vigueur (aucun score ne change, vérifié sur la démo).
+- La fenêtre lit la grille : le mois de clôture est calculé une fois par
+  inventaire et les clôtures une fois par vue, sinon le rafraîchissement de
+  la vue P4 par produit passait de 0,3 s à 5 s.
+- Reste pour le ticket 04 : la fiche site déduit le statut d'une
+  sous-composante sanctionnée de la note brute (0), pas de la note de
+  sanction de la grille.

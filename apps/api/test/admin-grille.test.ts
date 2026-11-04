@@ -2,7 +2,9 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { grilleDetailSchema, grilleParametreSchema, SOUS_COMPOSANTES } from '@dqa/contracts';
+import {
+  grilleDetailSchema, grilleParametreSchema, PILIER_DE_SOUS_COMPOSANTE, SOUS_COMPOSANTES, SOUS_COMPOSANTES_DU_PILIER,
+} from '@dqa/contracts';
 import { z } from 'zod';
 import { AppModule } from '../src/app.module.js';
 import { closePool } from '../src/db/pool.js';
@@ -42,6 +44,8 @@ describe('administration de la grille de paramètres', () => {
     sens: sc === 'ratio_ajustements' ? ('inf' as const) : ('sup' as const),
     tolerance: sc === 'ecart_sdu' || sc === 'ecart_consommation' ? 2 : null,
     seuilDistrict: sc === 'regularite_saisie' ? 80 : null,
+    retenue: sc !== 'ecart_sdu',
+    poidsDansPilierPct: sc === 'ecart_sdu' ? 0 : sc === 'ecart_consommation' ? 100 : 100 / SOUS_COMPOSANTES_DU_PILIER[PILIER_DE_SOUS_COMPOSANTE[sc]].length,
   }));
   const POIDS = [
     { pilier: 'P1' as const, poidsPct: 10 },
@@ -51,11 +55,16 @@ describe('administration de la grille de paramètres', () => {
     { pilier: 'P5' as const, poidsPct: 25 },
     { pilier: 'P6' as const, poidsPct: 10 },
   ];
+  const REGLES = {
+    joursClotureFinMois: 3, joursClotureMoisSuivant: 1, noteSanction: 0,
+    borneConforme: 90, bornePartiellementConforme: 75,
+  };
   const entree = (over: Record<string, unknown> = {}) => ({
     version: 'v2',
     effetAPartirDe: '2030-01-01',
     poids: POIDS,
     seuils: SEUILS,
+    regles: REGLES,
     ...over,
   });
 
@@ -109,6 +118,49 @@ describe('administration de la grille de paramètres', () => {
     const a = await agent('coordination');
     const seuils = SEUILS.map((s) => (s.sousComposante === 'ecart_sdu' ? { ...s, tolerance: null } : s));
     await a.post('/api/admin/grille').send(entree({ seuils })).expect(400);
+  });
+
+  it('relit la composition : SDU non retenu, consommation 100 % de P4', async () => {
+    const a = await agent('coordination');
+    const { body } = await a.post('/api/admin/grille').send(entree()).expect(201);
+    const d = grilleDetailSchema.parse(body);
+    const sc = (code: string) => d.seuils.find((s) => s.sousComposante === code);
+    expect(sc('ecart_sdu')).toMatchObject({ retenue: false, poidsDansPilierPct: 0 });
+    expect(sc('ecart_consommation')).toMatchObject({ retenue: true, poidsDansPilierPct: 100 });
+    expect(sc('completude_requisitions')).toMatchObject({ retenue: true, poidsDansPilierPct: 50 });
+  });
+
+  it('enregistre et relit les règles de calcul', async () => {
+    const a = await agent('coordination');
+    const regles = { ...REGLES, joursClotureFinMois: 5, joursClotureMoisSuivant: 2, noteSanction: 20, borneConforme: 85 };
+    const { body } = await a.post('/api/admin/grille').send(entree({ regles })).expect(201);
+    expect(grilleDetailSchema.parse(body).regles).toEqual(regles);
+    const v1Id = (await a.get('/api/admin/grille')).body.find((g: { version: string }) => g.version === 'v1').id;
+    expect((await a.get(`/api/admin/grille/${v1Id}`)).body.regles).toEqual(REGLES); // valeurs par défaut
+  });
+
+  it('refuse des bornes de classification inversées', async () => {
+    const a = await agent('coordination');
+    await a.post('/api/admin/grille')
+      .send(entree({ regles: { ...REGLES, borneConforme: 70, bornePartiellementConforme: 75 } }))
+      .expect(400);
+  });
+
+  it('refuse une composition incohérente', async () => {
+    const a = await agent('coordination');
+    const avec = (maj: (s: (typeof SEUILS)[number]) => (typeof SEUILS)[number]) => entree({ seuils: SEUILS.map(maj) });
+    // poids retenus de P1 à 80 au lieu de 100
+    await a.post('/api/admin/grille')
+      .send(avec((s) => (s.sousComposante === 'completude_requisitions' ? { ...s, poidsDansPilierPct: 30 } : s)))
+      .expect(400);
+    // aucune sous-composante retenue pour P4
+    await a.post('/api/admin/grille')
+      .send(avec((s) => (s.sousComposante === 'ecart_consommation' ? { ...s, retenue: false, poidsDansPilierPct: 0 } : s)))
+      .expect(400);
+    // une sous-composante non retenue qui garde un poids
+    await a.post('/api/admin/grille')
+      .send(avec((s) => (s.sousComposante === 'ecart_sdu' ? { ...s, poidsDansPilierPct: 10 } : s)))
+      .expect(400);
   });
 
   it('modifie une version planifiée mais pas la v1 en vigueur', async () => {

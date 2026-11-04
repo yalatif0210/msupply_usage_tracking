@@ -12,11 +12,15 @@ import { HlmCard } from '@spartan-ng/helm/card';
 import {
   LIBELLES_PILIER,
   LIBELLES_SOUS_COMPOSANTE,
+  PILIER_DE_SOUS_COMPOSANTE,
+  PILIERS,
   SOUS_COMPOSANTES_AVEC_TOLERANCE,
   type EntreeGrille,
   type GrilleDetail,
   type GrilleParametre,
+  type Pilier,
   type PoidsPilier,
+  type ReglesCalcul,
   type SeuilSousComposante,
   type SousComposante,
 } from '@dqa/contracts';
@@ -200,6 +204,67 @@ const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant'
               }
             </div>
 
+            <h3 class="mt-6 text-sm font-medium">Composition des piliers</h3>
+            <p class="mt-1 text-sm text-muted-foreground">
+              Une sous-composante retenue compte dans le score de son pilier, avec son
+              poids ; les poids retenus d'un pilier font 100. Une sous-composante non
+              retenue reste mesurée et affichée, sans effet sur le score.
+            </p>
+            <div class="mt-2 divide-y divide-border">
+              @for (pilier of piliers; track pilier) {
+                <div class="py-2">
+                  <div class="flex items-center justify-between gap-2 text-sm">
+                    <span class="font-medium">{{ pilier }} · {{ libellePilier(pilier) }}</span>
+                    <span class="tabular-nums" [class.text-destructive]="totalComposition(pilier) !== 100">
+                      total {{ totalComposition(pilier) }} %
+                    </span>
+                  </div>
+                  @for (s of seuilsDuPilier(b.seuils, pilier); track s.sousComposante) {
+                    <div class="mt-1 grid grid-cols-2 items-center gap-2 sm:grid-cols-3">
+                      <span class="text-sm">{{ libelleSousComposante(s.sousComposante) }}</span>
+                      <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" [checked]="s.retenue" (change)="majRetenue(s, !s.retenue)"
+                               [attr.aria-label]="'Retenir ' + libelleSousComposante(s.sousComposante)" />
+                        {{ s.retenue ? 'Retenue' : 'Non retenue' }}
+                      </label>
+                      <input
+                        hlmInput
+                        class="w-full text-right"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="5"
+                        [disabled]="!s.retenue"
+                        [attr.aria-label]="'Poids de ' + libelleSousComposante(s.sousComposante) + ' dans le pilier'"
+                        [ngModel]="s.poidsDansPilierPct"
+                        (ngModelChange)="majPoidsDansPilier(s, $event)"
+                      />
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
+            <h3 class="mt-6 text-sm font-medium">Règles de calcul</h3>
+            <div class="mt-2 grid gap-4 sm:grid-cols-2">
+              @for (r of champsRegles; track r.cle) {
+                <div class="grid gap-1.5">
+                  <label hlmLabel [for]="'regle-' + r.cle">{{ r.libelle }}</label>
+                  <input
+                    hlmInput
+                    class="text-right"
+                    type="number"
+                    [id]="'regle-' + r.cle"
+                    [min]="r.min"
+                    [max]="r.max"
+                    [step]="r.pas"
+                    [ngModel]="b.regles[r.cle]"
+                    (ngModelChange)="majRegle(r.cle, $event)"
+                  />
+                </div>
+              }
+            </div>
+
             <div class="mt-6 flex items-center gap-2">
               <button hlmBtn type="button" [disabled]="enCours()" (click)="enregistrer()">Enregistrer</button>
               <button hlmBtn variant="ghost" type="button" (click)="annuler()">Annuler</button>
@@ -232,12 +297,27 @@ const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant'
               }
             </ul>
 
+            <h3 class="mt-6 text-sm font-medium">Règles de calcul</h3>
+            <ul class="mt-2 divide-y divide-border text-sm">
+              @for (r of champsRegles; track r.cle) {
+                <li class="flex items-center justify-between py-2">
+                  <span>{{ r.libelle }}</span>
+                  <b class="font-semibold tabular-nums">{{ s.regles[r.cle] }}</b>
+                </li>
+              }
+            </ul>
+
             <h3 class="mt-6 text-sm font-medium">Seuils</h3>
             <ul class="mt-2 divide-y divide-border text-sm">
               @for (se of s.seuils; track se.sousComposante) {
                 <li class="flex items-center justify-between gap-2 py-2">
                   <span>{{ libelleSousComposante(se.sousComposante) }}</span>
                   <span class="tabular-nums">
+                    @if (se.retenue) {
+                      <span class="text-muted-foreground">poids {{ se.poidsDansPilierPct }} % du pilier ·&nbsp;</span>
+                    } @else {
+                      <span class="text-muted-foreground">non retenue dans le score ·&nbsp;</span>
+                    }
                     <b class="font-semibold">{{ se.sens === 'sup' ? '≥' : '≤' }} {{ se.seuil }}</b>
                     @if (se.seuilDistrict !== null) {
                       <span class="text-muted-foreground">&nbsp;· district ≥ {{ se.seuilDistrict }}</span>
@@ -277,7 +357,25 @@ export class AdminGrillePage {
     void this.charger();
   }
 
-  protected libellePilier = (p: GrilleDetail['poids'][number]['pilier']) => LIBELLES_PILIER[p];
+  protected readonly piliers = PILIERS;
+  protected readonly champsRegles: readonly {
+    cle: keyof ReglesCalcul; libelle: string; min: number; max: number; pas: number;
+  }[] = [
+    { cle: 'joursClotureFinMois', libelle: 'Clôture : derniers jours du mois', min: 1, max: 10, pas: 1 },
+    { cle: 'joursClotureMoisSuivant', libelle: 'Clôture : premiers jours du mois suivant', min: 0, max: 10, pas: 1 },
+    { cle: 'noteSanction', libelle: "Note d'une sous-composante P4 / P5 sanctionnée", min: 0, max: 100, pas: 5 },
+    { cle: 'borneConforme', libelle: 'Composite : conforme à partir de', min: 0, max: 100, pas: 1 },
+    { cle: 'bornePartiellementConforme', libelle: 'Composite : partiellement conforme à partir de', min: 0, max: 100, pas: 1 },
+  ];
+  protected libellePilier = (p: Pilier) => LIBELLES_PILIER[p];
+  protected seuilsDuPilier = (seuils: readonly SeuilSousComposante[], pilier: Pilier) =>
+    seuils.filter((s) => PILIER_DE_SOUS_COMPOSANTE[s.sousComposante] === pilier);
+  protected totalComposition(pilier: Pilier): number {
+    const b = this.brouillon();
+    if (!b) return 0;
+    const retenues = this.seuilsDuPilier(b.seuils, pilier).filter((s) => s.retenue);
+    return Math.round(retenues.reduce((t, s) => t + Number(s.poidsDansPilierPct || 0), 0) * 10) / 10;
+  }
   protected libelleSousComposante = (s: GrilleDetail['seuils'][number]['sousComposante']) =>
     LIBELLES_SOUS_COMPOSANTE[s];
   protected avecTolerance = (s: SousComposante) => AVEC_TOLERANCE.has(s);
@@ -332,6 +430,22 @@ export class AdminGrillePage {
     this.rejouer();
   }
 
+  protected majRegle(cle: keyof ReglesCalcul, v: number | null): void {
+    const b = this.brouillon();
+    if (b) this.brouillon.set({ ...b, regles: { ...b.regles, [cle]: v ?? 0 } });
+  }
+
+  protected majRetenue(s: SeuilSousComposante, retenue: boolean): void {
+    s.retenue = retenue;
+    if (!retenue) s.poidsDansPilierPct = 0;
+    this.rejouer();
+  }
+
+  protected majPoidsDansPilier(s: SeuilSousComposante, v: number | null): void {
+    s.poidsDansPilierPct = v ?? 0;
+    this.rejouer();
+  }
+
   private async charger(): Promise<void> {
     this.versions.set(await this.service.lister());
   }
@@ -347,6 +461,7 @@ export class AdminGrillePage {
       effetAPartirDe: d.effetAPartirDe,
       poids: d.poids.map((p) => ({ ...p })),
       seuils: d.seuils.map((s) => ({ ...s })),
+      regles: { ...d.regles },
     };
   }
 

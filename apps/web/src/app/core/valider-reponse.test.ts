@@ -33,6 +33,8 @@ const pilier = (code: Pilier, score: number | null) => ({
     seuil: 100,
     statut: score === null ? ('NON_CALCULABLE' as const) : ('CONFORME' as const),
     raison: score === null ? 'pas de donnée' : null,
+    retenue: true,
+    poidsDansPilierPct: 100 / SOUS_COMPOSANTES_DU_PILIER[code].length,
   })),
   comptesBruts: [],
 });
@@ -507,7 +509,10 @@ describe('validerReponse (couture D)', () => {
       sens: 'sup',
       tolerance: null,
       seuilDistrict: sc === 'regularite_saisie' ? 80 : null,
+      retenue: true,
+      poidsDansPilierPct: 50,
     })),
+    regles: { joursClotureFinMois: 3, joursClotureMoisSuivant: 1, noteSanction: 0, borneConforme: 90, bornePartiellementConforme: 75 },
     ...over,
   });
 

@@ -228,7 +228,14 @@ function reculerMois(mois: string, n: number): string {
                         <div class="text-2xl leading-none tabular-nums">
                           {{ sc.valeur === null ? absent : (sc.valeur | number: '1.0-1') }} <span class="text-sm text-muted-foreground">%</span>
                         </div>
-                        <div class="mt-1 text-xs text-muted-foreground">seuil {{ sc.seuil === null ? absent : (sc.seuil | number: '1.0-1') }} %</div>
+                        <div class="mt-1 text-xs text-muted-foreground">
+                          seuil {{ sc.seuil === null ? absent : (sc.seuil | number: '1.0-1') }} %
+                          @if (!sc.retenue) {
+                            · non retenue dans le score
+                          } @else if (pil.sousComposantes.length > 1) {
+                            · poids {{ sc.poidsDansPilierPct | number: '1.0-0' }} % du pilier
+                          }
+                        </div>
                         @if (sc.raison) { <div class="mt-1 text-xs text-alerte-texte">{{ sc.raison }}</div> }
                       </div>
                     </div>

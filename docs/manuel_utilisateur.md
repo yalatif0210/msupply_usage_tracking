@@ -237,7 +237,7 @@ anomalies. Un champ de dépôt en tête de page envoie un nouveau classeur.
 | Écran | Rôle requis | Contenu |
 |---|---|---|
 | `/admin/traceurs` | coordination (consultation) | Liste des produits traceurs suivis par P4 et P5. Elle ne se saisit pas à l'écran : elle vient du script d'extraction de la DAP. Chaque import reprend l'onglet PRODUITS : ses produits sont traceurs d'office, un produit absent du dernier fichier passe **inactif** (il sort des calculs suivants, son historique reste intact). Changer le panier, c'est faire modifier la liste du script par la DAP |
-| `/admin/grille` | coordination | Poids des piliers et seuils des sous-composantes ; une modification crée une nouvelle version, effective au cycle suivant seulement |
+| `/admin/grille` | coordination | Poids des piliers, seuils des sous-composantes et composition des piliers (sous-composantes retenues dans le score et leur poids) ; une modification crée une nouvelle version, effective au cycle suivant seulement |
 | `/admin/comptes` | admin | Comptes utilisateurs et leur rôle |
 | `/admin/strates` (« Types de structure ») | lecture ouverte à tout rôle, écriture coordination | Référentiel des `type_structure` (référentiel DAP) : la **strate** affichée dans « Rapports & inventaires », le **jour limite** de soumission d'une réquisition (P2), et le **régime** de scoring (district ou site de soins). Un type non renseigné : strate « Non classé », jour limite 10, régime site de soins |
 
@@ -274,7 +274,10 @@ Chaque sous-composante a un **statut binaire** : CONFORME (la valeur atteint
 le seuil), ALERTE (elle ne l'atteint pas), ou NON CALCULABLE (aucune donnée
 exploitable ce mois, avec une raison explicite). Le score d'un pilier vaut
 100 quand une sous-composante est CONFORME, 0 quand elle est en ALERTE ; le
-score du pilier est la moyenne simple de ses sous-composantes calculables.
+score du pilier est la moyenne, pondérée par la grille, de ses sous-composantes
+**retenues** et calculables. Aujourd'hui les poids sont égaux, et P4 ne retient
+que la conformité consommation ; une sous-composante non retenue reste affichée
+sur la fiche site, avec la mention « non retenue dans le score ».
 
 ---
 
@@ -389,6 +392,13 @@ Deux sous-composantes, **Conformité SDU** et **Conformité consommation**,
 chacune un **taux de conformité** : la part des produits traceurs qui restent
 dans la tolérance de la grille, pas une amplitude d'écart moyenne.
 
+**Seule la conformité consommation compte dans le score P4.** La conformité
+SDU compare le stock théorique au stock compté sur le même inventaire que P5 :
+la retenir compterait deux fois le même écart. Elle reste calculée et affichée
+(« non retenue dans le score » sur la fiche site). La grille de paramètres
+peut la retenir de nouveau, avec un poids (écran `/admin/grille`, section
+« Composition des piliers »).
+
 **Lire « ≥ 90 · tolérance 2 % ».** C'est ainsi que la grille de paramètres
 affiche ces deux sous-composantes. Les deux nombres ne mesurent pas la même
 chose :
@@ -435,8 +445,8 @@ de taux de 90 % → ALERTE.
 Le test VIH est également conforme → **conformité consommation = 100 %** →
 CONFORME.
 
-**Score P4** = moyenne des deux sous-composantes calculables =
-(0 + 100) / 2 = **50**.
+**Score P4** = conformité consommation seule (la conformité SDU n'est pas
+retenue) = **100**.
 
 ### P5 · Concordance physique / théorique (poids 25 %, seuil = 100 %)
 
@@ -474,7 +484,10 @@ résultat en apparence.
   | non | - | 0 | 0 |
 
   Tant que le mois n'est pas jugé, rien n'est sanctionné : ce qui manque reste
-  « non calculable ». La fiche site affiche la raison d'une sanction sous la
+  « non calculable ». La fenêtre de clôture (3 derniers jours, 1er du mois
+  suivant), la note de sanction (0) et les bornes de classification (90, 75)
+  sont des valeurs de la grille de paramètres : la coordination peut les
+  changer pour les mois à venir. La fiche site affiche la raison d'une sanction sous la
   sous-composante (par exemple « Inventaire du 20/08/2026 hors de la fenêtre
   de clôture »).
 - **Plusieurs inventaires le même jour.** Un site peut finaliser plusieurs
@@ -519,24 +532,24 @@ Reprenons l'exemple complet du CHR de Daloa, août 2026 :
 | P1 · Complétude | 100 | 10 % |
 | P2 · Promptitude | 100 | 15 % |
 | P3 · Régularité | 100 | 15 % |
-| P4 · Taux de conformité | 50 | 25 % |
+| P4 · Taux de conformité | 100 | 25 % |
 | P5 · Concordance | 0 | 25 % |
 | P6 · Ratio d'ajustements | 100 | 10 % |
 
 Les six piliers sont calculables ce mois-ci, donc aucune renormalisation :
 
 ```
-score composite = (100×10 + 100×15 + 100×15 + 50×25 + 0×25 + 100×10) / 100
-                = (1000 + 1500 + 1500 + 1250 + 0 + 1000) / 100
-                = 6250 / 100
-                = 62,5
+score composite = (100×10 + 100×15 + 100×15 + 100×25 + 0×25 + 100×10) / 100
+                = (1000 + 1500 + 1500 + 2500 + 0 + 1000) / 100
+                = 7500 / 100
+                = 75
 ```
 
-62,5 est inférieur à 75 : le site est classé **NON CONFORME**, malgré quatre
-piliers sur six parfaitement conformes. C'est le rôle du poids : P4 et P5
-pèsent à eux seuls la moitié du score (25 % + 25 %), et une seule
-sous-composante en alerte sur P5 (98,3 % de concordance, sous le seuil de
-100 %) suffit à faire basculer tout le pilier à 0.
+75 atteint tout juste la borne : le site est classé **PARTIELLEMENT
+CONFORME**, malgré cinq piliers sur six parfaitement conformes. C'est le rôle
+du poids : P5 pèse à lui seul un quart du score, et une seule sous-composante
+en alerte (98,3 % de concordance, sous le seuil de 100 %) suffit à faire
+basculer tout le pilier à 0.
 
 Sur le jeu de démonstration (mai à septembre 2026), le score composite moyen
 national suit **95,3 puis 90,6 puis 92,8 puis 89,0 puis 92,5**. Août et
@@ -619,7 +632,7 @@ principe des scores immuables, section 1).
 | Mois PAQD | Le mois calendaire sur lequel porte une extraction et pour lequel les scores sont calculés |
 | Cycle PAQD | Quatre mois consécutifs (M+1 à M+4), trois cycles par an calés sur l'année civile |
 | Score composite | Note sur 100 d'un site, moyenne pondérée des six scores de pilier, tous programmes confondus |
-| Grille de paramètres | Le jeu daté des poids de pilier et des seuils de sous-composante, éditable par la coordination, effectif au cycle suivant seulement |
+| Grille de paramètres | Le jeu daté des poids de pilier, des seuils de sous-composante et de la composition des piliers, éditable par la coordination, effectif au cycle suivant seulement |
 | Produit traceur | Un produit suivi de près pour les piliers P4, P5 et P6 ; la liste est tenue dans le script d'extraction de la DAP et reprise à chaque import |
 | Programme de santé | Un programme vertical géré par un site (VIH, paludisme, etc.) ; le nombre de programmes gérés détermine le nombre d'inventaires et de réquisitions attendus chaque mois |
 | Type de structure | La valeur `name_category3` d'un site (District sanitaire, Hôpital de référence, ESPC, CHU, Institut). Administré dans l'écran « Types de structure » : il porte la strate d'affichage, le jour limite de réquisition et le régime de scoring |

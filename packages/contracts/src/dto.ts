@@ -5,6 +5,8 @@ import {
   dateIsoSchema,
   mesureBruteSchema,
   moisPaqdSchema,
+  PILIER_DE_SOUS_COMPOSANTE,
+  PILIERS,
   pilierSchema,
   pourcentageSchema,
   SOUS_COMPOSANTES,
@@ -209,6 +211,10 @@ export const mesureSousComposanteSchema = z.object({
   seuil: z.number().nullable(),
   statut: statutSousComposanteSchema,
   raison: z.string().nullable(),
+  /** Faux : mesurée et affichée, mais sans effet sur le score du pilier (grille du mois). */
+  retenue: z.boolean(),
+  /** Poids dans le pilier (les retenues d'un pilier font 100) ; 0 si non retenue. */
+  poidsDansPilierPct: pourcentageSchema,
 });
 export type MesureSousComposante = z.infer<typeof mesureSousComposanteSchema>;
 
@@ -1302,12 +1308,38 @@ export const seuilSousComposanteSchema = z.object({
   tolerance: z.number().nullable(),
   /** Non nul seulement pour `regularite_saisie` : seuil appliqué aux districts (ADR 0011). */
   seuilDistrict: z.number().nullable(),
+  /** La sous-composante compte dans le score de son pilier. */
+  retenue: z.boolean(),
+  /** Poids dans le pilier : les retenues d'un pilier font 100, une non retenue pèse 0. */
+  poidsDansPilierPct: pourcentageSchema,
 });
 export type SeuilSousComposante = z.infer<typeof seuilSousComposanteSchema>;
+
+/**
+ * Valeurs des règles de calcul portées par la grille (migration 0058) :
+ * fenêtre de clôture des inventaires (ADR 0022), note d'une sous-composante
+ * P4 / P5 sanctionnée, bornes de classification du composite.
+ */
+export const reglesCalculSchema = z
+  .object({
+    /** Un inventaire des N derniers jours du mois le clôture. */
+    joursClotureFinMois: z.number().int().min(1).max(10),
+    /** Un inventaire des N premiers jours du mois suivant clôture le mois. */
+    joursClotureMoisSuivant: z.number().int().min(0).max(10),
+    noteSanction: pourcentageSchema,
+    borneConforme: pourcentageSchema,
+    bornePartiellementConforme: pourcentageSchema,
+  })
+  .refine((r) => r.bornePartiellementConforme > 0 && r.bornePartiellementConforme < r.borneConforme, {
+    message: 'Bornes de classification : 0 < partiellement conforme < conforme ≤ 100',
+    path: ['bornePartiellementConforme'],
+  });
+export type ReglesCalcul = z.infer<typeof reglesCalculSchema>;
 
 export const grilleDetailSchema = grilleParametreSchema.extend({
   poids: z.array(poidsPilierSchema).length(6),
   seuils: z.array(seuilSousComposanteSchema),
+  regles: reglesCalculSchema,
 });
 export type GrilleDetail = z.infer<typeof grilleDetailSchema>;
 
@@ -1326,6 +1358,14 @@ const seuilsDistrictCoherents = (seuils: SeuilSousComposante[]): boolean =>
     s.sousComposante === 'regularite_saisie' ? s.seuilDistrict !== null : s.seuilDistrict === null,
   );
 
+/** Chaque pilier retient au moins une sous-composante, et ses poids font 100. */
+const compositionCoherente = (seuils: SeuilSousComposante[]): boolean =>
+  seuils.every((s) => (s.retenue ? s.poidsDansPilierPct > 0 : s.poidsDansPilierPct === 0)) &&
+  PILIERS.every((pilier) => {
+    const retenues = seuils.filter((s) => s.retenue && PILIER_DE_SOUS_COMPOSANTE[s.sousComposante] === pilier);
+    return retenues.length > 0 && sommeCent(retenues.map((s) => ({ poidsPct: s.poidsDansPilierPct })));
+  });
+
 const couvreToutesLesSousComposantes = (seuils: SeuilSousComposante[]): boolean => {
   const vues = new Set(seuils.map((s) => s.sousComposante));
   return vues.size === seuils.length && SOUS_COMPOSANTES.every((sc) => vues.has(sc));
@@ -1337,6 +1377,7 @@ export const entreeGrilleSchema = z
     effetAPartirDe: dateIsoSchema,
     poids: z.array(poidsPilierSchema).length(6),
     seuils: z.array(seuilSousComposanteSchema),
+    regles: reglesCalculSchema,
   })
   .refine((g) => sommeCent(g.poids), { message: 'La somme des poids doit faire 100', path: ['poids'] })
   .refine((g) => couvreToutesLesSousComposantes(g.seuils), {
@@ -1349,6 +1390,10 @@ export const entreeGrilleSchema = z
   })
   .refine((g) => seuilsDistrictCoherents(g.seuils), {
     message: 'Seuil district requis pour régularité de saisie, interdit ailleurs',
+    path: ['seuils'],
+  })
+  .refine((g) => compositionCoherente(g.seuils), {
+    message: 'Chaque pilier retient au moins une sous-composante, poids retenus à 100, non retenus à 0',
     path: ['seuils'],
   });
 export type EntreeGrille = z.infer<typeof entreeGrilleSchema>;

@@ -60,5 +60,5 @@ semaine plus tard.
 
 **Conséquences.** Environ la moitié des inventaires actuels de la démo tombent
 dans la fenêtre : beaucoup de sites seront sanctionnés au début. La fenêtre et
-la note de sanction deviendront des paramètres de la grille datée (ticket 03
-de `.scratch/cloture-mois-et-composition-piliers`).
+la note de sanction sont des paramètres de la grille datée (migration 0058) ;
+les valeurs ci-dessus sont celles de la grille en vigueur.

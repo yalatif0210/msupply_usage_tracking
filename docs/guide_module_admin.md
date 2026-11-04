@@ -45,7 +45,18 @@ gelé.
 - `POST` : transaction `grille_parametre` + 6 `grille_poids_pilier` + N
   `grille_seuil_sous_composante`. Refus : date ≤ aujourd'hui (400), date déjà
   prise (409, `UNIQUE`), somme des poids ≠ 100 (400, refine Zod), tolérance
-  absente sur `ecart_sdu` / `ecart_consommation` ou présente ailleurs (400).
+  absente sur `ecart_sdu` / `ecart_consommation` ou présente ailleurs (400),
+  composition incohérente (400 : un pilier sans sous-composante retenue, poids
+  retenus d'un pilier ≠ 100, poids non nul sur une non retenue).
+- **Règles de calcul** (migration 0058) : `regles` porte la fenêtre de
+  clôture des inventaires (`joursClotureFinMois` 1 à 10, `joursClotureMoisSuivant`
+  0 à 10), la note d'une sous-composante P4 / P5 sanctionnée (`noteSanction`)
+  et les bornes de classification du composite (`borneConforme`,
+  `bornePartiellementConforme`, 400 si `0 < partiel < conforme ≤ 100` n'est pas
+  respecté). Colonnes de `grille_parametre`, valeurs par défaut 3, 1, 0, 90, 75.
+- **Composition des piliers** (migration 0057) : chaque seuil porte `retenue`
+  et `poidsDansPilierPct`. L'écran l'édite pilier par pilier, avec le total
+  du pilier ; la consultation affiche « non retenue dans le score ».
 - `PUT` / `DELETE` : refusés (409) si la version n'est pas `planifiee`. La FK
   `hist_score_site.grille_id` bloque de toute façon la suppression d'une
   version ayant servi à un score.

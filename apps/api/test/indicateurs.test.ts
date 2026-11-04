@@ -492,8 +492,8 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect(v?.nb_produits_conso).toBe(0);
     expect(v?.taux_conso_pct).toBe('0.0');      // traceur inventorié sans borne → 0 %
     expect(v?.score_conso).toBe('0.0');
-    // score de pilier P4 = moyenne (SDU conforme 100, conso 0) = 50
-    expect((await scorePilier(null))?.p_ecart_sdu).toBe('50.0');
+    // score de pilier P4 = conformité consommation seule (grille, migration 0057)
+    expect((await scorePilier(null))?.p_ecart_sdu).toBe('0.0');
   });
 
   it('P4 écart consommation : reconstituée ≤ 0 → produit exclu', async () => {
@@ -505,17 +505,63 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect((await p4())?.taux_conso_pct).toBeNull();
   });
 
-  it('P4 : score de pilier = moyenne des deux sous-composantes calculables', async () => {
-    await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // SDU conforme (100)
+  // ── Composition des piliers (grille, migration 0057) ──────────────────────
+  const composerP4 = (sdu: number, conso: number) =>
+    db.query(
+      `UPDATE dqa.grille_seuil_sous_composante
+       SET retenue = CASE sous_composante WHEN 'ecart_sdu' THEN $1::numeric > 0 ELSE $2::numeric > 0 END,
+           poids_pct = CASE sous_composante WHEN 'ecart_sdu' THEN $1::numeric ELSE $2::numeric END
+       WHERE sous_composante IN ('ecart_sdu', 'ecart_consommation')`,
+      [sdu, conso],
+    );
+  /** SDU conforme (100), consommation hors tolérance (0). */
+  const socleP4Contraste = async () => {
+    await socle({ nbMouvements: 0, comptee: 50, theorique: 50 });
     await inventaire('INV0', '2026-07-31', 'I1', 100, 100);
     await mouvement('RC1', 'facture_fournisseur', '2026-08-10', 'I1', 0);
     await mouvement('DI1', 'dispensation', '2026-08-15', 'I1', 10); // déclarée 10 vs reconstituée 50 → 80 % > 2 % → ALERTE (0)
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+  };
+
+  it("P4 : grille par défaut, la conformité SDU n'est pas retenue (consommation seule)", async () => {
+    await socleP4Contraste();
     const v = await p4();
-    expect(v?.score_sdu).toBe('100.0');
+    expect(v?.score_sdu).toBe('100.0'); // mesurée, sans effet sur le score
     expect(v?.score_conso).toBe('0.0');
-    expect(v?.p_ecart_sdu).toBe('50.0'); // (100 + 0) / 2
-    expect((await scorePilier(null))?.p_ecart_sdu).toBe('50.0');
+    expect((await scorePilier(null))?.p_ecart_sdu).toBe('0.0');
+  });
+
+  it("P4 : SDU et consommation retenues à poids égaux redonnent l'ancien calcul (moyenne)", async () => {
+    try {
+      await composerP4(50, 50);
+      await socleP4Contraste();
+      expect((await scorePilier(null))?.p_ecart_sdu).toBe('50.0'); // (100 + 0) / 2
+    } finally {
+      await composerP4(0, 100);
+    }
+  });
+
+  it('P4 : poids inégaux dans le pilier', async () => {
+    try {
+      await composerP4(25, 75);
+      await socleP4Contraste();
+      expect((await scorePilier(null))?.p_ecart_sdu).toBe('25.0'); // (100·25 + 0·75) / 100
+    } finally {
+      await composerP4(0, 100);
+    }
+  });
+
+  it('P4 : une sous-composante retenue non calculable sort du dénominateur', async () => {
+    try {
+      await composerP4(50, 50);
+      await socle({ nbMouvements: 0, comptee: 50, theorique: 50 }); // pas d'ouverture, mois précédent non jugé
+      await db.query(`UPDATE dqa.import_lot SET fenetre_debut = '2026-08-01', fenetre_fin = '2026-09-30'`);
+      await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+      expect((await p4())?.score_conso).toBeNull();
+      expect((await scorePilier(null))?.p_ecart_sdu).toBe('100.0'); // SDU seule
+    } finally {
+      await composerP4(0, 100);
+    }
   });
 
   it('gèle le mois du lot dans hist_score_site avec les six colonnes de pilier', async () => {
@@ -527,12 +573,12 @@ describe('vues d\'indicateurs, composite et gel', () => {
     );
     expect(rows[0].mois_paqd).toBe('2026-08');
     // P1 et P2 sans programme géré déclaré → NULL ; P3 sans sortie → 0 % (ADR 0012) ;
-    // P4 = moyenne (SDU conforme 100, conso 0 faute de borne d'ouverture) = 50 ;
+    // P4 = conformité consommation seule : 0 faute d'inventaire d'ouverture ;
     // P5, P6 conformes
     expect(rows[0].p_completude).toBeNull();
     expect(rows[0].p_promptitude).toBeNull();
     expect(rows[0].p_regularite).toBe('0.0');
-    expect(rows[0].p_ecart_sdu).toBe('50.0');
+    expect(rows[0].p_ecart_sdu).toBe('0.0');
     expect(rows[0].p_concordance).toBe('100.0');
     expect(rows[0].p_ajustements).toBe('100.0');
     expect(rows[0].grille_id).not.toBeNull();

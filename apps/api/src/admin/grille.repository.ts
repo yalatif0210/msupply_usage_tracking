@@ -22,6 +22,11 @@ interface LigneGrille {
   effet_a_partir_de: Date;
   cree_le: Date;
   statut: GrilleParametre['statut'];
+  jours_cloture_fin_mois: number;
+  jours_cloture_mois_suivant: number;
+  note_sanction: string;
+  borne_conforme: string;
+  borne_partiellement_conforme: string;
 }
 
 const jour = (d: Date): string => d.toISOString().slice(0, 10);
@@ -37,6 +42,8 @@ const versGrille = (r: LigneGrille): GrilleParametre => ({
 
 const SELECT_GRILLE = `
   SELECT g.id::int AS id, g.version, g.effet_a_partir_de, g.cree_le,
+         g.jours_cloture_fin_mois, g.jours_cloture_mois_suivant, g.note_sanction,
+         g.borne_conforme, g.borne_partiellement_conforme,
          CASE
            WHEN g.effet_a_partir_de > CURRENT_DATE THEN 'planifiee'
            WHEN g.id = dqa.grille_pour_mois(to_char(CURRENT_DATE, 'YYYY-MM')) THEN 'en_vigueur'
@@ -78,14 +85,24 @@ export class GrilleRepository {
       sens: SeuilSousComposante['sens'];
       tolerance: string | null;
       seuil_district: string | null;
+      retenue: boolean;
+      poids_pct: string;
     }>(
-      `SELECT sous_composante, seuil, sens, tolerance, seuil_district
+      `SELECT sous_composante, seuil, sens, tolerance, seuil_district, retenue, poids_pct
        FROM dqa.grille_seuil_sous_composante WHERE grille_id = $1 ORDER BY sous_composante`,
       [id],
     );
 
+    const ligne = g.rows[0]!;
     return {
-      ...versGrille(g.rows[0]!),
+      ...versGrille(ligne),
+      regles: {
+        joursClotureFinMois: ligne.jours_cloture_fin_mois,
+        joursClotureMoisSuivant: ligne.jours_cloture_mois_suivant,
+        noteSanction: Number(ligne.note_sanction),
+        borneConforme: Number(ligne.borne_conforme),
+        bornePartiellementConforme: Number(ligne.borne_partiellement_conforme),
+      },
       poids: poids.rows.map((r) => ({ pilier: r.pilier, poidsPct: Number(r.poids_pct) })),
       seuils: seuils.rows.map((r) => ({
         sousComposante: r.sous_composante,
@@ -93,6 +110,8 @@ export class GrilleRepository {
         sens: r.sens,
         tolerance: r.tolerance === null ? null : Number(r.tolerance),
         seuilDistrict: r.seuil_district === null ? null : Number(r.seuil_district),
+        retenue: r.retenue,
+        poidsDansPilierPct: Number(r.poids_pct),
       })),
     };
   }
@@ -104,6 +123,7 @@ export class GrilleRepository {
         `INSERT INTO dqa.grille_parametre (version, effet_a_partir_de) VALUES ($1, $2) RETURNING id`,
         [e.version, e.effetAPartirDe],
       );
+      await this.ecrireRegles(client, Number(rows[0]!.id), e);
       const nouvelId = Number(rows[0]!.id);
       await this.ecrireDetail(client, nouvelId, e);
       return nouvelId;
@@ -119,6 +139,7 @@ export class GrilleRepository {
         `UPDATE dqa.grille_parametre SET version = $1, effet_a_partir_de = $2 WHERE id = $3`,
         [e.version, e.effetAPartirDe, id],
       );
+      await this.ecrireRegles(client, id, e);
       await client.query(`DELETE FROM dqa.grille_poids_pilier WHERE grille_id = $1`, [id]);
       await client.query(`DELETE FROM dqa.grille_seuil_sous_composante WHERE grille_id = $1`, [id]);
       await this.ecrireDetail(client, id, e);
@@ -150,6 +171,17 @@ export class GrilleRepository {
     }
   }
 
+  private async ecrireRegles(client: PoolClient, id: number, e: EntreeGrille): Promise<void> {
+    const r = e.regles;
+    await client.query(
+      `UPDATE dqa.grille_parametre
+       SET jours_cloture_fin_mois = $2, jours_cloture_mois_suivant = $3, note_sanction = $4,
+           borne_conforme = $5, borne_partiellement_conforme = $6
+       WHERE id = $1`,
+      [id, r.joursClotureFinMois, r.joursClotureMoisSuivant, r.noteSanction, r.borneConforme, r.bornePartiellementConforme],
+    );
+  }
+
   private async ecrireDetail(client: PoolClient, id: number, e: EntreeGrille): Promise<void> {
     for (const p of e.poids) {
       await client.query(
@@ -160,9 +192,9 @@ export class GrilleRepository {
     for (const s of e.seuils) {
       await client.query(
         `INSERT INTO dqa.grille_seuil_sous_composante
-           (grille_id, sous_composante, seuil, sens, unite, tolerance, seuil_district)
-         VALUES ($1, $2, $3, $4, 'pct', $5, $6)`,
-        [id, s.sousComposante, s.seuil, s.sens, s.tolerance, s.seuilDistrict],
+           (grille_id, sous_composante, seuil, sens, unite, tolerance, seuil_district, retenue, poids_pct)
+         VALUES ($1, $2, $3, $4, 'pct', $5, $6, $7, $8)`,
+        [id, s.sousComposante, s.seuil, s.sens, s.tolerance, s.seuilDistrict, s.retenue, s.poidsDansPilierPct],
       );
     }
   }

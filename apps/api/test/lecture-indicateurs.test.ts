@@ -62,13 +62,13 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(s.site.siteId).toBe('SITE-1');
     // fixture : P1 = 100 (réquisition du mois), P2 = 100 (inventaire le 29/08 + réquisition le 05/09
     // pour un ESPC, limite 5), P3 ALERTE (0), P5 = 100, P6 = 100.
-    // P4 : SDU conforme (100) ; écart consommation non calculable, pas 0 : la
-    // fenêtre d'extraction s'arrête au 18/08, avant la fin de la fenêtre de
-    // clôture (1er/09), août n'est pas encore jugé (ADR 0022) → P4 = 100.
-    // → (100·10 + 100·15 + 0·15 + 100·25 + 100·25 + 100·10) / 100 = 8500 / 100 = 85
-    expect(Number(s.scoreComposite)).toBe(85);
+    // P4 non calculable : la conformité SDU n'est pas retenue dans le score
+    // (grille, migration 0057) et la conformité consommation ne l'est pas encore :
+    // la fenêtre d'extraction s'arrête au 18/08, août n'est pas jugé (ADR 0022).
+    // → (100·10 + 100·15 + 0·15 + 100·25 + 100·10) / 75 = 6000 / 75 = 80
+    expect(Number(s.scoreComposite)).toBe(80);
     expect(s.classification).toBe('PARTIELLEMENT_CONFORME');
-    expect(s.piliersCouverts).toBe(6);
+    expect(s.piliersCouverts).toBe(5);
     expect(s.scoresPiliers.map((p: { pilier: string }) => p.pilier).sort()).toEqual([
       'P1', 'P2', 'P3', 'P4', 'P5', 'P6',
     ]);
@@ -79,9 +79,9 @@ describe('API de lecture — sites et détail P5/P6', () => {
     const res = await a.get('/api/sites/SITE-1');
     expect(res.status).toBe(200);
     const detail = detailSiteSchema.parse(res.body);
-    expect(detail.piliersCouverts).toBe(6); // les six piliers sont mesurés
+    expect(detail.piliersCouverts).toBe(5); // P4 non calculable (voir plus haut)
     expect(detail.piliersTotal).toBe(6);
-    expect(Number(detail.scoreComposite)).toBe(85);
+    expect(Number(detail.scoreComposite)).toBe(80);
     expect(detail.classification).toBe('PARTIELLEMENT_CONFORME');
     expect(detail.piliers.map((p) => p.pilier)).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']);
     const p5 = detail.piliers.find((p) => p.pilier === 'P5')!;
@@ -97,6 +97,9 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(p4.sousComposantes.map((sc) => sc.sousComposante)).toEqual(['ecart_sdu', 'ecart_consommation']);
     expect(p4.sousComposantes[0]?.statut).toBe('CONFORME');
     expect(p4.sousComposantes[1]?.statut).toBe('NON_CALCULABLE');
+    // composition de la grille : SDU mesurée mais non retenue, consommation seule
+    expect(p4.sousComposantes[0]).toMatchObject({ retenue: false, poidsDansPilierPct: 0 });
+    expect(p4.sousComposantes[1]).toMatchObject({ retenue: true, poidsDansPilierPct: 100 });
     // P1 : réquisitions conformes, réceptions NON_CALCULABLE (aucune facture) ;
     // l'inventaire a quitté P1 (ADR 0019)
     const p1 = detail.piliers.find((p) => p.pilier === 'P1')!;
@@ -153,11 +156,11 @@ describe('API de lecture — sites et détail P5/P6', () => {
     const s = syntheseNationaleSchema.parse(res.body);
     expect(s.moisPaqd).toBe('2026-08');
     expect(s.moisDisponibles).toContain('2026-08');
-    // une seule structure importée : SITE-1, PARTIELLEMENT CONFORME (composite 85 ;
-    // août pas encore jugé pour l'écart consommation, ADR 0022)
+    // une seule structure importée : SITE-1, PARTIELLEMENT CONFORME (composite 80 ;
+    // P4 non calculable, voir plus haut)
     expect(s.national.nbSites).toBe(1);
     expect(s.national.nbMesures).toBe(1);
-    expect(Number(s.national.scoreCompositeMoyen)).toBe(85);
+    expect(Number(s.national.scoreCompositeMoyen)).toBe(80);
     expect(s.national.repartition.PARTIELLEMENT_CONFORME).toBe(1);
     expect(
       s.national.repartition.CONFORME +
@@ -212,7 +215,7 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(pt.scoresPiliers.map((s) => s.pilier)).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']);
     expect(pt.scoresPiliers.find((s) => s.pilier === 'P3')?.score).toBe(0);
     expect(pt.scoresPiliers.find((s) => s.pilier === 'P1')?.score).toBe(100);
-    expect(pt.piliersCouverts).toBe(6);
+    expect(pt.piliersCouverts).toBe(5);
     // les neuf valeurs de sous-composante gelées, ordre du contrat, statut déduit du seuil
     expect(pt.sousComposantes.map((s) => s.sousComposante)).toEqual([
       'completude_requisitions', 'completude_receptions',

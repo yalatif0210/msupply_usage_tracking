@@ -100,7 +100,13 @@ const nombreOuNull = (v: string | null): number | null => (v === null ? null : N
 const dateCourte = (iso: string): string => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 
 /** Seuil de chaque sous-composante dans la grille du mois affiché. */
-type SeuilsDuMois = Partial<Record<SousComposante, string | null>>;
+/** Règle d'une sous-composante dans la grille du mois : seuil et place dans le pilier. */
+interface RegleSousComposante {
+  seuil: string | null;
+  retenue: boolean;
+  poidsPct: string;
+}
+type SeuilsDuMois = Partial<Record<SousComposante, RegleSousComposante>>;
 
 /** Les six colonnes de score de pilier gelées, telles que rendues par `pg`. */
 interface PiliersBruts {
@@ -572,14 +578,21 @@ export class IndicateursRepository {
       sous_composante: SousComposante;
       seuil: string;
       seuil_district: string | null;
+      retenue: boolean;
+      poids_pct: string;
     }>(
-      `SELECT sous_composante, seuil, seuil_district FROM dqa.grille_seuil_sous_composante
+      `SELECT sous_composante, seuil, seuil_district, retenue, poids_pct
+       FROM dqa.grille_seuil_sous_composante
        WHERE grille_id = coalesce($1::bigint, dqa.grille_pour_mois($2))`,
       [grilleId, mois],
     );
     const seuils: SeuilsDuMois = {};
     for (const r of rows) {
-      seuils[r.sous_composante] = estDistrict && r.seuil_district !== null ? r.seuil_district : r.seuil;
+      seuils[r.sous_composante] = {
+        seuil: estDistrict && r.seuil_district !== null ? r.seuil_district : r.seuil,
+        retenue: r.retenue,
+        poidsPct: r.poids_pct,
+      };
     }
     return seuils;
   }
@@ -607,9 +620,7 @@ export class IndicateursRepository {
       fenetre_debut: string;
       fenetre_fin: string;
     }>(
-      `WITH f AS (
-         SELECT (($2 || '-01')::date + interval '1 month')::date - 3 AS debut,
-                (($2 || '-01')::date + interval '1 month')::date     AS fin)
+      `WITH f AS (SELECT debut, fin FROM dqa.fenetre_cloture($2))
        SELECT
          EXISTS (SELECT 1 FROM dqa.v_cloture_inventaire vc
                   WHERE vc.site_id = $1 AND vc.programme_id IS NOT DISTINCT FROM $3
@@ -955,18 +966,18 @@ export class IndicateursRepository {
           ? `Échéance non arrivée : réquisition attendue au plus tard le ${dateCourte(echeanceReq)}`
           : 'Aucun programme éligible pour ce site (voir l\'écran Programmes)',
       }),
-      this.pilierP3(h?.p_regularite ?? null, seuils.regularite_saisie ?? null,
+      this.pilierP3(h?.p_regularite ?? null, seuils.regularite_saisie,
         brute(h?.taux_regularite_pct, h?.p_regularite), estDistrict),
       this.pilierP4(h?.p_ecart_sdu ?? null, {
         sdu: brute(h?.taux_sdu_pct, h?.score_sdu),
-        seuilSdu: seuils.ecart_sdu ?? null,
+        regleSdu: seuils.ecart_sdu,
         conso: brute(h?.taux_conso_pct, h?.score_conso),
-        seuilConso: seuils.ecart_consommation ?? null,
+        regleConso: seuils.ecart_consommation,
         nbProduitsConso: h?.nb_produits_conso ?? 0,
       }, estDistrict, causes, h?.nb_produits_sdu ?? 0),
-      this.pilierP5(h?.p_concordance ?? null, seuils.concordance ?? null,
+      this.pilierP5(h?.p_concordance ?? null, seuils.concordance,
         brute(h?.taux_concordance_pct, h?.p_concordance), causes.inventaire, h?.nb_produits_concordance ?? 0),
-      this.pilierP6(h?.p_ajustements ?? null, seuils.ratio_ajustements ?? null,
+      this.pilierP6(h?.p_ajustements ?? null, seuils.ratio_ajustements,
         brute(h?.ratio_ajustements_pct, h?.p_ajustements)),
     ];
 
@@ -1091,7 +1102,7 @@ export class IndicateursRepository {
   private mesure(
     sc: SousComposante,
     m: ValeurBrute,
-    seuil: string | null,
+    regle: RegleSousComposante | undefined,
     raisonNC: string,
     libelle: string = LIBELLES_SOUS_COMPOSANTE[sc],
     sanction = false,
@@ -1102,9 +1113,11 @@ export class IndicateursRepository {
       libelle,
       valeur: nombreOuNull(m.pct),
       unite: 'pct',
-      seuil: nombreOuNull(seuil),
+      seuil: nombreOuNull(regle?.seuil ?? null),
       statut,
       raison: statut === 'NON_CALCULABLE' || (sanction && statut === 'ALERTE') ? raisonNC : null,
+      retenue: regle?.retenue ?? true,
+      poidsDansPilierPct: Number(regle?.poidsPct ?? 0),
     };
   }
 
@@ -1115,8 +1128,8 @@ export class IndicateursRepository {
     raisons: { req: string; rec: string },
   ): ScorePilier {
     return this.envelopper('P1', score, [
-      this.mesure('completude_requisitions', m.req, seuils.completude_requisitions ?? null, raisons.req),
-      this.mesure('completude_receptions', m.rec, seuils.completude_receptions ?? null, raisons.rec),
+      this.mesure('completude_requisitions', m.req, seuils.completude_requisitions, raisons.req),
+      this.mesure('completude_receptions', m.rec, seuils.completude_receptions, raisons.rec),
     ]);
   }
 
@@ -1127,14 +1140,14 @@ export class IndicateursRepository {
     raisons: { inv: string; req: string },
   ): ScorePilier {
     return this.envelopper('P2', score, [
-      this.mesure('promptitude_inventaires', m.inv, seuils.promptitude_inventaires ?? null, raisons.inv),
-      this.mesure('promptitude_requisitions', m.req, seuils.promptitude_requisitions ?? null, raisons.req),
+      this.mesure('promptitude_inventaires', m.inv, seuils.promptitude_inventaires, raisons.inv),
+      this.mesure('promptitude_requisitions', m.req, seuils.promptitude_requisitions, raisons.req),
     ]);
   }
 
   private pilierP3(
     score: string | null,
-    seuil: string | null,
+    regle: RegleSousComposante | undefined,
     m: ValeurBrute,
     estDistrict: boolean,
   ): ScorePilier {
@@ -1142,7 +1155,7 @@ export class IndicateursRepository {
       this.mesure(
         'regularite_saisie',
         m,
-        seuil,
+        regle,
         estDistrict
           ? 'Aucune réquisition de la zone du district à évaluer ce mois'
           : 'Aucune sortie de stock exploitable sur le mois',
@@ -1166,8 +1179,8 @@ export class IndicateursRepository {
   private pilierP4(
     score: string | null,
     m: {
-      sdu: ValeurBrute; seuilSdu: string | null;
-      conso: ValeurBrute; seuilConso: string | null; nbProduitsConso: number;
+      sdu: ValeurBrute; regleSdu: RegleSousComposante | undefined;
+      conso: ValeurBrute; regleConso: RegleSousComposante | undefined; nbProduitsConso: number;
     },
     estDistrict: boolean,
     causes: { inventaire: string; consommation: string },
@@ -1176,12 +1189,12 @@ export class IndicateursRepository {
     // Pour un district, l'écart consommation se lit « écart distribution » :
     // la consommation déclarée compte les quantités distribuées (ADR 0012).
     return this.envelopper('P4', score, [
-      this.mesure('ecart_sdu', m.sdu, m.seuilSdu, causes.inventaire,
+      this.mesure('ecart_sdu', m.sdu, m.regleSdu, causes.inventaire,
         LIBELLES_SOUS_COMPOSANTE.ecart_sdu, nbProduitsSdu === 0),
       this.mesure(
         'ecart_consommation',
         m.conso,
-        m.seuilConso,
+        m.regleConso,
         causes.consommation,
         libelleSousComposante('ecart_consommation', estDistrict),
         m.nbProduitsConso === 0,
@@ -1191,19 +1204,19 @@ export class IndicateursRepository {
 
   private pilierP5(
     score: string | null,
-    seuil: string | null,
+    regle: RegleSousComposante | undefined,
     m: ValeurBrute,
     causeInventaire: string,
     nbProduits: number,
   ): ScorePilier {
     return this.envelopper('P5', score, [
-      this.mesure('concordance', m, seuil, causeInventaire, LIBELLES_SOUS_COMPOSANTE.concordance, nbProduits === 0),
+      this.mesure('concordance', m, regle, causeInventaire, LIBELLES_SOUS_COMPOSANTE.concordance, nbProduits === 0),
     ]);
   }
 
-  private pilierP6(score: string | null, seuil: string | null, m: ValeurBrute): ScorePilier {
+  private pilierP6(score: string | null, regle: RegleSousComposante | undefined, m: ValeurBrute): ScorePilier {
     return this.envelopper('P6', score, [
-      this.mesure('ratio_ajustements', m, seuil, 'Aucun mouvement de stock pour le mois'),
+      this.mesure('ratio_ajustements', m, regle, 'Aucun mouvement de stock pour le mois'),
     ]);
   }
 

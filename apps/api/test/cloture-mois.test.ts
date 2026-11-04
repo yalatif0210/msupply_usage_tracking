@@ -29,6 +29,7 @@ describe('clôture de mois (P4, P5)', () => {
       dqa.fact_ligne_transaction, dqa.fact_transaction, dqa.dim_site_programme,
       dqa.dim_produit_traceur, dqa.dim_produit, dqa.dim_programme, dqa.dim_site,
       dqa.import_lot RESTART IDENTITY CASCADE`);
+    await db.query(`DELETE FROM dqa.grille_parametre WHERE version <> 'v1'`);
     // lot sans fenêtre : les données sont réputées couvrir jusqu'à aujourd'hui
     await db.query(
       `INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, statut)
@@ -42,6 +43,30 @@ describe('clôture de mois (P4, P5)', () => {
       await db.query(`INSERT INTO dqa.dim_produit_traceur (produit_code, libelle) VALUES ($1,$1)`, [code]);
     }
   });
+
+  /** Grille v2, copie de la v1 avec d'autres règles, en vigueur à partir de `effet`. */
+  const grilleV2 = async (effet: string, regles: Record<string, number>) => {
+    const { rows } = await db.query<{ id: string }>(
+      `INSERT INTO dqa.grille_parametre (version, effet_a_partir_de) VALUES ('v2', $1::date) RETURNING id`,
+      [effet],
+    );
+    const id = rows[0]!.id;
+    await db.query(
+      `INSERT INTO dqa.grille_poids_pilier (grille_id, pilier, poids_pct)
+       SELECT $1, pilier, poids_pct FROM dqa.grille_poids_pilier WHERE grille_id = dqa.grille_pour_mois('2026-01')`,
+      [id],
+    );
+    await db.query(
+      `INSERT INTO dqa.grille_seuil_sous_composante
+         (grille_id, sous_composante, seuil, sens, unite, tolerance, seuil_district, retenue, poids_pct)
+       SELECT $1, sous_composante, seuil, sens, unite, tolerance, seuil_district, retenue, poids_pct
+       FROM dqa.grille_seuil_sous_composante WHERE grille_id = dqa.grille_pour_mois('2026-01')`,
+      [id],
+    );
+    for (const [colonne, valeur] of Object.entries(regles)) {
+      await db.query(`UPDATE dqa.grille_parametre SET ${colonne} = $2 WHERE id = $1`, [id, valeur]);
+    }
+  };
 
   const fenetreDonnees = (debut: string, fin: string) =>
     db.query(`UPDATE dqa.import_lot SET fenetre_debut = $1::date, fenetre_fin = $2::date`, [debut, fin]);
@@ -197,6 +222,44 @@ describe('clôture de mois (P4, P5)', () => {
     expect(conso).toMatchObject({ statut: 'ALERTE', valeur: 0 });
     expect(conso?.raison).toBe("Pas d'inventaire d'ouverture (clôture du mois précédent) : écart de consommation à 0");
     expect(p4?.sousComposantes.find((s) => s.sousComposante === 'ecart_sdu')?.raison).toBeNull();
+  });
+
+  it("grille datée : la fenêtre de clôture suit la grille du mois, à partir de sa date d'effet", async () => {
+    await grilleV2('2026-09-01', { jours_cloture_fin_mois: 5 });
+    const { rows } = await db.query<{ d: string; m: string | null }>(
+      `SELECT d::text, dqa.mois_cloture_inventaire(d::date) AS m
+       FROM unnest(ARRAY['2026-08-28','2026-09-26','2026-09-25']) d`,
+    );
+    expect(Object.fromEntries(rows.map((r) => [r.d, r.m]))).toEqual({
+      '2026-08-28': null,       // août : grille v1, 3 derniers jours
+      '2026-09-26': '2026-09',  // septembre : grille v2, 5 derniers jours
+      '2026-09-25': null,
+    });
+  });
+
+  it('grille datée : la note de sanction remplace le 0', async () => {
+    await grilleV2('2026-08-01', { note_sanction: 40 });
+    await inventaire('C', '2026-08-31', [['I1', 70, 70]]); // clôture sans ouverture
+    await calculer();
+    const { rows } = await db.query<{ p_ecart_sdu: string; p_concordance: string }>(
+      `SELECT p_ecart_sdu, p_concordance FROM dqa.mv_score_pilier
+       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+    );
+    expect(rows[0]).toEqual({ p_ecart_sdu: '40.0', p_concordance: '100.0' }); // consommation sanctionnée à 40
+  });
+
+  it('grille datée : bornes de classification', async () => {
+    const { rows } = await db.query<{ v1: string; v2: string }>(
+      `SELECT dqa.classer_composite(85, dqa.grille_pour_mois('2026-01')) AS v1,
+              dqa.classer_composite(85, (SELECT id FROM dqa.grille_parametre WHERE version = 'v1')) AS v2`,
+    );
+    expect(rows[0]).toEqual({ v1: 'PARTIELLEMENT_CONFORME', v2: 'PARTIELLEMENT_CONFORME' });
+    await grilleV2('2026-08-01', { borne_conforme: 80, borne_partiellement_conforme: 60 });
+    const r2 = await db.query<{ c: string; p: string }>(
+      `SELECT dqa.classer_composite(85, dqa.grille_pour_mois('2026-08')) AS c,
+              dqa.classer_composite(65, dqa.grille_pour_mois('2026-08')) AS p`,
+    );
+    expect(r2.rows[0]).toEqual({ c: 'CONFORME', p: 'PARTIELLEMENT_CONFORME' });
   });
 
   it('données couvrant la clôture, sans inventaire : 0 sur P4 et P5', async () => {

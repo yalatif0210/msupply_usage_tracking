@@ -82,10 +82,11 @@ describe('import du classeur jusqu\'au staging', () => {
     // PRODUITS, donc traceur d'office (ADR 0015) : P4 et P5 sont calculés.
     // Inventaire + réquisition → P1 = 100 ; inventaire le 29/08 + réquisition
     // le 05/09 (ESPC, limite 5) → P2 = 100 ; 1 dispensation sur 31 jours → P3 = 0.
-    // P4 : SDU |300 - 295| / 295 = 1,7 % ≤ 2 % → 100 ; consommation non
-    // calculable, pas 0 : l'extraction s'arrête au 18/08, août n'est pas encore
-    // jugé (ADR 0022) ; P4 = 100. P5 : 300 ≠ 295 → 0. P6 conforme (100). Composite :
-    // (100·10 + 100·15 + 0·15 + 100·25 + 0·25 + 100·10) / 100 = 60, NON_CONFORME.
+    // P4 non calculable : la conformité SDU (|300 - 295| / 295 = 1,7 % → 100) n'est
+    // pas retenue dans le score (migration 0057) et la consommation n'est pas encore
+    // jugée : l'extraction s'arrête au 18/08 (ADR 0022). P5 : 300 ≠ 295 → 0.
+    // P6 conforme (100). Composite :
+    // (100·10 + 100·15 + 0·15 + 0·25 + 100·10) / 75 = 3500 / 75 = 46,7, NON_CONFORME.
     const hist = await base.pool.query(
       `SELECT p_completude, p_promptitude, p_concordance, p_regularite, p_ecart_sdu, p_ajustements,
               score_composite, classification, grille_id
@@ -95,11 +96,11 @@ describe('import du classeur jusqu\'au staging', () => {
     expect(hist.rowCount).toBe(1);
     expect(hist.rows[0].p_completude).toBe('100.0');
     expect(hist.rows[0].p_promptitude).toBe('100.0');
-    expect(hist.rows[0].p_ecart_sdu).toBe('100.0');
+    expect(hist.rows[0].p_ecart_sdu).toBeNull();
     expect(hist.rows[0].p_concordance).toBe('0.0');
     expect(hist.rows[0].p_regularite).toBe('0.0');
     expect(hist.rows[0].p_ajustements).toBe('100.0');
-    expect(hist.rows[0].score_composite).toBe('60.0');
+    expect(hist.rows[0].score_composite).toBe('46.7');
     expect(hist.rows[0].classification).toBe('NON_CONFORME');
     expect(hist.rows[0].grille_id).not.toBeNull();
   });
