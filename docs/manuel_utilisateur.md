@@ -223,17 +223,21 @@ moins la CMM reconstituée ramenée au jour, jamais sous 0.
 
   La **couverture** est le nombre de jours que le stock projeté peut encore
   couvrir. Le seuil de 15 jours est réglable par la coordination.
-- **Encadré en tête.** Les produits en rupture ou à signaler, du plus urgent
-  au moins urgent, puis (dépliables) ceux à surveiller.
+- **Encadré en tête.** Les 10 produits les plus urgents (en rupture ou à
+  signaler, par couverture croissante) ; « Afficher les N autres » déplie le
+  reste. Puis, dépliables, ceux à surveiller.
 - **Tableau.** Lecture **par site** (site, programme, produit) ou **par
-  programme** (programme, site, produit). Pour chaque produit : dernier
-  inventaire, réceptions depuis, les deux CMM et la période sur laquelle elles
-  portent (« sur 2 mois »), stock projeté, couverture, rupture prévue, statut,
-  et la dernière **photo de stock mSupply** avec l'écart au stock projeté. Un
-  écart négatif signifie que mSupply compte plus de stock que la projection :
-  des pertes n'ont probablement pas été saisies depuis le dernier inventaire.
-- **Filtres** : date, région, district, programme, statut. Ils sont repris dans
-  l'adresse de la page.
+  programme** (programme, site, produit). Pour chaque produit, six colonnes :
+  CMM reconstituée et la période sur laquelle elle porte (« sur 2 mois »),
+  stock projeté, couverture, rupture prévue, statut.
+- **Colonnes de contrôle** (bouton à droite) : ajoutent le dernier inventaire,
+  les réceptions depuis, la CMM déclarée, et la dernière **photo de stock
+  mSupply** avec l'écart au stock projeté. Un écart négatif signifie que
+  mSupply compte plus de stock que la projection : des pertes n'ont
+  probablement pas été saisies depuis le dernier inventaire. Ces valeurs sont
+  aussi sur le détail d'un produit.
+- **Filtres** : date, région, district, programme, statut, et l'affichage des
+  colonnes de contrôle. Ils sont repris dans l'adresse de la page.
 - **Détail d'un produit** (cliquer son nom) : la courbe du stock jour par jour,
   en trait plein jusqu'à la date choisie puis en pointillé (aucune réception
   supposée au-delà), avec les stocks comptés, les photos mSupply, les

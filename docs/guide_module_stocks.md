@@ -23,9 +23,13 @@ score ni sur les piliers. Spec : `.scratch/suivi-des-stocks/spec.md`.
 programme, puis produit.
 
 Écran : menu « Suivi des stocks », route `/stocks` (`pages/suivi-stocks.ts`).
-Filtres date, région, district, programme, statut et lecture (`lecture=programme`)
-dans l'URL ; tableau site, puis programme, puis produit (ou programme, puis
-site, puis produit), dépliable au premier niveau. Le nom d'un produit ouvre
+Filtres date, région, district, programme, statut, lecture (`lecture=programme`)
+et colonnes de contrôle (`controle=1`) dans l'URL ; tableau site, puis
+programme, puis produit (ou programme, puis site, puis produit), dépliable au
+premier niveau. Six colonnes de décision par défaut (CMM reconstituée, stock
+projeté, couverture, rupture prévue, statut) ; les colonnes de contrôle
+ajoutent dernier inventaire, réceptions depuis, CMM déclarée, photo mSupply et
+écart. Le nom d'un produit ouvre
 `/stocks/:siteId/:produitId` (`pages/detail-stock.ts`) : cartes de synthèse,
 courbe `ui/graphe-stock` (projection pleine jusqu'à t puis pointillée, stocks
 comptés et photos en points, réceptions, date choisie et rupture en repères),
@@ -98,8 +102,9 @@ datés après t sont ignorés.
   la projection, signe probable de pertes non saisies depuis le dernier
   inventaire.
 
-L'écran ajoute un **encadré** en tête : couples en rupture puis à signaler, par
-couverture croissante, et à part (dépliable) les couples à surveiller. Il suit
+L'écran ajoute un **encadré** en tête : les 10 couples les plus urgents (en
+rupture puis à signaler, par couverture croissante), le reste sur demande, et à
+part (dépliable) les couples à surveiller. Il suit
 les filtres de territoire et de programme. Le filtre **Statut** se fait côté
 écran, sur la donnée déjà chargée.
 

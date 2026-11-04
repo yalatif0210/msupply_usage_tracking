@@ -31,6 +31,8 @@ type FiltresStocks = {
   statut: '' | StatutStock;
   /** Vide = par site (lecture par défaut). */
   lecture: '' | 'programme';
+  /** '1' : colonnes de contrôle du calcul affichées. */
+  controle: '' | '1';
 };
 
 /** Tableaux quadrillés, comme les tableaux produit de la fiche site. */
@@ -147,12 +149,21 @@ const TD = 'border-r border-border text-center last:border-r-0';
                             </tr>
                           </thead>
                           <tbody hlmTBody>
-                            @for (l of sig.urgents; track l.siteId + l.produitId) {
+                            @for (l of urgentsVisibles(); track l.siteId + l.produitId) {
                               <ng-container *ngTemplateOutlet="ligneCourte; context: { $implicit: l }" />
                             }
                           </tbody>
                         </table>
                       </div>
+                      @if (sig.urgents.length > URGENTS_AFFICHES) {
+                        <button type="button" class="mt-2 text-sm text-primary hover:underline" (click)="tousUrgents.set(!tousUrgents())">
+                          @if (tousUrgents()) {
+                            N'afficher que les {{ URGENTS_AFFICHES }} plus urgents
+                          } @else {
+                            Afficher les {{ sig.urgents.length - URGENTS_AFFICHES }} autres
+                          }
+                        </button>
+                      }
                     }
                     @if (sig.aSurveiller.length > 0) {
                       <details class="mt-3">
@@ -205,6 +216,11 @@ const TD = 'border-r border-border text-center last:border-r-0';
                         [attr.aria-pressed]="lecture() === 'site'" (click)="majLecture('site')">Par site</button>
                 <button hlmBtn size="sm" type="button" [variant]="lecture() === 'programme' ? 'default' : 'outline'"
                         [attr.aria-pressed]="lecture() === 'programme'" (click)="majLecture('programme')">Par programme</button>
+                <button hlmBtn size="sm" type="button" class="ml-auto" [variant]="controle() ? 'default' : 'outline'"
+                        [attr.aria-pressed]="controle()" (click)="basculerControle()"
+                        title="Dernier inventaire, réceptions, CMM déclarée, photo mSupply et écart : le détail du calcul">
+                  Colonnes de contrôle
+                </button>
               </div>
 
               @if (groupes().length === 0) {
@@ -215,16 +231,18 @@ const TD = 'border-r border-border text-center last:border-r-0';
                     <thead hlmTHead>
                       <tr hlmTr>
                         <th hlmTh class="${TH}">{{ lecture() === 'site' ? 'Site · programme · produit' : 'Programme · site · produit' }}</th>
-                        <th hlmTh class="${TH}">Dernier inventaire</th>
-                        <th hlmTh class="${TH}">Réceptions depuis</th>
                         <th hlmTh class="${TH}">CMM reconstituée</th>
-                        <th hlmTh class="${TH}">CMM déclarée</th>
                         <th hlmTh class="${TH}">Stock projeté au {{ dateFr(s.date) }}</th>
                         <th hlmTh class="${TH}">Couverture</th>
                         <th hlmTh class="${TH}">Rupture prévue</th>
                         <th hlmTh class="${TH}">Statut</th>
-                        <th hlmTh class="${TH}">Photo mSupply</th>
-                        <th hlmTh class="${TH}">Écart projeté - mSupply</th>
+                        @if (controle()) {
+                          <th hlmTh class="${TH}">Dernier inventaire</th>
+                          <th hlmTh class="${TH}">Réceptions depuis</th>
+                          <th hlmTh class="${TH}">CMM déclarée</th>
+                          <th hlmTh class="${TH}">Photo mSupply</th>
+                          <th hlmTh class="${TH}">Écart projeté - mSupply</th>
+                        }
                       </tr>
                     </thead>
                     <tbody hlmTBody>
@@ -240,7 +258,7 @@ const TD = 'border-r border-border text-center last:border-r-0';
                               <span class="block pl-5 text-xs text-muted-foreground">{{ site.sousTitre }}</span>
                             }
                           </td>
-                          <td hlmTd class="${TD} text-muted-foreground" colspan="10">
+                          <td hlmTd class="${TD} text-muted-foreground" [attr.colspan]="nbColonnes() - 1">
                             {{ site.nbProduits }} produit{{ site.nbProduits > 1 ? 's' : '' }}
                             @for (st of statutsResume; track st) {
                               @if (site.parStatut[st] > 0) {
@@ -255,7 +273,7 @@ const TD = 'border-r border-border text-center last:border-r-0';
                         @if (ouverts().has(site.cle)) {
                           @for (prog of site.sousGroupes; track prog.cle) {
                             <tr hlmTr>
-                              <td hlmTd class="${TD} pl-8 text-left text-sm font-medium" colspan="11">
+                              <td hlmTd class="${TD} pl-8 text-left text-sm font-medium" [attr.colspan]="nbColonnes()">
                                 {{ prog.titre }}
                                 @if (prog.sousTitre) { <span class="ml-2 text-xs font-normal text-muted-foreground">{{ prog.sousTitre }}</span> }
                               </td>
@@ -266,17 +284,11 @@ const TD = 'border-r border-border text-center last:border-r-0';
                                   <a class="text-primary hover:underline" [routerLink]="['/stocks', l.siteId, l.produitId]" [queryParams]="lienDate()">{{ l.libelle }}</a>
                                   <div class="font-mono text-xs text-muted-foreground">{{ l.produitCode }}</div>
                                 </td>
-                                <td hlmTd class="${TD} tabular-nums">
-                                  {{ nombre(l.stockFin) }}
-                                  <div class="text-xs text-muted-foreground">compté le {{ dateFr(l.dateFin) }}</div>
-                                </td>
-                                <td hlmTd class="${TD} tabular-nums">{{ nombre(l.receptionsApresFin) }}</td>
                                 @if (l.cmm.calculable) {
                                   <td hlmTd class="${TD} tabular-nums">
                                     {{ nombre(l.cmm.cmmReconstituee) }}
-                                    <div class="text-xs text-muted-foreground">{{ duree(l.cmm.jours, l.cmm.nbMois) }} (depuis le {{ dateFr(l.cmm.dateDebut) }})</div>
+                                    <div class="text-xs text-muted-foreground">{{ duree(l.cmm.jours, l.cmm.nbMois) }}</div>
                                   </td>
-                                  <td hlmTd class="${TD} tabular-nums">{{ nombre(l.cmm.cmmDeclaree) }}</td>
                                   <td hlmTd class="${TD} tabular-nums font-medium">{{ nombre(l.cmm.stockProjete) }}</td>
                                   <td hlmTd class="${TD} tabular-nums">{{ nombre(l.cmm.couvertureJours) }} j</td>
                                   <td hlmTd class="${TD} tabular-nums">
@@ -285,22 +297,35 @@ const TD = 'border-r border-border text-center last:border-r-0';
                                     @else { <span class="text-muted-foreground">au-delà de 90 jours</span> }
                                   </td>
                                 } @else {
-                                  <td hlmTd class="${TD} text-muted-foreground" colspan="5">{{ raisonNonCalculable(l.cmm.raison) }}</td>
+                                  <td hlmTd class="${TD} text-muted-foreground" colspan="4">{{ raisonNonCalculable(l.cmm.raison) }}</td>
                                 }
                                 <td hlmTd class="${TD}"><dqa-badge-stock [statut]="l.statut" /></td>
-                                @if (l.photo; as ph) {
+                                @if (controle()) {
                                   <td hlmTd class="${TD} tabular-nums">
-                                    {{ nombre(ph.stockMsupply) }}
-                                    <div class="text-xs text-muted-foreground">le {{ dateFr(ph.date) }}</div>
+                                    {{ nombre(l.stockFin) }}
+                                    <div class="text-xs text-muted-foreground">compté le {{ dateFr(l.dateFin) }}</div>
                                   </td>
+                                  <td hlmTd class="${TD} tabular-nums">{{ nombre(l.receptionsApresFin) }}</td>
                                   <td hlmTd class="${TD} tabular-nums">
-                                    {{ ecartPhoto(ph.stockProjete, ph.stockMsupply) }}
-                                    @if (ph.stockProjete !== null) {
-                                      <div class="text-xs text-muted-foreground">projeté {{ nombre(ph.stockProjete) }}</div>
+                                    @if (l.cmm.calculable) {
+                                      {{ nombre(l.cmm.cmmDeclaree) }}
+                                      <div class="text-xs text-muted-foreground">depuis le {{ dateFr(l.cmm.dateDebut) }}</div>
                                     }
                                   </td>
-                                } @else {
-                                  <td hlmTd class="${TD} text-muted-foreground" colspan="2">aucune photo depuis le dernier inventaire</td>
+                                  @if (l.photo; as ph) {
+                                    <td hlmTd class="${TD} tabular-nums">
+                                      {{ nombre(ph.stockMsupply) }}
+                                      <div class="text-xs text-muted-foreground">le {{ dateFr(ph.date) }}</div>
+                                    </td>
+                                    <td hlmTd class="${TD} tabular-nums">
+                                      {{ ecartPhoto(ph.stockProjete, ph.stockMsupply) }}
+                                      @if (ph.stockProjete !== null) {
+                                        <div class="text-xs text-muted-foreground">projeté {{ nombre(ph.stockProjete) }}</div>
+                                      }
+                                    </td>
+                                  } @else {
+                                    <td hlmTd class="${TD} text-muted-foreground" colspan="2">aucune photo depuis le dernier inventaire</td>
+                                  }
                                 }
                               </tr>
                             }
@@ -353,7 +378,7 @@ export class SuiviStocksPage {
         programmeId: f.programmeId || undefined,
       }),
     germe: null,
-    filtresInitiaux: { date: '', region: '', district: '', programmeId: '', statut: '', lecture: '' },
+    filtresInitiaux: { date: '', region: '', district: '', programmeId: '', statut: '', lecture: '', controle: '' },
   });
 
   /** Lignes après le filtre de statut, appliqué ici sur la donnée déjà chargée. */
@@ -406,6 +431,22 @@ export class SuiviStocksPage {
     // la date par défaut n'est pas écrite dans l'URL : elle suit le dernier import
     this.res.definir({ date: date === this.res.valeur()?.dateParDefaut ? '' : date });
   }
+
+  /** Colonnes de contrôle du calcul, en plus des six colonnes de décision (URL : `controle=1`). */
+  protected readonly controle = computed(() => this.res.filtres().controle === '1');
+  protected readonly nbColonnes = computed(() => (this.controle() ? 11 : 6));
+
+  protected basculerControle(): void {
+    this.res.definirLocal({ controle: this.controle() ? '' : '1' });
+  }
+
+  /** L'encadré montre d'abord les couples les plus urgents (couverture croissante). */
+  protected readonly URGENTS_AFFICHES = 10;
+  protected readonly tousUrgents = signal(false);
+  protected readonly urgentsVisibles = computed(() => {
+    const urgents = this.signaler()?.urgents ?? [];
+    return this.tousUrgents() ? urgents : urgents.slice(0, this.URGENTS_AFFICHES);
+  });
 
   protected majLecture(lecture: LectureStocks): void {
     this.res.definirLocal({ lecture: lecture === 'site' ? '' : lecture });
