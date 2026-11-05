@@ -11,7 +11,7 @@ function ligne(
   return {
     siteId, siteNom: siteId, region: 'NORD', district: 'D1',
     programmeId, programmeNom: programmeId,
-    produitId: produitCode, produitCode, libelle: produitCode,
+    produitCode, libelle: produitCode,
     dateFin: '2026-09-29', stockFin: 50, receptionsApresFin: 0,
     cmm: {
       calculable: true, dateDebut: '2026-06-30', stockDebut: 100, jours: 91, nbMois: 3,

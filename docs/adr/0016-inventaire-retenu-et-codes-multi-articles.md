@@ -66,3 +66,14 @@ suivait pas la répartition par programme de P4.
 - Les lignes « par programme » de P5 changent : elles suivent désormais le
   dernier inventaire du programme, comme P4, au lieu du dernier inventaire du
   site rattaché à son programme.
+
+**Complément (2026-11-05) : un code = un produit hors du contrôle.**
+
+Le contrôle P4 / P5 reste par article : il sert à détecter une confusion
+entre articles. Partout où l'on estime une quantité physique (suivi des
+stocks : stock compté, mouvements, photos, CMM, projection ; bloc
+consommation de la fiche produit), les articles d'un même code
+**s'additionnent** (migration 0062) : reçu sur un article et dispensé sur
+l'autre, seul le total décrit le stock réel. Les quantités sont en unités de
+dispensation (ADR 0017) ; deux articles d'unités différentes restent une
+erreur de saisie, que le tableau P4 · P5 par article fait apparaître.

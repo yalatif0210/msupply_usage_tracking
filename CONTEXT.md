@@ -212,14 +212,16 @@ conformité consommation.
 _Éviter_ : borne d'ouverture, premier inventaire du mois
 
 **Mois jugé (P4, P5)** :
-Mois dont toute la fenêtre de clôture est couverte par les données importées
-(jusqu'au 1er du mois suivant). Avant, aucune sanction : ce qui n'est pas
-encore calculable reste NON_CALCULABLE.
+Mois dont chaque jour de la fenêtre de clôture est couvert par la fenêtre d'un
+import validé (jusqu'au 1er du mois suivant ; un trou entre deux imports suspend
+le jugement). Avant, aucune sanction : ce qui n'est pas encore calculable reste
+NON_CALCULABLE.
 
 **Sanction (P4, P5)** :
 Note 0 imposée une fois le mois jugé : sans inventaire de clôture, P4 et P5 ;
-sans inventaire d'ouverture, la conformité consommation. La fiche site en
-affiche la raison.
+sans inventaire d'ouverture, la conformité consommation. Vaut pour le site
+(tous programmes) et pour chaque programme qu'il gère. La fiche site en affiche
+la raison.
 
 **Produit absent d'un inventaire** :
 Produit traceur présent à l'inventaire d'ouverture ou de clôture d'un mois et
@@ -245,11 +247,12 @@ dispensations saisies ; pour un district, somme des **quantités distribuées**)
 est dans la tolérance de la consommation *reconstituée* :
 `|déclarée − reconstituée| / reconstituée ≤ tolérance`. La consommation
 reconstituée d'un produit = `stock ouverture + réceptions − stock clôture` entre
-l'**inventaire d'ouverture** et l'**inventaire de clôture**. Un produit absent de
-l'ouverture, ou dont la reconstituée est ≤ 0, est exclu (pour ce produit
-seulement). Sans inventaire d'ouverture ou de clôture : **0 %** (sanction) une
-fois le mois jugé. NON_CALCULABLE si les deux inventaires existent mais
-qu'aucun produit n'est évaluable.
+l'**inventaire d'ouverture** et l'**inventaire de clôture**. Dénominateur : les
+produits présents aux deux inventaires ; une reconstituée ≤ 0 (hausse de stock
+sans réception enregistrée) compte **non conforme**. Un produit absent de
+l'ouverture est exclu, lui seul. Sans inventaire d'ouverture ou de clôture :
+**0 %** (sanction) une fois le mois jugé. NON_CALCULABLE si les deux
+inventaires existent mais qu'aucun produit n'est présent aux deux.
 _Éviter_ : écart SDU, écart consommation (pour la sous-composante : c'est un taux, pas un écart)
 
 **Conformité distribution (P4)** :

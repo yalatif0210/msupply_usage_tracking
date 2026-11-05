@@ -217,6 +217,17 @@ distributions pour un district. Le gel les fige dans `hist_produit_ecarte`
 programmes, NULL avec un filtre programme). Servis par `DetailPilierP4.produitsEcartes`
 et `LigneTerritoireScores.produitsEcartes`. Sans effet sur le score.
 
+**Corrections de la revue (migration 0061).** Sanction au grain programme
+(programmes gérés de `dim_site_programme`, même règle que le site) ;
+dénominateur de la conformité consommation = produits aux deux bornes,
+reconstituée ≤ 0 non conforme ; raison `autre_article_ouverture` quand le code
+figure à l'ouverture sous un autre article ; mois jugé seulement si chaque jour
+de la fenêtre de clôture est couvert par un import (CTE `mois_juges`, évaluée
+une fois par vue) ; `mv_score_pilier` expose `poids_calc_p1..p6` et
+`poids_piliers_calcules`, que la fiche site lit au lieu de les sommer ;
+l'historique des produits écartés garde les sites sortis du périmètre et les
+traceurs désactivés. Lecture partagée de la grille : `commun/lecture-grille.ts`.
+
 **Transparence du calcul (migration 0059).** `mv_score_pilier` expose la note
 de chaque sous-composante (`note_*` : 100, 0, note de sanction ou NULL), celle
 qui entre dans le score de son pilier. La fiche site (`detailSite`) lit ces
@@ -228,14 +239,14 @@ des piliers calculables. `GET /api/methode-calcul?mois=` (tout authentifié,
 scores sont calculés » (`ui/methode-calcul`). L'écran ne recalcule rien : un
 test vérifie que la décomposition redonne exactement les scores affichés.
 
-- `ecart_sdu` : `|théorique − compté| / compté ≤ tolérance` à l'inventaire de
+- `ecart_sdu` : `|théorique - compté| / compté ≤ tolérance` à l'inventaire de
   clôture, par produit ; compté (réalité) au dénominateur.
   Cas limites : compté 0 / théorique 0 → conforme ; compté 0 / théorique > 0 →
   non conforme.
 - `ecart_consommation` : `|déclarée − reconstituée| / reconstituée ≤ tolérance`.
   `d_début` = clôture retenue du mois **M-1** (ouverture), `d_fin` = clôture
   retenue de **M** ; plus de repli sur deux inventaires du mois.
-  `reconstituée = stock(d_début) + réceptions − stock(d_fin)`
+  `reconstituée = stock(d_début) + réceptions - stock(d_fin)`
   sur `(d_début, d_fin]` ; `déclarée` = Σ dispensations sur l'intervalle, ou
   Σ quantités distribuées pour un **district** (`nature = distribution`, la
   sous-composante se lit « écart distribution »). Raisons d'exclusion

@@ -448,10 +448,11 @@ s'appelle « conformité ».
   l'**inventaire d'ouverture** (la clôture du mois précédent) et l'inventaire
   de clôture du mois. Un inventaire de clôture par mois suffit donc.
   Écart `|déclarée - reconstituée| / reconstituée` en dessous de la tolérance :
-  conforme. Un produit absent de l'inventaire d'ouverture est écarté, lui
-  seul. Sans inventaire d'ouverture : **0 %** une fois le mois jugé. « Non
-  calculable » quand les deux inventaires existent mais qu'aucune
-  consommation reconstituée n'est positive.
+  conforme. Une consommation reconstituée négative ou nulle (le stock a
+  augmenté sans réception enregistrée) compte **non conforme**. Un produit
+  absent de l'inventaire d'ouverture est écarté, lui seul. Sans inventaire
+  d'ouverture : **0 %** une fois le mois jugé. « Non calculable » quand les
+  deux inventaires existent mais qu'aucun produit n'est présent aux deux.
 
 **Exemple, conformité SDU (le CHR de Daloa, août 2026) :** sur le DTG/3TC/TDF (ARV),
 théorique 402, compté 388 → écart |402 - 388| / 388 = **3,6 %**, au-dessus de
@@ -505,7 +506,10 @@ résultat en apparence.
   | non | - | 0 | 0 |
 
   Tant que le mois n'est pas jugé, rien n'est sanctionné : ce qui manque reste
-  « non calculable ». La fenêtre de clôture (3 derniers jours, 1er du mois
+  « non calculable ». Un mois n'est jugé que si les imports couvrent chacun
+  des jours de sa fenêtre de clôture. La même règle vaut pour chaque
+  programme géré par le site (fiche site filtrée sur un programme), sur les
+  inventaires de ce programme. La fenêtre de clôture (3 derniers jours, 1er du mois
   suivant), la note de sanction (0) et les bornes de classification (90, 75)
   sont des valeurs de la grille de paramètres : la coordination peut les
   changer pour les mois à venir. La fiche site affiche la raison d'une sanction sous la

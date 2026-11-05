@@ -46,7 +46,8 @@ export function ecartSdu(ecartPct: number | null): string {
 const RAISONS: Record<RaisonExclusionConso, string> = {
   sans_ouverture: 'exclu (pas d\'inventaire d\'ouverture)',
   absent_ouverture: 'exclu (absent de l\'ouverture)',
-  reconstituee_non_positive: 'exclu (reconstituée ≤ 0)',
+  autre_article_ouverture: 'exclu (autre article à l\'ouverture)',
+  reconstituee_non_positive: 'non conforme (reconstituée ≤ 0)',
 };
 
 export function ecartConso(l: LigneProduitP4P5): string {

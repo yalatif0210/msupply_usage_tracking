@@ -149,7 +149,7 @@ const TD = 'border-r border-border text-center last:border-r-0';
                             </tr>
                           </thead>
                           <tbody hlmTBody>
-                            @for (l of urgentsVisibles(); track l.siteId + l.produitId) {
+                            @for (l of urgentsVisibles(); track l.siteId + l.produitCode) {
                               <ng-container *ngTemplateOutlet="ligneCourte; context: { $implicit: l }" />
                             }
                           </tbody>
@@ -183,7 +183,7 @@ const TD = 'border-r border-border text-center last:border-r-0';
                               </tr>
                             </thead>
                             <tbody hlmTBody>
-                              @for (l of sig.aSurveiller; track l.siteId + l.produitId) {
+                              @for (l of sig.aSurveiller; track l.siteId + l.produitCode) {
                                 <ng-container *ngTemplateOutlet="ligneCourte; context: { $implicit: l }" />
                               }
                             </tbody>
@@ -202,7 +202,7 @@ const TD = 'border-r border-border text-center last:border-r-0';
                     <div class="text-xs text-muted-foreground">{{ l.district ?? 'District non renseigné' }}</div>
                   </td>
                   <td hlmTd class="${TD} text-left whitespace-normal">
-                    <a class="text-primary hover:underline" [routerLink]="['/stocks', l.siteId, l.produitId]" [queryParams]="lienDate()">{{ l.libelle }}</a>
+                    <a class="text-primary hover:underline" [routerLink]="['/stocks', l.siteId, l.produitCode]" [queryParams]="lienDate()">{{ l.libelle }}</a>
                   </td>
                   <td hlmTd class="${TD} tabular-nums">{{ l.cmm.calculable ? nombre(l.cmm.stockProjete) : '' }}</td>
                   <td hlmTd class="${TD} tabular-nums">{{ l.cmm.calculable ? nombre(l.cmm.couvertureJours) + ' j' : '' }}</td>
@@ -278,10 +278,10 @@ const TD = 'border-r border-border text-center last:border-r-0';
                                 @if (prog.sousTitre) { <span class="ml-2 text-xs font-normal text-muted-foreground">{{ prog.sousTitre }}</span> }
                               </td>
                             </tr>
-                            @for (l of prog.produits; track l.produitId) {
+                            @for (l of prog.produits; track l.produitCode) {
                               <tr hlmTr>
                                 <td hlmTd class="${TD} pl-12 text-left whitespace-normal">
-                                  <a class="text-primary hover:underline" [routerLink]="['/stocks', l.siteId, l.produitId]" [queryParams]="lienDate()">{{ l.libelle }}</a>
+                                  <a class="text-primary hover:underline" [routerLink]="['/stocks', l.siteId, l.produitCode]" [queryParams]="lienDate()">{{ l.libelle }}</a>
                                   <div class="font-mono text-xs text-muted-foreground">{{ l.produitCode }}</div>
                                 </td>
                                 @if (l.cmm.calculable) {

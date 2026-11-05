@@ -265,7 +265,7 @@ describe('vues d\'indicateurs, composite et gel', () => {
       sorties: joursAout.slice(0, 4).map((j) => ({ jour: j })),  // 4 sorties dans (31/07, 31/08]
     });
     // ouverture pour que l'écart consommation soit conforme (P4 = 100) :
-    // reconstituée = 104 − 100 = 4 = déclarée.
+    // reconstituée = 104 - 100 = 4 = déclarée.
     await inventaire('INV0', '2026-07-31', 'I1', 104, 104);
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     const sp = await scorePilier(null);
@@ -496,13 +496,14 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect((await scorePilier(null))?.p_ecart_sdu).toBe('0.0');
   });
 
-  it('P4 écart consommation : reconstituée ≤ 0 → produit exclu', async () => {
+  it('P4 écart consommation : reconstituée ≤ 0 → produit compté non conforme (migration 0061)', async () => {
     await socle({ nbMouvements: 0, comptee: 100, theorique: 100 }); // stock fin = 100
     await inventaire('INV0', '2026-07-31', 'I1', 10, 10);           // stock début = 10, aucune réception
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
-    // reconstituée = 10 + 0 − 100 = −90 ≤ 0 → exclu
-    expect((await p4())?.nb_produits_conso).toBe(0);
-    expect((await p4())?.taux_conso_pct).toBeNull();
+    // reconstituée = 10 + 0 - 100 = -90 ≤ 0 : hausse de stock sans réception
+    // enregistrée, le produit reste au dénominateur et compte non conforme
+    expect((await p4())?.nb_produits_conso).toBe(1);
+    expect((await p4())?.taux_conso_pct).toBe('0.0');
   });
 
   // ── Composition des piliers (grille, migration 0057) ──────────────────────

@@ -171,7 +171,8 @@ export class DetailStockPage {
   private readonly service = inject(StocksService);
 
   readonly siteId = input.required<string>();
-  readonly produitId = input.required<string>();
+  /** Code produit : le produit est son code (un code = un produit). */
+  readonly code = input.required<string>();
 
   protected readonly dateFr = dateFr;
   protected readonly nombre = nombre;
@@ -180,7 +181,7 @@ export class DetailStockPage {
   protected readonly raisonNonCalculable = raisonNonCalculable;
 
   protected readonly res = ressource<DetailStock | null, FiltresDetailStock>({
-    charger: (f) => this.service.detail(this.siteId(), this.produitId(), f.date),
+    charger: (f) => this.service.detail(this.siteId(), this.code(), f.date),
     germe: null,
     filtresInitiaux: { date: '' },
   });
@@ -204,7 +205,7 @@ export class DetailStockPage {
     // les entrées de route sont posées après la construction : premier chargement ici
     effect(() => {
       this.siteId();
-      this.produitId();
+      this.code();
       untracked(() => void this.res.demarrer());
     });
   }

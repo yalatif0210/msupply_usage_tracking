@@ -204,7 +204,7 @@ describe('suivi des stocks', () => {
   });
 
   it('détail d\'un couple : série de la borne de fin à t + 90, faits connus à t depuis la borne de début', async () => {
-    const d = await repo.detail('S1', 'I1', { date: '2026-10-10' });
+    const d = await repo.detail('S1', 'T1', { date: '2026-10-10' });
     if (!d) throw new Error('détail attendu');
     expect(d.serie[0]).toEqual({ jour: '2026-09-29', stockProjete: 50 });
     expect(d.serie.at(-1)?.jour).toBe('2027-01-08');
@@ -219,13 +219,13 @@ describe('suivi des stocks', () => {
   });
 
   it('détail : CMM non calculable, série sans projection ; couple inconnu → 404', async () => {
-    const d = await repo.detail('S1', 'I2', { date: '2026-10-10' });
+    const d = await repo.detail('S1', 'T2', { date: '2026-10-10' });
     expect(d?.serie.every((p) => p.stockProjete === null)).toBe(true);
     expect(await repo.detail('S1', 'INCONNU', { date: '2026-10-10' })).toBeNull();
     const a = request.agent(app.getHttpServer());
     await a.post('/api/auth/connexion').send({ identifiant: 'lecteur', motDePasse: 'lecteur-2026' });
     expect((await a.get('/api/stocks/S1/INCONNU')).status).toBe(404);
-    detailStockSchema.parse((await a.get('/api/stocks/S1/I1').query({ date: '2026-10-10' })).body);
+    detailStockSchema.parse((await a.get('/api/stocks/S1/T1').query({ date: '2026-10-10' })).body);
   });
 
   it('API : filtre par statut', async () => {
@@ -244,5 +244,35 @@ describe('suivi des stocks', () => {
     const p2 = suiviStocksSchema.parse((await a.get('/api/stocks').query({ programmeId: 'P2' })).body);
     expect(p2.lignes.map((l) => l.produitCode)).toEqual(['T3']);
     expect((await a.get('/api/stocks').query({ date: '10/10/2026' })).status).toBe(400);
+  });
+
+  it('un code = un produit : deux articles du même code font une seule ligne, additionnés', async () => {
+    await site('S3', 'ESPC');
+    await produit('I8', 'T8');
+    await db.query(`INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom) VALUES ('I9','T8','I9')`);
+    // un inventaire porte les deux articles du code ; mouvements sur l'un et l'autre
+    for (const [id, jour, q8, q9] of [['INVA', '2026-07-01', 60, 40], ['INVB', '2026-09-29', 30, 20]] as const) {
+      await db.query(
+        `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
+         VALUES ($1,'S3','P1',$2::date,'fn',1)`,
+        [id, jour],
+      );
+      await db.query(
+        `INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
+         VALUES ($1,'I8','L',$2,$2,1), ($1,'I9','L',$3,$3,1)`,
+        [id, q8, q9],
+      );
+    }
+    await mouvement('S3', 'dispensation', '2026-08-01', 'I8', 30);
+    await mouvement('S3', 'dispensation', '2026-08-02', 'I9', 20);
+    const s = await repo.suivi({ date: '2026-10-10', siteId: 'S3' });
+    expect(s.lignes.map((l) => l.produitCode)).toEqual(['T8']);
+    const l = ligne(s.lignes, 'S3', 'T8');
+    // compté 100 → 50, sorties 50 sur 90 jours : CMM = 50 / 90 × 30,4 = 16,9
+    expect(l.stockFin).toBe(50);
+    if (!l.cmm.calculable) throw new Error('CMM attendue');
+    expect(l.cmm).toMatchObject({ stockDebut: 100, sortiesReconstituees: 50, declaree: 50, cmmReconstituee: 16.9 });
+    const d = await repo.detail('S3', 'T8', { date: '2026-10-10' });
+    expect(d?.inventaires).toEqual([{ date: '2026-07-01', compte: 100 }, { date: '2026-09-29', compte: 50 }]);
   });
 });

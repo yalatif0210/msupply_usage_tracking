@@ -25,10 +25,10 @@ export class StocksService {
   }
 
   /** Détail d'un couple site × produit à une date t (absente : date par défaut). */
-  async detail(siteId: string, produitId: string, date: string): Promise<DetailStock> {
+  async detail(siteId: string, code: string, date: string): Promise<DetailStock> {
     const params = date ? new HttpParams().set('date', date) : undefined;
     const data = await firstValueFrom(
-      this.http.get<unknown>(`/api/stocks/${encodeURIComponent(siteId)}/${encodeURIComponent(produitId)}`, { params }),
+      this.http.get<unknown>(`/api/stocks/${encodeURIComponent(siteId)}/${encodeURIComponent(code)}`, { params }),
     );
     return validerReponse(detailStockSchema, data);
   }

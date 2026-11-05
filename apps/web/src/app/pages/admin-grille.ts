@@ -432,7 +432,9 @@ export class AdminGrillePage {
 
   protected majRegle(cle: keyof ReglesCalcul, v: number | null): void {
     const b = this.brouillon();
-    if (b) this.brouillon.set({ ...b, regles: { ...b.regles, [cle]: v ?? 0 } });
+    if (!b) return;
+    b.regles[cle] = v ?? 0;
+    this.rejouer();
   }
 
   protected majRetenue(s: SeuilSousComposante, retenue: boolean): void {

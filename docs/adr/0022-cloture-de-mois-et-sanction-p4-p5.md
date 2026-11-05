@@ -29,13 +29,17 @@ premier du mois : la période mesurée variait d'un site à l'autre.
   | oui | non | 0 | calculé |
   | non | - | 0 | 0 |
 
-- **Mois jugé** : les données importées couvrent le 1er de n+1 (fin de
-  fenêtre du dernier import validé). Avant, les sous-composantes déjà
-  calculables sont affichées (provisoires) et les autres sont non
-  calculables : aucune sanction.
+- **Mois jugé** : chaque jour de la fenêtre de clôture est couvert par la
+  fenêtre d'un import validé (un trou entre deux imports suspend le
+  jugement ; sans aucune fenêtre d'import, repli sur la date du jour). Avant,
+  les sous-composantes déjà calculables sont affichées (provisoires) et les
+  autres sont non calculables : aucune sanction.
+- **Grain programme** : la même sanction vaut pour chaque programme géré par
+  le site (`dim_site_programme`), sur ses propres inventaires (migration 0061).
 - Un produit présent à la clôture mais absent de l'ouverture est écarté de
   l'écart de consommation, pour ce produit seulement, avec sa raison. Le
-  dénominateur reste le nombre de produits inventoriés aux deux bornes.
+  dénominateur est le nombre de produits présents aux deux bornes ; une
+  consommation reconstituée ≤ 0 y compte non conforme (migration 0061).
 - Application rétroactive à tous les mois : le système n'est pas encore
   déployé.
 

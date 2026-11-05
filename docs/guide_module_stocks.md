@@ -14,7 +14,7 @@ score ni sur les piliers. Spec : `.scratch/suivi-des-stocks/spec.md`.
 | Méthode | Chemin | Retour | Rôle |
 |---|---|---|---|
 | `GET` | `/api/stocks?date=&region=&district=&siteId=&programmeId=&statut=` | `SuiviStocks` | tout authentifié |
-| `GET` | `/api/stocks/:siteId/:produitId?date=` | `DetailStock` (404 sans stock compté connu à t) | tout authentifié |
+| `GET` | `/api/stocks/:siteId/:code?date=` | `DetailStock` (404 sans stock compté connu à t) | tout authentifié |
 
 `date` (`AAAA-MM-JJ`) absente : fin de fenêtre du dernier import validé
 (`dqa.date_reference_stocks()`). Filtre `statut` possible. La réponse porte
@@ -30,7 +30,7 @@ premier niveau. Six colonnes de décision par défaut (CMM reconstituée, stock
 projeté, couverture, rupture prévue, statut) ; les colonnes de contrôle
 ajoutent dernier inventaire, réceptions depuis, CMM déclarée, photo mSupply et
 écart. Le nom d'un produit ouvre
-`/stocks/:siteId/:produitId` (`pages/detail-stock.ts`) : cartes de synthèse,
+`/stocks/:siteId/:code` (`pages/detail-stock.ts`) : cartes de synthèse,
 courbe `ui/graphe-stock` (projection pleine jusqu'à t puis pointillée, stocks
 comptés et photos en points, réceptions, date choisie et rupture en repères),
 tableau du calcul de la CMM.
@@ -43,18 +43,20 @@ Fonctions SQL de la migration 0053, lues par `StocksRepository` :
 |---|---|
 | `dqa.series_stock(t)` | la série journalière de tous les couples site × traceur, de la borne de fin à t + 90 jours |
 | `dqa.stocks_a_date(t)` | une ligne par couple : bornes, CMM, stock projeté à t, rupture, couverture, programme parent |
-| `dqa.serie_stock(site, produit, t)` | la série d'un couple (détail, ticket 03) |
+| `dqa.serie_stock(site, code, t)` | la série d'un couple (détail, ticket 03) |
 | `dqa.date_reference_stocks()` | la date t par défaut |
 
-Vues de lecture (migration 0055), partagées par ces fonctions et par le
-détail d'un couple, pour que la courbe montre exactement les faits utilisés par
-la projection :
+Vues de lecture (migration 0055, par code produit depuis 0062), partagées par
+ces fonctions et par le détail d'un couple, pour que la courbe montre
+exactement les faits utilisés par la projection. **Un code = un produit** : les
+articles mSupply d'un même code (ADR 0016) s'additionnent, en unités de
+dispensation (ADR 0017) ; le produit d'une ligne est son `produitCode`.
 
 | Vue | Rend |
 |---|---|
-| `dqa.v_stock_compte_jour` | stock compté par site, produit et jour (dernier inventaire finalisé du jour, lots sommés) |
-| `dqa.v_mouvement_stock_jour` | réceptions, dispensations, distributions par site, produit et jour |
-| `dqa.v_photo_stock_jour` | photo de stock mSupply par site, produit et jour (lots sommés) |
+| `dqa.v_stock_compte_jour` | stock compté par site, code produit et jour (dernier inventaire finalisé du jour, tous les articles et lots du code sommés) |
+| `dqa.v_mouvement_stock_jour` | réceptions, dispensations, distributions par site, code produit et jour |
+| `dqa.v_photo_stock_jour` | photo de stock mSupply par site, code produit et jour (articles et lots sommés) |
 
 Sources : `fact_inventaire` / `fact_inventaire_ligne` (stocks comptés),
 `fact_transaction` / `fact_ligne_transaction` (réceptions, dispensations,

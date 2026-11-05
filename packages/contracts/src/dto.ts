@@ -751,7 +751,7 @@ export const ligneStockSchema = z.object({
   /** Programme parent : celui sous lequel le site inventorie le produit. */
   programmeId: z.string().nullable(),
   programmeNom: z.string().nullable(),
-  produitId: z.string(),
+  /** Le produit est son code : les articles mSupply d'un même code s'additionnent. */
   produitCode: z.string(),
   libelle: z.string(),
   /** Dernier inventaire au plus tard à t : point de départ de la projection. */
@@ -883,12 +883,16 @@ export type HistoriqueQuery = z.infer<typeof historiqueQuerySchema>;
  *   donc pas d'ouverture pour M (ADR 0022) ; P4 est sanctionné.
  * - `absent_ouverture` : le site a une ouverture, mais le produit n'y figure
  *   pas ; seul ce produit est écarté.
+ * - `autre_article_ouverture` : le code figure à l'ouverture sous un autre
+ *   article mSupply ; les bornes se rapprochent par article (ADR 0016).
  * - `reconstituee_non_positive` : bornes présentes mais la consommation
- *   reconstituée (`stock ouverture + réceptions − stock clôture`) est ≤ 0.
+ *   reconstituée (`stock ouverture + réceptions - stock clôture`) est ≤ 0 ;
+ *   écart non chiffrable, le produit compte **non conforme** (migration 0061).
  */
 export const raisonExclusionConsoSchema = z.enum([
   'sans_ouverture',
   'absent_ouverture',
+  'autre_article_ouverture',
   'reconstituee_non_positive',
 ]);
 export type RaisonExclusionConso = z.infer<typeof raisonExclusionConsoSchema>;

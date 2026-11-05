@@ -15,18 +15,17 @@ import type {
 } from '@dqa/contracts';
 import { PG_POOL } from '../database/database.module.js';
 import { estDoublon, estReferenceViolee } from '../commun/erreurs-pg.js';
+import {
+  COLONNES_REGLES_SQL, COLONNES_SEUIL_SQL, versReglesCalcul, versSeuilSousComposante,
+  type LigneRegles, type LigneSeuil,
+} from '../commun/lecture-grille.js';
 
-interface LigneGrille {
+interface LigneGrille extends LigneRegles {
   id: number;
   version: string;
   effet_a_partir_de: Date;
   cree_le: Date;
   statut: GrilleParametre['statut'];
-  jours_cloture_fin_mois: number;
-  jours_cloture_mois_suivant: number;
-  note_sanction: string;
-  borne_conforme: string;
-  borne_partiellement_conforme: string;
 }
 
 const jour = (d: Date): string => d.toISOString().slice(0, 10);
@@ -42,8 +41,7 @@ const versGrille = (r: LigneGrille): GrilleParametre => ({
 
 const SELECT_GRILLE = `
   SELECT g.id::int AS id, g.version, g.effet_a_partir_de, g.cree_le,
-         g.jours_cloture_fin_mois, g.jours_cloture_mois_suivant, g.note_sanction,
-         g.borne_conforme, g.borne_partiellement_conforme,
+         ${COLONNES_REGLES_SQL},
          CASE
            WHEN g.effet_a_partir_de > CURRENT_DATE THEN 'planifiee'
            WHEN g.id = dqa.grille_pour_mois(to_char(CURRENT_DATE, 'YYYY-MM')) THEN 'en_vigueur'
@@ -79,16 +77,8 @@ export class GrilleRepository {
       `SELECT pilier, poids_pct FROM dqa.grille_poids_pilier WHERE grille_id = $1 ORDER BY pilier`,
       [id],
     );
-    const seuils = await this.pool.query<{
-      sous_composante: SeuilSousComposante['sousComposante'];
-      seuil: string;
-      sens: SeuilSousComposante['sens'];
-      tolerance: string | null;
-      seuil_district: string | null;
-      retenue: boolean;
-      poids_pct: string;
-    }>(
-      `SELECT sous_composante, seuil, sens, tolerance, seuil_district, retenue, poids_pct
+    const seuils = await this.pool.query<LigneSeuil>(
+      `SELECT ${COLONNES_SEUIL_SQL}
        FROM dqa.grille_seuil_sous_composante WHERE grille_id = $1 ORDER BY sous_composante`,
       [id],
     );
@@ -96,23 +86,9 @@ export class GrilleRepository {
     const ligne = g.rows[0]!;
     return {
       ...versGrille(ligne),
-      regles: {
-        joursClotureFinMois: ligne.jours_cloture_fin_mois,
-        joursClotureMoisSuivant: ligne.jours_cloture_mois_suivant,
-        noteSanction: Number(ligne.note_sanction),
-        borneConforme: Number(ligne.borne_conforme),
-        bornePartiellementConforme: Number(ligne.borne_partiellement_conforme),
-      },
+      regles: versReglesCalcul(ligne),
       poids: poids.rows.map((r) => ({ pilier: r.pilier, poidsPct: Number(r.poids_pct) })),
-      seuils: seuils.rows.map((r) => ({
-        sousComposante: r.sous_composante,
-        seuil: Number(r.seuil),
-        sens: r.sens,
-        tolerance: r.tolerance === null ? null : Number(r.tolerance),
-        seuilDistrict: r.seuil_district === null ? null : Number(r.seuil_district),
-        retenue: r.retenue,
-        poidsDansPilierPct: Number(r.poids_pct),
-      })),
+      seuils: seuils.rows.map(versSeuilSousComposante),
     };
   }
 
@@ -123,8 +99,8 @@ export class GrilleRepository {
         `INSERT INTO dqa.grille_parametre (version, effet_a_partir_de) VALUES ($1, $2) RETURNING id`,
         [e.version, e.effetAPartirDe],
       );
-      await this.ecrireRegles(client, Number(rows[0]!.id), e);
       const nouvelId = Number(rows[0]!.id);
+      await this.ecrireRegles(client, nouvelId, e);
       await this.ecrireDetail(client, nouvelId, e);
       return nouvelId;
     });

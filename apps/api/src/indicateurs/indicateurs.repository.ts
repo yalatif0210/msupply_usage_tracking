@@ -9,7 +9,6 @@ import {
   PILIER_DE_CODE,
   PILIER_DE_MESURE_BRUTE,
   PILIER_DE_SOUS_COMPOSANTE,
-  POIDS_PILIER,
   PILIERS,
   SOUS_COMPOSANTES,
   SOUS_COMPOSANTES_DU_PILIER,
@@ -59,6 +58,10 @@ import {
   type SyntheseRapports,
   type TableauDeBord,
 } from '@dqa/contracts';
+import {
+  COLONNES_REGLES_SQL, COLONNES_SEUIL_SQL, versReglesCalcul, versSeuilSousComposante,
+  type LigneRegles, type LigneSeuil,
+} from '../commun/lecture-grille.js';
 import { PG_POOL } from '../database/database.module.js';
 
 interface LigneSite {
@@ -107,6 +110,17 @@ const nombreOuNull = (v: string | null): number | null => (v === null ? null : N
 const dateCourte = (iso: string): string => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 
 /** Seuil de chaque sous-composante dans la grille du mois affiché. */
+/** Ce qu'un site déclare sortir de son stock : un district distribue, un site de soins dispense (ADR 0012). */
+type FluxDeclare = 'consommation' | 'distribution';
+
+/** Explications de P4 / P5 non calculables ou sanctionnés (ADR 0022). */
+interface CausesCloture {
+  /** Conformité SDU et concordance : l'inventaire de clôture. */
+  inventaire: string;
+  /** Conformité consommation : la clôture et l'ouverture. */
+  consommation: string;
+}
+
 /** Règle d'une sous-composante dans la grille du mois : seuil et place dans le pilier. */
 interface RegleSousComposante {
   seuil: string | null;
@@ -607,15 +621,16 @@ export class IndicateursRepository {
   /**
    * Pourquoi P4 / P5 ne sont pas calculables, ou valent 0 par sanction, pour ce
    * site, ce mois et ce programme (ADR 0022) : une seule explication par
-   * sous-composante, celle qui s'applique. `inventaire` vaut pour l'écart SDU et
-   * la concordance (clôture) ; `consommation` ajoute l'ouverture.
+   * sous-composante, celle qui s'applique. `inventaire` vaut pour la
+   * conformité SDU et la concordance (clôture) ; `consommation` ajoute
+   * l'ouverture.
    */
   private async causesCloture(
     siteId: string,
     mois: string,
     prog: string | null,
-    flux: string,
-  ): Promise<{ inventaire: string; consommation: string }> {
+    flux: FluxDeclare,
+  ): Promise<CausesCloture> {
     const { rows } = await this.pool.query<{
       cloture: boolean;
       cloture_traceur: boolean;
@@ -623,7 +638,7 @@ export class IndicateursRepository {
       juge: boolean;
       juge_precedent: boolean;
       hors_fenetre: string | null;
-      prog_a_traceur: boolean;
+      programme_gere: boolean;
       fenetre_debut: string;
       fenetre_fin: string;
     }>(
@@ -645,11 +660,10 @@ export class IndicateursRepository {
              AND ($3::text IS NULL OR fi.programme_id = $3)
              AND to_char(fi.date_inventaire, 'YYYY-MM') = $2
              AND dqa.mois_cloture_inventaire(fi.date_inventaire) IS NULL) AS hors_fenetre,
+         -- au grain programme, seuls les programmes gérés sont sanctionnés (migration 0061)
          ($3::text IS NULL OR EXISTS (
-           SELECT 1 FROM dqa.dim_produit p
-           JOIN dqa.dim_produit_traceur tr ON tr.produit_code = p.produit_code AND tr.actif
-           JOIN dqa.dim_programme dp ON dp.programme_id = $3
-           WHERE dp.programme_code = ANY (p.programmes))) AS prog_a_traceur,
+           SELECT 1 FROM dqa.dim_site_programme sp
+           WHERE sp.site_id = $1 AND sp.programme_id = $3 AND sp.actif)) AS programme_gere,
          to_char(f.debut, 'YYYY-MM-DD') AS fenetre_debut,
          to_char(f.fin, 'YYYY-MM-DD')   AS fenetre_fin
        FROM f`,
@@ -657,28 +671,34 @@ export class IndicateursRepository {
     );
     const c = rows[0];
     if (!c) return { inventaire: 'Aucun inventaire de clôture', consommation: 'Aucun inventaire de clôture' };
-    const fenetre = `du ${dateCourte(c.fenetre_debut)} au ${dateCourte(c.fenetre_fin)}`;
-    const inventaire = !c.prog_a_traceur
-      ? 'Aucun produit traceur ne relève de ce programme'
-      : c.cloture && !c.cloture_traceur
-        ? "L'inventaire de clôture ne porte aucun produit traceur"
-        : c.cloture
-          ? 'Produits traceurs inventoriés, mais aucun stock compté exploitable'
-          : !c.juge
-            ? `Clôture pas encore couverte par les données : inventaire attendu ${fenetre}`
-            : c.hors_fenetre
-              ? `Inventaire du ${dateCourte(c.hors_fenetre)} hors de la fenêtre de clôture (${fenetre}) : P4 et P5 à 0`
-              : `Aucun inventaire de clôture (${fenetre}) : P4 et P5 à 0`;
-    const consommation = !c.cloture || !c.prog_a_traceur
-      ? inventaire
-      : c.ouverture
-        ? `Les inventaires d'ouverture et de clôture existent mais aucune ${flux} reconstituée n'est évaluable`
-        : !c.juge_precedent
-          ? "Inventaire d'ouverture antérieur au début des données importées"
-          : !c.juge
-            ? `Pas d'inventaire d'ouverture (clôture du mois précédent) : l'écart de ${flux} sera à 0 une fois le mois jugé`
-            : `Pas d'inventaire d'ouverture (clôture du mois précédent) : écart de ${flux} à 0`;
-    return { inventaire, consommation };
+    const inventaire = this.causeCloture(c, `du ${dateCourte(c.fenetre_debut)} au ${dateCourte(c.fenetre_fin)}`);
+    return { inventaire, consommation: c.cloture ? this.causeOuverture(c, flux) : inventaire };
+  }
+
+  private causeCloture(
+    c: { cloture: boolean; cloture_traceur: boolean; juge: boolean; hors_fenetre: string | null; programme_gere: boolean },
+    fenetre: string,
+  ): string {
+    if (c.cloture && !c.cloture_traceur) return "L'inventaire de clôture ne porte aucun produit traceur";
+    if (c.cloture) return 'Produits traceurs inventoriés, mais aucun stock compté exploitable';
+    if (!c.programme_gere) return "Programme non géré par ce site (voir l'écran Programmes) : pas d'inventaire de clôture attendu";
+    if (!c.juge) return `Clôture pas encore couverte par les données : inventaire attendu ${fenetre}`;
+    if (c.hors_fenetre) {
+      return `Inventaire du ${dateCourte(c.hors_fenetre)} hors de la fenêtre de clôture (${fenetre}) : P4 et P5 à 0`;
+    }
+    return `Aucun inventaire de clôture (${fenetre}) : P4 et P5 à 0`;
+  }
+
+  private causeOuverture(
+    c: { ouverture: boolean; juge: boolean; juge_precedent: boolean },
+    flux: FluxDeclare,
+  ): string {
+    if (c.ouverture) return "Aucun produit n'est présent à la fois à l'ouverture et à la clôture";
+    if (!c.juge_precedent) return "Inventaire d'ouverture antérieur au début des données importées";
+    if (!c.juge) {
+      return `Pas d'inventaire d'ouverture (clôture du mois précédent) : l'écart de ${flux} sera à 0 une fois le mois jugé`;
+    }
+    return `Pas d'inventaire d'ouverture (clôture du mois précédent) : écart de ${flux} à 0`;
   }
 
   /** Suivi des réceptions du site, hors score (ADR 0019). */
@@ -905,6 +925,8 @@ export class IndicateursRepository {
       note_regularite_saisie: string | null;
       note_concordance: string | null;
       note_ratio_ajustements: string | null;
+      poids_calc: Record<Pilier, string> | null;
+      poids_piliers_calcules: string | null;
       echeance_requisitions: string;
       echeance_inventaire: string;
     }>(
@@ -920,6 +942,10 @@ export class IndicateursRepository {
               sp.note_promptitude_requisitions AS p2_score_requisitions,
               p3.taux_regularite_pct, coalesce(p3.est_district, false) AS est_district,
               sp.note_regularite_saisie, sp.note_concordance, sp.note_ratio_ajustements,
+              CASE WHEN sp.site_id IS NOT NULL THEN jsonb_build_object(
+                'P1', sp.poids_calc_p1, 'P2', sp.poids_calc_p2, 'P3', sp.poids_calc_p3,
+                'P4', sp.poids_calc_p4, 'P5', sp.poids_calc_p5, 'P6', sp.poids_calc_p6) END AS poids_calc,
+              sp.poids_piliers_calcules,
               p4.taux_sdu_pct, p4.taux_conso_pct,
               sp.note_ecart_sdu AS score_sdu, sp.note_ecart_consommation AS score_conso,
               p4.nb_produits_sdu::int AS nb_produits_sdu, p4.nb_produits_conso::int AS nb_produits_conso,
@@ -1000,10 +1026,11 @@ export class IndicateursRepository {
     ];
 
     const comptesParPilier = await this.comptesBrutsParPilier(siteId, mois, prog, estDistrict);
-    const grille = h?.grille_id ? await this.grilleDuCalcul(h.grille_id) : null;
+    const grille = await this.grilleDuCalcul(h?.grille_id ?? null, mois);
     const piliersDuMois = piliers.map((p) => ({
       ...p,
-      poids: grille?.poids.get(p.pilier) ?? p.poids,
+      poids: grille?.poids.get(p.pilier) ?? 0,
+      poidsCalculables: Number(h?.poids_calc?.[p.pilier] ?? 0),
       comptesBruts: comptesParPilier.get(p.pilier) ?? [],
     }));
 
@@ -1023,9 +1050,7 @@ export class IndicateursRepository {
         ? {
             grille: grille.resume,
             regles: grille.regles,
-            poidsPiliersCalculables: piliersDuMois
-              .filter((p) => p.score !== null)
-              .reduce((t, p) => t + p.poids, 0),
+            poidsPiliersCalculables: Number(h?.poids_piliers_calcules ?? 0),
           }
         : null,
       sousComposantes: sousComposantesDuMois(h?.sc ?? null),
@@ -1033,18 +1058,18 @@ export class IndicateursRepository {
     };
   }
 
-  /** Grille qui a produit les scores d'un mois : version, règles, poids des piliers. */
-  private async grilleDuCalcul(grilleId: string): Promise<{
+  /** Grille qui a produit les scores d'un mois (à défaut, celle du mois) : version, règles, poids. */
+  private async grilleDuCalcul(grilleIdGele: string | null, mois: string): Promise<{
     resume: GrilleResume; regles: ReglesCalcul; poids: Map<Pilier, number>;
   } | null> {
-    const g = await this.pool.query<{
-      id: number; version: string; effet: string;
-      jours_cloture_fin_mois: number; jours_cloture_mois_suivant: number;
-      note_sanction: string; borne_conforme: string; borne_partiellement_conforme: string;
-    }>(
-      `SELECT id::int, version, to_char(effet_a_partir_de, 'YYYY-MM-DD') AS effet,
-              jours_cloture_fin_mois, jours_cloture_mois_suivant, note_sanction,
-              borne_conforme, borne_partiellement_conforme
+    const id = await this.pool.query<{ id: string | null }>(
+      `SELECT coalesce($1::bigint, dqa.grille_pour_mois($2))::text AS id`,
+      [grilleIdGele, mois],
+    );
+    const grilleId = id.rows[0]?.id;
+    if (!grilleId) return null;
+    const g = await this.pool.query<LigneRegles & { id: number; version: string; effet: string }>(
+      `SELECT id::int, version, to_char(effet_a_partir_de, 'YYYY-MM-DD') AS effet, ${COLONNES_REGLES_SQL}
        FROM dqa.grille_parametre WHERE id = $1`,
       [grilleId],
     );
@@ -1056,13 +1081,7 @@ export class IndicateursRepository {
     );
     return {
       resume: { id: r.id, version: r.version, effetAPartirDe: r.effet },
-      regles: {
-        joursClotureFinMois: r.jours_cloture_fin_mois,
-        joursClotureMoisSuivant: r.jours_cloture_mois_suivant,
-        noteSanction: Number(r.note_sanction),
-        borneConforme: Number(r.borne_conforme),
-        bornePartiellementConforme: Number(r.borne_partiellement_conforme),
-      },
+      regles: versReglesCalcul(r),
       poids: new Map(poids.rows.map((p) => [p.pilier, Number(p.poids_pct)])),
     };
   }
@@ -1078,14 +1097,10 @@ export class IndicateursRepository {
     const mois = m.rows[0]?.mois;
     const grilleId = m.rows[0]?.grille_id;
     if (!mois || !grilleId) return null;
-    const grille = await this.grilleDuCalcul(grilleId);
+    const grille = await this.grilleDuCalcul(grilleId, mois);
     if (!grille) return null;
-    const seuils = await this.pool.query<{
-      sous_composante: SousComposante; seuil: string; sens: 'sup' | 'inf';
-      tolerance: string | null; seuil_district: string | null; retenue: boolean; poids_pct: string;
-    }>(
-      `SELECT sous_composante, seuil, sens, tolerance, seuil_district, retenue, poids_pct
-       FROM dqa.grille_seuil_sous_composante WHERE grille_id = $1`,
+    const seuils = await this.pool.query<LigneSeuil>(
+      `SELECT ${COLONNES_SEUIL_SQL} FROM dqa.grille_seuil_sous_composante WHERE grille_id = $1`,
       [grilleId],
     );
     const parSc = new Map(seuils.rows.map((r) => [r.sous_composante, r]));
@@ -1099,17 +1114,7 @@ export class IndicateursRepository {
         poidsPct: grille.poids.get(pilier) ?? 0,
         sousComposantes: SOUS_COMPOSANTES_DU_PILIER[pilier].flatMap((sc) => {
           const r = parSc.get(sc);
-          return r
-            ? [{
-                sousComposante: sc,
-                libelle: LIBELLES_SOUS_COMPOSANTE[sc],
-                seuil: Number(r.seuil),
-                sens: r.sens,
-                tolerance: nombreOuNull(r.tolerance),
-                seuilDistrict: nombreOuNull(r.seuil_district),
-                retenue: r.retenue,
-                poidsDansPilierPct: Number(r.poids_pct),
-              }]
+          return r ? [{ ...versSeuilSousComposante(r), libelle: LIBELLES_SOUS_COMPOSANTE[sc] }]
             : [];
         }),
       })),
@@ -1220,9 +1225,9 @@ export class IndicateursRepository {
     m: ValeurBrute,
     regle: RegleSousComposante | undefined,
     raisonNC: string,
-    libelle: string = LIBELLES_SOUS_COMPOSANTE[sc],
-    sanction = false,
+    options: { libelle?: string; sanction?: boolean } = {},
   ): MesureSousComposante {
+    const { libelle = LIBELLES_SOUS_COMPOSANTE[sc], sanction = false } = options;
     const statut = m.score === null ? 'NON_CALCULABLE' : Number(m.score) >= 100 ? 'CONFORME' : 'ALERTE';
     const sanctionnee = sanction && m.pct !== null && Number(m.pct) === 0;
     return {
@@ -1278,7 +1283,7 @@ export class IndicateursRepository {
         estDistrict
           ? 'Aucune réquisition de la zone du district à évaluer ce mois'
           : 'Aucune sortie de stock exploitable sur le mois',
-        libelleSousComposante('regularite_saisie', estDistrict),
+        { libelle: libelleSousComposante('regularite_saisie', estDistrict) },
       ),
     ]);
     // Libellé adaptatif (ADR 0011) : la sous-composante est unique, l'écran
@@ -1302,22 +1307,17 @@ export class IndicateursRepository {
       conso: ValeurBrute; regleConso: RegleSousComposante | undefined; nbProduitsConso: number;
     },
     estDistrict: boolean,
-    causes: { inventaire: string; consommation: string },
+    causes: CausesCloture,
     nbProduitsSdu: number,
   ): ScorePilier {
     // Pour un district, l'écart consommation se lit « écart distribution » :
     // la consommation déclarée compte les quantités distribuées (ADR 0012).
     return this.envelopper('P4', score, [
-      this.mesure('ecart_sdu', m.sdu, m.regleSdu, causes.inventaire,
-        LIBELLES_SOUS_COMPOSANTE.ecart_sdu, nbProduitsSdu === 0),
-      this.mesure(
-        'ecart_consommation',
-        m.conso,
-        m.regleConso,
-        causes.consommation,
-        libelleSousComposante('ecart_consommation', estDistrict),
-        m.nbProduitsConso === 0,
-      ),
+      this.mesure('ecart_sdu', m.sdu, m.regleSdu, causes.inventaire, { sanction: nbProduitsSdu === 0 }),
+      this.mesure('ecart_consommation', m.conso, m.regleConso, causes.consommation, {
+        libelle: libelleSousComposante('ecart_consommation', estDistrict),
+        sanction: m.nbProduitsConso === 0,
+      }),
     ]);
   }
 
@@ -1329,7 +1329,7 @@ export class IndicateursRepository {
     nbProduits: number,
   ): ScorePilier {
     return this.envelopper('P5', score, [
-      this.mesure('concordance', m, regle, causeInventaire, LIBELLES_SOUS_COMPOSANTE.concordance, nbProduits === 0),
+      this.mesure('concordance', m, regle, causeInventaire, { sanction: nbProduits === 0 }),
     ]);
   }
 
@@ -1347,13 +1347,12 @@ export class IndicateursRepository {
     return {
       pilier,
       libelle: LIBELLES_PILIER[pilier],
-      // poids de la grille du mois, posé par detailSite ; constante en repli
-      poids: POIDS_PILIER[pilier] * 100,
+      // poids du pilier et dénominateur de son score : posés par detailSite,
+      // lus dans la grille du mois et dans mv_score_pilier
+      poids: 0,
       score: score === null ? null : Number(score),
       sousComposantes,
-      poidsCalculables: sousComposantes
-        .filter((sc) => sc.retenue && sc.note !== null)
-        .reduce((t, sc) => t + sc.poidsDansPilierPct, 0),
+      poidsCalculables: 0,
       comptesBruts: [],
     };
   }
@@ -2259,7 +2258,12 @@ export class IndicateursRepository {
       declaree: string | null;
       reconstituee: string | null;
     }>(
-      `SELECT ep.stock_debut, ep.stock_fin, ep.declaree, ep.reconstituee
+      // un code = un produit : ses articles s'additionnent, et la consommation
+      // n'est connue que si chacun a ses deux bornes (ADR 0016)
+      `SELECT CASE WHEN bool_and(ep.conso_borne_ok) THEN sum(ep.stock_debut) END  AS stock_debut,
+              CASE WHEN bool_and(ep.conso_borne_ok) THEN sum(ep.stock_fin) END    AS stock_fin,
+              CASE WHEN bool_and(ep.conso_borne_ok) THEN sum(ep.declaree) END     AS declaree,
+              CASE WHEN bool_and(ep.conso_borne_ok) THEN sum(ep.reconstituee) END AS reconstituee
        FROM dqa.mv_p4_ecart_produit ep
        WHERE ep.site_id = $1 AND ep.produit_code = $2 AND ep.mois_paqd = $3
          AND ep.programme_id IS NOT DISTINCT FROM $4`,

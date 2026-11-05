@@ -364,4 +364,63 @@ describe('clôture de mois (P4, P5)', () => {
     );
     expect(rows[0]).toEqual({ nb_absents_ouverture: 0, nb_oublis_ouverture: 0, nb_absents_cloture: 1, nb_oublis_cloture: 1 });
   });
+
+  // ── Corrections de la revue (migration 0061) ──────────────────────────────
+  it('grain programme : un programme géré sans clôture prend 0 sur P4 et P5, la raison le dit', async () => {
+    await db.query(`INSERT INTO dqa.dim_programme (programme_id, programme_nom) VALUES ('P2','PALU')`);
+    // clôture du site faite sous un autre programme (P2) ; P1, géré, n'a pas la sienne
+    await db.query(
+      `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
+       VALUES ('C2','S1','P2','2026-08-31','fn',1)`,
+    );
+    await db.query(
+      `INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
+       VALUES ('C2','I1','X',70,70,1)`,
+    );
+    await dispensation('D1', '2026-08-15', 'I1', 30);
+    await calculer();
+    const { rows } = await db.query(
+      `SELECT p4.taux_sdu_pct, p4.taux_conso_pct, p5.taux_concordance_pct
+       FROM dqa.mv_p4_ecart p4
+       JOIN dqa.mv_p5_concordance p5 ON p5.site_id = p4.site_id AND p5.mois_paqd = p4.mois_paqd AND p5.programme_id = p4.programme_id
+       WHERE p4.site_id = 'S1' AND p4.mois_paqd = '2026-08' AND p4.programme_id = 'P1'`,
+    );
+    expect(rows[0]).toEqual({ taux_sdu_pct: '0.0', taux_conso_pct: '0.0', taux_concordance_pct: '0.0' });
+    const d = await new IndicateursRepository(db).detailSite('S1', '2026-08', 'P1');
+    const p5 = d?.piliers.find((p) => p.pilier === 'P5')?.sousComposantes[0];
+    expect(p5).toMatchObject({ statut: 'ALERTE', valeur: 0, sanction: true });
+    expect(p5?.raison).toContain('Aucun inventaire de clôture');
+  });
+
+  it('mois jugé : un trou entre deux imports suspend la sanction', async () => {
+    await fenetreDonnees('2026-07-01', '2026-08-29');
+    await db.query(
+      `INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, fenetre_debut, fenetre_fin, statut)
+       VALUES ('t2.xlsx','2026-C3','2026-09','2026-09-01','2026-09-30','2026-09-02','2026-09-30','valide')`,
+    );
+    await inventaire('O', '2026-07-31', [['I1', 100, 100]]);
+    await dispensation('D1', '2026-08-15', 'I1', 30);
+    await calculer();
+    // fenêtre de clôture d'août : 29/08 au 01/09 ; les 30/08, 31/08 et 01/09 ne sont couverts par aucun import
+    expect(await p4p5()).toEqual({ taux_sdu_pct: null, taux_conso_pct: null, taux_concordance_pct: null });
+  });
+
+  it("un code inventorié sous un autre article à l'ouverture : raison propre, pas d'absence par code", async () => {
+    await db.query(`INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom) VALUES ('I3','T1','I3')`);
+    await inventaire('O', '2026-07-31', [['I1', 100, 100]]);
+    await inventaire('C', '2026-08-31', [['I3', 70, 70]]);
+    await calculer();
+    expect((await produits())['T1']).toMatchObject({ conso_raison_exclusion: 'autre_article_ouverture' });
+    expect(await ecartes()).toEqual([]);
+  });
+
+  it('historique des produits écartés : un traceur désactivé garde son passé', async () => {
+    await inventaire('O', '2026-07-31', [['I1', 100, 100]]);
+    await inventaire('C', '2026-08-31', [['I1', 70, 70], ['I2', 10, 10]]);
+    await calculer();
+    expect(await ecartes()).toHaveLength(1);
+    await db.query(`UPDATE dqa.dim_produit_traceur SET actif = false WHERE produit_code = 'T2'`);
+    await calculer();
+    expect(await ecartes()).toMatchObject([{ produit_code: 'T2', sens: 'absent_ouverture' }]);
+  });
 });

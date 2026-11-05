@@ -20,13 +20,13 @@ export class StocksController {
     return this.repo.suivi(q);
   }
 
-  @Get(':siteId/:produitId')
+  @Get(':siteId/:code')
   async detail(
     @Param('siteId') siteId: string,
-    @Param('produitId') produitId: string,
+    @Param('code') code: string,
     @Query(new ZodValidationPipe(detailStockQuerySchema)) q: DetailStockQuery,
   ): Promise<DetailStock> {
-    const d = await this.repo.detail(siteId, produitId, q);
+    const d = await this.repo.detail(siteId, code, q);
     if (!d) throw new NotFoundException('Aucun stock compté connu à cette date pour ce site et ce produit');
     return d;
   }

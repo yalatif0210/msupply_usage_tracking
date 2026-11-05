@@ -18,7 +18,6 @@ interface LigneStockBrute {
   district: string | null;
   programme_id: string | null;
   programme_nom: string | null;
-  produit_id: string;
   produit_code: string;
   libelle: string;
   date_debut: string | null;
@@ -50,7 +49,6 @@ const versLigne = (r: LigneStockBrute): LigneStock => ({
   district: r.district,
   programmeId: r.programme_id,
   programmeNom: r.programme_nom,
-  produitId: r.produit_id,
   produitCode: r.produit_code,
   libelle: r.libelle,
   dateFin: r.date_fin,
@@ -108,7 +106,7 @@ export class StocksRepository {
     const { rows } = await this.pool.query<LigneStockBrute>(
       `SELECT x.site_id, s.site_nom, s.region, s.district,
               x.programme_id, pg.programme_nom,
-              x.produit_id, x.produit_code, x.libelle,
+              x.produit_code, x.libelle,
               to_char(x.date_debut, 'YYYY-MM-DD') AS date_debut, x.stock_debut,
               to_char(x.date_fin, 'YYYY-MM-DD') AS date_fin, x.stock_fin,
               x.jours, x.nb_mois, x.receptions, x.sorties_reconstituees, x.declaree,
@@ -136,34 +134,34 @@ export class StocksRepository {
    * la migration 0055, mêmes règles que la projection. `null` si le couple
    * n'a aucun inventaire connu à t (ou n'est pas un traceur du périmètre).
    */
-  async detail(siteId: string, produitId: string, q: DetailStockQuery): Promise<DetailStock | null> {
+  async detail(siteId: string, code: string, q: DetailStockQuery): Promise<DetailStock | null> {
     const suivi = await this.suivi({ date: q.date, siteId });
-    const ligne = suivi.lignes.find((l) => l.produitId === produitId);
+    const ligne = suivi.lignes.find((l) => l.produitCode === code);
     if (!ligne) return null;
     const t = suivi.date;
     const depuis = ligne.cmm.calculable ? ligne.cmm.dateDebut : ligne.dateFin;
-    const params = [siteId, produitId, depuis, t];
+    const params = [siteId, code, depuis, t];
 
     const [serie, inventaires, receptions, photos] = await Promise.all([
       this.pool.query<{ jour: string; stock_projete: string | null }>(
         `SELECT to_char(jour, 'YYYY-MM-DD') AS jour, stock_projete FROM dqa.serie_stock($1, $2, $3::date)`,
-        [siteId, produitId, t],
+        [siteId, code, t],
       ),
       this.pool.query<{ d: string; comptee: string | null }>(
         `SELECT to_char(date_inventaire, 'YYYY-MM-DD') AS d, comptee FROM dqa.v_stock_compte_jour
-         WHERE site_id = $1 AND produit_id = $2 AND date_inventaire BETWEEN $3::date AND $4::date
+         WHERE site_id = $1 AND produit_code = $2 AND date_inventaire BETWEEN $3::date AND $4::date
          ORDER BY date_inventaire`,
         params,
       ),
       this.pool.query<{ d: string; reception: string }>(
         `SELECT to_char(jour, 'YYYY-MM-DD') AS d, reception FROM dqa.v_mouvement_stock_jour
-         WHERE site_id = $1 AND produit_id = $2 AND reception > 0 AND jour > $3::date AND jour <= $4::date
+         WHERE site_id = $1 AND produit_code = $2 AND reception > 0 AND jour > $3::date AND jour <= $4::date
          ORDER BY jour`,
         params,
       ),
       this.pool.query<{ d: string; stock_msupply: string }>(
         `SELECT to_char(date_photo, 'YYYY-MM-DD') AS d, stock_msupply FROM dqa.v_photo_stock_jour
-         WHERE site_id = $1 AND produit_id = $2 AND date_photo BETWEEN $3::date AND $4::date
+         WHERE site_id = $1 AND produit_code = $2 AND date_photo BETWEEN $3::date AND $4::date
          ORDER BY date_photo`,
         params,
       ),

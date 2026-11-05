@@ -173,7 +173,11 @@ describe('vue mv_p4_ecart_produit', () => {
     const p = await prod();
     const conformesSdu = Object.values(p).filter((r) => r.sdu_conforme).length;
     const totalSdu = Object.keys(p).length;
-    const evaluables = Object.values(p).filter((r) => r.conso_evaluable);
+    // dénominateur : produits présents aux deux inventaires, reconstituée ≤ 0
+    // comprise (non conforme, migration 0061)
+    const evaluables = Object.values(p).filter(
+      (r) => r.conso_raison_exclusion === null || r.conso_raison_exclusion === 'reconstituee_non_positive',
+    );
     const conformesConso = evaluables.filter((r) => r.conso_conforme).length;
 
     const { rows } = await db.query<{ taux_sdu_pct: string; taux_conso_pct: string | null }>(

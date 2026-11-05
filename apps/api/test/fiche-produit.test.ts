@@ -215,4 +215,20 @@ describe('ficheProduitMois', () => {
     expect(f.inventaires).toEqual([]);
     expect(f.reimporteDepuisLeGel).toBe(false);
   });
+
+  it('un code = un produit : la consommation additionne les articles du code', async () => {
+    await socle();
+    // un second article du code T1, présent aux deux inventaires, une dispensation
+    await produit('I9', 'T1', false);
+    await ligne('A', 'I9', 20, 20);
+    await ligne('B', 'I9', 10, 10);
+    await mouvement('D9', 'dispensation', '2026-08-15', 'I9', 10);
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    const f = await repo.ficheProduitMois('S1', 'T1', {});
+    if (f === null) throw new Error('fiche attendue');
+    // I1 : 90 + 40 - 50 = 80 reconstitués, 50 déclarés ; I9 : 20 - 10 = 10, 10 déclarés
+    expect(f.stockDebut).toBe(110);
+    expect(f.stockFin).toBe(60);
+    expect(f.consommation).toEqual({ reconstituee: 90, declaree: 60, ecart: -30 });
+  });
 });
