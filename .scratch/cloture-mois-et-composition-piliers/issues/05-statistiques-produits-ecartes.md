@@ -28,6 +28,9 @@ Décisions prises avec l'utilisateur (2026-11-04) :
   déclarées (borne haute, pertes non saisies) : `oubli_probable` ou `epuise`.
 - Fiche site : la liste des produits avec le calcul ; synthèse par territoire :
   deux colonnes avec le nombre d'oublis.
+- Revue du 2026-11-05 (ticket 06) : entrées et sorties comptent tous les
+  mouvements saisis (factures, ajustements, retours, dispensations ou
+  distributions) ; colonnes renommées `entrees` / `sorties`.
 - Historisé à chaque gel (`hist_produit_ecarte`, migration 0060).
 - Un produit absent de la clôture sort de P4 et de P5 : la liste le rend
   visible, conformément à la règle « dénominateur = produits inventoriés ».

@@ -2,7 +2,7 @@ import { unzipSync, strFromU8 } from 'fflate';
 
 /**
  * Lecteur de classeur `.xlsx` sans dépendance lourde : dézippe l'archive OOXML
- * et parse les XML. Rend les valeurs de cellules comme du **texte brut** — la
+ * et parse les XML. Rend les valeurs de cellules comme du **texte brut** : la
  * couche staging capture tout, la validation interprète ensuite.
  *
  * Ligne 5 de chaque onglet = noms de colonnes ; ligne 6+ = données.

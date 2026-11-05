@@ -84,7 +84,7 @@ const versLigne = (r: LigneStockBrute): LigneStock => ({
 });
 
 /**
- * Suivi des stocks : lit `dqa.stocks_a_date(t)` (migrations 0053 et 0054), qui
+ * Suivi des stocks : lit `dqa.stocks_a_date(t)` (migration 0061, par code produit), qui
  * calcule CMM, projection, statut et comparaison à la photo mSupply « comme si
  * l'on était à t ». Rien n'est recalculé ici.
  */
@@ -131,7 +131,7 @@ export class StocksRepository {
 
   /**
    * Détail d'un couple : série de `dqa.serie_stock` et faits lus des vues de
-   * la migration 0055, mêmes règles que la projection. `null` si le couple
+   * la migration 0061, mêmes règles que la projection. `null` si le couple
    * n'a aucun inventaire connu à t (ou n'est pas un traceur du périmètre).
    */
   async detail(siteId: string, code: string, q: DetailStockQuery): Promise<DetailStock | null> {

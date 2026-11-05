@@ -9,3 +9,6 @@ export const estDoublon = (err: unknown): boolean => codePg(err) === '23505';
 
 /** Violation de clé étrangère (SQLSTATE 23503). */
 export const estReferenceViolee = (err: unknown): boolean => codePg(err) === '23503';
+
+/** Violation d'une contrainte CHECK (SQLSTATE 23514). */
+export const estControleViole = (err: unknown): boolean => codePg(err) === '23514';

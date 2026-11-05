@@ -8,6 +8,7 @@ import {
   historiqueSiteSchema,
   methodeCalculSchema,
   syntheseNationaleSchema,
+  tableauDeBordSchema,
 } from '@dqa/contracts';
 import { AppModule } from '../src/app.module.js';
 import { closePool } from '../src/db/pool.js';
@@ -264,7 +265,7 @@ describe('API de lecture — sites et détail P5/P6', () => {
     expect(ligne.concordance.conforme).toBe(true);
     expect(ligne.consommation.evaluable).toBe(false);
     if (!ligne.consommation.evaluable) {
-      expect(ligne.consommation.raisonExclusion).toBe('sans_ouverture');
+      expect(ligne.consommation).toMatchObject({ raison: 'sans_ouverture', compteAuDenominateur: false });
     }
     // la variante porte l'horodatage du gel et le drapeau de ré-import
     expect(d.calculeLe).not.toBeNull();
@@ -326,5 +327,61 @@ describe('API de lecture — sites et détail P5/P6', () => {
     // un mois antérieur à toute grille
     await a.get('/api/methode-calcul?mois=2020-01').expect(404);
     await request(app.getHttpServer()).get('/api/methode-calcul').expect(401);
+  });
+
+  it('GET /api/methode-calcul suit la grille datée : une v2 décrit ses mois', async () => {
+    const a = await lecteur();
+    await base.pool.query(
+      `INSERT INTO dqa.grille_parametre (version, effet_a_partir_de, jours_marge_jugement, note_sanction)
+       VALUES ('v2', '2026-09-01', 5, 40)`,
+    );
+    try {
+      await base.pool.query(
+        `INSERT INTO dqa.grille_poids_pilier (grille_id, pilier, poids_pct)
+         SELECT (SELECT id FROM dqa.grille_parametre WHERE version = 'v2'), pilier, poids_pct
+         FROM dqa.grille_poids_pilier WHERE grille_id = dqa.grille_pour_mois('2026-08')`,
+      );
+      await base.pool.query(
+        `INSERT INTO dqa.grille_seuil_sous_composante
+           (grille_id, sous_composante, seuil, sens, unite, tolerance, seuil_district, retenue, poids_pct)
+         SELECT (SELECT id FROM dqa.grille_parametre WHERE version = 'v2'), sous_composante, seuil, sens, unite,
+                tolerance, seuil_district, retenue, poids_pct
+         FROM dqa.grille_seuil_sous_composante WHERE grille_id = dqa.grille_pour_mois('2026-08')`,
+      );
+      const sept = methodeCalculSchema.parse((await a.get('/api/methode-calcul?mois=2026-09')).body);
+      expect(sept.grille.version).toBe('v2');
+      expect(sept.regles).toMatchObject({ joursMargeJugement: 5, noteSanction: 40 });
+      // août garde la v1
+      const aout = methodeCalculSchema.parse((await a.get('/api/methode-calcul?mois=2026-08')).body);
+      expect(aout.grille.version).toBe('v1');
+      expect(aout.regles).toMatchObject({ joursMargeJugement: 3, noteSanction: 0 });
+    } finally {
+      await base.pool.query(`DELETE FROM dqa.grille_parametre WHERE version = 'v2'`);
+    }
+  });
+
+  it('GET /api/tableau-de-bord sert les règles de la grille du mois affiché', async () => {
+    const a = await lecteur();
+    const t = tableauDeBordSchema.parse((await a.get('/api/tableau-de-bord')).body);
+    expect(t.regles).toMatchObject({ borneConforme: 90, bornePartiellementConforme: 75 });
+  });
+
+  it('paramètres de requête invalides : 400, jamais 500', async () => {
+    const a = await lecteur();
+    const refuses = [
+      '/api/sites/SITE-1?mois=2026-13',
+      '/api/sites/SITE-1?mois=août',
+      '/api/sites/SITE-1/piliers/p4?mois=2026-00',
+      '/api/sites/SITE-1/produits/T1?mois=26-08',
+      '/api/methode-calcul?mois=2026-8',
+      '/api/tableau-de-bord?mois=demain',
+      '/api/synthese?mois=2026-13',
+    ];
+    for (const url of refuses) {
+      const res = await a.get(url);
+      expect(res.status, url).toBe(400);
+    }
+    // un programme vide vaut « tous programmes »
+    expect((await a.get('/api/sites/SITE-1?programmeId=')).status).toBe(200);
   });
 });

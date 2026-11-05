@@ -39,6 +39,7 @@ import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { HlmSkeleton } from '@spartan-ng/helm/skeleton';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { VALEUR_ABSENTE, versChaine } from '../core/affichage';
+import { bornesClassification, fenetreCloture } from '../core/regles-calcul';
 import { ressource } from '../core/ressource';
 import { SitesService } from '../core/sites.service';
 import { BadgeClassification } from '../ui/badge-classification';
@@ -49,7 +50,8 @@ import { GrapheCourbe, type SerieGrapheCourbe } from '../ui/graphe-courbe';
 import { GrapheRadar, type AxeGrapheRadar } from '../ui/graphe-radar';
 import { construireCalendrierP3, type CalendrierP3 } from './calendrier-p3';
 import {
-  bornesDe, calculAbsence, dateCommune, ecartConso, ecartSdu, jourMoisCourt, libelleLots, LIBELLES_QUALIFICATION, pourcent,
+  bornesDe, calculAbsence, dateCommune, ecartConso, ecartSdu, jourMoisCourt, libelleLots, libelleSansBorne,
+  LIBELLES_QUALIFICATION, pourcent, verdictConso,
 } from './tableaux-produits-p4p5';
 
 type Granularite = 'composite' | 'pilier' | 'sousComposante';
@@ -247,9 +249,9 @@ function reculerMois(mois: string, n: number): string {
                     @if (pil.score === null) {
                       Score du pilier non calculable
                     } @else {
-                      Score du pilier {{ pil.score | number: '1.0-0' }} / 100
+                      Score du pilier {{ pil.score | number: '1.0-1' }} / 100
                     }
-                    <span class="text-xs">· poids {{ pil.poids | number: '1.0-0' }} %</span>
+                    <span class="text-xs">· poids {{ pil.poids | number: '1.0-1' }} %</span>
                   </p>
                 </div>
                 <div hlmCardContent class="space-y-3">
@@ -266,7 +268,7 @@ function reculerMois(mois: string, n: number): string {
                           @if (!sc.retenue) {
                             · non retenue dans le score
                           } @else if (pil.sousComposantes.length > 1) {
-                            · poids {{ sc.poidsDansPilierPct | number: '1.0-0' }} % du pilier
+                            · poids {{ sc.poidsDansPilierPct | number: '1.0-1' }} % du pilier
                           }
                         </div>
                         @if (sc.raison) { <div class="mt-1 text-xs text-alerte-texte">{{ sc.raison }}</div> }
@@ -274,7 +276,7 @@ function reculerMois(mois: string, n: number): string {
                     </div>
                   }
                   <details class="border-t border-border pt-3 text-xs">
-                    <summary class="cursor-pointer font-medium text-muted-foreground">Calcul du score</summary>
+                    <summary class="cursor-pointer text-sm font-medium text-muted-foreground">Calcul du score</summary>
                     <ul class="mt-2 space-y-1">
                       @for (sc of pil.sousComposantes; track sc.sousComposante) {
                         <li class="tabular-nums">
@@ -600,7 +602,7 @@ function reculerMois(mois: string, n: number): string {
                   Conformité SDU@if (inventaireCommun(); as di) { · inventaire du {{ jourMoisCourt(di) }} }
                 </h3>
                 <p class="text-xs text-muted-foreground">
-                  À l'inventaire de clôture (fin du mois ou 1er du mois suivant). Écart = |théorique - compté| ÷ compté ; conforme dans la tolérance de la grille.
+                  À l'inventaire de clôture@if (d.calcul; as c) {, fait dans {{ fenetreCloture(c.regles) }}}. Écart = |théorique - compté| ÷ compté ; conforme dans la tolérance de la grille.
                 </p>
                 <div hlmTableContainer class="mt-2">
                   <table hlmTable class="border border-border">
@@ -625,7 +627,7 @@ function reculerMois(mois: string, n: number): string {
                           <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ pr.sdu.theorique === null ? absent : (pr.sdu.theorique | number: '1.0-3') }}</td>
                           <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ pr.sdu.comptee === null ? absent : (pr.sdu.comptee | number: '1.0-3') }}</td>
                           <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ ecartSdu(pr.sdu.ecartPct) }}</td>
-                          <td hlmTd class="border-r border-border text-center last:border-r-0 font-medium" [class]="pr.sdu.conforme ? 'text-conforme-texte' : 'text-alerte-texte'">{{ pr.sdu.conforme ? 'oui' : 'non' }}</td>
+                          <td hlmTd class="border-r border-border text-center last:border-r-0 font-medium" [class.text-conforme-texte]="pr.sdu.conforme" [class.text-alerte-texte]="!pr.sdu.conforme">{{ pr.sdu.conforme ? 'oui' : 'non' }}</td>
                         </tr>
                       }
                     </tbody>
@@ -642,9 +644,9 @@ function reculerMois(mois: string, n: number): string {
                     <thead hlmTHead>
                       <tr hlmTr>
                         <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Produit</th>
-                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Début@if (debutCommun(); as dd) { ({{ jourMoisCourt(dd) }}) }</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Ouverture@if (debutCommun(); as dd) { ({{ jourMoisCourt(dd) }}) }</th>
                         <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Réceptions</th>
-                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Fin@if (finCommune(); as df) { ({{ jourMoisCourt(df) }}) }</th>
+                        <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Clôture@if (finCommune(); as df) { ({{ jourMoisCourt(df) }}) }</th>
                         <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Reconstituée</th>
                         <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Déclarée</th>
                         <th hlmTh class="border-r border-border bg-muted text-center font-normal text-primary last:border-r-0">Écart</th>
@@ -669,13 +671,14 @@ function reculerMois(mois: string, n: number): string {
                             <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ b.reconstituee | number: '1.0-3' }}</td>
                             <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ b.declaree | number: '1.0-3' }}</td>
                           } @else {
-                            <td hlmTd class="border-r border-border text-center last:border-r-0 text-muted-foreground">
-                              @if (debutCommun(); as dd) { absent du {{ jourMoisCourt(dd) }} } @else { aucune borne }
-                            </td>
-                            <td hlmTd class="border-r border-border text-center last:border-r-0"></td><td hlmTd class="border-r border-border text-center last:border-r-0"></td><td hlmTd class="border-r border-border text-center last:border-r-0"></td><td hlmTd class="border-r border-border text-center last:border-r-0"></td>
+                            <td hlmTd class="border-r border-border text-center last:border-r-0 text-muted-foreground whitespace-normal" colspan="5">{{ libelleSansBorne(pr) }}</td>
                           }
+                          @let verdict = verdictConso(pr);
                           <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums"
-                              [class]="pr.consommation.evaluable ? (pr.consommation.conforme ? 'text-conforme-texte font-medium' : 'text-alerte-texte font-medium') : 'text-muted-foreground'">
+                              [class.font-medium]="verdict !== 'ecarte'"
+                              [class.text-conforme-texte]="verdict === 'conforme'"
+                              [class.text-alerte-texte]="verdict === 'non_conforme'"
+                              [class.text-muted-foreground]="verdict === 'ecarte'">
                             {{ ecartConso(pr) }}
                           </td>
                         </tr>
@@ -708,7 +711,7 @@ function reculerMois(mois: string, n: number): string {
                           <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ pr.sdu.theorique === null ? absent : (pr.sdu.theorique | number: '1.0-3') }}</td>
                           <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ pr.sdu.comptee === null ? absent : (pr.sdu.comptee | number: '1.0-3') }}</td>
                           <td hlmTd class="border-r border-border text-center last:border-r-0 tabular-nums">{{ pr.concordance.tauxPct === null ? absent : pourcent(pr.concordance.tauxPct) }}</td>
-                          <td hlmTd class="border-r border-border text-center last:border-r-0 font-medium" [class]="pr.concordance.conforme ? 'text-conforme-texte' : 'text-alerte-texte'">{{ pr.concordance.conforme ? 'oui' : 'non' }}</td>
+                          <td hlmTd class="border-r border-border text-center last:border-r-0 font-medium" [class.text-conforme-texte]="pr.concordance.conforme" [class.text-alerte-texte]="!pr.concordance.conforme">{{ pr.concordance.conforme ? 'oui' : 'non' }}</td>
                         </tr>
                       }
                     </tbody>
@@ -720,11 +723,16 @@ function reculerMois(mois: string, n: number): string {
                     Un code produit porté par plusieurs articles mSupply compte une fois : il n'est conforme que si tous ses articles le sont.
                   </p>
                 }
-
+              } @else if (!chargeP4P5()) {
+                <p class="mt-3 text-sm text-muted-foreground">{{ raisonTableauVide() }}</p>
+              }
+              @if (tableauP4P5Charge()) {
                 <h3 class="mt-6 text-sm font-semibold">Produits absents d'un inventaire</h3>
                 <p class="text-xs text-muted-foreground">
                   Présents à l'un des deux inventaires du mois (ouverture, clôture) et absents de l'autre, tous programmes
-                  confondus. Un produit absent de la clôture sort de P4 et de P5 pour le mois. Sans effet sur le score.
+                  confondus. Un produit absent de la clôture sort de P4 et de P5 pour le mois, un produit absent de
+                  l'ouverture sort de la conformité consommation. La qualification de l'absence est informative : elle
+                  ne modifie pas le score.
                 </p>
                 @if (produitsEcartes().length === 0) {
                   <p class="mt-2 text-sm text-muted-foreground">Aucun produit absent de l'un des deux inventaires.</p>
@@ -740,7 +748,7 @@ function reculerMois(mois: string, n: number): string {
                         </tr>
                       </thead>
                       <tbody hlmTBody>
-                        @for (pe of produitsEcartes(); track pe.produitCode + pe.sens) {
+                        @for (pe of produitsEcartes(); track pe.produitCode + '|' + pe.sens) {
                           <tr hlmTr>
                             <td hlmTd class="border-r border-border text-left last:border-r-0 whitespace-normal">
                               <div>{{ pe.libelle ?? pe.produitCode }}</div>
@@ -749,8 +757,8 @@ function reculerMois(mois: string, n: number): string {
                             <td hlmTd class="border-r border-border text-center last:border-r-0">
                               {{ pe.sens === 'absent_ouverture' ? "l'ouverture du " + jourMoisCourt(pe.dateOuverture) : 'la clôture du ' + jourMoisCourt(pe.dateCloture) }}
                             </td>
-                            <td hlmTd class="border-r border-border text-center last:border-r-0 font-medium"
-                                [class]="pe.qualification === 'oubli_demontre' || pe.qualification === 'oubli_probable' ? 'text-alerte-texte' : 'text-muted-foreground'">
+                            @let oubli = pe.qualification === 'oubli_demontre' || pe.qualification === 'oubli_probable';
+                            <td hlmTd class="border-r border-border text-center last:border-r-0 font-medium" [class.text-alerte-texte]="oubli" [class.text-muted-foreground]="!oubli">
                               {{ libellesQualification[pe.qualification] }}
                             </td>
                             <td hlmTd class="border-r border-border text-left last:border-r-0 whitespace-normal text-xs tabular-nums">{{ calculAbsence(pe) }}</td>
@@ -760,13 +768,13 @@ function reculerMois(mois: string, n: number): string {
                     </table>
                   </div>
                   <p class="mt-2 text-xs text-muted-foreground">
-                    Absent de l'ouverture : les sorties réelles sont au moins les sorties déclarées, un stock minimal positif
+                    Entrées et sorties : tous les mouvements saisis entre les deux inventaires (factures, ajustements,
+                    retours, {{ d.estDistrict ? 'distributions' : 'dispensations' }}). Absent de l'ouverture : le stock
+                    d'ouverture valait au moins le compté à la clôture plus les sorties moins les entrées ; positif, il
                     prouve que le produit existait (oubli démontré). Absent de la clôture : des pertes non saisies peuvent
                     expliquer un stock attendu positif (oubli probable) ; nul ou négatif, le produit est épuisé.
                   </p>
                 }
-              } @else if (!chargeP4P5()) {
-                <p class="mt-3 text-sm text-muted-foreground">{{ raisonTableauVide() }}</p>
               }
             </div>
           </details>
@@ -884,7 +892,7 @@ function reculerMois(mois: string, n: number): string {
                       class="mt-4 block"
                       [etiquettes]="etiquettesCourbe()"
                       [series]="seriesCourbe()"
-                      [seuils]="granularite() === 'composite' ? [75, 90] : [65, 75, 90]"
+                      [seuils]="seuilsCourbe()"
                       [pointilleDepuis]="pointilleDepuisCourbe()"
                     />
                     @if (granularite() === 'composite') {
@@ -1170,12 +1178,16 @@ export class DetailSitePage {
   protected readonly chargeP4P5 = signal(false);
   protected readonly tableauP4P5Ouvert = signal(false);
 
+  protected readonly tableauP4P5Charge = computed(() => this.tableauP4P5() !== null);
   protected readonly produitsP4P5 = computed(() => this.tableauP4P5()?.produits ?? []);
   protected readonly produitsEcartes = computed(() => this.tableauP4P5()?.produitsEcartes ?? []);
   protected readonly calculAbsence = calculAbsence;
   protected readonly libellesQualification = LIBELLES_QUALIFICATION;
   protected readonly bornesDe = bornesDe;
   protected readonly ecartConso = ecartConso;
+  protected readonly verdictConso = verdictConso;
+  protected readonly libelleSansBorne = libelleSansBorne;
+  protected readonly fenetreCloture = fenetreCloture;
   protected readonly ecartSdu = ecartSdu;
   protected readonly jourMoisCourt = jourMoisCourt;
   protected readonly libelleLots = libelleLots;
@@ -1311,6 +1323,17 @@ export class DetailSitePage {
       nom: this.libelleSc(sc),
       points: points.map((p) => p.sousComposantes.find((s) => s.sousComposante === sc)?.tauxAtteinte ?? null),
     }));
+  });
+
+  /**
+   * Repères de la courbe : les bornes de classification de la grille du mois
+   * affiché pour les scores ; aucun pour les taux d'atteinte, où 100 signifie
+   * déjà « seuil atteint ».
+   */
+  protected readonly seuilsCourbe = computed<number[]>(() => {
+    const regles = this.detail()?.calcul?.regles;
+    if (this.granularite() === 'sousComposante' || !regles) return [];
+    return bornesClassification(regles);
   });
 
   /**

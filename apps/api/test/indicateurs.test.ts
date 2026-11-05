@@ -64,9 +64,11 @@ describe('vues d\'indicateurs, composite et gel', () => {
     } = opts;
     const jourTxn = `${mois}-02`;
     const jourInv = finDeMois(mois); // inventaire de clôture (ADR 0022)
+    // fenêtre d'extraction du mois précédent au 10 du mois suivant : le mois et
+    // son prédécesseur sont jugés, quelle que soit la date du jour (ADR 0022)
     await db.query(
-      `INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, statut)
-       VALUES ('t.xlsx',$1,$2,$3,$4,'valide')`,
+      `INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, statut, fenetre_debut, fenetre_fin)
+       VALUES ('t.xlsx',$1,$2,$3,$4,'valide',($3::date - interval '1 month')::date,$4::date + 10)`,
       [cycleDe(mois), mois, `${mois}-01`, finDeMois(mois)],
     );
     await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S1','CSU',$1)`, [perimetre]);
@@ -165,13 +167,14 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect(s?.p_ecart_sdu).toBe('0.0');
   });
 
-  it('P4 et P5 NON_CALCULABLE sans inventaire quand le mois est EN COURS (ADR 0014)', async () => {
-    // Le mois courant est en cours par définition : un mois figé (2026-08)
-    // finissait forcément par être clos et le test par échouer.
+  it("P4 et P5 NON_CALCULABLE sans inventaire tant que le mois n'est pas jugé (ADR 0022)", async () => {
+    // Le mois courant n'est jamais jugé : un import ne couvre pas encore sa
+    // fenêtre de clôture, qui est dans le futur.
     const moisCourant = new Date().toISOString().slice(0, 7);
     await db.query(`SELECT dqa.completer_calendrier(date_trunc('month', CURRENT_DATE)::date,
                      (date_trunc('month', CURRENT_DATE) + interval '1 month - 1 day')::date)`);
     await socle({ avecInventaire: false, nbMouvements: 4, mois: moisCourant });
+    await db.query(`UPDATE dqa.import_lot SET fenetre_fin = CURRENT_DATE`);
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     const s = await scorePilier(null, moisCourant);
     expect(s?.p_concordance).toBeNull();
@@ -351,10 +354,12 @@ describe('vues d\'indicateurs, composite et gel', () => {
       score_conso: string | null;
       p_ecart_sdu: string | null;
     }>(
-      `SELECT taux_sdu_pct, nb_produits_sdu::int, taux_conso_pct, nb_produits_conso::int,
-              score_sdu, score_conso, p_ecart_sdu
-       FROM dqa.mv_p4_ecart
-       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND coalesce(programme_id,'') = $1`,
+      `SELECT e.taux_sdu_pct, e.nb_produits_sdu::int, e.taux_conso_pct, e.nb_produits_conso::int,
+              e.score_sdu, e.score_conso, s.p_ecart_sdu
+       FROM dqa.mv_p4_ecart e
+       LEFT JOIN dqa.mv_score_pilier s
+              ON s.site_id = e.site_id AND s.mois_paqd = e.mois_paqd AND s.programme_id IS NOT DISTINCT FROM e.programme_id
+       WHERE e.site_id = 'S1' AND e.mois_paqd = '2026-08' AND coalesce(e.programme_id,'') = $1`,
       [programme ?? ''],
     );
     return rows[0];
@@ -431,20 +436,19 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect(v?.score_sdu).toBe('100.0'); // 90 ≥ seuil 90
   });
 
-  it('P4 écart SDU NON_CALCULABLE sans produit traceur inventorié', async () => {
+  it('P4 : un inventaire sans produit traceur ne clôture pas le mois, sanction (ADR 0022)', async () => {
     await db.query(`DELETE FROM dqa.dim_produit_traceur`);
     await socle({ nbMouvements: 4 }); // mouvements → P6 calculable, mais aucun traceur
-    // ouverture et clôture présentes mais sans traceur exploitable → ligne forcée
-    // (grain tous programmes), taux SDU et conso NULL (ADR 0012, ADR 0022).
     await db.query(
       `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
        VALUES ('INV0','S1','P1','2026-07-31','fn',1)`,
     );
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
     const v = await p4();
-    expect(v?.taux_sdu_pct).toBeNull();
-    expect(v?.taux_conso_pct).toBeNull();
-    expect((await scorePilier(null))?.p_ecart_sdu).toBeNull();
+    expect(v?.nb_produits_sdu).toBe(0);
+    expect(v?.taux_sdu_pct).toBe('0.0');
+    expect(v?.taux_conso_pct).toBe('0.0');
+    expect((await scorePilier(null))?.p_ecart_sdu).toBe('0.0');
   });
 
   it('P4 écart consommation : produit évaluable et classé conforme', async () => {
@@ -624,16 +628,14 @@ describe('vues d\'indicateurs, composite et gel', () => {
     expect(rowCount).toBe(0);
   });
 
-  it('classe le composite aux bornes 90 et 75 (classer_composite)', async () => {
-    const { rows } = await db.query<{ s: string; c: string | null }>(
-      `SELECT v.s::text AS s, dqa.classer_composite(v.s) AS c
-       FROM (VALUES (90.0), (89.9), (75.0), (74.9)) AS v(s)`,
+  it('classe le composite aux bornes de la grille par défaut (90 / 75)', async () => {
+    // composite 13,3 (cf. renormalisation) : non conforme sous 75
+    await socle({ comptee: 70, theorique: 100, nbMouvements: 10, nbAjustements: 0 });
+    expect((await scorePilier(null))?.classification).toBe('NON_CONFORME');
+    const { rows } = await db.query<{ borne_conforme: string; borne_partiellement_conforme: string }>(
+      `SELECT borne_conforme, borne_partiellement_conforme FROM dqa.grille_parametre WHERE id = dqa.grille_pour_mois('2026-08')`,
     );
-    const par = Object.fromEntries(rows.map((r) => [r.s, r.c]));
-    expect(par['90.0']).toBe('CONFORME');
-    expect(par['89.9']).toBe('PARTIELLEMENT_CONFORME');
-    expect(par['75.0']).toBe('PARTIELLEMENT_CONFORME');
-    expect(par['74.9']).toBe('NON_CONFORME');
+    expect(rows[0]).toEqual({ borne_conforme: '90.0', borne_partiellement_conforme: '75.0' });
   });
 
   it('un re-gel du même mois met à jour la ligne sans doublon', async () => {

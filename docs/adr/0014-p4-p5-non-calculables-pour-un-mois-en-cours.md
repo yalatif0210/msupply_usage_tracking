@@ -1,6 +1,9 @@
 # P4 et P5 non calculables tant que le mois n'est pas clos
 
-**Statut.** Accepté. Amende l'ADR 0012 §3. Étendu par l'ADR 0019 : la règle
+**Statut.** Remplacé par l'ADR 0022 pour P4 et P5 : le « mois clos » y
+devient le « mois jugé », lu sur la couverture des imports et non plus sur la
+date du jour. Reste valable pour P1 et P2 (échéances non arrivées).
+Amende l'ADR 0012 §3. Étendu par l'ADR 0019 : la règle
 des échéances non arrivées s'applique aussi aux réquisitions (P1, P2) et à
 l'inventaire de P2 ; P1 et P2 n'étaient pas « déjà non calculables » dès
 qu'un site avait une activité dans le mois.

@@ -1,17 +1,25 @@
 -- ═══════════════════════════════════════════════════════════════════════════
---  Suivi des stocks par code produit : un code = un produit.
+--  Suivi des stocks par code produit : un code = un produit (complément de
+--  l'ADR 0016).
 --
 --  Les vues de lecture (0055) et le calcul de la CMM reconstituée, de la
 --  projection et du statut travaillaient par article mSupply (`produit_id`).
---  Un code porté par deux articles (ADR 0016) donnait deux lignes, chacune
---  avec une CMM et une rupture partielles. Tout passe par `produit_code` : le
---  stock compté d'un jour additionne les lignes de tous les articles du code
---  dans le dernier inventaire du jour ; mouvements et photos s'additionnent
---  de même. Les quantités sont en unités de dispensation (ADR 0017).
+--  Un code porté par deux articles donnait deux lignes, chacune avec une CMM
+--  et une rupture partielles. Tout passe par `produit_code` :
+--    - stock compté d'un article un jour donné : son dernier inventaire du
+--      jour (heure, numéro) ;
+--    - stock compté d'un code un jour où l'un de ses articles est compté :
+--      somme, pour chaque article déjà compté, de son dernier comptage à ce
+--      jour (un article inventorié à part, la veille ou à une autre heure,
+--      n'est pas perdu) ;
+--    - mouvements et photos : sommés par code.
+--  Les quantités sont en unités de dispensation (ADR 0017).
 --
---  Aujourd'hui aucun code traceur ne porte plusieurs articles : aucune valeur
---  ne change. `mv_produit_ecarte` (recréée, définition 0061) lit les
---  mouvements par code.
+--  `v_mouvement_stock_jour` expose aussi les autres entrées (ajustements
+--  positifs, retours client) et sorties enregistrées (ajustements négatifs,
+--  retours fournisseur), lues par les produits écartés (migration 0062).
+--  `mv_produit_ecarte`, emportée par le remplacement de la vue, est recréée
+--  en 0062.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 SET search_path TO dqa, public;
@@ -23,13 +31,15 @@ DROP VIEW dqa.v_stock_compte_jour;
 DROP VIEW dqa.v_photo_stock_jour;
 DROP VIEW dqa.v_mouvement_stock_jour CASCADE;
 
-CREATE VIEW dqa.v_stock_compte_jour AS
-SELECT site_id, produit_code, date_inventaire, comptee
+-- Stock compté d'un article un jour donné : le dernier inventaire finalisé du
+-- jour (heure, numéro), lots sommés.
+CREATE VIEW dqa.v_stock_compte_article_jour AS
+SELECT site_id, produit_id, produit_code, date_inventaire, comptee
 FROM (
-    SELECT fi.site_id, p.produit_code, fi.date_inventaire,
+    SELECT fi.site_id, fil.produit_id, p.produit_code, fi.date_inventaire,
            sum(fil.quantite_comptee) AS comptee,
            row_number() OVER (
-               PARTITION BY fi.site_id, p.produit_code, fi.date_inventaire
+               PARTITION BY fi.site_id, fil.produit_id, fi.date_inventaire
                ORDER BY fi.heure_inventaire DESC NULLS LAST,
                         fi.numero_inventaire DESC NULLS LAST, fi.inventaire_id DESC) AS rang
     FROM dqa.fact_inventaire fi
@@ -38,10 +48,27 @@ FROM (
     JOIN dqa.dim_produit p ON p.produit_id = fil.produit_id
     JOIN dqa.dim_produit_traceur tr ON tr.produit_code = p.produit_code AND tr.actif
     WHERE fi.statut = 'fn'
-    GROUP BY fi.site_id, p.produit_code, fi.date_inventaire, fi.inventaire_id,
+    GROUP BY fi.site_id, fil.produit_id, p.produit_code, fi.date_inventaire, fi.inventaire_id,
              fi.heure_inventaire, fi.numero_inventaire
 ) x
 WHERE rang = 1;
+
+-- Stock compté d'un code, chaque jour où l'un de ses articles est compté :
+-- somme du dernier comptage connu à ce jour de chacun de ses articles.
+CREATE VIEW dqa.v_stock_compte_jour AS
+WITH jours AS (
+    SELECT DISTINCT site_id, produit_code, date_inventaire FROM dqa.v_stock_compte_article_jour
+)
+SELECT j.site_id, j.produit_code, j.date_inventaire, sum(d.comptee) AS comptee
+FROM jours j
+CROSS JOIN LATERAL (
+    SELECT DISTINCT ON (a.produit_id) a.comptee
+    FROM dqa.v_stock_compte_article_jour a
+    WHERE a.site_id = j.site_id AND a.produit_code = j.produit_code
+      AND a.date_inventaire <= j.date_inventaire
+    ORDER BY a.produit_id, a.date_inventaire DESC
+) d
+GROUP BY j.site_id, j.produit_code, j.date_inventaire;
 
 CREATE VIEW dqa.v_mouvement_stock_jour AS
 SELECT ft.site_id, p.produit_code,
@@ -51,13 +78,20 @@ SELECT ft.site_id, p.produit_code,
        END AS jour,
        coalesce(sum(l.quantite_unitaire) FILTER (WHERE ft.nature = 'facture_fournisseur'), 0) AS reception,
        coalesce(sum(l.quantite_unitaire) FILTER (WHERE ft.nature = 'dispensation'), 0)        AS dispensation,
-       coalesce(sum(l.quantite_unitaire) FILTER (WHERE ft.nature = 'distribution'), 0)        AS distribution
+       coalesce(sum(l.quantite_unitaire) FILTER (WHERE ft.nature = 'distribution'), 0)        AS distribution,
+       -- autres entrées et sorties enregistrées, en valeur absolue (le signe
+       -- d'une ligne d'ajustement varie selon la saisie)
+       coalesce(sum(abs(l.quantite_unitaire)) FILTER (
+           WHERE ft.nature IN ('ajustement_positif', 'retour_client')), 0)                     AS entree_autre,
+       coalesce(sum(abs(l.quantite_unitaire)) FILTER (
+           WHERE ft.nature IN ('ajustement_negatif', 'retour_fournisseur')), 0)                AS sortie_autre
 FROM dqa.fact_transaction ft
 JOIN dqa.fact_ligne_transaction l ON l.transaction_id = ft.transaction_id
 JOIN dqa.dim_site s ON s.site_id = ft.site_id AND s.dans_perimetre_dqa
 JOIN dqa.dim_produit p ON p.produit_id = l.produit_id
 JOIN dqa.dim_produit_traceur tr ON tr.produit_code = p.produit_code AND tr.actif
-WHERE ft.nature IN ('facture_fournisseur', 'dispensation', 'distribution')
+WHERE ft.nature IN ('facture_fournisseur', 'dispensation', 'distribution',
+                    'ajustement_positif', 'ajustement_negatif', 'retour_client', 'retour_fournisseur')
   AND ft.statut = 'fn'
   AND NOT coalesce(ft.annulation, false)
   AND NOT (ft.nature = 'facture_fournisseur' AND coalesce(l.issu_ajustement, false))
@@ -292,72 +326,9 @@ LANGUAGE sql STABLE AS $$
     ORDER BY s.jour
 $$;
 
--- ══ Produits écartés : définition 0061, mouvements lus par code ════════
-CREATE MATERIALIZED VIEW mv_produit_ecarte AS
-WITH base AS (
-    -- clôtures retenues, tous programmes, un code compte une fois (ADR 0016)
-    SELECT site_id, mois_paqd, produit_code,
-           max(libelle)          AS libelle,
-           max(date_inventaire)  AS date_inventaire,
-           sum(comptee)          AS comptee,
-           bool_or(est_district) AS est_district
-    FROM dqa.mv_p4_ecart_produit
-    WHERE programme_id IS NULL
-    GROUP BY site_id, mois_paqd, produit_code
-),
-cloture_site AS (
-    SELECT site_id, mois_paqd, max(date_inventaire) AS date_cloture
-    FROM base GROUP BY site_id, mois_paqd
-),
-paires AS (
-    SELECT c.site_id, c.mois_paqd, o.date_cloture AS date_ouverture, c.date_cloture
-    FROM cloture_site c
-    JOIN cloture_site o ON o.site_id = c.site_id AND o.mois_paqd = dqa.mois_precedent(c.mois_paqd)
-),
-absents AS (
-    SELECT p.site_id, p.mois_paqd, p.date_ouverture, p.date_cloture,
-           b.produit_code, b.libelle, b.est_district, b.comptee AS stock_connu,
-           'absent_ouverture'::text AS sens
-    FROM paires p
-    JOIN base b ON b.site_id = p.site_id AND b.mois_paqd = p.mois_paqd
-    WHERE NOT EXISTS (SELECT 1 FROM base x
-                       WHERE x.site_id = p.site_id AND x.mois_paqd = dqa.mois_precedent(p.mois_paqd)
-                         AND x.produit_code = b.produit_code)
-    UNION ALL
-    SELECT p.site_id, p.mois_paqd, p.date_ouverture, p.date_cloture,
-           b.produit_code, b.libelle, b.est_district, b.comptee,
-           'absent_cloture'
-    FROM paires p
-    JOIN base b ON b.site_id = p.site_id AND b.mois_paqd = dqa.mois_precedent(p.mois_paqd)
-    WHERE NOT EXISTS (SELECT 1 FROM base x
-                       WHERE x.site_id = p.site_id AND x.mois_paqd = p.mois_paqd
-                         AND x.produit_code = b.produit_code)
-),
-flux AS (
-    SELECT a.site_id, a.mois_paqd, a.produit_code, a.sens,
-           coalesce(sum(m.reception), 0) AS receptions,
-           coalesce(sum(CASE WHEN a.est_district THEN m.distribution ELSE m.dispensation END), 0) AS sorties_declarees
-    FROM absents a
-    LEFT JOIN dqa.v_mouvement_stock_jour m
-           ON m.site_id = a.site_id AND m.produit_code = a.produit_code
-          AND m.jour > a.date_ouverture AND m.jour <= a.date_cloture
-    GROUP BY a.site_id, a.mois_paqd, a.produit_code, a.sens
-)
-SELECT a.site_id, a.mois_paqd, a.produit_code, a.libelle, a.sens,
-       a.date_ouverture, a.date_cloture,
-       a.stock_connu, f.receptions, f.sorties_declarees,
-       c.stock_calcule,
-       CASE
-           WHEN a.sens = 'absent_ouverture' AND c.stock_calcule > 0 THEN 'oubli_demontre'
-           WHEN a.sens = 'absent_ouverture'                         THEN 'indetermine'
-           WHEN c.stock_calcule > 0                                 THEN 'oubli_probable'
-           ELSE 'epuise'
-       END AS qualification
-FROM absents a
-JOIN flux f USING (site_id, mois_paqd, produit_code, sens)
-CROSS JOIN LATERAL (SELECT CASE WHEN a.sens = 'absent_ouverture'
-                                THEN a.stock_connu + f.sorties_declarees - f.receptions
-                                ELSE a.stock_connu + f.receptions - f.sorties_declarees
-                           END AS stock_calcule) c;
-
-CREATE UNIQUE INDEX mv_produit_ecarte_uq ON mv_produit_ecarte (site_id, mois_paqd, produit_code, sens);
+COMMENT ON FUNCTION dqa.series_stock(date) IS
+    'Stock projeté jour par jour de chaque couple site × code produit traceur, calculé à la date t (données postérieures à t ignorées). Base de stocks_a_date et serie_stock.';
+COMMENT ON FUNCTION dqa.stocks_a_date(date) IS
+    'Suivi des stocks à la date t, par couple site × code produit : CMM reconstituée et déclarée, bornes, stock projeté à t, rupture prévue, couverture, statut, programme parent, dernière photo de stock mSupply comparée au stock projeté ce jour-là.';
+COMMENT ON FUNCTION dqa.serie_stock(text, text, date) IS
+    'Série journalière (réception, stock projeté) d''un couple site × code produit à la date t, pour le détail.';

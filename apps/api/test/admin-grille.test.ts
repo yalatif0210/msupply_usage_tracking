@@ -56,7 +56,7 @@ describe('administration de la grille de paramètres', () => {
     { pilier: 'P6' as const, poidsPct: 10 },
   ];
   const REGLES = {
-    joursClotureFinMois: 3, joursClotureMoisSuivant: 1, noteSanction: 0,
+    joursClotureFinMois: 3, joursClotureMoisSuivant: 1, joursMargeJugement: 3, noteSanction: 0,
     borneConforme: 90, bornePartiellementConforme: 75,
   };
   const entree = (over: Record<string, unknown> = {}) => ({
@@ -132,11 +132,26 @@ describe('administration de la grille de paramètres', () => {
 
   it('enregistre et relit les règles de calcul', async () => {
     const a = await agent('coordination');
-    const regles = { ...REGLES, joursClotureFinMois: 5, joursClotureMoisSuivant: 2, noteSanction: 20, borneConforme: 85 };
+    const regles = {
+      ...REGLES, joursClotureFinMois: 5, joursClotureMoisSuivant: 2, joursMargeJugement: 7, noteSanction: 20, borneConforme: 85.5,
+    };
     const { body } = await a.post('/api/admin/grille').send(entree({ regles })).expect(201);
     expect(grilleDetailSchema.parse(body).regles).toEqual(regles);
     const v1Id = (await a.get('/api/admin/grille')).body.find((g: { version: string }) => g.version === 'v1').id;
     expect((await a.get(`/api/admin/grille/${v1Id}`)).body.regles).toEqual(REGLES); // valeurs par défaut
+  });
+
+  it('refuse une règle hors de ses bornes : chaque règle a son cas', async () => {
+    const a = await agent('coordination');
+    const refusee = (r: Partial<typeof REGLES>) =>
+      a.post('/api/admin/grille').send(entree({ regles: { ...REGLES, ...r } })).expect(400);
+    await refusee({ noteSanction: 100 }); // une sanction n'est jamais conforme
+    await refusee({ joursMargeJugement: 16 });
+    await refusee({ joursMargeJugement: -1 });
+    await refusee({ joursClotureFinMois: 0 });
+    await refusee({ joursClotureMoisSuivant: 11 });
+    await refusee({ borneConforme: 90.05 }); // une décimale au plus
+    expect((await a.get('/api/admin/grille')).body).toHaveLength(1); // rien n'a été créé
   });
 
   it('refuse des bornes de classification inversées', async () => {

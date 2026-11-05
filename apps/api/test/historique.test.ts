@@ -117,9 +117,9 @@ describe('v_mois_cycle et lecture de progression', () => {
   const histAtteinte = async (nom: string, valeur: number | null) => {
     await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S1','CSU',true)`);
     await db.query(
-      `INSERT INTO dqa.hist_score_site (site_id, mois_paqd, programme_id, grille_id, ${'sc_' + nom})
-       VALUES ('S1','2026-08',NULL,$1,$2)`,
-      [gid, valeur],
+      `INSERT INTO dqa.hist_score_site (site_id, mois_paqd, programme_id, grille_id, ${'sc_' + nom}, ${'note_' + nom})
+       VALUES ('S1','2026-08',NULL,$1,$2::numeric,dqa.note_sous_composante($2::numeric, $3, '2026-08'))`,
+      [gid, valeur, nom],
     );
   };
   const atteinte = async (nom: string) => {
@@ -172,8 +172,8 @@ describe('v_mois_cycle et lecture de progression', () => {
     db.query(
       `INSERT INTO dqa.hist_score_site
          (site_id, mois_paqd, programme_id, grille_id, score_composite, classification,
-          p_regularite, sc_regularite_saisie)
-       VALUES ('S1',$1,NULL,$2,$3,'NON_CONFORME',0,$4)`,
+          p_regularite, sc_regularite_saisie, note_regularite_saisie)
+       VALUES ('S1',$1,NULL,$2,$3,'NON_CONFORME',0,$4::numeric,dqa.note_sous_composante($4::numeric, 'regularite_saisie', $1))`,
       [mois, gid, composite, reg],
     );
 

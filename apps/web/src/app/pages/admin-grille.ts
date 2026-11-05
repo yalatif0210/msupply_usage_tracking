@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { toast } from '@spartan-ng/brain/sonner';
 import { HlmButton } from '@spartan-ng/helm/button';
+import { HlmCheckbox } from '@spartan-ng/helm/checkbox';
 import { HlmInput } from '@spartan-ng/helm/input';
 import { HlmLabel } from '@spartan-ng/helm/label';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
@@ -19,12 +20,13 @@ import {
   type GrilleDetail,
   type GrilleParametre,
   type Pilier,
-  type PoidsPilier,
   type ReglesCalcul,
   type SeuilSousComposante,
   type SousComposante,
 } from '@dqa/contracts';
 import { SANS_OBJET } from '../core/affichage';
+import { erreursGrille } from '../core/erreurs-grille';
+import { seuilLisible } from '../core/regles-calcul';
 import { AdminGrilleService } from '../core/admin-grille.service';
 import { messageErreurHttp } from '../core/message-erreur';
 import { Coquille } from '../ui/coquille';
@@ -43,8 +45,10 @@ const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant'
   imports: [
     FormsModule,
     DatePipe,
+    DecimalPipe,
     Coquille,
     HlmButton,
+    HlmCheckbox,
     HlmInput,
     HlmLabel,
     HlmSelectImports,
@@ -145,9 +149,10 @@ const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant'
                     type="number"
                     min="0"
                     max="100"
-                    step="0.5"
+                    step="0.1"
+                    [attr.aria-label]="'Poids de ' + p.pilier"
                     [ngModel]="p.poidsPct"
-                    (ngModelChange)="majPoids(p, $event)"
+                    (ngModelChange)="majPoids(p.pilier, $event)"
                   />
                 </div>
               }
@@ -162,11 +167,12 @@ const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant'
                     hlmInput
                     class="w-full text-right"
                     type="number"
-                    step="0.5"
+                    step="0.1"
+                    [attr.aria-label]="'Seuil de ' + libelleSousComposante(s.sousComposante)"
                     [ngModel]="s.seuil"
-                    (ngModelChange)="majSeuil(s, $event)"
+                    (ngModelChange)="majSc(s.sousComposante, { seuil: $event ?? 0 })"
                   />
-                  <hlm-select [value]="s.sens" (valueChange)="majSens(s, $event)">
+                  <hlm-select [value]="s.sens" (valueChange)="majSens(s.sousComposante, $event)">
                     <hlm-select-trigger class="w-full">
                       <hlm-select-value />
                     </hlm-select-trigger>
@@ -181,10 +187,11 @@ const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant'
                       class="w-full text-right"
                       type="number"
                       min="0"
-                      step="0.5"
+                      step="0.1"
                       placeholder="tolérance %"
+                      [attr.aria-label]="'Tolérance produit de ' + libelleSousComposante(s.sousComposante)"
                       [ngModel]="s.tolerance"
-                      (ngModelChange)="majTolerance(s, $event)"
+                      (ngModelChange)="majSc(s.sousComposante, { tolerance: $event })"
                     />
                   } @else if (s.sousComposante === 'regularite_saisie') {
                     <input
@@ -192,10 +199,11 @@ const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant'
                       class="w-full text-right"
                       type="number"
                       min="0"
-                      step="0.5"
+                      step="0.1"
                       placeholder="seuil district %"
+                      [attr.aria-label]="'Seuil district de ' + libelleSousComposante(s.sousComposante)"
                       [ngModel]="s.seuilDistrict"
-                      (ngModelChange)="majSeuilDistrict(s, $event)"
+                      (ngModelChange)="majSc(s.sousComposante, { seuilDistrict: $event })"
                     />
                   } @else {
                     <span class="text-center text-sm text-muted-foreground">{{ sansObjet }}</span>
@@ -222,9 +230,12 @@ const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant'
                   @for (s of seuilsDuPilier(b.seuils, pilier); track s.sousComposante) {
                     <div class="mt-1 grid grid-cols-2 items-center gap-2 sm:grid-cols-3">
                       <span class="text-sm">{{ libelleSousComposante(s.sousComposante) }}</span>
-                      <label class="flex items-center gap-2 text-sm">
-                        <input type="checkbox" [checked]="s.retenue" (change)="majRetenue(s, !s.retenue)"
-                               [attr.aria-label]="'Retenir ' + libelleSousComposante(s.sousComposante)" />
+                      <label class="flex items-center gap-2 text-sm" hlmLabel>
+                        <hlm-checkbox
+                          [checked]="s.retenue"
+                          (checkedChange)="majRetenue(s.sousComposante, $event)"
+                          [aria-label]="'Retenir ' + libelleSousComposante(s.sousComposante)"
+                        />
                         {{ s.retenue ? 'Retenue' : 'Non retenue' }}
                       </label>
                       <input
@@ -233,11 +244,11 @@ const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant'
                         type="number"
                         min="0"
                         max="100"
-                        step="5"
+                        step="0.1"
                         [disabled]="!s.retenue"
                         [attr.aria-label]="'Poids de ' + libelleSousComposante(s.sousComposante) + ' dans le pilier'"
                         [ngModel]="s.poidsDansPilierPct"
-                        (ngModelChange)="majPoidsDansPilier(s, $event)"
+                        (ngModelChange)="majSc(s.sousComposante, { poidsDansPilierPct: $event ?? 0 })"
                       />
                     </div>
                   }
@@ -265,8 +276,13 @@ const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant'
               }
             </div>
 
+            @if (erreurs().length > 0) {
+              <ul class="mt-6 list-disc space-y-1 pl-5 text-sm text-destructive" role="alert">
+                @for (e of erreurs(); track e) { <li>{{ e }}</li> }
+              </ul>
+            }
             <div class="mt-6 flex items-center gap-2">
-              <button hlmBtn type="button" [disabled]="enCours()" (click)="enregistrer()">Enregistrer</button>
+              <button hlmBtn type="button" [disabled]="enCours() || erreurs().length > 0" (click)="enregistrer()">Enregistrer</button>
               <button hlmBtn variant="ghost" type="button" (click)="annuler()">Annuler</button>
             </div>
           } @else if (selection(); as s) {
@@ -292,7 +308,7 @@ const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant'
               @for (p of s.poids; track p.pilier) {
                 <li class="flex items-center justify-between py-2">
                   <span>{{ p.pilier }} · {{ libellePilier(p.pilier) }}</span>
-                  <b class="font-semibold tabular-nums">{{ p.poidsPct }} %</b>
+                  <b class="font-semibold tabular-nums">{{ p.poidsPct | number: '1.0-2' }} %</b>
                 </li>
               }
             </ul>
@@ -302,7 +318,7 @@ const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant'
               @for (r of champsRegles; track r.cle) {
                 <li class="flex items-center justify-between py-2">
                   <span>{{ r.libelle }}</span>
-                  <b class="font-semibold tabular-nums">{{ s.regles[r.cle] }}</b>
+                  <b class="font-semibold tabular-nums">{{ s.regles[r.cle] | number: '1.0-1' }}</b>
                 </li>
               }
             </ul>
@@ -314,17 +330,17 @@ const VARIANTE_STATUT: Record<GrilleParametre['statut'], BadgeVariants['variant'
                   <span>{{ libelleSousComposante(se.sousComposante) }}</span>
                   <span class="tabular-nums">
                     @if (se.retenue) {
-                      <span class="text-muted-foreground">poids {{ se.poidsDansPilierPct }} % du pilier ·&nbsp;</span>
+                      <span class="text-muted-foreground">poids {{ se.poidsDansPilierPct | number: '1.0-2' }} % du pilier ·&nbsp;</span>
                     } @else {
                       <span class="text-muted-foreground">non retenue dans le score ·&nbsp;</span>
                     }
-                    <b class="font-semibold">{{ se.sens === 'sup' ? '≥' : '≤' }} {{ se.seuil }}</b>
+                    <b class="font-semibold">{{ seuilLisible(se) }}</b>
                     @if (se.seuilDistrict !== null) {
-                      <span class="text-muted-foreground">&nbsp;· district ≥ {{ se.seuilDistrict }}</span>
+                      <span class="text-muted-foreground">&nbsp;· district {{ se.sens === 'sup' ? '≥' : '≤' }} {{ se.seuilDistrict | number: '1.0-2' }} %</span>
+                    } @else if (se.tolerance !== null) {
+                      <span class="text-muted-foreground">&nbsp;· tolérance {{ se.tolerance | number: '1.0-2' }} %</span>
                     } @else {
-                      <span class="text-muted-foreground">
-                        · tolérance {{ se.tolerance !== null ? se.tolerance + ' %' : sansObjet }}
-                      </span>
+                      <span class="text-muted-foreground">&nbsp;· tolérance {{ sansObjet }}</span>
                     }
                   </span>
                 </li>
@@ -363,9 +379,10 @@ export class AdminGrillePage {
   }[] = [
     { cle: 'joursClotureFinMois', libelle: 'Clôture : derniers jours du mois', min: 1, max: 10, pas: 1 },
     { cle: 'joursClotureMoisSuivant', libelle: 'Clôture : premiers jours du mois suivant', min: 0, max: 10, pas: 1 },
-    { cle: 'noteSanction', libelle: "Note d'une sous-composante P4 / P5 sanctionnée", min: 0, max: 100, pas: 5 },
-    { cle: 'borneConforme', libelle: 'Composite : conforme à partir de', min: 0, max: 100, pas: 1 },
-    { cle: 'bornePartiellementConforme', libelle: 'Composite : partiellement conforme à partir de', min: 0, max: 100, pas: 1 },
+    { cle: 'joursMargeJugement', libelle: 'Marge avant de juger un mois (jours après la fenêtre)', min: 0, max: 15, pas: 1 },
+    { cle: 'noteSanction', libelle: "Note d'une sous-composante P4 / P5 sanctionnée (sous 100)", min: 0, max: 99.9, pas: 0.1 },
+    { cle: 'borneConforme', libelle: 'Composite : conforme à partir de', min: 0, max: 100, pas: 0.1 },
+    { cle: 'bornePartiellementConforme', libelle: 'Composite : partiellement conforme à partir de', min: 0, max: 100, pas: 0.1 },
   ];
   protected libellePilier = (p: Pilier) => LIBELLES_PILIER[p];
   protected seuilsDuPilier = (seuils: readonly SeuilSousComposante[], pilier: Pilier) =>
@@ -379,73 +396,58 @@ export class AdminGrillePage {
   protected libelleSousComposante = (s: GrilleDetail['seuils'][number]['sousComposante']) =>
     LIBELLES_SOUS_COMPOSANTE[s];
   protected avecTolerance = (s: SousComposante) => AVEC_TOLERANCE.has(s);
+  protected readonly seuilLisible = seuilLisible;
+
+  /** Erreurs du schéma du contrat, le même que l'API applique : rien ne part s'il en reste. */
+  protected readonly erreurs = computed<string[]>(() => {
+    const b = this.brouillon();
+    return b ? erreursGrille(b) : [];
+  });
   protected libelleStatut = (s: GrilleParametre['statut']) =>
     ({ planifiee: 'Planifiée', en_vigueur: 'En vigueur', passee: 'Passée' })[s];
   protected badgeStatut = (s: GrilleParametre['statut']): BadgeVariants['variant'] =>
     VARIANTE_STATUT[s];
 
-  // -- Édition du brouillon : recalcul du total 100 % client, sans rechargement.
-  // Chaque saisie rejoue le signal `brouillon` pour que `totalPoids` (computed)
-  // se recalcule immédiatement.
+  // -- Édition du brouillon : chaque saisie produit un nouveau brouillon, d'où
+  // le recalcul immédiat des totaux et des erreurs (computed).
 
-  private rejouer(): void {
+  private modifier(changer: (b: EntreeGrille) => EntreeGrille): void {
     const b = this.brouillon();
-    if (b) this.brouillon.set({ ...b });
+    if (b) this.brouillon.set(changer(b));
   }
 
-  protected majVersion(v: string): void {
-    const b = this.brouillon();
-    if (b) this.brouillon.set({ ...b, version: v });
+  protected majVersion(version: string): void {
+    this.modifier((b) => ({ ...b, version }));
   }
 
-  protected majEffet(v: string): void {
-    const b = this.brouillon();
-    if (b) this.brouillon.set({ ...b, effetAPartirDe: v });
+  protected majEffet(effetAPartirDe: string): void {
+    this.modifier((b) => ({ ...b, effetAPartirDe }));
   }
 
-  protected majPoids(p: PoidsPilier, v: number | null): void {
-    p.poidsPct = v ?? 0;
-    this.rejouer();
+  protected majPoids(pilier: Pilier, v: number | null): void {
+    this.modifier((b) => ({
+      ...b,
+      poids: b.poids.map((p) => (p.pilier === pilier ? { ...p, poidsPct: v ?? 0 } : p)),
+    }));
   }
 
-  protected majSeuil(s: SeuilSousComposante, v: number | null): void {
-    s.seuil = v ?? 0;
-    this.rejouer();
+  protected majSc(sc: SousComposante, changement: Partial<SeuilSousComposante>): void {
+    this.modifier((b) => ({
+      ...b,
+      seuils: b.seuils.map((s) => (s.sousComposante === sc ? { ...s, ...changement } : s)),
+    }));
   }
 
-  protected majSens(s: SeuilSousComposante, v: unknown): void {
-    if (v === 'sup' || v === 'inf') {
-      s.sens = v;
-      this.rejouer();
-    }
+  protected majSens(sc: SousComposante, v: unknown): void {
+    if (v === 'sup' || v === 'inf') this.majSc(sc, { sens: v });
   }
 
-  protected majTolerance(s: SeuilSousComposante, v: number | null): void {
-    s.tolerance = v;
-    this.rejouer();
-  }
-
-  protected majSeuilDistrict(s: SeuilSousComposante, v: number | null): void {
-    s.seuilDistrict = v;
-    this.rejouer();
+  protected majRetenue(sc: SousComposante, retenue: boolean): void {
+    this.majSc(sc, retenue ? { retenue } : { retenue, poidsDansPilierPct: 0 });
   }
 
   protected majRegle(cle: keyof ReglesCalcul, v: number | null): void {
-    const b = this.brouillon();
-    if (!b) return;
-    b.regles[cle] = v ?? 0;
-    this.rejouer();
-  }
-
-  protected majRetenue(s: SeuilSousComposante, retenue: boolean): void {
-    s.retenue = retenue;
-    if (!retenue) s.poidsDansPilierPct = 0;
-    this.rejouer();
-  }
-
-  protected majPoidsDansPilier(s: SeuilSousComposante, v: number | null): void {
-    s.poidsDansPilierPct = v ?? 0;
-    this.rejouer();
+    this.modifier((b) => ({ ...b, regles: { ...b.regles, [cle]: v ?? 0 } }));
   }
 
   private async charger(): Promise<void> {

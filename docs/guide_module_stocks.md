@@ -37,7 +37,7 @@ tableau du calcul de la CMM.
 
 ## Données manipulées
 
-Fonctions SQL de la migration 0053, lues par `StocksRepository` :
+Fonctions SQL des migrations 0053 et 0061 (par code produit), lues par `StocksRepository` :
 
 | Fonction | Rend |
 |---|---|
@@ -46,7 +46,7 @@ Fonctions SQL de la migration 0053, lues par `StocksRepository` :
 | `dqa.serie_stock(site, code, t)` | la série d'un couple (détail, ticket 03) |
 | `dqa.date_reference_stocks()` | la date t par défaut |
 
-Vues de lecture (migration 0055, par code produit depuis 0062), partagées par
+Vues de lecture (migration 0055, par code produit depuis 0061), partagées par
 ces fonctions et par le détail d'un couple, pour que la courbe montre
 exactement les faits utilisés par la projection. **Un code = un produit** : les
 articles mSupply d'un même code (ADR 0016) s'additionnent, en unités de
@@ -54,8 +54,9 @@ dispensation (ADR 0017) ; le produit d'une ligne est son `produitCode`.
 
 | Vue | Rend |
 |---|---|
-| `dqa.v_stock_compte_jour` | stock compté par site, code produit et jour (dernier inventaire finalisé du jour, tous les articles et lots du code sommés) |
-| `dqa.v_mouvement_stock_jour` | réceptions, dispensations, distributions par site, code produit et jour |
+| `dqa.v_stock_compte_article_jour` | stock compté par site, article et jour (dernier inventaire finalisé du jour, lots sommés) |
+| `dqa.v_stock_compte_jour` | stock compté par site, code produit et jour : somme du dernier compte connu de chaque article du code à ce jour (un article non recompté garde son dernier compte) |
+| `dqa.v_mouvement_stock_jour` | réceptions, dispensations, distributions par site, code produit et jour, plus `entree_autre` (ajustements positifs, retours client) et `sortie_autre` (ajustements négatifs, retours fournisseur), lus par les produits écartés |
 | `dqa.v_photo_stock_jour` | photo de stock mSupply par site, code produit et jour (articles et lots sommés) |
 
 Sources : `fact_inventaire` / `fact_inventaire_ligne` (stocks comptés),

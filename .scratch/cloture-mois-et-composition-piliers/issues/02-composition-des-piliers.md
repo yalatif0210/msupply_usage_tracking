@@ -1,9 +1,10 @@
 # 02: Composition des piliers paramétrable
 
 **What to build:** la grille datée porte, pour chaque pilier, les
-sous-composantes activées et leur poids. Une sous-composante activée compte
-dans le score de son pilier. La grille actuelle fait de P4 l'écart de
-consommation seul (100 %), l'écart SDU désactivé. La coordination modifie la
+sous-composantes retenues et leur poids. Une sous-composante retenue compte
+dans le score de son pilier ; une non retenue reste mesurée et affichée. La
+grille actuelle fait de P4 la conformité consommation seule (100 %), la
+conformité SDU non retenue. La coordination modifie la
 composition dans l'écran d'administration de la grille.
 
 **Blocked by:** 01

@@ -214,9 +214,12 @@ export const reglesCalculSchema = z
     joursClotureFinMois: z.number().int().min(1).max(10),
     /** Un inventaire des N premiers jours du mois suivant clôture le mois. */
     joursClotureMoisSuivant: z.number().int().min(0).max(10),
-    noteSanction: pourcentageSchema,
-    borneConforme: pourcentageSchema,
-    bornePartiellementConforme: pourcentageSchema,
+    /** Jours ajoutés à la fenêtre de clôture avant de juger le mois (synchronisation mSupply). */
+    joursMargeJugement: z.number().int().min(0).max(15),
+    /** Note d'une sous-composante sanctionnée : sous 100, une sanction n'est jamais conforme. */
+    noteSanction: z.number().min(0).lt(100).multipleOf(0.1),
+    borneConforme: pourcentageSchema.multipleOf(0.1),
+    bornePartiellementConforme: pourcentageSchema.multipleOf(0.1),
   })
   .refine((r) => r.bornePartiellementConforme > 0 && r.bornePartiellementConforme < r.borneConforme, {
     message: 'Bornes de classification : 0 < partiellement conforme < conforme ≤ 100',
@@ -366,7 +369,7 @@ export const detailSiteSchema = z.object({
   piliersTotal: z.literal(6),
   /**
    * Score composite du site. `null` tant que les six piliers ne sont pas
-   * couverts — le front n'affiche alors pas de score.
+   * couverts : le front n'affiche alors pas de score.
    */
   scoreComposite: pourcentageSchema.nullable(),
   classification: classificationSchema.nullable(),
@@ -425,7 +428,11 @@ export type MoisMesure = z.infer<typeof moisMesureSchema>;
 
 export const detailSiteQuerySchema = z.object({
   mois: moisPaqdSchema.optional(),
-  programmeId: z.string().optional(),
+  /** Un paramètre vide (`?programmeId=`) vaut « tous programmes ». */
+  programmeId: z
+    .string()
+    .optional()
+    .transform((v) => (v === '' ? undefined : v)),
 });
 export type DetailSiteQuery = z.infer<typeof detailSiteQuerySchema>;
 
@@ -827,6 +834,8 @@ export const tableauDeBordSchema = z.object({
   sousComposantesEnDifficulte: z
     .array(ligneSousComposanteSyntheseSchema)
     .max(TOP_SOUS_COMPOSANTES_DIFFICULTE),
+  /** Règles de la grille du mois affiché (bornes de classification) ; `null` sans mois ni grille. */
+  regles: reglesCalculSchema.nullable(),
 });
 export type TableauDeBord = z.infer<typeof tableauDeBordSchema>;
 
@@ -877,7 +886,7 @@ export type HistoriqueQuery = z.infer<typeof historiqueQuerySchema>;
 // ─── Tableau produit P4 · P5 (écart SDU / consommation + concordance) ────────
 
 /**
- * Raison pour laquelle un produit est exclu du calcul de l'écart consommation.
+ * Pourquoi l'écart de consommation d'un produit n'est pas chiffré.
  *
  * - `sans_ouverture` : le site n'a pas d'inventaire de clôture du mois M-1,
  *   donc pas d'ouverture pour M (ADR 0022) ; P4 est sanctionné.
@@ -887,7 +896,8 @@ export type HistoriqueQuery = z.infer<typeof historiqueQuerySchema>;
  *   article mSupply ; les bornes se rapprochent par article (ADR 0016).
  * - `reconstituee_non_positive` : bornes présentes mais la consommation
  *   reconstituée (`stock ouverture + réceptions - stock clôture`) est ≤ 0 ;
- *   écart non chiffrable, le produit compte **non conforme** (migration 0061).
+ *   écart non chiffrable, le produit compte **non conforme** au dénominateur
+ *   (`compteAuDenominateur`).
  */
 export const raisonExclusionConsoSchema = z.enum([
   'sans_ouverture',
@@ -939,7 +949,13 @@ export const ecartConsoProduitSchema = z.discriminatedUnion('evaluable', [
   }),
   z.object({
     evaluable: z.literal(false),
-    raisonExclusion: raisonExclusionConsoSchema,
+    raison: raisonExclusionConsoSchema,
+    /**
+     * Vrai si le produit compte au dénominateur malgré l'écart non chiffrable :
+     * présent aux deux inventaires, reconstituée ≤ 0, il compte non conforme.
+     * Faux : le produit est écarté de la conformité consommation.
+     */
+    compteAuDenominateur: z.boolean(),
     bornes: bornesConsoSchema.nullable(),
   }),
 ]);
@@ -1140,17 +1156,13 @@ export const detailPilierP6Schema = detailPilierBaseSchema.extend({
 export type DetailPilierP6 = z.infer<typeof detailPilierP6Schema>;
 
 /**
- * Variante P4 : le tableau produit P4 · P5 fusionné. Une ligne par produit
- * traceur inventorié, écart SDU hors tolérance en tête (comme `mv_p4_ecart_produit`).
- * Alimente les cartes P4 **et** P5 de la fiche site.
- */
-/**
  * Produit présent à l'un des deux inventaires du mois et absent de l'autre
  * (le site ayant fait les deux), historisé à chaque gel. Sans effet sur le score.
+ * Entrées et sorties : toutes celles enregistrées entre les deux inventaires.
  * - `absent_ouverture` : stock minimal à l'ouverture = compté clôture +
- *   sorties déclarées - réceptions ; > 0 : `oubli_demontre`, sinon `indetermine`.
+ *   sorties - entrées ; > 0 : `oubli_demontre`, sinon `indetermine`.
  * - `absent_cloture` : stock attendu à la clôture = compté ouverture +
- *   réceptions - sorties déclarées (borne haute, pertes non saisies) ; > 0 :
+ *   entrées - sorties (borne haute, pertes non saisies) ; > 0 :
  *   `oubli_probable`, sinon `epuise`.
  */
 export const SENS_ABSENCE = ['absent_ouverture', 'absent_cloture'] as const;
@@ -1164,13 +1176,20 @@ export const produitEcarteSchema = z.object({
   dateCloture: dateIsoSchema,
   /** Compté à l'inventaire où le produit figure (clôture ou ouverture). */
   stockConnu: z.number(),
-  receptions: z.number(),
-  sortiesDeclarees: z.number(),
+  /** Factures fournisseur, ajustements positifs, retours client. */
+  entrees: z.number(),
+  /** Dispensations (distributions pour un district), ajustements négatifs, retours fournisseur. */
+  sorties: z.number(),
   /** Stock minimal à l'ouverture, ou stock attendu à la clôture. */
   stockCalcule: z.number(),
 });
 export type ProduitEcarte = z.infer<typeof produitEcarteSchema>;
 
+/**
+ * Variante P4 : le tableau produit P4 · P5 fusionné. Une ligne par article
+ * traceur inventorié, conformité consommation non conforme en tête.
+ * Alimente les cartes P4 **et** P5 de la fiche site.
+ */
 export const detailPilierP4Schema = detailPilierBaseSchema.extend({
   code: z.literal('p4'),
   /**
@@ -1210,8 +1229,8 @@ export const ficheProduitMoisQuerySchema = detailSiteQuerySchema;
 export type FicheProduitMoisQuery = z.infer<typeof ficheProduitMoisQuerySchema>;
 
 /**
- * Un inventaire finalisé du mois portant ce produit : stock théorique mSupply
- * contre stock physique compté, et l'écart (`compté − théorique`). Les
+ * Un inventaire finalisé de la période portant ce produit : stock théorique
+ * mSupply contre stock physique compté, et l'écart (`compté - théorique`). Les
  * grandeurs sont nulles si aucune ligne de l'inventaire n'a de quantité.
  */
 export const inventaireFicheProduitSchema = z.object({
@@ -1223,21 +1242,21 @@ export const inventaireFicheProduitSchema = z.object({
 });
 export type InventaireFicheProduit = z.infer<typeof inventaireFicheProduitSchema>;
 
-/** Une photo de stock (`fact_stock_snapshot`) du mois : quantité disponible à la date d'extraction. */
+/** Une photo de stock (`fact_stock_snapshot`) de la période : quantité disponible à la date d'extraction. */
 export const snapshotFicheProduitSchema = z.object({
   datePhoto: dateIsoSchema,
   quantiteDisponible: z.number(),
 });
 export type SnapshotFicheProduit = z.infer<typeof snapshotFicheProduitSchema>;
 
-/** Une réception finalisée non annulée du mois (date, quantité en unités). */
+/** Une réception finalisée non annulée de la période (date, quantité en unités). */
 export const receptionFicheProduitSchema = z.object({
   date: dateIsoSchema,
   quantite: z.number(),
 });
 export type ReceptionFicheProduit = z.infer<typeof receptionFicheProduitSchema>;
 
-/** Un mouvement d'ajustement du mois (même prédicat que P6). */
+/** Un mouvement d'ajustement de la période (même prédicat que P6). */
 export const ajustementFicheProduitSchema = z.object({
   date: dateIsoSchema,
   quantite: z.number(),
@@ -1246,12 +1265,12 @@ export const ajustementFicheProduitSchema = z.object({
 export type AjustementFicheProduit = z.infer<typeof ajustementFicheProduitSchema>;
 
 /**
- * Consommation du produit sur le mois M. Bornes : ouverture = dernier inventaire
- * finalisé du mois M-1 (à défaut, premier inventaire de M si M en a deux) ;
- * clôture = dernier inventaire finalisé de M. `reconstituee = stock ouverture +
- * réceptions − stock clôture` ; `declaree` = Σ dispensations (ou Σ quantités
- * distribuées pour un district) sur l'intervalle ; `ecart = declaree −
- * reconstituee`. `null` quand aucune borne d'ouverture n'est exploitable.
+ * Consommation du produit (un code = un produit : ses articles s'additionnent)
+ * entre l'ouverture (clôture retenue du mois précédent) et la clôture du mois
+ * (ADR 0022). `reconstituee = stock ouverture + réceptions - stock clôture` ;
+ * `declaree` = Σ dispensations (Σ distributions pour un district) entre les
+ * deux ; `ecart = declaree - reconstituee`. `null` si un article du code n'a
+ * pas ses deux bornes.
  */
 export const consommationFicheProduitSchema = z.object({
   reconstituee: z.number().nullable(),
@@ -1259,6 +1278,21 @@ export const consommationFicheProduitSchema = z.object({
   ecart: z.number().nullable(),
 });
 export type ConsommationFicheProduit = z.infer<typeof consommationFicheProduitSchema>;
+
+/**
+ * Période lue par la fiche : de l'inventaire d'ouverture à l'inventaire de
+ * clôture du produit, ceux que P4 compare. Une borne absente est remplacée par
+ * la fenêtre de clôture correspondante (`ouvertureConnue` / `clotureConnue`
+ * faux) pour montrer ce qui a été saisi autour. Les inventaires se lisent
+ * bornes comprises, les mouvements après l'ouverture et jusqu'à la clôture.
+ */
+export const periodeFicheProduitSchema = z.object({
+  debut: dateIsoSchema,
+  fin: dateIsoSchema,
+  ouvertureConnue: z.boolean(),
+  clotureConnue: z.boolean(),
+});
+export type PeriodeFicheProduit = z.infer<typeof periodeFicheProduitSchema>;
 
 /**
  * Toutes les grandeurs brutes d'un produit traceur pour un site et un mois, lues
@@ -1274,9 +1308,14 @@ export const ficheProduitMoisSchema = z.object({
   moisPaqd: moisPaqdSchema.nullable(),
   moisDisponibles: z.array(moisPaqdSchema),
   programmeId: z.string().nullable(),
+  /** Un district distribue : `dispensations` porte alors ses distributions (ADR 0018). */
+  estDistrict: z.boolean(),
+  /** `null` sans mois mesuré. */
+  periode: periodeFicheProduitSchema.nullable(),
   inventaires: z.array(inventaireFicheProduitSchema),
   snapshots: z.array(snapshotFicheProduitSchema),
   receptions: z.array(receptionFicheProduitSchema),
+  /** Sorties déclarées de la période : dispensations, ou distributions pour un district. */
   dispensations: z.object({
     total: z.number(),
     nbJours: z.number().int().nonnegative(),
@@ -1391,22 +1430,23 @@ export type GrilleParametre = z.infer<typeof grilleParametreSchema>;
 
 export const poidsPilierSchema = z.object({
   pilier: pilierSchema,
-  poidsPct: pourcentageSchema,
+  poidsPct: pourcentageSchema.multipleOf(0.01),
 });
 export type PoidsPilier = z.infer<typeof poidsPilierSchema>;
 
 export const seuilSousComposanteSchema = z.object({
   sousComposante: sousComposanteSchema,
-  seuil: z.number(),
+  /** Précision de la base : deux décimales (numeric(8, 2)). */
+  seuil: z.number().multipleOf(0.01),
   sens: sensSeuilSchema,
   /** Non nul seulement pour `ecart_sdu` / `ecart_consommation`. */
-  tolerance: z.number().nullable(),
+  tolerance: z.number().multipleOf(0.01).nullable(),
   /** Non nul seulement pour `regularite_saisie` : seuil appliqué aux districts (ADR 0011). */
-  seuilDistrict: z.number().nullable(),
+  seuilDistrict: z.number().multipleOf(0.01).nullable(),
   /** La sous-composante compte dans le score de son pilier. */
   retenue: z.boolean(),
   /** Poids dans le pilier : les retenues d'un pilier font 100, une non retenue pèse 0. */
-  poidsDansPilierPct: pourcentageSchema,
+  poidsDansPilierPct: pourcentageSchema.multipleOf(0.01),
 });
 export type SeuilSousComposante = z.infer<typeof seuilSousComposanteSchema>;
 

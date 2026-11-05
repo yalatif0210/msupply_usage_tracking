@@ -122,17 +122,23 @@ SQL inline dans le code.
 
 | Code | Indicateur                          | Poids | Seuil conforme |
 |------|-------------------------------------|-------|----------------|
-| P1   | Complétude des transactions (réquisition - réception, ADR 0019)        | 10 %  | 100 %          |
-| P2   | Promptitude des transactions (Inventaire - requisition) | 15 %  | = 100 %        |
+| P1   | Complétude des transactions (réquisition, réception ; ADR 0019) | 10 %  | 100 %          |
+| P2   | Promptitude des transactions (inventaire, réquisition) | 15 %  | = 100 %        |
 | P3   | Régularité de saisie (dispensation)  | 15 %  | ≥ 65 %         |
-| P4   | Taux de conformité                  | 25 %  | tolérance produit 2 % |
+| P4   | Taux de conformité (conformité consommation retenue, SDU mesurée) | 25 %  | ≥ 90 %, tolérance produit 2 % |
 | P5   | Concordance physique / théorique    | 25 %  | = 100 %         |
 | P6   | Ratio d'ajustements                 | 10 %  | ≤ 5 %          |
 
-Classification : CONFORME ≥ 90, PARTIELLEMENT CONFORME 75–89, NON CONFORME < 75.
+Valeurs de la grille v1. Classification par défaut : CONFORME ≥ 90,
+PARTIELLEMENT CONFORME de 75 à moins de 90, NON CONFORME < 75.
 
-Les seuils sont en base (`param_seuil`), pas en dur dans le code. Ils peuvent
-changer entre deux cycles.
+Poids, seuils, composition des piliers et règles de calcul (fenêtre de
+clôture, marge de jugement, note de sanction, bornes de classification) vivent
+dans la grille datée (`grille_parametre`, `grille_poids_pilier`,
+`grille_seuil_sous_composante`), jamais en dur dans le code ni dans un
+gabarit. Une nouvelle version prend effet à une date future. P4 et P5 reposent
+sur l'inventaire de clôture et sont sanctionnés une fois le mois jugé
+(ADR 0022).
 
 ---
 

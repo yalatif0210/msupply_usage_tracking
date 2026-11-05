@@ -105,13 +105,13 @@ describe('ficheProduitMois', () => {
     await mouvement('RC1', 'facture_fournisseur', '2026-08-10', 'I1', 30);
     await mouvement('RC2', 'facture_fournisseur', '2026-08-20', 'I1', 10);
 
-    // dispensations : 08-01 hors intervalle (jour de l'ouverture), 08-12 (x2 même jour), 08-19 dans l'intervalle
+    // dispensations : 08-01 hors période (jour de l'ouverture), 08-12 (x2 même jour), 08-19 dans la période
     await mouvement('D0', 'dispensation', '2026-08-01', 'I1', 8);
     await mouvement('D1', 'dispensation', '2026-08-12', 'I1', 25);
     await mouvement('D2', 'dispensation', '2026-08-12', 'I1', 5);
     await mouvement('D3', 'dispensation', '2026-08-19', 'I1', 20);
 
-    // photos : deux dans le mois, une hors du mois
+    // photos : deux dans la période, une avant
     await snapshot('2026-08-15', 'I1', 70);
     await snapshot('2026-08-31', 'I1', 40);
     await snapshot('2026-07-31', 'I1', 100);
@@ -130,29 +130,35 @@ describe('ficheProduitMois', () => {
     if (f === null) throw new Error('fiche attendue');
 
     expect(f.moisPaqd).toBe('2026-08');
-    expect(f.moisDisponibles).toEqual(['2026-08']);
+    // l'inventaire du 1er août clôture juillet : juillet est mesuré aussi
+    expect(f.moisDisponibles).toEqual(['2026-08', '2026-07']);
     expect(f.produit).toEqual({ code: 'T1', libelle: 'lib T1' });
+    expect(f.estDistrict).toBe(false);
 
-    // inventaires du mois portant T1
+    // période de P4 : de l'inventaire d'ouverture à celui de clôture
+    expect(f.periode).toEqual({ debut: '2026-08-01', fin: '2026-08-31', ouvertureConnue: true, clotureConnue: true });
+
+    // inventaires de la période portant T1, bornes comprises
     expect(f.inventaires).toEqual([
       { date: '2026-08-01', statut: 'fn', theorique: 100, comptee: 90, ecart: -10 },
       { date: '2026-08-31', statut: 'fn', theorique: 60, comptee: 50, ecart: -10 },
     ]);
 
-    // photos : celles du mois seulement, triées
+    // photos : celles de la période seulement, triées
     expect(f.snapshots).toEqual([
       { datePhoto: '2026-08-15', quantiteDisponible: 70 },
       { datePhoto: '2026-08-31', quantiteDisponible: 40 },
     ]);
 
-    // réceptions du mois
+    // réceptions après l'ouverture, jusqu'à la clôture
     expect(f.receptions).toEqual([
       { date: '2026-08-10', quantite: 30 },
       { date: '2026-08-20', quantite: 10 },
     ]);
 
-    // dispensations : total du mois (8 + 25 + 5 + 20) et 3 jours distincts
-    expect(f.dispensations).toEqual({ total: 58, nbJours: 3 });
+    // dispensations après l'ouverture (25 + 5 + 20), 2 jours distincts : le
+    // total vaut la consommation déclarée de P4
+    expect(f.dispensations).toEqual({ total: 50, nbJours: 2 });
 
     // ajustements : un de chaque sens
     expect(f.ajustements).toEqual([
@@ -178,11 +184,34 @@ describe('ficheProduitMois', () => {
     expect(f.inventaires).toEqual([
       { date: '2026-08-31', statut: 'fn', theorique: 100, comptee: 95, ecart: -5 },
     ]);
+    // pas d'ouverture pour T2 : la période part de l'ouverture du site
+    expect(f.periode).toEqual({ debut: '2026-08-01', fin: '2026-08-31', ouvertureConnue: true, clotureConnue: true });
     expect(f.consommation).toEqual({ reconstituee: null, declaree: null, ecart: null });
     expect(f.stockDebut).toBeNull();
     expect(f.stockFin).toBeNull();
     expect(f.snapshots).toEqual([]);
     expect(f.dispensations).toEqual({ total: 0, nbJours: 0 });
+  });
+
+  it('district : les sorties déclarées sont ses distributions', async () => {
+    await db.query(`UPDATE dqa.dim_site SET type_structure = 'District sanitaire' WHERE site_id = 'S1'`);
+    await socle();
+    await mouvement('DS1', 'distribution', '2026-08-14', 'I1', 33);
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    const f = await repo.ficheProduitMois('S1', 'T1', {});
+    expect(f?.estDistrict).toBe(true);
+    expect(f?.dispensations).toEqual({ total: 33, nbJours: 1 });
+    expect(f?.consommation.declaree).toBe(33);
+  });
+
+  it('sans inventaire du mois : la période se rabat sur les fenêtres de clôture', async () => {
+    await produit('I1', 'T1', true);
+    await mouvement('D1', 'dispensation', '2026-08-12', 'I1', 5);
+    await db.query(`CALL dqa.rafraichir_et_geler(1)`);
+    const f = await repo.ficheProduitMois('S1', 'T1', { mois: '2026-08' });
+    if (f === null || f.moisPaqd === null) throw new Error('fiche du mois attendue');
+    expect(f.periode).toEqual({ debut: '2026-07-29', fin: '2026-09-01', ouvertureConnue: false, clotureConnue: false });
+    expect(f.dispensations).toEqual({ total: 5, nbJours: 1 });
   });
 
   it('404 (null) sur un code non traceur et sur un site hors périmètre', async () => {

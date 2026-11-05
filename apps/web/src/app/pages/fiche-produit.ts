@@ -97,11 +97,23 @@ type FiltresProduit = {
               Données du core modifiées depuis le gel du mois : le détail ci-dessous peut différer des comptes figés.
             </p>
           }
+          @if (f.periode; as pe) {
+            <p class="mt-4 text-sm tabular-nums">
+              Période lue : du {{ pe.debut | date: 'dd/MM/yyyy' }}
+              <span class="text-muted-foreground">({{ pe.ouvertureConnue ? "inventaire d'ouverture" : 'début de la fenêtre de clôture du mois précédent, aucune ouverture' }})</span>
+              au {{ pe.fin | date: 'dd/MM/yyyy' }}
+              <span class="text-muted-foreground">({{ pe.clotureConnue ? 'inventaire de clôture' : 'fin de la fenêtre de clôture, aucune clôture' }})</span>.
+            </p>
+            <p class="mt-1 text-xs text-muted-foreground">
+              Les inventaires se lisent bornes comprises ; les mouvements comptent après l'ouverture et jusqu'à la clôture,
+              comme dans le calcul de P4.
+            </p>
+          }
 
           <!-- Stock -->
           <section class="mt-8">
             <h2 class="text-lg font-semibold tracking-tight">Stock</h2>
-            <h3 class="mt-3 text-sm font-medium text-muted-foreground">Inventaires finalisés du mois</h3>
+            <h3 class="mt-3 text-sm font-medium text-muted-foreground">Inventaires finalisés de la période</h3>
             @if (f.inventaires.length > 0) {
               <div hlmTableContainer class="mt-2">
                 <table hlmTable>
@@ -117,7 +129,7 @@ type FiltresProduit = {
                   <tbody hlmTBody>
                     @for (iv of f.inventaires; track $index) {
                       <tr hlmTr>
-                        <td hlmTd class="tabular-nums">{{ iv.date }}</td>
+                        <td hlmTd class="tabular-nums">{{ iv.date | date: 'dd/MM/yyyy' }}</td>
                         <td hlmTd>{{ iv.statut ?? absent }}</td>
                         <td hlmTd class="text-right tabular-nums">{{ iv.theorique === null ? absent : (iv.theorique | number: '1.0-3') }}</td>
                         <td hlmTd class="text-right tabular-nums">{{ iv.comptee === null ? absent : (iv.comptee | number: '1.0-3') }}</td>
@@ -128,10 +140,10 @@ type FiltresProduit = {
                 </table>
               </div>
             } @else {
-              <p class="mt-2 text-sm text-muted-foreground">Aucun inventaire finalisé portant ce produit ce mois.</p>
+              <p class="mt-2 text-sm text-muted-foreground">Aucun inventaire finalisé portant ce produit sur la période.</p>
             }
 
-            <h3 class="mt-5 text-sm font-medium text-muted-foreground">Photos de stock du mois</h3>
+            <h3 class="mt-5 text-sm font-medium text-muted-foreground">Photos de stock de la période</h3>
             <p class="mt-1 text-xs text-muted-foreground">
               Stock disponible dans mSupply le jour où la DAP a lancé l'extraction : une photo par extraction,
               datée de ce jour, indépendante des inventaires. Elle n'entre dans aucun pilier.
@@ -145,7 +157,7 @@ type FiltresProduit = {
                 }
               </ul>
             } @else {
-              <p class="mt-2 text-sm text-muted-foreground">Aucune photo de stock ce mois.</p>
+              <p class="mt-2 text-sm text-muted-foreground">Aucune photo de stock sur la période.</p>
             }
           </section>
 
@@ -156,20 +168,20 @@ type FiltresProduit = {
               <p class="mt-2 text-sm text-muted-foreground">
                 Écart consommation non évaluable ce mois : il faut un inventaire de
                 clôture (fin du mois, fenêtre fixée par la grille de paramètres) et un
-                inventaire d'ouverture (la clôture du mois précédent), le produit
-                figurant dans les deux.
+                inventaire d'ouverture (la clôture du mois précédent), chaque article du
+                produit figurant dans les deux.
               </p>
             } @else {
               <dl class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div class="rounded-lg border border-border p-3">
                   <dt class="text-xs text-muted-foreground">Consommation reconstituée</dt>
                   <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ nb(f.consommation.reconstituee) }}</dd>
-                  <dd class="mt-1 text-xs text-muted-foreground">stock début plus réceptions moins stock fin</dd>
+                  <dd class="mt-1 text-xs text-muted-foreground">stock d'ouverture plus réceptions moins stock de clôture</dd>
                 </div>
                 <div class="rounded-lg border border-border p-3">
                   <dt class="text-xs text-muted-foreground">Consommation déclarée</dt>
                   <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ nb(f.consommation.declaree) }}</dd>
-                  <dd class="mt-1 text-xs text-muted-foreground">somme des dispensations entre l'ouverture et la clôture</dd>
+                  <dd class="mt-1 text-xs text-muted-foreground">somme des {{ sorties(f) }} entre l'ouverture et la clôture</dd>
                 </div>
                 <div class="rounded-lg border border-border p-3">
                   <dt class="text-xs text-muted-foreground">Écart (déclarée moins reconstituée)</dt>
@@ -184,7 +196,7 @@ type FiltresProduit = {
               </p>
             }
 
-            <h3 class="mt-5 text-sm font-medium text-muted-foreground">Réceptions du mois</h3>
+            <h3 class="mt-5 text-sm font-medium text-muted-foreground">Réceptions de la période</h3>
             <p class="mt-1 text-xs text-muted-foreground">
               Factures fournisseur finalisées (réception admise), datées de leur finalisation.
             </p>
@@ -195,16 +207,16 @@ type FiltresProduit = {
                 }
               </ul>
             } @else {
-              <p class="mt-2 text-sm text-muted-foreground">Aucune facture fournisseur finalisée ce mois.</p>
+              <p class="mt-2 text-sm text-muted-foreground">Aucune facture fournisseur finalisée sur la période.</p>
             }
           </section>
 
-          <!-- Dispensations -->
+          <!-- Sorties déclarées : dispensations, distributions pour un district -->
           <section class="mt-8">
-            <h2 class="text-lg font-semibold tracking-tight">Dispensations</h2>
+            <h2 class="text-lg font-semibold tracking-tight">{{ f.estDistrict ? 'Distributions' : 'Dispensations' }}</h2>
             <p class="mt-3 text-sm tabular-nums">
-              Total dispensé : {{ f.dispensations.total | number: '1.0-3' }} ·
-              Jours avec au moins une dispensation : {{ f.dispensations.nbJours }}
+              Total {{ f.estDistrict ? 'distribué' : 'dispensé' }} : {{ f.dispensations.total | number: '1.0-3' }} ·
+              Jours avec au moins une {{ f.estDistrict ? 'distribution' : 'dispensation' }} : {{ f.dispensations.nbJours }}
             </p>
           </section>
 
@@ -224,7 +236,7 @@ type FiltresProduit = {
                   <tbody hlmTBody>
                     @for (aj of f.ajustements; track $index) {
                       <tr hlmTr>
-                        <td hlmTd class="tabular-nums">{{ aj.date }}</td>
+                        <td hlmTd class="tabular-nums">{{ aj.date | date: 'dd/MM/yyyy' }}</td>
                         <td hlmTd class="text-right tabular-nums">{{ aj.quantite | number: '1.0-3' }}</td>
                         <td hlmTd>{{ aj.sens === 'positif' ? 'positif' : 'négatif' }}</td>
                       </tr>
@@ -233,7 +245,7 @@ type FiltresProduit = {
                 </table>
               </div>
             } @else {
-              <p class="mt-3 text-sm text-muted-foreground">Aucun ajustement ce mois.</p>
+              <p class="mt-3 text-sm text-muted-foreground">Aucun ajustement sur la période.</p>
             }
           </section>
 
@@ -278,6 +290,11 @@ export class FicheProduitPage implements OnInit {
   }
 
   /** Nombre formaté, ou `n/d` si nul. */
+  /** Un district distribue, un site de soins dispense (ADR 0018). */
+  protected sorties(f: FicheProduitMois): string {
+    return f.estDistrict ? 'distributions' : 'dispensations';
+  }
+
   protected nb(v: number | null): string {
     return v === null ? this.absent : (this.decimal.transform(v, '1.0-3') ?? this.absent);
   }

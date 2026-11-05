@@ -59,22 +59,6 @@ export const LIBELLES_PILIER: Record<Pilier, string> = {
   P6: "Ratio d'ajustements",
 };
 
-/**
- * Poids PAQD du score composite. Somme = 1 (cf. CLAUDE.md §5).
- *
- * Ces valeurs servent à l'affichage et aux simulations côté front. Le score
- * qui fait foi est calculé en base à partir de la grille de paramètres active
- * (ADR 0003) : le front ne recalcule jamais un score officiel.
- */
-export const POIDS_PILIER: Record<Pilier, number> = {
-  P1: 0.1,
-  P2: 0.15,
-  P3: 0.15,
-  P4: 0.25,
-  P5: 0.25,
-  P6: 0.1,
-};
-
 // ─── Sous-composantes ───────────────────────────────────────────────────────
 
 /**
@@ -222,19 +206,8 @@ export const CLASSIFICATIONS = [
 export const classificationSchema = z.enum(CLASSIFICATIONS);
 export type Classification = z.infer<typeof classificationSchema>;
 
-/**
- * Seuils de classification du score composite (cf. CLAUDE.md §5).
- * Structurels : ils bornent les trois classes. Les seuils *par sous-composante*
- * vivent dans la grille de paramètres en base.
- */
-export const SEUIL_CONFORME = 90;
-export const SEUIL_PARTIELLEMENT_CONFORME = 75;
-
-export function classifier(scoreComposite: number): Classification {
-  if (scoreComposite >= SEUIL_CONFORME) return 'CONFORME';
-  if (scoreComposite >= SEUIL_PARTIELLEMENT_CONFORME) return 'PARTIELLEMENT_CONFORME';
-  return 'NON_CONFORME';
-}
+// Les bornes de classification (90, 75) et les poids des piliers sont des
+// valeurs de la grille datée, lues en base (migration 0058) : aucune copie ici.
 
 // ─── Types utilitaires ──────────────────────────────────────────────────────
 
@@ -249,7 +222,7 @@ export const dateIsoSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {
 export type DateIso = z.infer<typeof dateIsoSchema>;
 
 /** Mois PAQD identifiant `AAAA-MM` (le mois calendaire mesuré). */
-export const moisPaqdSchema = z.string().regex(/^\d{4}-\d{2}$/, {
+export const moisPaqdSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, {
   message: 'Mois PAQD attendu au format AAAA-MM',
 });
 export type MoisPaqd = z.infer<typeof moisPaqdSchema>;

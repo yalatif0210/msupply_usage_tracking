@@ -275,4 +275,34 @@ describe('suivi des stocks', () => {
     const d = await repo.detail('S3', 'T8', { date: '2026-10-10' });
     expect(d?.inventaires).toEqual([{ date: '2026-07-01', compte: 100 }, { date: '2026-09-29', compte: 50 }]);
   });
+
+  it('un code = un produit : un article non recompté garde son dernier compte', async () => {
+    await site('S4', 'ESPC');
+    await db.query(`INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom) VALUES ('IA','TA','IA'), ('IB','TA','IB')`);
+    await db.query(`INSERT INTO dqa.dim_produit_traceur (produit_code, libelle) VALUES ('TA','TA')`);
+    // le 01/07 : les deux articles ; le 29/09 : seul IA est recompté
+    await db.query(
+      `INSERT INTO dqa.fact_inventaire (inventaire_id, site_id, programme_id, date_inventaire, statut, lot_id_source)
+       VALUES ('S4A','S4','P1','2026-07-01','fn',1), ('S4B','S4','P1','2026-09-29','fn',1)`,
+    );
+    await db.query(
+      `INSERT INTO dqa.fact_inventaire_ligne (inventaire_id, produit_id, lot, quantite_theorique, quantite_comptee, lot_id_source)
+       VALUES ('S4A','IA','L',60,60,1), ('S4A','IB','L',40,40,1), ('S4B','IA','L',30,30,1)`,
+    );
+    const { rows } = await db.query<{ jour: string; compte: string }>(
+      `SELECT to_char(date_inventaire, 'YYYY-MM-DD') AS jour, comptee::text AS compte FROM dqa.v_stock_compte_jour
+       WHERE site_id = 'S4' AND produit_code = 'TA' ORDER BY date_inventaire`,
+    );
+    // 29/09 : 30 recomptés sur IA + 40, dernier compte connu de IB
+    expect(rows.map((r) => [r.jour, Number(r.compte)])).toEqual([['2026-07-01', 100], ['2026-09-29', 70]]);
+  });
+
+  it("API : le détail d'un couple se lit par code produit (route /stocks/:siteId/:code)", async () => {
+    const a = request.agent(app.getHttpServer());
+    await a.post('/api/auth/connexion').send({ identifiant: 'lecteur', motDePasse: 'lecteur-2026' });
+    const res = await a.get('/api/stocks/S1/T1').query({ date: '2026-10-10' });
+    expect(res.status).toBe(200);
+    expect(detailStockSchema.parse(res.body).ligne.produitCode).toBe('T1');
+    expect((await a.get('/api/stocks/S1/INCONNU').query({ date: '2026-10-10' })).status).toBe(404);
+  });
 });

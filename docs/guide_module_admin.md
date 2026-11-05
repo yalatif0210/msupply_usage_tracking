@@ -35,45 +35,57 @@ migration : la **grille de paramètres** (rôle `coordination`), les **comptes**
 
 **Une grille en vigueur ou passée est immuable.** La seule façon d'ajuster les
 poids / seuils / tolérances est de **créer une nouvelle version** dont la
-`effet_a_partir_de` est **dans le futur** — elle ne s'appliquera qu'aux mois à
+`effet_a_partir_de` est **dans le futur** : elle ne s'appliquera qu'aux mois à
 partir de cette date (`grille_pour_mois`), sans jamais toucher un score déjà
 gelé.
 
 - `statut` : `planifiee` (`effet_a_partir_de > CURRENT_DATE`), `en_vigueur`
   (celle que `grille_pour_mois` du mois courant renvoie), `passee` (le reste).
   `modifiable = statut === 'planifiee'`.
-- `POST` : transaction `grille_parametre` + 6 `grille_poids_pilier` + N
-  `grille_seuil_sous_composante`. Refus : date ≤ aujourd'hui (400), date déjà
-  prise (409, `UNIQUE`), somme des poids ≠ 100 (400, refine Zod), tolérance
-  absente sur `ecart_sdu` / `ecart_consommation` ou présente ailleurs (400),
-  composition incohérente (400 : un pilier sans sous-composante retenue, poids
-  retenus d'un pilier ≠ 100, poids non nul sur une non retenue).
-- **Règles de calcul** (migration 0058) : `regles` porte la fenêtre de
-  clôture des inventaires (`joursClotureFinMois` 1 à 10, `joursClotureMoisSuivant`
-  0 à 10), la note d'une sous-composante P4 / P5 sanctionnée (`noteSanction`)
-  et les bornes de classification du composite (`borneConforme`,
-  `bornePartiellementConforme`, 400 si `0 < partiel < conforme ≤ 100` n'est pas
-  respecté). Colonnes de `grille_parametre`, valeurs par défaut 3, 1, 0, 90, 75.
+- `POST` : une transaction écrit `grille_parametre` (règles comprises, dans
+  l'`INSERT`), 6 `grille_poids_pilier` et N `grille_seuil_sous_composante`.
+  Refus : date ≤ aujourd'hui (400), date déjà prise (409, `UNIQUE`), somme des
+  poids ≠ 100 (400, refine Zod), tolérance absente sur `ecart_sdu` /
+  `ecart_consommation` ou présente ailleurs (400), composition incohérente
+  (400 : un pilier sans sous-composante retenue, poids retenus d'un pilier ≠
+  100, poids non nul sur une non retenue). Une contrainte `CHECK` de la base
+  qui refuserait une valeur passée par le contrat rend aussi 400 (SQLSTATE
+  23514, `estControleViole`), jamais 500.
+- **Règles de calcul** (migrations 0058, 0062) : `regles` porte la fenêtre de
+  clôture des inventaires (`joursClotureFinMois` 1 à 10,
+  `joursClotureMoisSuivant` 0 à 10), la marge avant de juger un mois
+  (`joursMargeJugement` 0 à 15), la note d'une sous-composante P4 / P5
+  sanctionnée (`noteSanction`, de 0 à moins de 100 : une sanction n'est jamais
+  conforme) et les bornes de classification du composite (`borneConforme`,
+  `bornePartiellementConforme`, 400 si `0 < partiel < conforme ≤ 100` n'est
+  pas respecté). Notes et bornes au dixième, poids, seuils et tolérances au
+  centième. Colonnes de `grille_parametre`, valeurs par défaut 3, 1, 3, 0, 90,
+  75.
 - **Composition des piliers** (migration 0057) : chaque seuil porte `retenue`
   et `poidsDansPilierPct`. L'écran l'édite pilier par pilier, avec le total
   du pilier ; la consultation affiche « non retenue dans le score ».
 - `PUT` / `DELETE` : refusés (409) si la version n'est pas `planifiee`. La FK
   `hist_score_site.grille_id` bloque de toute façon la suppression d'une
   version ayant servi à un score.
-- Aucune migration : les tables (0006 + colonne `tolerance` de 0017) suffisent.
+- Tables : 0006 (grille), 0017 (`tolerance`), 0057 (composition), 0058 et
+  0062 (règles de calcul). Lecture partagée avec les écrans de lecture :
+  `commun/lecture-grille.ts`.
 
 Écran `pages/admin-grille.ts` : liste des versions à gauche, détail / formulaire
 à droite. « Nouvelle version » pré-remplit depuis la version en vigueur ; le
-total des poids est affiché en direct.
+total des poids est affiché en direct. Le brouillon est validé à chaque saisie
+par `entreeGrilleSchema`, le schéma que l'API applique : les erreurs
+s'affichent en français, rattachées à leur champ (`core/erreurs-grille.ts`),
+et « Enregistrer » reste désactivé tant qu'il en reste.
 
 ## Comptes
 
 - `GET` ne renvoie jamais `mot_de_passe_hash`.
 - `POST` : hash `scrypt` via `auth/password.ts` ; identifiant `UNIQUE` → 409.
-- `PUT` (nom / rôle / actif) — garde-fous anti-verrouillage :
+- `PUT` (nom / rôle / actif), garde-fous anti-verrouillage :
   - l'appelant ne peut pas se désactiver ni retirer son propre rôle `admin`
     (400) ;
-  - une modification qui laisserait **zéro `admin` actif** est refusée (400) —
+  - une modification qui laisserait **zéro `admin` actif** est refusée (400) ;
     en pratique atteignable seulement hors HTTP (appelant ≠ cible), la garde
     « soi-même » couvrant le reste.
 - `POST /:id/mot-de-passe` : nouveau hash, 204.
@@ -104,7 +116,7 @@ refus serveur.
   `dqa.jour_limite_requisition(type)` → échéance, sinon `10` ;
   `dqa.est_district(type)` → régime, sinon `false`. Le NULL tombe sur les
   replis. Ce sont les portes d'entrée des vues (`mv_p2`, `mv_p3`, `mv_p4`) et
-  des lectures nationales — jamais un site rangé nulle part.
+  des lectures nationales : jamais un site rangé nulle part.
 - `GET` renvoie aussi `nonClasses` : les `type_structure` présents dans
   `dim_site` (périmètre DQA) sans correspondance, pour que l'écran montre ce
   qu'il reste à classer. L'écran `pages/admin-strates.ts` (« Types de

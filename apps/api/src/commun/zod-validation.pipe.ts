@@ -3,7 +3,7 @@ import type { ZodType } from 'zod';
 
 /**
  * Valide une entrée avec un schéma Zod du contrat. Les schémas Zod sont la
- * source de vérité (cf. CLAUDE.md) — cette pipe les branche à l'entrée HTTP.
+ * source de vérité (cf. CLAUDE.md) : cette pipe les branche à l'entrée HTTP.
  */
 export class ZodValidationPipe<T> implements PipeTransform {
   constructor(private readonly schema: ZodType<T>) {}

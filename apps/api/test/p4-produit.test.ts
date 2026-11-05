@@ -206,24 +206,26 @@ describe('vue mv_p4_ecart_produit', () => {
       repo = new IndicateursRepository(db);
     });
 
-    it('rend la variante p4 : une ligne par produit traceur, SDU hors tolérance en tête', async () => {
+    it('rend la variante p4 : une ligne par produit traceur, non conformes en consommation en tête', async () => {
       await socle();
       const d = await repo.detailPilier('S1', 'p4', {});
       expect(d).not.toBeNull();
       if (d === null || d.code !== 'p4') throw new Error('variante p4 attendue');
 
       expect(d.moisPaqd).toBe('2026-08');
-      expect(d.produits.map((p) => p.produitCode)).toEqual(['T2', 'T5', 'T1', 'T4', 'T6', 'T7']);
-      // SDU hors tolérance (sdu_conforme = false) d'abord
-      expect(d.produits.slice(0, 2).every((p) => !p.sdu.conforme)).toBe(true);
-      expect(d.produits.slice(2).every((p) => p.sdu.conforme)).toBe(true);
+      // la conformité consommation est la sous-composante retenue : ses non
+      // conformes d'abord (T1 hors tolérance, T6 reconstituée ≤ 0), puis les
+      // produits écartés, puis les conformes ; par code dans chaque groupe
+      expect(d.produits.map((p) => p.produitCode)).toEqual(['T1', 'T6', 'T2', 'T4', 'T5', 'T7']);
 
       const t1 = d.produits.find((p) => p.produitCode === 'T1')!;
       expect(t1.consommation.evaluable).toBe(true);
       if (t1.consommation.evaluable) expect(t1.consommation.conforme).toBe(false);
       const t2 = d.produits.find((p) => p.produitCode === 'T2')!;
       expect(t2.consommation.evaluable).toBe(false);
-      if (!t2.consommation.evaluable) expect(t2.consommation.raisonExclusion).toBe('absent_ouverture');
+      if (!t2.consommation.evaluable) {
+        expect(t2.consommation).toMatchObject({ raison: 'absent_ouverture', compteAuDenominateur: false });
+      }
 
       // dates et lots lisibles à l'écran (migration 0052)
       expect(t1.dateInventaire).toBe('2026-08-31');
@@ -234,7 +236,8 @@ describe('vue mv_p4_ecart_produit', () => {
       if (!t2.consommation.evaluable) expect(t2.consommation.bornes).toBeNull();
       // exclu pour reconstituée ≤ 0 : ses grandeurs restent servies
       const t6 = d.produits.find((p) => p.produitCode === 'T6')!;
-      if (t6.consommation.evaluable) throw new Error('T6 doit être exclu');
+      if (t6.consommation.evaluable) throw new Error('T6 doit être non chiffré');
+      expect(t6.consommation).toMatchObject({ raison: 'reconstituee_non_positive', compteAuDenominateur: true });
       expect(t6.consommation.bornes).toMatchObject({ stockDebut: 10, stockFin: 100, reconstituee: -90 });
 
       // comptes bruts figés du pilier P4 + horodatage du gel

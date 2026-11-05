@@ -51,7 +51,30 @@ const RAISONS: Record<RaisonExclusionConso, string> = {
 };
 
 export function ecartConso(l: LigneProduitP4P5): string {
-  return l.consommation.evaluable ? pourcent(l.consommation.ecartPct) : RAISONS[l.consommation.raisonExclusion];
+  return l.consommation.evaluable ? pourcent(l.consommation.ecartPct) : RAISONS[l.consommation.raison];
+}
+
+/**
+ * Verdict de consommation d'une ligne pour sa couleur : un produit compté au
+ * dénominateur sans écart chiffrable (reconstituée ≤ 0) est non conforme ; un
+ * produit écarté n'a pas de verdict.
+ */
+export function verdictConso(l: LigneProduitP4P5): 'conforme' | 'non_conforme' | 'ecarte' {
+  if (l.consommation.evaluable) return l.consommation.conforme ? 'conforme' : 'non_conforme';
+  return l.consommation.compteAuDenominateur ? 'non_conforme' : 'ecarte';
+}
+
+const SANS_BORNE: Record<Exclude<RaisonExclusionConso, 'reconstituee_non_positive'>, string> = {
+  sans_ouverture: "pas d'inventaire d'ouverture",
+  absent_ouverture: "absent de l'ouverture",
+  autre_article_ouverture: "autre article à l'ouverture",
+};
+
+/** Texte de la cellule « Ouverture » d'une ligne sans bornes, selon sa raison. */
+export function libelleSansBorne(l: LigneProduitP4P5): string {
+  const c = l.consommation;
+  if (c.evaluable || c.raison === 'reconstituee_non_positive') return '';
+  return SANS_BORNE[c.raison];
 }
 
 export const LIBELLES_QUALIFICATION: Record<ProduitEcarte['qualification'], string> = {
@@ -63,11 +86,12 @@ export const LIBELLES_QUALIFICATION: Record<ProduitEcarte['qualification'], stri
 
 /**
  * Le calcul qui qualifie une absence, avec les valeurs servies par l'API :
- * « 3 927 comptés à la clôture + 5 000 sorties déclarées - 0 reçus = 8 927 ».
+ * « 3 927 comptés à la clôture + 5 000 sorties - 0 entrées = 8 927 ». Entrées
+ * et sorties comptent tous les mouvements saisis (factures, ajustements, retours).
  */
 export function calculAbsence(pe: ProduitEcarte): string {
   const q = (v: number) => QUANTITE.format(v);
   return pe.sens === 'absent_ouverture'
-    ? `${q(pe.stockConnu)} comptés à la clôture + ${q(pe.sortiesDeclarees)} sorties déclarées - ${q(pe.receptions)} reçus = ${q(pe.stockCalcule)} au moins à l'ouverture`
-    : `${q(pe.stockConnu)} comptés à l'ouverture + ${q(pe.receptions)} reçus - ${q(pe.sortiesDeclarees)} sorties déclarées = ${q(pe.stockCalcule)} attendus à la clôture`;
+    ? `${q(pe.stockConnu)} comptés à la clôture + ${q(pe.sorties)} sorties - ${q(pe.entrees)} entrées = ${q(pe.stockCalcule)} au moins à l'ouverture`
+    : `${q(pe.stockConnu)} comptés à l'ouverture + ${q(pe.entrees)} entrées - ${q(pe.sorties)} sorties = ${q(pe.stockCalcule)} attendus à la clôture`;
 }

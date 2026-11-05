@@ -4,7 +4,7 @@
 
 Expose en lecture seule les scores de qualité des données : synthèse nationale,
 liste des sites du périmètre, détail par site (piliers, sous-composantes,
-statuts). Ne calcule rien en TypeScript — lit les vues matérialisées et
+statuts). Ne calcule rien en TypeScript : lit les vues matérialisées et
 `hist_score_site` (CLAUDE.md §3, ARCHITECTURE.md §2).
 
 Emplacement : `apps/api/src/indicateurs/` (API) et `apps/web/src/app/pages/`
@@ -38,21 +38,24 @@ Filtres de `/api/sites` : `district`, `region`, `programmeId` (validés par
 
 | Source | Usage |
 |---|---|
-| `hist_score_site` | six scores de pilier + `score_composite` + `classification` + dix valeurs `sc_*` gelés par (site, mois PAQD, programme) |
-| `hist_pilier_brut` | couples attendu / réalisé (et réalisé à l'heure) figés par (site, mois PAQD, programme, mesure) au même passage que `hist_score_site` — ADR 0009 |
+| `hist_score_site` | six scores de pilier, `score_composite`, `classification`, et pour les neuf sous-composantes la valeur `sc_*` et la note `note_*`, les sanctions `sanction_*`, les dénominateurs `poids_calc_p*` et `poids_piliers_calcules`, gelés par (site, mois PAQD, programme) |
+| `hist_pilier_brut` | couples attendu / réalisé (et réalisé à l'heure) figés par (site, mois PAQD, programme, mesure) au même passage que `hist_score_site` (ADR 0009) |
 | `v_mois_cycle` | rang M+1..M+4 de chaque mois PAQD dans son cycle (depuis `dim_temps`) |
-| `v_sous_composante_atteinte` | taux d'atteinte du seuil + statut par (site, mois, programme, sous-composante), depuis `hist_score_site.sc_*` |
-| `mv_p4_ecart_produit` | détail par produit traceur : écarts SDU / consommation (P4) + quantités de l'inventaire de clôture dont se déduit la concordance par produit (P5) |
+| `v_sous_composante_atteinte` | taux d'atteinte du seuil, note, sanction, retenue et statut (tiré de la note figée) par (site, mois, programme, sous-composante) |
+| `mv_p4_ecart_produit` | détail par article de produit traceur : écarts SDU / consommation (P4), écart signé `ecart_conso`, quantités de l'inventaire de clôture dont se déduit la concordance par produit (P5) |
+| `mv_inventaire_mois` | chaque inventaire finalisé du périmètre, son mois de clôture et s'il porte un traceur |
+| `mv_cloture_mois` | par site, programme et mois mesurable : clôture, ouverture, jugement, fenêtre, inventaire hors fenêtre et causes des sanctions |
 | `mv_synthese_nationale` | agrégats nationaux / région / district / programme par mois PAQD |
-| `mv_synthese_sous_composante` | mêmes grains, par sous-composante : comptes de statut + taux d'atteinte moyen |
+| `mv_synthese_sous_composante` | mêmes grains, par sous-composante retenue dans la grille du mois : comptes de statut + taux d'atteinte moyen |
 | `mv_synthese_rapports` | comptes P1 / P2 des réquisitions et inventaires de fin de mois, agrégés par strate de structure (× région × programme) par mois PAQD |
 | `mv_synthese_territoire_rapports` | mêmes comptes de réquisitions et d'inventaires, et leurs taux, par région, zone de district et site (× programme × strate) par mois PAQD |
 | `mv_synthese_territoire_scores` | score composite moyen, sites mesurés et répartition par région, zone de district et site (× programme × strate) par mois PAQD |
 | `mv_p1_completude` | taux de complétude inventaires / réquisitions / réceptions (%), scores et p_completude |
 | `mv_p2_promptitude` | taux de promptitude inventaires / réquisitions (%), scores et p_promptitude |
 | `mv_p3_regularite` | taux de jours du mois avec sortie de stock (%) |
-| `mv_p4_ecart` | taux de conformité écart SDU et écart consommation (%), scores et p_ecart_sdu |
-| `mv_p5_concordance` | valeur mesurée de la concordance (%) |
+| `mv_p4_ecart` | taux de conformité SDU et consommation (%), notes, sanctions et causes |
+| `mv_p5_concordance` | valeur mesurée de la concordance (%), note, sanction et cause |
+| `mv_produit_ecarte` | produits absents de l'ouverture ou de la clôture, qualifiés (historisés dans `hist_produit_ecarte`) |
 | `mv_p6_ajustements` | valeur mesurée du ratio d'ajustements (%) |
 | `grille_seuil_sous_composante` | seuil affiché, via `hist_score_site.grille_id` |
 | `dim_site`, `dim_programme` | libellés, filtres |
@@ -98,7 +101,7 @@ core a été ré-importé après le gel (`coreMajLe > calculeLe`).
   son propre seuil et son propre sens (`sup` / `inf`) ; plus de seuil commun à
   un pilier.
 
-**P1 — complétude des transactions** (`mv_p1_completude`) : deux
+**P1 · complétude des transactions** (`mv_p1_completude`) : deux
 sous-composantes (ADR 0019 : l'inventaire a quitté P1).
 - `completude_requisitions` : programmes éligibles avec ≥ 1 réquisition
   `mois_couvert = mois PAQD` ÷ programmes éligibles ; NULL avant l'échéance.
@@ -114,9 +117,9 @@ Une ligne P1 existe pour un mois où le site a un inventaire, une réquisition,
 ou une facture répondant à une réquisition du mois précédent. Score de pilier
 P1 : voir « Composition des piliers » ci-dessous.
 
-**P2 — promptitude des transactions** (`mv_p2_promptitude`) : deux
+**P2 · promptitude des transactions** (`mv_p2_promptitude`) : deux
 sous-composantes, **seuil grille 100 %**, dénominateur = **programmes gérés**
-(comme P1 — arbitrage coordination du 2026-08-31, migration 0020).
+(comme P1 ; arbitrage coordination du 2026-08-31, migration 0020).
 - `promptitude_inventaires` : programmes gérés avec ≥ 1 inventaire finalisé
   daté dans les trois derniers jours du mois ÷ programmes gérés.
 - `promptitude_requisitions` : programmes gérés avec ≥ 1 réquisition couvrant
@@ -133,24 +136,25 @@ mois (alimente la synthèse « Rapports & inventaires »), `nb_inventaires_a_lhe
 ceux des trois derniers jours. Score de pilier P2 : voir « Composition des
 piliers » ci-dessous.
 
-**Composition des piliers (migration 0057).** `mv_score_pilier` calcule les six
-scores de pilier avec `dqa.score_pilier(grille_id, notes jsonb)` : moyenne
-pondérée des notes (100, 0) des sous-composantes **retenues** et calculables,
-selon `grille_seuil_sous_composante.retenue` et `.poids_pct` (poids dans le
-pilier, les retenues font 100, une non retenue pèse 0). Grille actuelle :
-poids égaux, sauf P4 = `ecart_consommation` 100 %, `ecart_sdu` non retenue.
-Les colonnes `p_completude` / `p_promptitude` / `p_ecart_sdu` des vues de
-pilier restent des moyennes simples, sans usage pour le score. La fiche site
-reçoit `retenue` et `poidsDansPilierPct` sur chaque `MesureSousComposante`.
+**Composition des piliers (migrations 0057, 0062).** `mv_score_pilier` calcule
+les six scores de pilier par jointure sur la grille, sans fonction appelée par
+ligne : moyenne des notes (100, 0, note de sanction) des sous-composantes
+**retenues** et calculables, pondérée par `grille_seuil_sous_composante.poids_pct`
+(poids dans le pilier, les retenues font 100, une non retenue pèse 0). Le
+composite pondère les scores de pilier par `grille_poids_pilier` ; la
+classification lit `borne_conforme` et `borne_partiellement_conforme` de la
+grille du mois. Grille actuelle : poids égaux, sauf P4 = `ecart_consommation`
+100 %, `ecart_sdu` non retenue. La fiche site reçoit `retenue` et
+`poidsDansPilierPct` sur chaque `MesureSousComposante`.
 
-**P3 — régularité de saisie** (`mv_p3_regularite`, branche `UNION ALL`) :
+**P3 · régularité de saisie** (`mv_p3_regularite`, branche `UNION ALL`) :
 
 - **Sites qui dispensent** (tout site non-district du périmètre) : jours du mois
   avec au moins une sortie de stock (`nature ∈ {dispensation, distribution}`) ÷ **jours écoulés
   du mois, plafonnés au nombre de jours du mois** (`least(count(*), CURRENT_DATE
-  − 1er du mois + 1)`). Compteur au fil de l'eau : un mois en cours est mesuré
+  - 1er du mois + 1)`). Compteur au fil de l'eau : un mois en cours est mesuré
   sur les jours écoulés, un mois clos sur tous ses jours ; il se stabilise seul
-  à la clôture. Aucun jour n'est retranché — dispensation 7 j/7 (migration
+  à la clôture. Aucun jour n'est retranché : dispensation 7 j/7 (migration
   0024). **Toujours calculable** : une ligne « tous programmes » existe pour
   chaque `(site non-district, mois couvert par un import)`, 0 sortie ⇒ 0 %
   (ADR 0012, migration 0037), plus jamais NON_CALCULABLE. Seuil grille
@@ -177,112 +181,139 @@ et `jours` (mois non-district) ne liste que les jours écoulés.
 conformité » ; deux sous-composantes (`ecart_sdu`, `ecart_consommation`) en
 **taux de conformité** (part des produits traceurs dans la tolérance de la
 grille, pas une amplitude d'écart).
-**Clôture de mois (ADR 0022, migration 0056).** P4 et P5 ne lisent que
-l'**inventaire de clôture** : `dqa.mois_cloture_inventaire(date)` rend le mois
-clôturé par un inventaire des 3 derniers jours du mois ou du 1er du mois
-suivant, NULL hors fenêtre (inventaire ignoré). `mv_p4_ecart_produit.mois_paqd`
-est ce mois de clôture ; le dernier inventaire de la fenêtre est retenu.
-`dqa.v_cloture_inventaire` liste les clôtures par site, programme (NULL = tous)
-et mois. Un mois est **jugé** (`dqa.mois_juge_p4_p5`) quand les fenêtres des
-imports validés couvrent toute sa fenêtre de clôture (`dqa.date_debut_donnees`,
-`dqa.date_fin_donnees`, repli sur la date du jour sans fenêtre). Sanction une
-fois jugé : sans clôture, SDU, consommation et concordance à 0 ; sans
-ouverture (et mois précédent jugé), consommation à 0. Avant : NULL. Le
-repository (`causesCloture`) explique la sanction dans `raison`, statut ALERTE.
-`dqa.mois_est_clos` ne sert plus à P4 ni P5.
 
-**Règles dans la grille (migration 0058).** La fenêtre de clôture d'un mois
-suit la grille de ce mois (`dqa.fenetre_cloture(mois)` : du
-`jours_cloture_fin_mois`-ième dernier jour au `jours_cloture_mois_suivant`-ième
-jour du mois suivant). `mv_p4_ecart_produit` calcule le mois de clôture une fois
-par inventaire (CTE `inv_cloture`) et les vues P4 / P5 lisent les clôtures une
-fois (CTE `clotures`) : la fonction lit la grille, l'appeler ligne à ligne
-multipliait le temps de rafraîchissement par vingt. Une sanction se reconnaît
-dans les vues (aucun produit évalué, taux 0) ; `mv_score_pilier` lui donne la
-note `dqa.note_sanction(mois)`. Classification :
-`dqa.classer_composite(score, grille_id)`, bornes de la grille.
+**Clôture de mois et sanctions (ADR 0022, migrations 0056, 0058, 0062).**
 
-**Produits absents d'un inventaire (migration 0060).** `mv_produit_ecarte`
-compare, par site (tous programmes) et code produit, la clôture retenue d'un
-mois et celle du mois précédent (ouverture), quand les deux existent :
-`absent_ouverture` qualifié `oubli_demontre` / `indetermine` (stock minimal à
-l'ouverture = compté clôture + sorties déclarées - réceptions, borne basse
-sûre), `absent_cloture` qualifié `oubli_probable` / `epuise` (stock attendu à la
-clôture = compté ouverture + réceptions - sorties déclarées, borne haute).
-Mouvements : `v_mouvement_stock_jour` sur (date d'ouverture, date de clôture],
-distributions pour un district. Le gel les fige dans `hist_produit_ecarte`
-(upsert, puis retrait des absences disparues du core) avant les synthèses ;
-`mv_synthese_territoire_scores` en compte les lignes (`nb_absents_ouverture`,
-`nb_oublis_ouverture`, `nb_absents_cloture`, `nb_oublis_cloture`, grain tous
-programmes, NULL avec un filtre programme). Servis par `DetailPilierP4.produitsEcartes`
-et `LigneTerritoireScores.produitsEcartes`. Sans effet sur le score.
+- **Fenêtre** : `dqa.fenetre_cloture(mois)` lit la grille du mois (des
+  `jours_cloture_fin_mois` derniers jours au `jours_cloture_mois_suivant`-ième
+  jour du mois suivant) ; `dqa.mois_cloture_inventaire(date)` rend le mois
+  clôturé par un inventaire, NULL hors fenêtre. `mv_inventaire_mois` le
+  calcule une fois par inventaire (la fonction lit la grille : l'appeler ligne
+  à ligne multipliait le temps de rafraîchissement par vingt) et note si
+  l'inventaire porte un traceur actif (`a_traceur`).
+- **Clôture** : un inventaire de la fenêtre qui porte un traceur
+  (`dqa.v_cloture_inventaire`) ; le dernier est retenu. **Ouverture** : la
+  clôture retenue du mois précédent.
+- **Mois jugé** (`dqa.mois_juge_p4_p5`) : chaque jour de la fenêtre de clôture,
+  prolongée de `jours_marge_jugement` (`dqa.jours_marge_jugement(mois)`), est
+  couvert par la fenêtre d'un import validé. Sans aucun import fenêtré, la date
+  du jour en tient lieu. `dqa.mois_est_clos` ne sert plus à P4 ni P5.
+- **`mv_cloture_mois`** : une ligne par site (programme NULL), par programme
+  éligible et par programme inventorié sans être éligible (le mois de sa
+  clôture), pour chaque mois mesurable. Colonnes `date_cloture`,
+  `date_ouverture`, `juge`, `juge_precedent`, `fenetre_debut` / `fenetre_fin`,
+  `date_hors_fenetre` (dernier inventaire avec traceur du mois, hors fenêtre) et
+  les causes `cause_cloture` (`cloture`, `non_jugee`, `hors_fenetre`,
+  `sans_cloture`) et `cause_ouverture` (`ouverture`, `ouverture_non_jugee`,
+  `sans_ouverture`). C'est la seule source des sanctions de `mv_p4_ecart` et
+  `mv_p5_concordance` et des raisons affichées.
+- **Sanction** : sans clôture, SDU, consommation et concordance prennent 0 %
+  et la note `note_sanction` de la grille (`sanction_sdu`, `sanction_conso`,
+  `sanction` à vrai) ; avec clôture, la consommation est sanctionnée sans
+  ouverture (mois précédent jugé) ou sans produit commun aux deux
+  inventaires (`cause_consommation = sans_produit_commun`). Mois non jugé :
+  NULL, jamais de sanction. La même règle vaut au grain programme, même pour un
+  programme éligible sans traceur (décision de l'ADR 0022).
+- **Univers du score** : `mv_score_pilier` ne retient un (site, mois,
+  programme) que s'il a une activité (une mesure P1, P2, P3 ou P6, ou une
+  clôture ou un inventaire hors fenêtre dans `mv_cloture_mois`). Un site muet
+  reste « sans mesure ».
+- Le repository (`raisonP4P5`) traduit chaque cause en raison lisible, avec la
+  fenêtre, la date de l'inventaire hors fenêtre, la fin de la marge et la note
+  appliquée (« sanction, note 0 »).
 
-**Corrections de la revue (migration 0061).** Sanction au grain programme
-(programmes gérés de `dim_site_programme`, même règle que le site) ;
-dénominateur de la conformité consommation = produits aux deux bornes,
-reconstituée ≤ 0 non conforme ; raison `autre_article_ouverture` quand le code
-figure à l'ouverture sous un autre article ; mois jugé seulement si chaque jour
-de la fenêtre de clôture est couvert par un import (CTE `mois_juges`, évaluée
-une fois par vue) ; `mv_score_pilier` expose `poids_calc_p1..p6` et
-`poids_piliers_calcules`, que la fiche site lit au lieu de les sommer ;
-l'historique des produits écartés garde les sites sortis du périmètre et les
-traceurs désactivés. Lecture partagée de la grille : `commun/lecture-grille.ts`.
-
-**Transparence du calcul (migration 0059).** `mv_score_pilier` expose la note
-de chaque sous-composante (`note_*` : 100, 0, note de sanction ou NULL), celle
-qui entre dans le score de son pilier. La fiche site (`detailSite`) lit ces
-notes : chaque `MesureSousComposante` porte `note` et `sanction`, son statut se
-déduit de la note ; chaque `ScorePilier` porte `poidsCalculables` et le poids
-du pilier lu dans la grille ; `calcul` donne la grille, ses règles et le poids
-des piliers calculables. `GET /api/methode-calcul?mois=` (tout authentifié,
-404 sans grille) décrit la grille d'un mois pour le dépliable « Comment ces
-scores sont calculés » (`ui/methode-calcul`). L'écran ne recalcule rien : un
-test vérifie que la décomposition redonne exactement les scores affichés.
+**Conformité SDU et conformité consommation.**
 
 - `ecart_sdu` : `|théorique - compté| / compté ≤ tolérance` à l'inventaire de
   clôture, par produit ; compté (réalité) au dénominateur.
   Cas limites : compté 0 / théorique 0 → conforme ; compté 0 / théorique > 0 →
   non conforme.
-- `ecart_consommation` : `|déclarée − reconstituée| / reconstituée ≤ tolérance`.
+- `ecart_consommation` : `|déclarée - reconstituée| / reconstituée ≤ tolérance`,
   `d_début` = clôture retenue du mois **M-1** (ouverture), `d_fin` = clôture
-  retenue de **M** ; plus de repli sur deux inventaires du mois.
-  `reconstituée = stock(d_début) + réceptions - stock(d_fin)`
+  retenue de **M**. `reconstituée = stock(d_début) + réceptions - stock(d_fin)`
   sur `(d_début, d_fin]` ; `déclarée` = Σ dispensations sur l'intervalle, ou
-  Σ quantités distribuées pour un **district** (`nature = distribution`, la
-  sous-composante se lit « écart distribution »). Raisons d'exclusion
-  (`conso_raison_exclusion`) : `sans_ouverture` (le site n'a pas d'ouverture),
-  `absent_ouverture` (le produit manque à l'ouverture, lui seul est écarté),
-  `reconstituee_non_positive`. NON_CALCULABLE quand ouverture et clôture
-  existent mais qu'aucun produit n'est évaluable.
+  Σ quantités distribuées pour un **district** (la sous-composante se lit
+  « conformité distribution »). Dénominateur : produits présents aux deux
+  inventaires (`conso_borne_ok`) ; une reconstituée ≤ 0 y compte non conforme.
+  Raisons (`conso_raison_exclusion`) : `reconstituee_non_positive` (compté,
+  non conforme), `absent_ouverture` (le produit manque à l'ouverture, lui seul
+  est écarté), `autre_article_ouverture` (le code figure à l'ouverture sous un
+  autre article), `sans_ouverture` (le site n'a pas d'ouverture).
+  `ecart_conso` porte l'écart signé `déclarée - reconstituée`, lu par la fiche
+  produit.
 
 **Inventaire retenu et codes à plusieurs articles (ADR 0016, migration
-0044).** Pour un (site, jour, produit), un seul inventaire compte : le dernier
+0044).** Pour un (site, jour, article), un seul inventaire compte : le dernier
 saisi (`heure_inventaire`, puis `numero_inventaire`, puis `inventaire_id`).
 Par programme, le dernier inventaire du programme ; « tous programmes », le
 dernier tous programmes confondus (le stock est celui du site, jamais la somme
 des programmes). Un inventaire ou un mouvement sans programme ne compte que
-dans « tous programmes ». Le calcul reste fait **par article** mSupply
+dans « tous programmes ». Le contrôle reste fait **par article** mSupply
 (`produit_id`) ; les taux comptent un **code** une fois, conforme seulement si
 tous ses articles le sont (CTE `par_code` de `mv_p4_ecart` et
 `mv_p5_concordance`).
 
 Le score de pilier P4 (`p_ecart_sdu`, hérité du nom historique) suit la
-composition de la grille (migration 0057) : par défaut la conformité
-consommation seule, la conformité SDU étant non retenue. La colonne
-`mv_p4_ecart.p_ecart_sdu` reste une moyenne simple, sans usage pour le score. Tolérance (2 %) et
-seuil de taux (90 %) viennent de `grille_seuil_sous_composante.tolerance` /
-`.seuil` — à confirmer avec la coordination PAQD.
+composition de la grille : par défaut la conformité consommation seule, la
+conformité SDU étant mesurée sans compter. Tolérance (2 %) et seuil de taux
+(90 %) viennent de `grille_seuil_sous_composante.tolerance` / `.seuil`.
 
 **P5 · Concordance physique / théorique** (`mv_p5_concordance`) : une seule
-sous-composante `concordance`, `least(|théo|, |compté|) / greatest(…) · 100` au
-dernier inventaire finalisé du mois, comparée au seuil `concordance` (100 %).
-Depuis la migration 0044, elle se calcule sur `mv_p4_ecart_produit` : même
-inventaire retenu, lots sommés, même répartition par programme que P4 ; taux
-d'un code = celui de son article le moins concordant, recalculé sans arrondi.
-Sans aucun inventaire finalisé daté dans le mois : **0 %** une fois le mois
-clos, **NON_CALCULABLE** tant qu'il est en cours (ADR 0014) — et comme la
-sous-composante est unique, P5 entier suit. NON_CALCULABLE aussi si le site a
-inventorié mais sans produit traceur exploitable.
+sous-composante `concordance`, `least(|théo|, |compté|) / greatest(…) · 100` à
+l'inventaire de clôture, comparée au seuil `concordance` (100 %). Elle se
+calcule sur `mv_p4_ecart_produit` : même inventaire retenu, lots sommés, même
+répartition par programme que P4 ; taux d'un code = celui de son article le
+moins concordant, recalculé sans arrondi. Sans clôture : sanction une fois le
+mois jugé, NULL avant ; la sous-composante étant unique, P5 entier suit.
+
+**Produits absents d'un inventaire (migrations 0060, 0062).**
+`mv_produit_ecarte` compare, par site (tous programmes) et **code** produit, la
+clôture et l'ouverture lues dans `mv_cloture_mois`, quand les deux existent :
+`absent_ouverture` qualifié `oubli_demontre` / `indetermine` (stock minimal à
+l'ouverture = compté clôture + sorties - entrées), `absent_cloture` qualifié
+`oubli_probable` / `epuise` (stock attendu à la clôture = compté ouverture +
+entrées - sorties). Entrées : factures, `ajustement_positif`, `retour_client` ;
+sorties : dispensations (distributions pour un district), `ajustement_negatif`,
+`retour_fournisseur` ; mouvements de `v_mouvement_stock_jour` sur (date
+d'ouverture, date de clôture]. Le gel les fige dans `hist_produit_ecarte`
+(colonnes `entrees`, `sorties`) ; une absence corrigée par un ré-import est
+retirée, un site sorti du périmètre et un traceur désactivé gardent leur
+historique. `mv_synthese_territoire_scores` en compte les lignes
+(`nb_absents_ouverture`, `nb_oublis_ouverture`, `nb_absents_cloture`,
+`nb_oublis_cloture`, grain tous programmes, NULL avec un filtre programme).
+Servis par `DetailPilierP4.produitsEcartes` et
+`LigneTerritoireScores.produitsEcartes`. La qualification n'agit pas sur le
+score.
+
+**Gel et historique (migration 0062).** `dqa.rafraichir_et_geler` rafraîchit
+dans l'ordre des dépendances (`mv_inventaire_mois`, P1 à P3,
+`mv_p4_ecart_produit`, `mv_cloture_mois`, P4, P5, P6, `mv_score_pilier`), puis :
+
+- fige dans `hist_score_site` les valeurs, les **notes**, les **sanctions** et
+  les dénominateurs (`poids_calc_p1..p6`, `poids_piliers_calcules`) : la fiche
+  site déplie un calcul qui redonne exactement le score gelé ;
+- retire de `hist_score_site` une ligne qui n'est plus calculée (programme
+  retiré, données corrigées), et de `hist_pilier_brut` tout compte dont la
+  sous-composante n'est plus calculable, sauf pour un site sorti du périmètre,
+  qui garde son historique ;
+- rafraîchit les synthèses. `mv_synthese_sous_composante` ne compte que les
+  sous-composantes retenues dans la grille de chaque mois ;
+  `v_sous_composante_atteinte` tire le statut de la note figée.
+
+Les REFRESH restent ordinaires (pas `CONCURRENTLY`) : les index uniques portent
+sur `coalesce(programme_id, '')`, et le gel est hebdomadaire.
+
+**Transparence du calcul (migrations 0059, 0062).** La fiche site
+(`detailSite`) lit les notes figées : chaque `MesureSousComposante` porte
+`note` et `sanction`, son statut se déduit de la note ; chaque `ScorePilier`
+porte `poidsCalculables` et le poids du pilier lu dans la grille du gel ;
+`calcul` donne la grille, ses règles et le poids des piliers calculables.
+`GET /api/methode-calcul?mois=` (tout authentifié, 404 sans grille) décrit la
+grille d'un mois pour le dépliable « Comment ces scores sont calculés »
+(`ui/methode-calcul`, chargé à l'ouverture). `GET /api/tableau-de-bord` sert
+aussi les règles du mois affiché (bornes de la courbe). Lecture partagée de la
+grille : `commun/lecture-grille.ts`. L'écran ne recalcule rien : un test
+vérifie que la décomposition redonne exactement les scores affichés.
 
 **Tableaux produit P4 · P5** (`mv_p4_ecart_produit`, variante `p4` de
 `GET /api/sites/:id/piliers/:code`) : une ligne par article de produit traceur
@@ -294,7 +325,7 @@ consommation (stock début-fin / réceptions / déclarée / reconstituée, statu
 ou « non évaluable » + raison) **et** la concordance P5 par produit
 (`concordance_pct` / `concordance_conforme`, colonnes de `mv_p4_ecart_produit`
 depuis la migration 0033 : `least(|théo|, |compté|) / greatest(…) · 100`
-comparée au seuil `concordance` de la grille, `NULL` quand une quantité manque —
+comparée au seuil `concordance` de la grille, `NULL` quand une quantité manque,
 même sémantique que `mv_p5_concordance`, qui l'exclut alors de son agrégat ; le
 repository ne fait que lire ces colonnes). La route `/piliers/p4` a remplacé
 l'ancien endpoint
@@ -321,7 +352,7 @@ variantes de `DetailPilier`, la réponse porte `comptesBruts`, `calculeLe`,
 `coreMajLe` et `reimporteDepuisLeGel`.
 
 **Détail ligne à ligne par pilier** (`GET /api/sites/:id/piliers/:code`,
-`DetailPilier` — union discriminée sur `code`). Lu **en direct du core**
+`DetailPilier`, union discriminée sur `code`). Lu **en direct du core**
 (`fact_inventaire`, `fact_requisition`, `fact_transaction`), jamais gelé.
 Chaque réponse porte aussi les `comptesBruts` figés du pilier, `calculeLe`
 (gel des comptes, `hist_pilier_brut` à défaut `hist_score_site`), `coreMajLe`
@@ -329,9 +360,9 @@ Chaque réponse porte aussi les `comptesBruts` figés du pilier, `calculeLe`
 (`coreMajLe > calculeLe` : le détail live peut diverger des comptes figés).
 Variantes livrées : `p1` (inventaires / réquisitions / réceptions / factures du
 mois + état par programme géré), `p2` (inventaires avec « dans les 3 derniers
-jours », réquisitions avec date limite — règles de la migration 0020 — et « à
-l'heure »), `p3` (un item par jour **écoulé** du mois PAQD — borné à
-`CURRENT_DATE` —, `aSortie` = au moins une `dispensation` / `distribution` non
+jours », réquisitions avec date limite (règles de la migration 0020) et « à
+l'heure »), `p3` (un item par jour **écoulé** du mois PAQD, borné à
+`CURRENT_DATE`, `aSortie` = au moins une `dispensation` / `distribution` non
 annulée ce jour ; district : `reponseZone` au lieu de `jours`), `p4` (tableau
 produit P4 · P5 fusionné + `estDistrict` ; l'écart consommation se lit « écart
 distribution » pour un district) et `p6` (les seuls
@@ -348,36 +379,38 @@ programmes.
   par la somme de leurs poids (renormalisation, spec §« Score composite »).
   `null` si aucun pilier n'est calculable.
 - `classification` : `CONFORME` ≥ 90, `PARTIELLEMENT_CONFORME` ≥ 75, sinon
-  `NON_CONFORME` (fonction SQL `classer_composite`, bornes de `CLAUDE.md` §5).
+  `NON_CONFORME` (bornes de la grille du mois, lues par `mv_score_pilier`).
 - chaque `MesureSousComposante` : `statut` = `CONFORME` (score 100) / `ALERTE`
   (score 0) / `NON_CALCULABLE` (score null), `raison` renseignée dans ce
   dernier cas.
 
 `GET /api/sites` trie les sites par `score_composite` **croissant**, sites sans
-mesure (`NULL`) en dernier — les sites en difficulté remontent en tête.
+mesure (`NULL`) en dernier : les sites en difficulté remontent en tête.
 
 ## Fiche produit-mois
 
 `GET /api/sites/:id/produits/:code?mois=&programmeId=` (`ficheProduitMoisQuerySchema`,
 réponse `FicheProduitMois`) sert la route web partageable `/sites/:id/produits/:code`,
 ouverte depuis le code produit du tableau P4 · P5. Elle rassemble, pour **un
-produit traceur**, un site et un mois, toutes les grandeurs brutes derrière les
-piliers P3 à P6 : les inventaires finalisés du mois portant le produit (stock
-théorique mSupply vs stock physique compté, écart), les photos `fact_stock_snapshot`
-du mois, les réceptions (factures fournisseur finalisées), le total dispensé + le nombre de jours avec
-dispensation, les ajustements (même prédicat que P6), et la consommation
-reconstituée (`stock ouverture + réceptions − stock clôture` entre les bornes
-inter-mois de l'écart consommation P4, cf. plus haut) vs déclarée avec leur
-écart. Le détail est lu **en direct des `fact_*`** ; `consommation`,
-`stockDebut` et `stockFin` sont repris de `mv_p4_ecart_produit` (mêmes calculs
-que l'écart consommation P4) et valent `null` sans borne d'ouverture
-exploitable. `mois` par défaut = le plus récent mesuré du site
-(`hist_score_site`) ; `programmeId` restreint les lignes de core. La réponse porte
-`calculeLe` (gel des comptes du mois, `hist_pilier_brut` à défaut `hist_score_site`),
-`coreMajLe` (`max(maj_le)` des lignes de core lues) et `reimporteDepuisLeGel`
-(`coreMajLe > calculeLe` : note discrète à l'écran). **404** si le site est hors
-périmètre ou si `code` n'est pas dans `dim_produit_traceur`. Écran : composant
-autonome `pages/fiche-produit.ts`, données via `core/ressource` (sélecteur de mois
+produit traceur** (son code, tous articles additionnés), un site et un mois,
+toutes les grandeurs brutes derrière les piliers P3 à P6, sur la **période**
+que P4 compare (`periode`) : de l'inventaire d'ouverture à l'inventaire de
+clôture du produit, à défaut ceux du site (`mv_cloture_mois`), à défaut les
+fenêtres de clôture (`ouvertureConnue` / `clotureConnue` faux). Les
+inventaires et les photos se lisent bornes comprises ; les réceptions, les
+sorties déclarées (dispensations, distributions pour un district, cf.
+`estDistrict`) et les ajustements après l'ouverture et jusqu'à la clôture,
+comme dans `mv_p4_ecart_produit` : le total dispensé vaut la consommation
+déclarée de P4. `consommation` (écart signé `ecart_conso`), `stockDebut` et
+`stockFin` sont repris de `mv_p4_ecart_produit` et valent `null` si un
+article du code n'a pas ses deux bornes. `mois` par défaut = le plus récent
+mesuré du site (`hist_score_site`) ; `programmeId` restreint les lignes de
+core. La réponse porte `calculeLe` (gel des comptes du mois,
+`hist_pilier_brut` à défaut `hist_score_site`), `coreMajLe` (`max(maj_le)` des
+lignes de core de la période) et `reimporteDepuisLeGel` (`coreMajLe >
+calculeLe` : note discrète à l'écran). **404** si le site est hors périmètre ou
+si `code` n'est pas dans `dim_produit_traceur`. Écran : composant autonome
+`pages/fiche-produit.ts`, données via `core/ressource` (sélecteur de mois
 synchronisé à l'URL, pas de remontage), fil d'Ariane vers `/sites/:id`.
 
 ## Synthèse nationale
@@ -394,7 +427,7 @@ GROUPING SETS géographiques.
   ligne du mois compte en `nb_sans_mesure`, jamais NON_CONFORME.
 - `score_composite_moyen` et `moy_p_*` = `avg` des valeurs **non nulles**,
   `NULL` si aucune. Le filtre région donne un national **ré-agrégé** (moyenne
-  par site), pas une moyenne de moyennes de districts — d'où `region` **et**
+  par site), pas une moyenne de moyennes de districts, d'où `region` **et**
   `district` comme dimensions de la vue.
 
 `GET /api/synthese?mois=&programmeId=&region=` (`syntheseQuerySchema`) : `mois`
@@ -420,7 +453,7 @@ l'onglet « Sous-composantes » de `/synthese`. Rafraîchie avec
 (`strate_de(dim_site.type_structure)`, « Non classé » pour un type non mappé),
 par mois PAQD, avec les grains « toutes régions » / « tous programmes » en
 GROUPING SETS comme `mv_synthese_nationale`. Elle ne lit que les lignes
-`programme_id IS NOT NULL` — le grain par programme géré — pour ne pas compter
+`programme_id IS NOT NULL` (le grain par programme éligible) pour ne pas compter
 deux fois avec la ligne agrégée : l'« attendu » est ainsi le nombre de
 programmes gérés, réconcilié avec P1 / P2. Une strate sans site du périmètre
 pour le mois n'a pas de ligne. Rafraîchie par `rafraichir_et_geler` après le
@@ -507,7 +540,7 @@ tuiles, `ui/graphe-sparkline`, top 5 en difficulté ; la liste des sites est sur
 
 Depuis l'ADR 0008, ces écrans sont sur spartan/ui : les graphes passent par
 ApexCharts (`ui/graphe-*`, légendes toujours complètes) et un changement de
-sélecteur ne remonte jamais la vue — la primitive `core/ressource` garde le
+sélecteur ne remonte jamais la vue : la primitive `core/ressource` garde le
 contenu courant visible, refait la requête en arrière-plan et reflète les
 filtres dans l'URL sans navigation (cf. `docs/guide_module_ressource.md`).
 
@@ -520,7 +553,7 @@ plus récent mesuré. Les points sont triés par **mois PAQD** ; un mois sans
 ligne gelée est absent (jamais un zéro). `cyclePaqd` = le cycle affiché, ou
 `null` pour une plage libre. `moisDisponibles` liste tous les mois mesurés du
 site (sélecteur de plage). `piliersCouverts` et `scoresPiliers` viennent des
-`p_*` gelés — aucun recalcul.
+`p_*` gelés, sans recalcul.
 
 Chaque point porte `sousComposantes` : les dix `SousComposanteBref` du mois
 (valeur, seuil, statut, `tauxAtteinte`) lues sur `v_sous_composante_atteinte`
@@ -559,9 +592,13 @@ plage. `ui/graphe-sparkline` (page d'accueil) reste une primitive séparée
   composite via un `CROSS JOIN LATERAL` des six paires (pilier, score) filtré
   sur `score IS NOT NULL`, joint aux poids de la grille. L'API lit la valeur
   gelée, elle ne repondère jamais (CLAUDE.md §3).
-- **`classer_composite(numeric)`** : fonction SQL `IMMUTABLE` isolant les
-  bornes 90 / 75, testable directement et réutilisable par les écrans
-  nationaux à venir.
+- **Classification par jointure sur la grille** (migration 0062) : les bornes
+  sont lues dans `grille_parametre` par `mv_score_pilier` ; les fonctions
+  `classer_composite` (bornes en dur, puis bornes de la grille) ont été
+  supprimées, faute d'appelant.
+- **Validation des paramètres de requête** : chaque route de lecture passe par
+  `ZodValidationPipe` avec le schéma du contrat ; un paramètre invalide
+  (`mois=2026-13`) rend 400, jamais 500.
 - **Statut binaire** (pas de PARTIEL) au niveau sous-composante : décision du
   grilling (D5). Le score de pilier vaut 100, 0 ou null.
 - **`moisPaqd` nullable + `moisDisponibles`** dans `DetailSite` : permet un état
@@ -569,7 +606,7 @@ plage. `ui/graphe-sparkline` (page d'accueil) reste une primitive séparée
   lorsqu'il y a plusieurs mois.
 - **Seuil affiché = seuil de la grille du score gelé**, pas la grille courante :
   cohérent avec l'immutabilité des scores historisés (ADR 0003).
-- **Front : validation Zod systématique des réponses** (`validerReponse`) — une
+- **Front : validation Zod systématique des réponses** (`validerReponse`) : une
   réponse non conforme au contrat lève une erreur explicite plutôt que de
   propager des `undefined` (ARCHITECTURE.md §4). C'est la couture de test D.
 - **`ui/badge-classification`** : pastille de rangement du site (vert / ambre /
@@ -589,10 +626,17 @@ P5 au rafraîchissement suivant, sans perte d'historique. `produit_code` =
 - Les colonnes numériques de PostgreSQL (`numeric`) reviennent en **texte** via
   `pg` : le repository fait les `Number(...)`. Idem pour les `bigint`.
 - `IS NOT DISTINCT FROM` est utilisé partout pour comparer `programme_id`
-  (NULL = « tous programmes ») — ne pas remplacer par `=`, qui exclurait les
+  (NULL = « tous programmes ») : ne pas remplacer par `=`, qui exclurait les
   lignes agrégées.
 - La liste `/api/sites` ne montre que les sites `dans_perimetre_dqa`. Un site
   hors périmètre renvoie 404 sur le détail.
-- Un site présent dans le core mais sans aucun mouvement ni inventaire du mois
-  n'apparaît pas dans `mv_score_pilier` → il figure dans `/api/sites` avec des
-  scores `null`, et son détail est en état vide.
+- Un site présent dans le core mais sans aucune activité du mois (ni mesure
+  P1, P2, P3, P6, ni inventaire avec traceur) n'apparaît pas dans
+  `mv_score_pilier`, même si `mv_cloture_mois` le sanctionnerait : il figure
+  dans `/api/sites` avec des scores `null`, et son détail est en état vide.
+- Un test qui insère des lignes de `hist_score_site` à la main doit aussi
+  remplir les notes `note_*` (le statut se lit sur la note) ; et un appel à
+  `rafraichir_et_geler` retire ces lignes si le core ne les produit pas.
+- Les lots de test sans fenêtre d'extraction rendent jugés tous les mois
+  passés (repli sur la date du jour) : donner une fenêtre aux lots pour un
+  test indépendant de la date.

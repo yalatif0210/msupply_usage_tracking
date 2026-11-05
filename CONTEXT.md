@@ -9,13 +9,13 @@ conformité par cycle PAQD.
 
 **Pilier PAQD** :
 Un des six axes d'évaluation de la qualité des données, codés P1 à P6, chacun
-doté d'un poids fixe dont la somme fait 100 %.
+doté d'un poids fixé par la grille du mois ; la somme des poids fait 100 %.
 _Éviter_ : composante, axe, dimension, critère
 
 **Sous-composante** :
 La grandeur mesurée qui alimente un pilier. Un pilier regroupe une ou plusieurs
-sous-composantes (P1 en a trois, P2 et P4 en ont deux, P3/P5/P6 une seule).
-Chaque sous-composante a une valeur, un seuil et un statut.
+sous-composantes (P1, P2 et P4 en ont deux, P3, P5 et P6 une seule : neuf en tout, ADR 0019).
+Chaque sous-composante a une valeur, un seuil, une note et un statut.
 _Éviter_ : indicateur, composante, métrique
 
 **Valeur de sous-composante gelée** :
@@ -23,11 +23,11 @@ La valeur mesurée d'une sous-composante, figée mois par mois dans
 `hist_score_site` (colonnes `sc_*`), au même titre que les scores de pilier
 (ADR 0007). Une valeur gelée ne change jamais, même si la règle de calcul
 évolue ensuite. Le seuil et le statut ne sont pas figés : ils se déduisent de
-la valeur et de la grille du mois.
+la valeur et de la grille du mois. La **note** est figée avec la valeur.
 
 **Compte brut** :
-Le couple attendu / réalisé — et, quand la sous-composante porte un délai,
-réalisé à l'heure — qui produit le taux d'une sous-composante (« P1 réceptions :
+Le couple attendu / réalisé (et, quand la sous-composante porte un délai,
+réalisé à l'heure) qui produit le taux d'une sous-composante (« P1 réceptions :
 3 factures acceptées dans leur mois d'émission sur 5 »). Figé mois par mois dans `hist_pilier_brut`, au
 même titre que la valeur de sous-composante gelée, et réconcilié avec elle. Le
 détail transaction par transaction derrière un compte brut n'est pas figé : il
@@ -44,7 +44,7 @@ _Éviter_ : rapport d'activité, reporting
 
 **Taux d'atteinte du seuil** :
 Note sur 100 qui dit à quel point une sous-composante approche (ou dépasse) son
-seuil, sur une échelle commune aux dix. Sens-conscient : pour un seuil
+seuil, sur une échelle commune aux neuf. Sens-conscient : pour un seuil
 plancher, `valeur / seuil` borné à 100 ; pour un seuil plafond (ratio
 d'ajustements), `seuil / valeur` borné à 100 ; pour les deux sous-composantes
 de P4, la valeur gelée est déjà un taux de conformité, reprise telle quelle.
@@ -53,11 +53,18 @@ et d'un seuil retrouvable, servi par la vue `v_sous_composante_atteinte`.
 Sert d'axe commun aux radars et aux courbes fines de la fiche site.
 _Éviter_ : score de sous-composante (binaire, réservé au calcul du pilier)
 
+**Note d'une sous-composante** :
+Ce qu'une sous-composante apporte au score de son pilier : 100 si son seuil
+est atteint, 0 sinon ; une sous-composante **sanctionnée** prend la note de
+sanction de la grille. Figée au gel avec la valeur, pour que le calcul déplié
+à l'écran redonne exactement le score affiché.
+_Éviter_ : score de sous-composante
+
 **Score de pilier** :
-Note sur 100 d'un site pour un pilier, égale à la moyenne pondérée des scores de
-ses sous-composantes **retenues** et calculables (CONFORME = 100, ALERTE = 0 ; une
-sous-composante NON_CALCULABLE est exclue, les poids restants sont renormalisés).
-Un pilier n'a pas de statut, seulement un score.
+Note sur 100 d'un site pour un pilier, égale à la moyenne des notes de ses
+sous-composantes **retenues** et calculables, pondérée par leur poids dans le
+pilier (une sous-composante NON_CALCULABLE est exclue, les poids restants sont
+renormalisés). Un pilier n'a pas de statut, seulement un score.
 
 **Composition d'un pilier** :
 Pour chaque pilier, dans la grille datée : les sous-composantes **retenues** et
@@ -68,9 +75,11 @@ _Éviter_ : sous-composante désactivée (elle est toujours calculée)
 
 **Score composite** :
 Note sur 100 d'un site pour un mois PAQD, tous programmes confondus, égale à la
-somme pondérée de ses scores de pilier. Un pilier dont toutes les sous-composantes
-sont NON_CALCULABLE est retiré du calcul et les poids des piliers restants sont
-renormalisés à 100 %. C'est la valeur qui classe les sites et qui est historisée.
+moyenne de ses scores de pilier pondérée par le poids des piliers. Un pilier
+dont aucune sous-composante retenue n'est calculable est retiré du calcul et
+les poids des piliers restants sont renormalisés à 100 %. C'est la valeur qui
+classe les sites et qui est historisée. Un site sans aucune activité du mois
+n'a pas de score composite : il est « sans mesure ».
 _Éviter_ : note globale, score DQA, indice
 
 **Score par programme** :
@@ -86,17 +95,18 @@ _Éviter_ : programme, volet, activité
 
 **Cycle PAQD** :
 Une période de quatre mois consécutifs. Trois cycles par an, calés sur l'année
-civile (C1 : janvier–avril, C2 : mai–août, C3 : septembre–décembre). C'est le
+civile (C1 : janvier-avril, C2 : mai-août, C3 : septembre-décembre). C'est le
 préréglage par défaut pour suivre la progression d'un site, mais plus la seule
 fenêtre : la fiche site accepte une plage de mois libre (`de`/`a`), qui peut
 traverser plusieurs cycles.
 
 **Grille de paramètres** :
-Le jeu daté des poids de piliers, des seuils de sous-composantes et — pour les
-sous-composantes évaluées par taux de conformité (conformité SDU, conformité consommation)
-— de la tolérance par produit. Éditée par la coordination nationale ; une
-modification ne vaut que pour les cycles à venir. Chaque score historisé
-référence la grille avec laquelle il a été calculé et reste immuable.
+Le jeu daté des poids de piliers, de la composition des piliers, des seuils de
+sous-composantes (avec, pour la conformité SDU et la conformité consommation,
+la tolérance par produit) et des règles de calcul : fenêtre de clôture, marge
+de jugement, note de sanction, bornes de classification. Éditée par la
+coordination nationale ; une version ne prend effet qu'à une date future.
+Chaque score historisé référence la grille avec laquelle il a été calculé.
 _Éviter_ : param_seuil, configuration, barème
 
 **Mois PAQD** :
@@ -107,12 +117,10 @@ _Éviter_ : période, mois de mesure
 **Mois clos / mois en cours** :
 Un mois PAQD est **clos** une fois passée l'échéance de réquisition la plus
 tardive du référentiel des structures (par défaut le 10 de M+1) : plus aucune
-soumission ne peut arriver « à l'heure », le score gelé devient définitif.
-Avant cette date le mois est **en cours** : son score reste **provisoire**
-(repère à l'écran, segment de courbe en pointillé). Fonction `dqa.mois_est_clos`.
-Discriminant de plusieurs règles : P4 et P5 valent 0 % pour un site sans
-inventaire seulement une fois le mois clos, NON_CALCULABLE tant qu'il est en
-cours (l'échéance n'est pas arrivée).
+soumission ne peut arriver « à l'heure ». Avant cette date le mois est **en
+cours** : son score reste **provisoire** (repère à l'écran, segment de courbe
+en pointillé). Discriminant des échéances de P1 et P2. P4 et P5 ne lisent pas
+le mois clos mais le **mois jugé**.
 _Éviter_ : mois terminé, mois figé
 
 **Ajustement d'inventaire (INVAD)** :
@@ -123,8 +131,9 @@ code de type de transaction.
 _Éviter_ : correction, régularisation, `im+` / `im-`
 
 **Classification** :
-Rangement d'un site d'après son score composite : CONFORME (≥ 90),
-PARTIELLEMENT CONFORME (75–89), NON CONFORME (< 75).
+Rangement d'un site d'après son score composite, selon les bornes de la grille
+du mois : CONFORME à partir de la borne haute, PARTIELLEMENT CONFORME à partir
+de la borne basse, NON CONFORME en dessous. Grille actuelle : 90 et 75.
 _Éviter_ : statut du site, niveau, catégorie
 
 **Complétude (P1)** :
@@ -151,7 +160,8 @@ _Éviter_ : réception
 
 **Programme éligible** :
 Programme rattaché à un site (SITE_PROGRAMME) et actif : seul un programme
-éligible attend une réquisition (P1, P2) et un inventaire (P2). Le statut se
+éligible attend une réquisition (P1, P2), un inventaire (P2) et un inventaire
+de clôture (P4, P5, ADR 0022). Le statut se
 règle dans la console (écran « Programmes ») ; un import ne revient jamais sur
 un choix de la coordination (ADR 0020).
 _Éviter_ : programme géré (quand il s'agit du statut administré)
@@ -179,8 +189,9 @@ conforme seulement si tous ses articles le sont (ADR 0016).
 
 **Article** :
 Un enregistrement `item` de mSupply. Deux articles peuvent porter le même code
-produit (même médicament enregistré deux fois). Les calculs se font par
-article, les taux par code.
+produit (même médicament enregistré deux fois). Le contrôle P4 / P5 se fait
+par article, le verdict par code ; partout ailleurs (stock, consommation,
+absences) un produit est son code et ses articles s'additionnent (ADR 0016).
 _Éviter_ : produit (quand on parle de l'enregistrement mSupply)
 
 **Inventaire retenu** :
@@ -202,8 +213,10 @@ produit (tableau produit de la fiche site, fiche produit).
 
 **Inventaire de clôture** :
 Inventaire finalisé daté des **3 derniers jours du mois** ou du **1er du mois
-suivant** (fenêtre de la grille du mois) ; s'il y en a plusieurs, le dernier. Seul inventaire qui compte pour
-P4 et P5 (ADR 0022). Un inventaire hors de cette fenêtre ne compte pas.
+suivant** (fenêtre de la grille du mois), qui porte au moins un produit
+traceur ; s'il y en a plusieurs, le dernier. Seul inventaire qui compte pour
+P4 et P5 (ADR 0022). Un inventaire hors de cette fenêtre, ou sans traceur, ne
+clôture pas le mois.
 _Éviter_ : inventaire du mois, borne de fin
 
 **Inventaire d'ouverture** :
@@ -212,47 +225,55 @@ conformité consommation.
 _Éviter_ : borne d'ouverture, premier inventaire du mois
 
 **Mois jugé (P4, P5)** :
-Mois dont chaque jour de la fenêtre de clôture est couvert par la fenêtre d'un
-import validé (jusqu'au 1er du mois suivant ; un trou entre deux imports suspend
-le jugement). Avant, aucune sanction : ce qui n'est pas encore calculable reste
-NON_CALCULABLE.
+Mois dont chaque jour de la fenêtre de clôture, prolongée de la **marge de
+jugement** de la grille (3 jours), est couvert par la fenêtre d'un import
+validé ; un trou entre deux imports suspend le jugement. Avant, aucune
+sanction : ce qui n'est pas encore calculable reste NON_CALCULABLE.
+_Éviter_ : mois clos (pour P4 et P5)
 
 **Sanction (P4, P5)** :
-Note 0 imposée une fois le mois jugé : sans inventaire de clôture, P4 et P5 ;
-sans inventaire d'ouverture, la conformité consommation. Vaut pour le site
-(tous programmes) et pour chaque programme qu'il gère. La fiche site en affiche
-la raison.
+Note de sanction de la grille (0 par défaut, toujours sous 100) imposée une
+fois le mois jugé : sans inventaire de clôture, aux sous-composantes de P4 et
+P5 ; avec clôture mais sans inventaire d'ouverture (le mois précédent étant
+jugé), ou sans aucun produit commun aux deux, à la conformité consommation.
+Vaut pour le site (tous programmes) et pour chaque programme éligible. La fiche
+site en affiche la cause et la note.
 
 **Produit absent d'un inventaire** :
 Produit traceur présent à l'inventaire d'ouverture ou de clôture d'un mois et
 absent de l'autre, le site ayant fait les deux. Constat de site (tous
-programmes, par code), historisé, sans effet sur le score. Absent de
-l'ouverture : **oubli démontré** si compté clôture + sorties déclarées -
-réceptions > 0, sinon cause indéterminée. Absent de la clôture : **oubli
-probable** si compté ouverture + réceptions - sorties déclarées > 0 (des pertes
-non saisies restent possibles), sinon **épuisé**.
+programmes, par code), historisé. Absent de l'ouverture, il sort de la
+conformité consommation ; absent de la clôture, il sort de P4 et de P5. La
+qualification de l'absence n'agit pas sur le score. Entrées et sorties : tous
+les mouvements saisis entre les deux inventaires (factures, ajustements,
+retours, dispensations ou distributions). Absent de l'ouverture : **oubli
+démontré** si compté clôture + sorties - entrées > 0, sinon cause
+indéterminée. Absent de la clôture : **oubli probable** si compté ouverture +
+entrées - sorties > 0 (des pertes non saisies restent possibles), sinon
+**épuisé**.
 _Éviter_ : produit oublié (sans qualification), produit manquant
 
 **Conformité SDU (P4)** :
 Part des produits traceurs dont le stock physiquement compté à l'inventaire de
 clôture est **dans la tolérance** de la quantité théorique mSupply :
-`|théorique − compté| / compté ≤ tolérance` (le compté, la réalité, au
+`|théorique - compté| / compté ≤ tolérance` (le compté, la réalité, au
 dénominateur). Statut CONFORME si ce taux atteint le seuil de la grille.
 Tolérance et seuil viennent de la grille. Sans inventaire de clôture : 0 %
-(sanction) une fois le mois jugé.
+et note de sanction une fois le mois jugé. Mesurée mais non retenue dans le
+score de P4 par la grille actuelle.
 
 **Conformité consommation (P4)** :
 Part des produits traceurs dont la consommation *déclarée* (somme des
 dispensations saisies ; pour un district, somme des **quantités distribuées**)
 est dans la tolérance de la consommation *reconstituée* :
-`|déclarée − reconstituée| / reconstituée ≤ tolérance`. La consommation
-reconstituée d'un produit = `stock ouverture + réceptions − stock clôture` entre
+`|déclarée - reconstituée| / reconstituée ≤ tolérance`. La consommation
+reconstituée d'un produit = `stock ouverture + réceptions - stock clôture` entre
 l'**inventaire d'ouverture** et l'**inventaire de clôture**. Dénominateur : les
 produits présents aux deux inventaires ; une reconstituée ≤ 0 (hausse de stock
 sans réception enregistrée) compte **non conforme**. Un produit absent de
-l'ouverture est exclu, lui seul. Sans inventaire d'ouverture ou de clôture :
-**0 %** (sanction) une fois le mois jugé. NON_CALCULABLE si les deux
-inventaires existent mais qu'aucun produit n'est présent aux deux.
+l'ouverture est exclu, lui seul. Sans inventaire d'ouverture ou de clôture, ou
+sans aucun produit présent aux deux : **0 %** et note de sanction une fois le
+mois jugé.
 _Éviter_ : écart SDU, écart consommation (pour la sous-composante : c'est un taux, pas un écart)
 
 **Conformité distribution (P4)** :
@@ -262,11 +283,10 @@ distribuées (et non dispensées). Un district ne dispense pas.
 
 **Concordance physique / théorique (P5)** :
 Rapport moyen entre stock compté et stock théorique à l'inventaire de
-clôture, sur les produits traceurs. Sans inventaire de clôture : 0 % (sanction)
-une fois le mois jugé. Statut binaire selon le seuil de la grille.
-Si le site n'a aucun inventaire finalisé daté dans le mois : **0 %** (ALERTE)
-une fois le mois clos, **NON_CALCULABLE** tant qu'il est en cours. P5 n'ayant
-qu'une sous-composante, le pilier entier suit.
+clôture, sur les produits traceurs. Statut binaire selon le seuil de la grille.
+Sans inventaire de clôture : **0 %** et note de sanction une fois le mois
+jugé, **NON_CALCULABLE** avant. P5 n'ayant qu'une sous-composante, le pilier
+entier suit.
 
 **Réquisition** :
 Une commande mensuelle de réapprovisionnement, par programme, adressée par un
@@ -295,9 +315,9 @@ jours écoulés, un mois clos sur tous ses jours. **Toujours calculable** pour u
 site de soins : aucune sortie sur les jours écoulés vaut 0 %, jamais
 NON_CALCULABLE (un hôpital qui ne dispense rien est un signal, pas une absence
 de données). Pour un **district**, qui ne dispense pas, P3 mesure autre chose
-(voir *Régularité de saisie — district*).
+(voir *Régularité de saisie, district*).
 
-**Régularité de saisie — district (P3)** :
+**Régularité de saisie, district (P3)** :
 Pour un district (`est_district`, voir *Régime de scoring*), P3 mesure sa
 capacité à honorer les réquisitions de sa zone : réquisitions DISTINCTES de la
 zone couvrant M-1,
@@ -307,12 +327,13 @@ réquisitions. Seuil ≥ 80 %. NON_CALCULABLE si aucune réquisition de zone à
 
 **Statut d'une sous-composante** :
 Binaire : CONFORME si le seuil du pilier est atteint, ALERTE sinon. Ou
-NON_CALCULABLE quand les données ne permettent pas de trancher — exclu des
-agrégats. Sur un **mois clos**, le silence d'un site attendu actif (aucune
-sortie, aucun inventaire de fin de mois) est rendu par un **0 %** ALERTE, pas
-par NON_CALCULABLE. Sur un **mois en cours**, une échéance non encore arrivée
-(inventaire ou réquisition de fin de mois) reste NON_CALCULABLE : pas de
-pénalité pour un retard qui n'existe pas encore. Il n'y a pas d'état
+NON_CALCULABLE quand les données ne permettent pas de trancher : exclu des
+agrégats. Le silence d'un site attendu actif (aucune sortie, aucune
+réquisition passé l'échéance, aucun inventaire de clôture d'un mois jugé) est
+rendu par un **0 %** ALERTE, pas par NON_CALCULABLE. Avant l'échéance (P1, P2)
+ou avant le jugement du mois (P4, P5), l'absence reste NON_CALCULABLE : pas de
+pénalité pour un retard qui n'existe pas encore. Le statut se lit sur la note
+figée. Il n'y a pas d'état
 intermédiaire au niveau sous-composante.
 _Éviter_ : statut d'indicateur, PARTIEL, état, résultat
 
@@ -322,7 +343,7 @@ par la DAP dans l'extraction. Seuls ces sites entrent dans les scores nationaux.
 _Éviter_ : sites suivis, sites cibles
 
 **Type de structure** :
-Le `name_category3.description` d'un site dans mSupply — le palier de la
+Le `name_category3.description` d'un site dans mSupply : le palier de la
 pyramide sanitaire, pas le sous-type. Le référentiel réel n'a que trois valeurs
 présentes (`District sanitaire`, `Hôpital de référence`, `ESPC`) ; `CHU` et
 `INSTITUT` sont prêts. Le sous-type (CSU vs CSR, CHR vs HG) n'est pas un champ :

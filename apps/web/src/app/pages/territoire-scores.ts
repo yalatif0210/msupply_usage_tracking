@@ -6,6 +6,7 @@ import { lucideChevronDown, lucideChevronRight } from '@ng-icons/lucide';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import type { LigneTerritoireScores, SyntheseTerritoireScores } from '@dqa/contracts';
 import { VALEUR_ABSENTE } from '../core/affichage';
+import { libelleAbsences } from './absences-territoire';
 import { cleZone, lignesVisibles } from '../core/arbre-territoire';
 import { SyntheseService } from '../core/synthese.service';
 import { BadgeClassification } from '../ui/badge-classification';
@@ -41,12 +42,8 @@ const TH = 'text-xs font-medium text-muted-foreground';
                   <th hlmTh [class]="TH + ' text-right'">Mesurés</th>
                   <th hlmTh [class]="TH + ' text-right'">Score moyen</th>
                   <th hlmTh [class]="TH">Répartition / classification</th>
-                  <th hlmTh [class]="TH + ' text-right'" title="Produits présents à la clôture mais absents de l'inventaire d'ouverture ; oubli démontré : le stock existait à l'ouverture">
-                    Absents de l'ouverture
-                  </th>
-                  <th hlmTh [class]="TH + ' text-right'" title="Produits présents à l'ouverture mais absents de l'inventaire de clôture ; oubli probable : du stock était attendu à la clôture">
-                    Absents de la clôture
-                  </th>
+                  <th hlmTh [class]="TH + ' text-right'">Absents de l'ouverture</th>
+                  <th hlmTh [class]="TH + ' text-right'">Absents de la clôture</th>
                 </tr>
               </thead>
               <tbody hlmTBody>
@@ -123,7 +120,10 @@ const TH = 'text-xs font-medium text-muted-foreground';
           <p class="mt-2 text-xs text-muted-foreground">
             Triés du plus faible score moyen au plus élevé. La moyenne d'un territoire porte sur ses seuls sites mesurés ;
             une zone de district compte tous ses sites, magasin du district sanitaire compris. Produits absents d'un
-            inventaire : constat de site, tous programmes confondus, sans effet sur le score (non affiché pour un filtre programme).
+            inventaire : constat de site, tous programmes confondus (non affiché pour un filtre programme). Absent de
+            l'ouverture : présent à la clôture seulement, oubli démontré si le stock existait à l'ouverture. Absent de la
+            clôture : présent à l'ouverture seulement, oubli probable si du stock était attendu à la clôture. La
+            qualification d'oubli est informative et ne modifie pas le score.
           </p>
         }
       } @else if (!enCours()) {
@@ -144,15 +144,8 @@ export class TerritoireScores {
   protected readonly TH = TH;
   protected readonly absent = VALEUR_ABSENTE;
 
-  /** « 7 · 5 oublis » ; rien à signaler : « 0 ». */
   protected absents(l: LigneTerritoireScores, sens: 'ouverture' | 'cloture'): string {
-    const pe = l.produitsEcartes;
-    if (pe === null) return VALEUR_ABSENTE;
-    const [n, oublis] = sens === 'ouverture'
-      ? [pe.absentsOuverture, pe.oublisOuverture]
-      : [pe.absentsCloture, pe.oublisCloture];
-    if (n === 0) return '0';
-    return `${n} · ${oublis} oubli${oublis > 1 ? 's' : ''}`;
+    return libelleAbsences(l.produitsEcartes, sens);
   }
   protected readonly cle = cleZone;
 

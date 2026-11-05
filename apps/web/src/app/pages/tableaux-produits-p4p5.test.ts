@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { LigneProduitP4P5 } from '@dqa/contracts';
 import {
-  bornesDe, calculAbsence, dateCommune, ecartConso, ecartSdu, jourMoisCourt, libelleLots, LIBELLES_QUALIFICATION,
+  bornesDe, calculAbsence, dateCommune, ecartConso, ecartSdu, jourMoisCourt, libelleLots, libelleSansBorne,
+  LIBELLES_QUALIFICATION, verdictConso,
 } from './tableaux-produits-p4p5';
 
 const bornes = {
@@ -46,23 +47,45 @@ describe('tableaux produit P4 · P5', () => {
     const evaluee = ligne({ evaluable: true, ...bornes, ecartPct: 30, conforme: false });
     expect(ecartConso(evaluee)).toBe('30 %');
     expect(bornesDe(evaluee)?.reconstituee).toBe(10);
-    const nulle = ligne({ evaluable: false, raisonExclusion: 'reconstituee_non_positive', bornes: { ...bornes, reconstituee: 0 } });
+    const nulle = ligne({
+      evaluable: false, raison: 'reconstituee_non_positive', compteAuDenominateur: true, bornes: { ...bornes, reconstituee: 0 },
+    });
     expect(ecartConso(nulle)).toBe('non conforme (reconstituée ≤ 0)');
     expect(bornesDe(nulle)?.stockDebut).toBe(99);
-    const sansBorne = ligne({ evaluable: false, raisonExclusion: 'sans_ouverture', bornes: null });
+    const sansBorne = ligne({ evaluable: false, raison: 'sans_ouverture', compteAuDenominateur: false, bornes: null });
     expect(ecartConso(sansBorne)).toBe("exclu (pas d'inventaire d'ouverture)");
     expect(bornesDe(sansBorne)).toBeNull();
+  });
+
+  it('verdict de consommation : reconstituée ≤ 0 non conforme, produit écarté sans verdict', () => {
+    expect(verdictConso(ligne({ evaluable: true, ...bornes, ecartPct: 3, conforme: true }))).toBe('conforme');
+    expect(verdictConso(ligne({ evaluable: true, ...bornes, ecartPct: 30, conforme: false }))).toBe('non_conforme');
+    expect(verdictConso(ligne({
+      evaluable: false, raison: 'reconstituee_non_positive', compteAuDenominateur: true, bornes: { ...bornes, reconstituee: 0 },
+    }))).toBe('non_conforme');
+    expect(verdictConso(ligne({ evaluable: false, raison: 'absent_ouverture', compteAuDenominateur: false, bornes: null })))
+      .toBe('ecarte');
+  });
+
+  it('cellule « Ouverture » sans bornes : la raison de leur absence', () => {
+    expect(libelleSansBorne(ligne({ evaluable: false, raison: 'sans_ouverture', compteAuDenominateur: false, bornes: null })))
+      .toBe("pas d'inventaire d'ouverture");
+    expect(libelleSansBorne(ligne({ evaluable: false, raison: 'absent_ouverture', compteAuDenominateur: false, bornes: null })))
+      .toBe("absent de l'ouverture");
+    expect(libelleSansBorne(ligne({
+      evaluable: false, raison: 'autre_article_ouverture', compteAuDenominateur: false, bornes: null,
+    }))).toBe("autre article à l'ouverture");
   });
 
   it("absence d'un inventaire : le calcul qui la qualifie", () => {
     const base = {
       produitCode: 'T1', libelle: 'T1', dateOuverture: '2026-08-31', dateCloture: '2026-09-30',
-      stockConnu: 3927, receptions: 0, sortiesDeclarees: 5000, stockCalcule: 8927,
+      stockConnu: 3927, entrees: 0, sorties: 5000, stockCalcule: 8927,
     };
     expect(calculAbsence({ ...base, sens: 'absent_ouverture', qualification: 'oubli_demontre' }))
-      .toBe("3 927 comptés à la clôture + 5 000 sorties déclarées - 0 reçus = 8 927 au moins à l'ouverture");
-    expect(calculAbsence({ ...base, sens: 'absent_cloture', qualification: 'epuise', stockConnu: 10, receptions: 0, sortiesDeclarees: 12, stockCalcule: -2 }))
-      .toBe("10 comptés à l'ouverture + 0 reçus - 12 sorties déclarées = -2 attendus à la clôture");
+      .toBe("3 927 comptés à la clôture + 5 000 sorties - 0 entrées = 8 927 au moins à l'ouverture");
+    expect(calculAbsence({ ...base, sens: 'absent_cloture', qualification: 'epuise', stockConnu: 10, entrees: 0, sorties: 12, stockCalcule: -2 }))
+      .toBe("10 comptés à l'ouverture + 0 entrées - 12 sorties = -2 attendus à la clôture");
     expect(LIBELLES_QUALIFICATION.oubli_probable).toBe('oubli probable');
   });
 });

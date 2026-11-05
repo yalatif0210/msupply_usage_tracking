@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -148,15 +148,17 @@ const TD = 'border-r border-border text-center last:border-r-0';
                               <th hlmTh class="${TH}">Statut</th>
                             </tr>
                           </thead>
-                          <tbody hlmTBody>
-                            @for (l of urgentsVisibles(); track l.siteId + l.produitCode) {
+                          <tbody hlmTBody id="stocks-urgents">
+                            @for (l of urgentsVisibles(); track l.siteId + '|' + l.produitCode) {
                               <ng-container *ngTemplateOutlet="ligneCourte; context: { $implicit: l }" />
                             }
                           </tbody>
                         </table>
                       </div>
                       @if (sig.urgents.length > URGENTS_AFFICHES) {
-                        <button type="button" class="mt-2 text-sm text-primary hover:underline" (click)="tousUrgents.set(!tousUrgents())">
+                        <button hlmBtn variant="link" size="sm" type="button" class="mt-2 px-0"
+                                [attr.aria-expanded]="tousUrgents()" aria-controls="stocks-urgents"
+                                (click)="tousUrgents.set(!tousUrgents())">
                           @if (tousUrgents()) {
                             N'afficher que les {{ URGENTS_AFFICHES }} plus urgents
                           } @else {
@@ -183,7 +185,7 @@ const TD = 'border-r border-border text-center last:border-r-0';
                               </tr>
                             </thead>
                             <tbody hlmTBody>
-                              @for (l of sig.aSurveiller; track l.siteId + l.produitCode) {
+                              @for (l of sig.aSurveiller; track l.siteId + '|' + l.produitCode) {
                                 <ng-container *ngTemplateOutlet="ligneCourte; context: { $implicit: l }" />
                               }
                             </tbody>
@@ -230,18 +232,8 @@ const TD = 'border-r border-border text-center last:border-r-0';
                   <table hlmTable class="border border-border">
                     <thead hlmTHead>
                       <tr hlmTr>
-                        <th hlmTh class="${TH}">{{ lecture() === 'site' ? 'Site · programme · produit' : 'Programme · site · produit' }}</th>
-                        <th hlmTh class="${TH}">CMM reconstituée</th>
-                        <th hlmTh class="${TH}">Stock projeté au {{ dateFr(s.date) }}</th>
-                        <th hlmTh class="${TH}">Couverture</th>
-                        <th hlmTh class="${TH}">Rupture prévue</th>
-                        <th hlmTh class="${TH}">Statut</th>
-                        @if (controle()) {
-                          <th hlmTh class="${TH}">Dernier inventaire</th>
-                          <th hlmTh class="${TH}">Réceptions depuis</th>
-                          <th hlmTh class="${TH}">CMM déclarée</th>
-                          <th hlmTh class="${TH}">Photo mSupply</th>
-                          <th hlmTh class="${TH}">Écart projeté - mSupply</th>
+                        @for (t of enTetes(); track t) {
+                          <th hlmTh class="${TH}">{{ t }}</th>
                         }
                       </tr>
                     </thead>
@@ -287,7 +279,7 @@ const TD = 'border-r border-border text-center last:border-r-0';
                                 @if (l.cmm.calculable) {
                                   <td hlmTd class="${TD} tabular-nums">
                                     {{ nombre(l.cmm.cmmReconstituee) }}
-                                    <div class="text-xs text-muted-foreground">{{ duree(l.cmm.jours, l.cmm.nbMois) }}</div>
+                                    <div class="text-xs text-muted-foreground">{{ duree(l.cmm.jours, l.cmm.nbMois) }} depuis le {{ dateFr(l.cmm.dateDebut) }}</div>
                                   </td>
                                   <td hlmTd class="${TD} tabular-nums font-medium">{{ nombre(l.cmm.stockProjete) }}</td>
                                   <td hlmTd class="${TD} tabular-nums">{{ nombre(l.cmm.couvertureJours) }} j</td>
@@ -309,7 +301,6 @@ const TD = 'border-r border-border text-center last:border-r-0';
                                   <td hlmTd class="${TD} tabular-nums">
                                     @if (l.cmm.calculable) {
                                       {{ nombre(l.cmm.cmmDeclaree) }}
-                                      <div class="text-xs text-muted-foreground">depuis le {{ dateFr(l.cmm.dateDebut) }}</div>
                                     }
                                   </td>
                                   @if (l.photo; as ph) {
@@ -397,6 +388,11 @@ export class SuiviStocksPage {
   protected readonly lienDate = computed(() => (this.res.filtres().date ? { date: this.res.filtres().date } : {}));
 
   constructor() {
+    // nouvelle liste (filtre, date, import) : on repart des seuls plus urgents
+    effect(() => {
+      this.signaler();
+      untracked(() => this.tousUrgents.set(false));
+    });
     void this.init();
   }
 
@@ -434,7 +430,20 @@ export class SuiviStocksPage {
 
   /** Colonnes de contrôle du calcul, en plus des six colonnes de décision (URL : `controle=1`). */
   protected readonly controle = computed(() => this.res.filtres().controle === '1');
-  protected readonly nbColonnes = computed(() => (this.controle() ? 11 : 6));
+  protected readonly enTetes = computed<string[]>(() => {
+    const date = this.res.valeur()?.date;
+    const decision = [
+      this.lecture() === 'site' ? 'Site · programme · produit' : 'Programme · site · produit',
+      'CMM reconstituée',
+      date ? `Stock projeté au ${this.dateFr(date)}` : 'Stock projeté',
+      'Couverture',
+      'Rupture prévue',
+      'Statut',
+    ];
+    const controle = ['Dernier inventaire', 'Réceptions depuis', 'CMM déclarée', 'Photo mSupply', 'Écart projeté - mSupply'];
+    return this.controle() ? [...decision, ...controle] : decision;
+  });
+  protected readonly nbColonnes = computed(() => this.enTetes().length);
 
   protected basculerControle(): void {
     this.res.definirLocal({ controle: this.controle() ? '' : '1' });

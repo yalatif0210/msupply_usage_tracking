@@ -9,7 +9,7 @@ interface EtatSante {
   piliersConnus: number;
 }
 
-/** Contrôle de santé — non authentifié, utilisé par l'infra et les tests. */
+/** Contrôle de santé : non authentifié, utilisé par l'infra et les tests. */
 @Controller('sante')
 export class HealthController {
   @Public()

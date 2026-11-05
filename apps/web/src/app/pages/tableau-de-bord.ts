@@ -15,6 +15,7 @@ import { HlmSkeletonImports } from '@spartan-ng/helm/skeleton';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { LIBELLES_SOUS_COMPOSANTE, type SousComposante, type TableauDeBord } from '@dqa/contracts';
 import { VALEUR_ABSENTE, versChaine } from '../core/affichage';
+import { bornesClassification } from '../core/regles-calcul';
 import { ressource } from '../core/ressource';
 import { SyntheseService } from '../core/synthese.service';
 import { BarreAttente } from '../ui/barre-attente';
@@ -147,7 +148,7 @@ type FiltresTableauDeBord = {
                     <dqa-graphe-courbe
                       [etiquettes]="etiquettesProgression()"
                       [series]="seriesProgression()"
-                      [seuils]="seuils"
+                      [seuils]="seuils()"
                       [pointilleDepuis]="pointilleDepuis()"
                     />
                     @if (pointilleDepuis() !== null) {
@@ -234,8 +235,11 @@ type FiltresTableauDeBord = {
 })
 export class TableauDeBordPage {
   protected readonly absent = VALEUR_ABSENTE;
-  /** Repères de la courbe aux bornes de classification composite (cf. classer_composite). */
-  protected readonly seuils = [75, 90];
+  /** Repères de la courbe aux bornes de classification de la grille du mois affiché. */
+  protected readonly seuils = computed(() => {
+    const regles = this.res.valeur()?.regles;
+    return regles ? bornesClassification(regles) : [];
+  });
   private readonly service = inject(SyntheseService);
   private readonly nb = inject(DecimalPipe);
 
@@ -336,7 +340,9 @@ export class TableauDeBordPage {
         libelle: 'Sites conformes',
         valeur: `${n.repartition.CONFORME}`,
         icone: 'lucideCircleCheck',
-        sousTitre: 'score composite ≥ 90',
+        sousTitre: t.regles
+          ? `score composite ≥ ${this.nb.transform(t.regles.borneConforme, '1.0-1') ?? ''}`
+          : 'classés conformes',
         delta: null,
       },
       {

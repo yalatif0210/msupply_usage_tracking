@@ -1,6 +1,6 @@
 # Clôture de mois, composition paramétrable des piliers et transparence du score
 
-**Status:** ready-for-agent
+**Status:** done (tickets 01 à 06 ; règles finales dans l'ADR 0022)
 
 ## Problem Statement
 
@@ -23,23 +23,27 @@ sous-composantes.
 ## Solution
 
 1. **Clôture de mois (P4, P5).** Le mois n est clôturé par un inventaire fait
-   dans les 3 derniers jours de n ou le 1er de n+1 (le dernier de la fenêtre
-   est retenu). L'ouverture de n est la clôture retenue de n-1.
-   - clôture et ouverture : P4 et P5 calculés ;
-   - clôture sans ouverture : P5 calculé, P4 à 0 (sanction) ;
-   - pas de clôture : P4 et P5 à 0 (sanction) ;
-   - mois dont la date de clôture n'est pas encore couverte par les données :
-     non calculable.
+   dans les 3 derniers jours de n ou le 1er de n+1, qui porte au moins un
+   produit traceur (le dernier de la fenêtre est retenu). L'ouverture de n est
+   la clôture retenue de n-1.
+   - clôture et ouverture avec au moins un produit commun : P4 et P5 calculés ;
+   - clôture sans ouverture (n-1 jugé), ou sans produit commun : P5 calculé,
+     conformité consommation sanctionnée ;
+   - pas de clôture : P4 et P5 sanctionnés ;
+   - mois non encore **jugé** (sa fenêtre de clôture et 3 jours de marge ne
+     sont pas couverts par les imports) : non calculable.
    Un inventaire hors fenêtre ne compte pas pour P4 ni P5. P2 garde sa propre
    fenêtre (3 derniers jours du mois). Application rétroactive : le système
    n'est pas encore déployé.
 2. **Composition des piliers paramétrable.** La grille datée porte, par
-   pilier, les sous-composantes activées et leur poids. Une sous-composante
-   activée compte dans le score de son pilier. Grille actuelle : P4 = écart de
-   consommation 100 %, écart SDU désactivé.
+   pilier, les sous-composantes retenues et leur poids. Une sous-composante
+   retenue compte dans le score de son pilier ; une non retenue reste mesurée
+   et affichée. Grille actuelle : P4 = conformité consommation 100 %,
+   conformité SDU non retenue.
 3. **Valeurs des règles dans la grille.** Jours de fin de mois et jours du
-   mois suivant de la fenêtre de clôture, note de sanction, bornes de
-   classification (90, 75). Modifiables dans l'écran d'administration.
+   mois suivant de la fenêtre de clôture, marge de jugement, note de sanction
+   (sous 100), bornes de classification (90, 75). Modifiables dans l'écran
+   d'administration.
 4. **Transparence.** L'API renvoie la décomposition de chaque score
    (sous-composantes, valeurs, seuils, notes, poids, grille et version,
    agrégation). Fiche site : un dépliable par pilier et pour le composite,
@@ -47,8 +51,10 @@ sous-composantes.
    « Comment ces scores sont calculés » qui décrit la grille du mois affiché.
 5. **Statistiques des produits écartés.** Produits présents à la clôture mais
    absents de l'ouverture (et l'inverse), écartés de P4 pour ce seul produit ;
-   comptés par site et mois, affichés dans la fiche site et la synthèse
-   nationale, sans effet sur le score.
+   qualifiés (oubli démontré, oubli probable, épuisé, indéterminé) d'après
+   toutes les entrées et sorties enregistrées, historisés, comptés par site et
+   mois, affichés dans la fiche site et la synthèse par territoire. La
+   qualification n'agit pas sur le score.
 
 ## User Stories
 
@@ -63,14 +69,16 @@ sous-composantes.
 4. En tant qu'équipe district, je veux qu'un inventaire du 1er du mois compte
    comme clôture du mois précédent, parce que c'est l'usage de nombreux sites.
 5. En tant qu'équipe district, je veux qu'un mois dont la clôture n'est pas
-   encore passée reste « non calculable », pour ne pas sanctionner trop tôt.
+   encore couverte par les imports reste « non calculable », pour ne pas
+   sanctionner trop tôt.
 6. En tant que coordination, je veux que P4 ne mesure que l'écart de
    consommation, pour qu'une perte non saisie ne soit pas comptée deux fois
    avec P5.
-7. En tant que coordination, je veux activer ou désactiver une sous-composante
-   et régler son poids dans une grille datée, sans migration.
-8. En tant que coordination, je veux régler la fenêtre de clôture, la note de
-   sanction et les bornes de classification dans la grille.
+7. En tant que coordination, je veux retenir ou non une sous-composante dans
+   son pilier et régler son poids dans une grille datée, sans migration.
+8. En tant que coordination, je veux régler la fenêtre de clôture, la marge de
+   jugement, la note de sanction et les bornes de classification dans la
+   grille.
 9. En tant que participant à une réunion, je veux déplier un score de la fiche
    site et voir ses sous-composantes, leurs valeurs, seuils, notes et poids
    jusqu'à la note composite.
@@ -86,18 +94,22 @@ sous-composantes.
 
 - Fenêtre de clôture : une fonction SQL unique, lue par P4 et P5, paramétrée
   par la grille du mois (ticket 03 ; valeurs en dur 3 et 1 au ticket 01).
-- « Mois couvert par les données » : la fin de fenêtre du dernier import
-  validé atteint le 1er de n+1. On ne juge pas sur la date du jour : les
-  données arrivent chaque semaine, un site ne doit pas être sanctionné avant
-  que son inventaire du 1er ait pu être transmis.
+- **Mois jugé** : chaque jour de la fenêtre de clôture, prolongée de la marge
+  de jugement de la grille (3 jours), est couvert par la fenêtre d'un import
+  validé. On ne juge pas sur la date du jour : les données arrivent chaque
+  semaine, un site ne doit pas être sanctionné avant que son inventaire du 1er
+  ait pu être transmis.
 - Plusieurs inventaires dans la fenêtre : le dernier (date, heure, numéro),
   selon la règle d'inventaire retenu existante (ADR 0016).
-- Produit absent d'un des deux inventaires : écarté de l'écart de consommation
-  pour ce produit, raison affichée ; dénominateur = produits présents dans les
-  deux.
-- Composition : nouvelle table de grille (pilier, sous-composante, active,
-  poids). Le score d'un pilier est la moyenne pondérée des notes des
-  sous-composantes actives calculables.
+- Produit absent d'un des deux inventaires : écarté de la conformité
+  consommation pour ce produit, raison affichée ; dénominateur = produits
+  présents dans les deux, une reconstituée ≤ 0 comptant non conforme.
+- Composition : portée par la ligne de seuil de la grille (`retenue`,
+  `poids_pct`). Le score d'un pilier est la moyenne pondérée des notes des
+  sous-composantes retenues calculables.
+- Programme éligible : même règle de clôture et de sanction que le site, même
+  sans traceur (décision de l'ADR 0022).
+- Un site sans aucune activité du mois reste « sans mesure ».
 - La décomposition du score est produite par la base (vues ou fonctions) et
   transportée par un contrat Zod ; l'écran ne recalcule rien.
 - ADR 0022 : clôture de mois et sanction (amende les ADR 0012 et 0014).
@@ -118,10 +130,11 @@ sous-composantes.
 - Paramétrage des formules elles-mêmes (méthode d'inventaire retenu, de
   reconstitution de la consommation) : migrations et ADR.
 - Changement de P2.
-- Fusion des codes produit (un code = un produit).
+- Paramétrage de la qualification des produits écartés.
 
 ## Further Notes
 
 Le dénominateur de P4 reste le nombre de produits inventoriés (présents dans
 les deux inventaires) : un produit non inventorié ne cache pas forcément une
-mauvaise intention.
+mauvaise intention. « Un code = un produit » a été livré en cours de série
+(complément de l'ADR 0016) : seul le contrôle P4 / P5 reste par article.

@@ -68,7 +68,7 @@ const detailSixPiliers = (opts: { scoreComposite: unknown; classification: unkno
   ),
   calcul: {
     grille: { id: 1, version: 'v1', effetAPartirDe: '2026-01-01' },
-    regles: { joursClotureFinMois: 3, joursClotureMoisSuivant: 1, noteSanction: 0, borneConforme: 90, bornePartiellementConforme: 75 },
+    regles: { joursClotureFinMois: 3, joursClotureMoisSuivant: 1, joursMargeJugement: 3, noteSanction: 0, borneConforme: 90, bornePartiellementConforme: 75 },
     poidsPiliersCalculables: 35,
   },
   sousComposantes: sc10(),
@@ -244,6 +244,10 @@ describe('validerReponse (couture D)', () => {
     ).toThrow(/non conforme/i);
   });
 
+  const regles = {
+    joursClotureFinMois: 3, joursClotureMoisSuivant: 1, joursMargeJugement: 3,
+    noteSanction: 0, borneConforme: 90, bornePartiellementConforme: 75,
+  };
   const tableauDeBord = (over: Record<string, unknown> = {}) => ({
     moisPaqd: '2026-08',
     moisClos: true,
@@ -260,12 +264,19 @@ describe('validerReponse (couture D)', () => {
       nbAlerte: 18,
       nbNonCalculable: 2,
     })),
+    regles,
     ...over,
   });
 
   it('accepte un TableauDeBord complet', () => {
     const t = validerReponse(tableauDeBordSchema, tableauDeBord());
     expect(t.sousComposantesEnDifficulte).toHaveLength(5);
+    expect(t.regles?.borneConforme).toBe(90);
+  });
+
+  it('rejette un TableauDeBord dont la note de sanction atteint 100', () => {
+    expect(() => validerReponse(tableauDeBordSchema, tableauDeBord({ regles: { ...regles, noteSanction: 100 } })))
+      .toThrow(/non conforme/i);
   });
 
   it('rejette un TableauDeBord à plus de cinq sous-composantes en difficulté', () => {
@@ -428,7 +439,7 @@ describe('validerReponse (couture D)', () => {
     produitsEcartes: [{
       produitCode: 'T3', libelle: 'T3', sens: 'absent_ouverture', qualification: 'oubli_demontre',
       dateOuverture: '2026-07-31', dateCloture: '2026-08-31',
-      stockConnu: 10, receptions: 0, sortiesDeclarees: 5, stockCalcule: 15,
+      stockConnu: 10, entrees: 0, sorties: 5, stockCalcule: 15,
     }],
     produits: [
       ligneP4P5(),
@@ -436,7 +447,7 @@ describe('validerReponse (couture D)', () => {
         produitId: 'I2',
         produitCode: 'T2',
         article: { rang: 1, nombre: 2, unite: 'FL' },
-        consommation: { evaluable: false, raisonExclusion: 'sans_ouverture', bornes: null },
+        consommation: { evaluable: false, raison: 'sans_ouverture', compteAuDenominateur: false, bornes: null },
         concordance: { tauxPct: null, conforme: false },
       }),
     ],
@@ -474,6 +485,26 @@ describe('validerReponse (couture D)', () => {
   it('rejette une variante p3 dont un jour n\'a pas de drapeau aSortie', () => {
     expect(() =>
       validerReponse(detailPilierSchema, detailPilierP3({ jours: [{ jour: '2026-08-01' }] })),
+    ).toThrow(/non conforme/i);
+  });
+
+  it('rejette une ligne p4 exclue de la consommation sans compteAuDenominateur', () => {
+    expect(() =>
+      validerReponse(detailPilierSchema, detailPilierP4({
+        produits: [ligneP4P5({ consommation: { evaluable: false, raison: 'sans_ouverture', bornes: null } })],
+      })),
+    ).toThrow(/non conforme/i);
+  });
+
+  it('rejette un produit écarté décrit avec les anciens champs réceptions / sorties déclarées', () => {
+    expect(() =>
+      validerReponse(detailPilierSchema, detailPilierP4({
+        produitsEcartes: [{
+          produitCode: 'T3', libelle: 'T3', sens: 'absent_ouverture', qualification: 'oubli_demontre',
+          dateOuverture: '2026-07-31', dateCloture: '2026-08-31',
+          stockConnu: 10, receptions: 0, sortiesDeclarees: 5, stockCalcule: 15,
+        }],
+      })),
     ).toThrow(/non conforme/i);
   });
 
@@ -515,7 +546,8 @@ describe('validerReponse (couture D)', () => {
     creeLe: '2026-01-01T00:00:00.000Z',
     statut: 'en_vigueur',
     modifiable: false,
-    poids: (['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as Pilier[]).map((pilier) => ({ pilier, poidsPct: 100 / 6 })),
+    poids: ([['P1', 10], ['P2', 15], ['P3', 15], ['P4', 25], ['P5', 25], ['P6', 10]] as [Pilier, number][])
+      .map(([pilier, poidsPct]) => ({ pilier, poidsPct })),
     seuils: SOUS_COMPOSANTES.map((sc) => ({
       sousComposante: sc,
       seuil: 90,
@@ -525,7 +557,7 @@ describe('validerReponse (couture D)', () => {
       retenue: true,
       poidsDansPilierPct: 50,
     })),
-    regles: { joursClotureFinMois: 3, joursClotureMoisSuivant: 1, noteSanction: 0, borneConforme: 90, bornePartiellementConforme: 75 },
+    regles: { joursClotureFinMois: 3, joursClotureMoisSuivant: 1, joursMargeJugement: 3, noteSanction: 0, borneConforme: 90, bornePartiellementConforme: 75 },
     ...over,
   });
 
@@ -560,6 +592,8 @@ describe('validerReponse (couture D)', () => {
     moisPaqd: '2026-08',
     moisDisponibles: ['2026-08', '2026-07'],
     programmeId: null,
+    estDistrict: false,
+    periode: { debut: '2026-07-31', fin: '2026-08-31', ouvertureConnue: true, clotureConnue: true },
     inventaires: [
       { date: '2026-08-05', statut: 'fn', theorique: 100, comptee: 90, ecart: -10 },
       { date: '2026-08-28', statut: 'fn', theorique: 60, comptee: 50, ecart: -10 },
@@ -606,6 +640,10 @@ describe('validerReponse (couture D)', () => {
         ficheProduit({ ajustements: [{ date: '2026-08-07', quantite: 12, sens: 'bas' }] }),
       ),
     ).toThrow(/non conforme/i);
+  });
+
+  it('rejette une FicheProduitMois sans période', () => {
+    expect(() => validerReponse(ficheProduitMoisSchema, ficheProduit({ periode: undefined }))).toThrow(/non conforme/i);
   });
 
   it('rejette une FicheProduitMois sans bloc consommation', () => {

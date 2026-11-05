@@ -203,13 +203,12 @@ describe('vue mv_synthese_nationale', () => {
 
   it('rafraichir_et_geler rafraîchit aussi la synthèse', async () => {
     await socle();
-    await db.query(
-      `UPDATE dqa.hist_score_site SET score_composite = 88, classification = 'PARTIELLEMENT_CONFORME'
-       WHERE site_id = 'S3' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
-    );
-    await db.query(`CALL dqa.rafraichir_et_geler(999)`); // lot inexistant : refresh + return, sans erreur
-    // national : avg(95, 75, 88) = 86.0
-    expect((await syn(null, null, null))?.score_composite_moyen).toBe('86.0');
+    await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_nationale`);
+    expect((await syn(null, null, null))?.nb_mesures).toBeGreaterThan(0);
+    // ces lignes d'historique n'ont aucune donnée de core derrière elles : le
+    // gel les retire (migration 0062) et la synthèse rafraîchie le reflète
+    await db.query(`CALL dqa.rafraichir_et_geler(999)`); // lot inexistant : sans erreur
+    expect((await syn(null, null, null))?.nb_mesures ?? 0).toBe(0);
   });
 
   it('rafraichir_et_geler rafraîchit aussi la synthèse par sous-composante', async () => {
@@ -223,18 +222,18 @@ describe('vue mv_synthese_nationale', () => {
     await site('S1', 'NORD', 'D1');
     await histSc('S1', null, '2026-08', { sc_regularite_saisie: 80 });
     await db.query(`REFRESH MATERIALIZED VIEW dqa.mv_synthese_sous_composante`);
-    await db.query(
-      `UPDATE dqa.hist_score_site SET sc_regularite_saisie = 40
-       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
-    );
+    const regularite = async () => {
+      const { rows } = await db.query<{ nb_conforme: number }>(
+        `SELECT nb_conforme::int FROM dqa.mv_synthese_sous_composante
+         WHERE mois_paqd = '2026-08' AND sous_composante = 'regularite_saisie'
+           AND region IS NULL AND district IS NULL AND programme_id IS NULL`,
+      );
+      return rows[0]?.nb_conforme ?? 0;
+    };
+    expect(await regularite()).toBe(1);
+    // ligne d'historique sans donnée de core : retirée par le gel, la synthèse suit
     await db.query(`CALL dqa.rafraichir_et_geler(1)`);
-    const { rows } = await db.query<{ taux_atteinte_moyen: string | null }>(
-      `SELECT taux_atteinte_moyen FROM dqa.mv_synthese_sous_composante
-       WHERE mois_paqd = '2026-08' AND sous_composante = 'regularite_saisie'
-         AND region IS NULL AND district IS NULL AND programme_id IS NULL`,
-    );
-    // seuil régularité 65 ; taux d'atteinte = 40/65 ≈ 61.5 (et non l'ancien 100)
-    expect(Number(rows[0]?.taux_atteinte_moyen)).toBeCloseTo(61.5, 1);
+    expect(await regularite()).toBe(0);
   });
 
   // ── mv_synthese_sous_composante ─────────────────────────────────────────
@@ -250,8 +249,11 @@ describe('vue mv_synthese_nationale', () => {
     db.query(
       `INSERT INTO dqa.hist_score_site
          (site_id, mois_paqd, programme_id, grille_id,
-          sc_regularite_saisie, sc_ratio_ajustements, sc_ecart_sdu, sc_ecart_consommation)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+          sc_regularite_saisie, sc_ratio_ajustements, sc_ecart_sdu, sc_ecart_consommation,
+          note_regularite_saisie, note_ratio_ajustements, note_ecart_sdu, note_ecart_consommation)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,
+               dqa.note_sous_composante($5, 'regularite_saisie', $2), dqa.note_sous_composante($6, 'ratio_ajustements', $2),
+               dqa.note_sous_composante($7, 'ecart_sdu', $2), dqa.note_sous_composante($8, 'ecart_consommation', $2))`,
       [
         siteId, mois, prog, gid,
         sc.sc_regularite_saisie ?? null, sc.sc_ratio_ajustements ?? null,
@@ -297,9 +299,9 @@ describe('vue mv_synthese_nationale', () => {
     const ratio = await parSc('ratio_ajustements', null, null);
     expect(ratio?.taux_atteinte_moyen).toBe('75.0'); // avg(100, 50)
 
-    const sdu = await parSc('ecart_sdu', null, null);
-    expect(sdu?.nb_conforme).toBe(1); // S3 : 95 >= 90, valeur reprise telle quelle
-    expect(sdu?.taux_atteinte_moyen).toBe('95.0');
+    // la conformité SDU, mesurée mais non retenue par la grille par défaut,
+    // ne figure pas dans la synthèse (seules les sous-composantes retenues)
+    expect(await parSc('ecart_sdu', null, null)).toBeUndefined();
 
     const conso = await parSc('ecart_consommation', null, null);
     expect(conso?.nb_conforme).toBe(1); // S3 : 110 >= 90
@@ -347,11 +349,13 @@ describe('vue mv_synthese_nationale', () => {
 
     const noms = (
       await db.query<{ sous_composante: string }>(
-        `SELECT DISTINCT sous_composante FROM dqa.grille_seuil_sous_composante WHERE grille_id = $1`,
+        `SELECT DISTINCT sous_composante FROM dqa.grille_seuil_sous_composante WHERE grille_id = $1 AND retenue`,
         [gid],
       )
     ).rows.map((r) => r.sous_composante);
-    expect(noms).toHaveLength(9); // la complétude des inventaires a quitté P1 (ADR 0019)
+    // neuf sous-composantes (ADR 0019), dont huit retenues : la conformité SDU est mesurée sans compter
+    expect(noms).toHaveLength(8);
+    expect(noms).not.toContain('ecart_sdu');
 
     for (const nom of noms) {
       const ligne = await parSc(nom, null, null);
@@ -380,8 +384,9 @@ describe('vue mv_synthese_nationale', () => {
     db.query(
       `INSERT INTO dqa.hist_score_site
          (site_id, mois_paqd, programme_id, grille_id, score_composite, classification,
-          sc_regularite_saisie, sc_ratio_ajustements)
-       VALUES ($1,$2,NULL,$3,$4,$5,$6,$7)`,
+          sc_regularite_saisie, sc_ratio_ajustements, note_regularite_saisie, note_ratio_ajustements)
+       VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,
+               dqa.note_sous_composante($6, 'regularite_saisie', $2), dqa.note_sous_composante($7, 'ratio_ajustements', $2))`,
       [siteId, mois, gid, composite, classif, reg, ratio],
     );
 

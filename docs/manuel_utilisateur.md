@@ -126,29 +126,34 @@ sélecteur **Mois affiché**. Puis :
 - trois **tableaux produit P4 · P5**, dépliables, sur les produits traceurs
   inventoriés : conformité SDU (stock théorique et compté à l'inventaire de
   clôture, détail des lots, écart, conforme ou non), conformité
-  consommation (stock de début, réceptions, stock de fin, consommation
-  reconstituée et déclarée, écart ; un produit exclu indique pourquoi) et
-  concordance (P5). Dessous, les **produits absents d'un inventaire** : un
+  consommation (stock d'ouverture, réceptions, stock de clôture, consommation
+  reconstituée et déclarée, écart ; un produit écarté indique pourquoi, une
+  consommation reconstituée négative ou nulle s'affiche en non conforme) et
+  concordance (P5). Les produits non conformes en consommation sont en tête. Dessous, les **produits absents d'un inventaire** : un
   produit présent à l'ouverture ou à la clôture mais absent de l'autre, avec le
   calcul qui qualifie l'absence (voir « Produits absents d'un inventaire »
   plus bas) ;
-- une section **Analyse fine** : tableau des dix sous-composantes, un radar
+- une section **Analyse fine** : tableau des neuf sous-composantes, un radar
   forces/faiblesses, et des courbes d'évolution sur une plage de mois libre
   (préréglages « cycle courant », « 12 derniers mois », « tout »).
 
 Le tableau de bord, la liste des sites et la synthèse nationale portent en bas
 de page un dépliable **Comment ces scores sont calculés** : la grille du mois
 affiché (poids des piliers, sous-composantes retenues et leur poids, seuils,
-fenêtre de clôture, note de sanction, bornes de classification), sans les
-valeurs d'un site.
+fenêtre de clôture, marge de jugement, note de sanction, bornes de
+classification), sans les valeurs d'un site. Il se charge à l'ouverture.
 
 ### Fiche produit-mois (`/sites/:id/produits/:code`)
 
 Accessible depuis un code produit du tableau P4 · P5 de la fiche site. Pour un
-produit traceur donné, un site et un mois : le stock théorique mSupply contre
-le stock physique compté à chaque inventaire, les réceptions, le total
-dispensé, les ajustements, et la consommation reconstituée comparée à la
-consommation déclarée.
+produit traceur donné (tous ses articles additionnés), un site et un mois, sur
+la **période que P4 compare**, de l'inventaire d'ouverture à l'inventaire de
+clôture (affichée en tête de page ; sans inventaire, la fiche se rabat sur les
+fenêtres de clôture et le dit) : le stock théorique mSupply contre le stock
+physique compté à chaque inventaire, les réceptions, le total dispensé (ou
+distribué pour un district), les ajustements, et la consommation reconstituée
+comparée à la consommation déclarée. Le total dispensé est celui que P4
+compare.
 
 ### Synthèse nationale (`/synthese`)
 
@@ -158,8 +163,8 @@ de la page, qu'on peut partager pour retrouver la même lecture en réunion.
 
 - **Par pilier** : score moyen national, moyenne par pilier, lecture **par
   territoire** (voir ci-dessous), scores par programme de santé ;
-- **Sous-composantes** : les dix sous-composantes, triables, avec leur taux
-  d'atteinte moyen et leurs comptes de statut ;
+- **Sous-composantes** : les sous-composantes retenues dans le score, triables,
+  avec leur taux d'atteinte moyen et leurs comptes de statut ;
 - **Rapports & inventaires** : réquisitions et inventaires de fin de mois
   attendus, réalisés et réalisés dans les délais. Deux lectures au choix :
   **par strate** de structure (District sanitaire, Hôpital de référence, ESPC ;
@@ -258,7 +263,7 @@ anomalies. Un champ de dépôt en tête de page envoie un nouveau classeur.
 | Écran | Rôle requis | Contenu |
 |---|---|---|
 | `/admin/traceurs` | coordination (consultation) | Liste des produits traceurs suivis par P4 et P5. Elle ne se saisit pas à l'écran : elle vient du script d'extraction de la DAP. Chaque import reprend l'onglet PRODUITS : ses produits sont traceurs d'office, un produit absent du dernier fichier passe **inactif** (il sort des calculs suivants, son historique reste intact). Changer le panier, c'est faire modifier la liste du script par la DAP |
-| `/admin/grille` | coordination | Poids des piliers, seuils des sous-composantes et composition des piliers (sous-composantes retenues dans le score et leur poids) ; une modification crée une nouvelle version, effective au cycle suivant seulement |
+| `/admin/grille` | coordination | Poids des piliers, seuils des sous-composantes, composition des piliers (sous-composantes retenues dans le score et leur poids) et règles de calcul (fenêtre de clôture, marge de jugement, note de sanction sous 100, bornes de classification) ; une modification crée une nouvelle version, effective à sa date d'effet seulement ; une saisie invalide est signalée champ par champ et ne peut pas être enregistrée |
 | `/admin/comptes` | admin | Comptes utilisateurs et leur rôle |
 | `/admin/strates` (« Types de structure ») | lecture ouverte à tout rôle, écriture coordination | Référentiel des `type_structure` (référentiel DAP) : la **strate** affichée dans « Rapports & inventaires », le **jour limite** de soumission d'une réquisition (P2), et le **régime** de scoring (district ou site de soins). Un type non renseigné : strate « Non classé », jour limite 10, régime site de soins |
 
@@ -283,20 +288,23 @@ calcul, et les poids des piliers restants sont **renormalisés à 100 %** (la
 somme des poids retenus redevient le dénominateur). L'écran affiche alors
 « Score calculé sur N piliers sur 6 ».
 
-**Classification** du score composite :
+**Classification** du score composite, selon les bornes de la grille du mois
+(valeurs actuelles) :
 
 | Classification | Seuil |
 |---|---|
 | CONFORME | ≥ 90 |
-| PARTIELLEMENT CONFORME | 75 à 89 |
+| PARTIELLEMENT CONFORME | de 75 à moins de 90 |
 | NON CONFORME | < 75 |
 
 Chaque sous-composante a un **statut binaire** : CONFORME (la valeur atteint
 le seuil), ALERTE (elle ne l'atteint pas), ou NON CALCULABLE (aucune donnée
-exploitable ce mois, avec une raison explicite). Le score d'un pilier vaut
-100 quand une sous-composante est CONFORME, 0 quand elle est en ALERTE ; le
-score du pilier est la moyenne, pondérée par la grille, de ses sous-composantes
-**retenues** et calculables. Aujourd'hui les poids sont égaux, et P4 ne retient
+exploitable ce mois, avec une raison explicite). Chaque sous-composante reçoit
+une **note** : 100 quand elle est CONFORME, 0 quand elle est en ALERTE, la
+**note de sanction** de la grille quand elle est sanctionnée (voir « Quel
+inventaire compte pour P4 et P5 ? »). Le score du pilier est la moyenne des
+notes de ses sous-composantes **retenues** et calculables, pondérée par la
+grille. Aujourd'hui les poids sont égaux, et P4 ne retient
 que la conformité consommation ; une sous-composante non retenue reste affichée
 sur la fiche site, avec la mention « non retenue dans le score ».
 
@@ -307,8 +315,8 @@ sur la fiche site, avec la mention « non retenue dans le score ».
 Les six formules ci-dessous sont illustrées par le même exemple réel :
 **le CHR public de Daloa (`31600010`), mois d'août 2026**, tel qu'il
 apparaît dans le jeu de démonstration. Score composite du site ce mois-là :
-**62,5 / 100**, classé **NON CONFORME**, alors que quatre piliers sur six sont
-parfaitement conformes. Le calcul complet est repris section 6.
+**75 / 100**, classé **PARTIELLEMENT CONFORME**, alors que cinq piliers sur six
+sont parfaitement conformes. Le calcul complet est repris section 6.
 
 ### P1 · Complétude des transactions (poids 10 %, seuil 100 %)
 
@@ -439,8 +447,8 @@ s'appelle « conformité ».
 - **Conformité SDU (stock disponible utilisable)** : à l'**inventaire de
   clôture** (voir plus bas), pour chaque produit traceur,
   `|théorique - compté| / compté`. En dessous de la tolérance (2 %) : le
-  produit est conforme. Sans inventaire de clôture : **0 %** une fois le mois
-  jugé.
+  produit est conforme. Sans inventaire de clôture : **0 %** et note de
+  sanction une fois le mois jugé.
 - **Conformité consommation** : on compare la consommation **déclarée**
   (dispensations enregistrées ; pour un district, quantités **distribuées**,
   la sous-composante se lit alors « conformité distribution ») à la consommation
@@ -451,8 +459,8 @@ s'appelle « conformité ».
   conforme. Une consommation reconstituée négative ou nulle (le stock a
   augmenté sans réception enregistrée) compte **non conforme**. Un produit
   absent de l'inventaire d'ouverture est écarté, lui seul. Sans inventaire
-  d'ouverture : **0 %** une fois le mois jugé. « Non calculable » quand les
-  deux inventaires existent mais qu'aucun produit n'est présent aux deux.
+  d'ouverture, ou sans aucun produit présent aux deux inventaires : **0 %** et
+  note de sanction une fois le mois jugé.
 
 **Exemple, conformité SDU (le CHR de Daloa, août 2026) :** sur le DTG/3TC/TDF (ARV),
 théorique 402, compté 388 → écart |402 - 388| / 388 = **3,6 %**, au-dessus de
@@ -475,9 +483,9 @@ retenue) = **100**.
 Une sous-composante : à l'inventaire de clôture, pour chaque
 produit traceur (tous ses lots additionnés),
 `min(|théorique|, |compté|) / max(|théorique|, |compté|)`, moyenné sur tous
-les produits inventoriés du site. Sans inventaire de clôture : **0 %** une fois
-le mois jugé (ne pas inventorier en fin de mois est un manquement, pas une
-absence de données). P5 n'ayant qu'une sous-composante, le pilier entier
+les produits inventoriés du site. Sans inventaire de clôture : **0 %** et note
+de sanction une fois le mois jugé (ne pas inventorier en fin de mois est un
+manquement, pas une absence de données). P5 n'ayant qu'une sous-composante, le pilier entier
 suit.
 
 **Exemple :** sur les 2 produits traceurs du CHR de Daloa en août, la concordance
@@ -492,29 +500,40 @@ résultat en apparence.
 
 - **L'inventaire de clôture.** Seul compte un inventaire finalisé fait dans les
   **3 derniers jours du mois** ou le **1er du mois suivant** (le 1er novembre
-  clôture octobre). S'il y en a plusieurs dans cette fenêtre, le dernier est
-  retenu. Un inventaire fait le 15, ou le 5 du mois suivant, ne compte ni pour
-  P4 ni pour P5. L'**inventaire d'ouverture** d'un mois est l'inventaire de
-  clôture du mois précédent.
-- **La sanction.** Une fois le mois **jugé** (les données importées couvrent
-  le 1er du mois suivant) :
+  clôture octobre), et qui porte au moins un produit traceur : un inventaire
+  sans traceur ne clôture pas le mois. S'il y en a plusieurs dans cette
+  fenêtre, le dernier est retenu. Un inventaire fait le 15, ou le 5 du mois
+  suivant, ne compte ni pour P4 ni pour P5. L'**inventaire d'ouverture** d'un
+  mois est l'inventaire de clôture du mois précédent.
+- **Le mois jugé.** Un mois est **jugé** quand les imports couvrent chacun des
+  jours de sa fenêtre de clôture **et 3 jours de marge** (pour octobre : du 29
+  octobre au 4 novembre). La marge laisse le temps à un inventaire du 1er
+  d'être synchronisé et transmis. Ce n'est pas la même chose que le **mois
+  clos** des échéances de réquisition (P1, P2) : un mois peut être jugé pour
+  P4 et P5 et encore en cours pour P1.
+- **La sanction.** Une fois le mois jugé, la sous-composante sanctionnée prend
+  la **note de sanction** de la grille (0 aujourd'hui) :
 
-  | Inventaire de clôture | Inventaire d'ouverture | P4 | P5 |
-  |---|---|---|---|
-  | oui | oui | calculé | calculé |
-  | oui | non | conformité consommation à 0 | calculé |
-  | non | - | 0 | 0 |
+  | Inventaire de clôture | Inventaire d'ouverture | Produit commun aux deux | Conformité consommation (P4) | Concordance (P5) |
+  |---|---|---|---|---|
+  | oui | oui | oui | calculée | calculée |
+  | oui | oui | aucun | sanction | calculée |
+  | oui | non (mois précédent jugé) | - | sanction | calculée |
+  | non | - | - | sanction | sanction |
 
   Tant que le mois n'est pas jugé, rien n'est sanctionné : ce qui manque reste
-  « non calculable ». Un mois n'est jugé que si les imports couvrent chacun
-  des jours de sa fenêtre de clôture. La même règle vaut pour chaque
-  programme géré par le site (fiche site filtrée sur un programme), sur les
-  inventaires de ce programme. La fenêtre de clôture (3 derniers jours, 1er du mois
-  suivant), la note de sanction (0) et les bornes de classification (90, 75)
-  sont des valeurs de la grille de paramètres : la coordination peut les
-  changer pour les mois à venir. La fiche site affiche la raison d'une sanction sous la
-  sous-composante (par exemple « Inventaire du 20/08/2026 hors de la fenêtre
-  de clôture »).
+  « non calculable ». La même règle vaut pour chaque programme éligible du
+  site (fiche site filtrée sur un programme), sur les inventaires de ce
+  programme, même si le programme n'a aucun produit traceur. Un site sans
+  aucune activité du mois n'est pas sanctionné : il reste « sans mesure ».
+- **Les paramètres.** La fenêtre de clôture (3 derniers jours, 1er du mois
+  suivant), la marge de jugement (3 jours), la note de sanction (0, toujours
+  sous 100) et les bornes de classification (90, 75) sont des valeurs de la
+  grille de paramètres : la coordination peut les changer pour les mois à
+  venir. La fiche site affiche la cause d'une sanction sous la
+  sous-composante, avec la note appliquée (par exemple « Inventaire du
+  20/08/2026 hors de la fenêtre de clôture (du 29/08/2026 au 01/09/2026) :
+  sanction, note 0 »).
 - **Plusieurs inventaires le même jour.** Un site peut finaliser plusieurs
   inventaires le même jour sur le même produit, par exemple un recomptage
   après une erreur de saisie. Seul le **dernier finalisé** compte (heure de
@@ -533,29 +552,39 @@ résultat en apparence.
   code ne compte **qu'une fois**, et il n'est conforme que si **tous** ses
   articles le sont. Dans les tableaux produit de la fiche site, chaque
   article a sa ligne (« article 1 sur 2 ») et une note rappelle cette règle.
+  Partout ailleurs (suivi des stocks, fiche produit, produits absents), un
+  produit est son code : les quantités de ses articles s'additionnent, chaque
+  article gardant son dernier compte connu.
 
 ### Produits absents d'un inventaire
 
 Quand un site a fait ses deux inventaires du mois (ouverture et clôture), un
 produit traceur peut figurer dans l'un et pas dans l'autre. Le constat se fait
-par code produit, tous programmes confondus, et n'a **aucun effet sur le
-score** : il sert à repérer les oublis. Il est figé à chaque import, comme les
-scores, et conservé mois par mois.
+par code produit, tous programmes confondus. Le produit sort du calcul
+concerné (de la conformité consommation s'il manque à l'ouverture, de P4 et P5
+s'il manque à la clôture) ; la **qualification** de l'absence, elle, n'a aucun
+effet sur le score : elle sert à repérer les oublis. Elle est figée à chaque
+import, comme les scores, et conservée mois par mois.
+
+Les **entrées** et **sorties** sont tous les mouvements saisis entre les deux
+inventaires : factures fournisseur, ajustements positifs et retours client en
+entrée ; dispensations (distributions pour un district), ajustements négatifs
+et retours fournisseur en sortie.
 
 - **Absent de l'ouverture** (présent à la clôture). Stock minimal à
-  l'ouverture = compté à la clôture + sorties déclarées - réceptions. Les
-  sorties réelles sont au moins les sorties déclarées : si ce stock est
-  positif, le produit existait à l'ouverture, c'est un **oubli démontré**.
-  Sinon, la **cause est indéterminée** (le produit a pu être à 0).
-- **Absent de la clôture** (présent à l'ouverture). Le produit sort alors de
-  P4 et de P5 pour le mois. Stock attendu à la clôture = compté à l'ouverture
-  + réceptions - sorties déclarées. Des pertes non saisies peuvent expliquer
-  un stock attendu positif : c'est un **oubli probable**, pas démontré. Nul ou
-  négatif, le produit est **épuisé**, son absence est plausible.
+  l'ouverture = compté à la clôture + sorties - entrées. Les sorties réelles
+  sont au moins les sorties saisies : si ce stock est positif, le produit
+  existait à l'ouverture, c'est un **oubli démontré**. Sinon, la **cause est
+  indéterminée** (le produit a pu être à 0).
+- **Absent de la clôture** (présent à l'ouverture). Stock attendu à la
+  clôture = compté à l'ouverture + entrées - sorties. Des pertes non saisies
+  peuvent expliquer un stock attendu positif : c'est un **oubli probable**, pas
+  démontré. Nul ou négatif, le produit est **épuisé**, son absence est
+  plausible.
 
 **Exemple (district de Daloa, septembre) :** vitamine A 100 000 UI absente de
-l'ouverture du 1er septembre ; 3 927 comptés à la clôture + 5 000 distribués -
-0 reçu = **8 927** au moins à l'ouverture : oubli démontré.
+l'ouverture du 1er septembre ; 3 927 comptés à la clôture + 5 000 sorties -
+0 entrée = **8 927** au moins à l'ouverture : oubli démontré.
 
 ### P6 · Ratio d'ajustements (poids 10 %, seuil ≤ 5 %)
 
@@ -600,21 +629,19 @@ en alerte (98,3 % de concordance, sous le seuil de 100 %) suffit à faire
 basculer tout le pilier à 0.
 
 Sur le jeu de démonstration (mai à septembre 2026), le score composite moyen
-national suit **95,3 puis 90,6 puis 92,8 puis 89,0 puis 92,5**. Août et
-septembre sont **provisoires** : une extraction du 5 septembre a fait remonter
-les réquisitions d'août du CHR de Daloa et du district de Daloa, et septembre ne
-compte encore que cinq jours de données. Aucun site n'y a fait d'inventaire ni
-soumis de réquisition : P1, P2 (inventaire et réquisition de fin de mois pas
-dus), P4 (conformité SDU et consommation) et P5 (concordance) sont tous **non
-calculables** tant que le mois est en cours (ADR 0014). Le score de septembre
-ne porte donc que sur P3 et P6 : il reste élevé, mais **provisoire**. Sur la
-courbe de progression, le segment qui mène à un mois en cours est tracé **en
-pointillé** pour rappeler qu'il n'est pas comparable aux mois clos. Points de
-vigilance d'un mois à l'autre : le CHR public de Bondoukou (réquisition en
-retard, régularité de saisie faible, écarts SDU) qui reste NON CONFORME, le
-district de Niakaramadougou (réponse partielle aux réquisitions de sa zone,
-P3 « distribution » à 2/3 puis 3/3 puis 2/3), et le CSR-DM public de Bobia
-(réquisition jamais soumise).
+national suit **95,9 puis 88,1 puis 89,5 puis 86,6 puis 47,5**. Une extraction
+du 5 septembre a fait remonter les réquisitions d'août du CHR de Daloa et du
+district de Daloa : le gel a corrigé le score d'août sans redéclaration
+(ADR 0010). Septembre ne compte que cinq jours de données et n'est pas
+**jugé** : aucun inventaire de clôture n'est encore attendu, P4 et P5 sont
+**non calculables** (ADR 0022), comme P1 et P2. Son score ne porte que sur P3
+et P6, et P3, qui compte tous les jours du mois, tombe à 0 faute de sorties
+saisies après le 5 : ce score bas n'est pas comparable aux mois complets.
+Points de vigilance d'un mois à l'autre : le CHR public de Bondoukou
+(réquisition en retard, régularité de saisie faible, écarts SDU) qui reste NON
+CONFORME, le district de Niakaramadougou (réponse partielle aux réquisitions
+de sa zone, P3 « distribution » à 2/3 puis 3/3 puis 2/3), et le CSR-DM public
+de Bobia (réquisition jamais soumise).
 
 ---
 
@@ -680,7 +707,10 @@ principe des scores immuables, section 1).
 | Mois PAQD | Le mois calendaire sur lequel porte une extraction et pour lequel les scores sont calculés |
 | Cycle PAQD | Quatre mois consécutifs (M+1 à M+4), trois cycles par an calés sur l'année civile |
 | Score composite | Note sur 100 d'un site, moyenne pondérée des six scores de pilier, tous programmes confondus |
-| Grille de paramètres | Le jeu daté des poids de pilier, des seuils de sous-composante et de la composition des piliers, éditable par la coordination, effectif au cycle suivant seulement |
+| Note | Ce qu'une sous-composante apporte au score de son pilier : 100 si son seuil est atteint, 0 sinon, la note de sanction de la grille si elle est sanctionnée |
+| Mois jugé | Mois dont la fenêtre de clôture et 3 jours de marge sont couverts par les imports : P4 et P5 peuvent alors être sanctionnés |
+| Note de sanction | Note donnée à une sous-composante de P4 ou P5 sanctionnée (inventaire de clôture ou d'ouverture manquant, aucun produit commun) ; 0 aujourd'hui, toujours sous 100 |
+| Grille de paramètres | Le jeu daté des poids de pilier, des seuils de sous-composante, de la composition des piliers et des règles de calcul (fenêtre de clôture, marge de jugement, note de sanction, bornes de classification), éditable par la coordination, effectif à sa date d'effet seulement |
 | Produit traceur | Un produit suivi de près pour les piliers P4, P5 et P6 ; la liste est tenue dans le script d'extraction de la DAP et reprise à chaque import |
 | Programme de santé | Un programme vertical géré par un site (VIH, paludisme, etc.) ; le nombre de programmes gérés détermine le nombre d'inventaires et de réquisitions attendus chaque mois |
 | Type de structure | La valeur `name_category3` d'un site (District sanitaire, Hôpital de référence, ESPC, CHU, Institut). Administré dans l'écran « Types de structure » : il porte la strate d'affichage, le jour limite de réquisition et le régime de scoring |

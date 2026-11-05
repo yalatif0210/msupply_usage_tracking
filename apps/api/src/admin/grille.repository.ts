@@ -6,18 +6,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { Pool, PoolClient } from 'pg';
-import type {
-  EntreeGrille,
-  GrilleDetail,
-  GrilleParametre,
-  PoidsPilier,
-  SeuilSousComposante,
-} from '@dqa/contracts';
+import type { EntreeGrille, GrilleDetail, GrilleParametre } from '@dqa/contracts';
 import { PG_POOL } from '../database/database.module.js';
-import { estDoublon, estReferenceViolee } from '../commun/erreurs-pg.js';
+import { estControleViole, estDoublon, estReferenceViolee } from '../commun/erreurs-pg.js';
 import {
-  COLONNES_REGLES_SQL, COLONNES_SEUIL_SQL, versReglesCalcul, versSeuilSousComposante,
-  type LigneRegles, type LigneSeuil,
+  COLONNES_REGLES_SQL, lirePoidsPiliers, lireSeuils, versReglesCalcul, type LigneRegles,
 } from '../commun/lecture-grille.js';
 
 interface LigneGrille extends LigneRegles {
@@ -55,6 +48,11 @@ const traduire = (err: unknown): Error => {
   if (estReferenceViolee(err)) {
     return new ConflictException('Version référencée par un score gelé : suppression impossible');
   }
+  // Le contrat valide déjà l'entrée ; une contrainte de la base qui la refuse
+  // reste une erreur de saisie, pas une panne du serveur.
+  if (estControleViole(err)) {
+    return new BadRequestException('Valeur refusée par les règles de la grille : vérifier les règles, seuils et poids saisis');
+  }
   return err instanceof Error ? err : new Error(String(err));
 };
 
@@ -73,34 +71,30 @@ export class GrilleRepository {
     const g = await this.pool.query<LigneGrille>(`${SELECT_GRILLE} WHERE g.id = $1`, [id]);
     if (g.rowCount === 0) throw new NotFoundException('Version de grille inconnue');
 
-    const poids = await this.pool.query<{ pilier: PoidsPilier['pilier']; poids_pct: string }>(
-      `SELECT pilier, poids_pct FROM dqa.grille_poids_pilier WHERE grille_id = $1 ORDER BY pilier`,
-      [id],
-    );
-    const seuils = await this.pool.query<LigneSeuil>(
-      `SELECT ${COLONNES_SEUIL_SQL}
-       FROM dqa.grille_seuil_sous_composante WHERE grille_id = $1 ORDER BY sous_composante`,
-      [id],
-    );
+    const [poids, seuils] = await Promise.all([lirePoidsPiliers(this.pool, id), lireSeuils(this.pool, id)]);
 
     const ligne = g.rows[0]!;
     return {
       ...versGrille(ligne),
       regles: versReglesCalcul(ligne),
-      poids: poids.rows.map((r) => ({ pilier: r.pilier, poidsPct: Number(r.poids_pct) })),
-      seuils: seuils.rows.map(versSeuilSousComposante),
+      poids: [...poids].map(([pilier, poidsPct]) => ({ pilier, poidsPct })),
+      seuils,
     };
   }
 
   async creer(e: EntreeGrille): Promise<GrilleDetail> {
     await this.exigerDateFuture(e.effetAPartirDe);
     const id = await this.enTransaction(async (client) => {
+      const r = e.regles;
       const { rows } = await client.query<{ id: string }>(
-        `INSERT INTO dqa.grille_parametre (version, effet_a_partir_de) VALUES ($1, $2) RETURNING id`,
-        [e.version, e.effetAPartirDe],
+        `INSERT INTO dqa.grille_parametre
+           (version, effet_a_partir_de, jours_cloture_fin_mois, jours_cloture_mois_suivant,
+            jours_marge_jugement, note_sanction, borne_conforme, borne_partiellement_conforme)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+        [e.version, e.effetAPartirDe, r.joursClotureFinMois, r.joursClotureMoisSuivant,
+          r.joursMargeJugement, r.noteSanction, r.borneConforme, r.bornePartiellementConforme],
       );
       const nouvelId = Number(rows[0]!.id);
-      await this.ecrireRegles(client, nouvelId, e);
       await this.ecrireDetail(client, nouvelId, e);
       return nouvelId;
     });
@@ -111,11 +105,16 @@ export class GrilleRepository {
     await this.exigerPlanifiee(id);
     await this.exigerDateFuture(e.effetAPartirDe);
     await this.enTransaction(async (client) => {
+      const r = e.regles;
       await client.query(
-        `UPDATE dqa.grille_parametre SET version = $1, effet_a_partir_de = $2 WHERE id = $3`,
-        [e.version, e.effetAPartirDe, id],
+        `UPDATE dqa.grille_parametre
+         SET version = $2, effet_a_partir_de = $3, jours_cloture_fin_mois = $4,
+             jours_cloture_mois_suivant = $5, jours_marge_jugement = $6, note_sanction = $7,
+             borne_conforme = $8, borne_partiellement_conforme = $9
+         WHERE id = $1`,
+        [id, e.version, e.effetAPartirDe, r.joursClotureFinMois, r.joursClotureMoisSuivant,
+          r.joursMargeJugement, r.noteSanction, r.borneConforme, r.bornePartiellementConforme],
       );
-      await this.ecrireRegles(client, id, e);
       await client.query(`DELETE FROM dqa.grille_poids_pilier WHERE grille_id = $1`, [id]);
       await client.query(`DELETE FROM dqa.grille_seuil_sous_composante WHERE grille_id = $1`, [id]);
       await this.ecrireDetail(client, id, e);
@@ -145,17 +144,6 @@ export class GrilleRepository {
     } catch (err) {
       throw traduire(err);
     }
-  }
-
-  private async ecrireRegles(client: PoolClient, id: number, e: EntreeGrille): Promise<void> {
-    const r = e.regles;
-    await client.query(
-      `UPDATE dqa.grille_parametre
-       SET jours_cloture_fin_mois = $2, jours_cloture_mois_suivant = $3, note_sanction = $4,
-           borne_conforme = $5, borne_partiellement_conforme = $6
-       WHERE id = $1`,
-      [id, r.joursClotureFinMois, r.joursClotureMoisSuivant, r.noteSanction, r.borneConforme, r.bornePartiellementConforme],
-    );
   }
 
   private async ecrireDetail(client: PoolClient, id: number, e: EntreeGrille): Promise<void> {

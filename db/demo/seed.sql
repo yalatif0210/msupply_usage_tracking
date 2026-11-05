@@ -13,16 +13,20 @@
 --  en mai (borne d'ouverture intra-mois), un inventaire de fin de mois
 --  ensuite, `compté(M) = compté(M-1) + réceptions - sorties`.
 --
---  Un lot d'import par mois plus un cinquième « extraction du 5 septembre » à
+--  Un lot d'import par mois, chacun avec sa fenêtre d'extraction (du 1er du
+--  mois au 5 du mois suivant : la clôture du mois et sa marge de jugement sont
+--  couvertes, ADR 0022), plus un cinquième « extraction du 5 septembre » à
 --  fenêtre de 45 jours qui chevauche août et septembre : il apporte les
 --  premiers jours de septembre ET des réquisitions d'août rattrapées ; le gel
---  corrige alors le score d'août (encore ouvert) sans redéclaration (ADR 0010).
---  2026-08 et 2026-09 sont les mois en cours, leur score est provisoire.
+--  corrige alors le score d'août sans redéclaration (ADR 0010). Septembre
+--  n'est pas jugé : P4 et P5 y restent non calculables.
+--  Les réceptions sont des factures fournisseur finalisées (ADR 0018).
 --
 --  Narratif :
---   - CHR PUBLIC de DALOA : exemple du manuel (P1/P2/P3/P6 à 100, P4 à 50 —
---     1 produit SDU hors tolérance sur 2 —, P5 à 0 — concordance sous 100 % —
---     → composite 62,5 NON CONFORME).
+--   - CHR PUBLIC de DALOA : exemple du manuel, août (P1/P2/P3/P6 à 100 ; P4
+--     à 100, la conformité consommation seule étant retenue, la conformité SDU
+--     mesurée à 50 % ; P5 à 0, concordance 98,3 % sous le seuil de 100 %)
+--     → composite 75 PARTIELLEMENT CONFORME.
 --   - CHR PUBLIC de BONDOUKOU : vigilance chronique (P3 faible, écart SDU hors
 --     tolérance mai-juin, réquisition en retard, ajustements).
 --   - CSR-DM PUBLIC de BOBIA : réquisition jamais soumise → « rapport manquant ».
@@ -63,11 +67,13 @@ TRUNCATE dqa.import_lot, dqa.dim_site, dqa.dim_programme, dqa.dim_produit
     RESTART IDENTITY CASCADE;
 
 -- ── Lots d'import ────────────────────────────────────────────────────────
-INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, statut, importe_le) VALUES
-    ('demo_2026-05.xlsx', '2026-C2', '2026-05', '2026-05-01', '2026-05-31', 'valide', now()),
-    ('demo_2026-06.xlsx', '2026-C2', '2026-06', '2026-06-01', '2026-06-30', 'valide', now()),
-    ('demo_2026-07.xlsx', '2026-C2', '2026-07', '2026-07-01', '2026-07-31', 'valide', now()),
-    ('demo_2026-08.xlsx', '2026-C2', '2026-08', '2026-08-01', '2026-08-31', 'valide', now());
+INSERT INTO dqa.import_lot
+    (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, fenetre_debut, fenetre_fin, statut, importe_le)
+VALUES
+    ('demo_2026-05.xlsx', '2026-C2', '2026-05', '2026-05-01', '2026-05-31', '2026-05-01', '2026-06-05', 'valide', now()),
+    ('demo_2026-06.xlsx', '2026-C2', '2026-06', '2026-06-01', '2026-06-30', '2026-06-01', '2026-07-05', 'valide', now()),
+    ('demo_2026-07.xlsx', '2026-C2', '2026-07', '2026-07-01', '2026-07-31', '2026-07-01', '2026-08-05', 'valide', now()),
+    ('demo_2026-08.xlsx', '2026-C2', '2026-08', '2026-08-01', '2026-08-31', '2026-08-01', '2026-09-05', 'valide', now());
 INSERT INTO dqa.import_lot
     (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, fenetre_debut, fenetre_fin, statut, importe_le)
 VALUES ('demo_2026-09.xlsx', '2026-C3', '2026-09', '2026-09-01', '2026-09-30',
@@ -229,13 +235,15 @@ FOR p IN SELECT * FROM _plan LOOP
             VALUES (inv_ouv, p.produit, 'L1', p.stock_ouv, p.stock_ouv, lot);
         END IF;
 
-        -- réception mensuelle (sauf septembre)
+        -- réception mensuelle (sauf septembre) : facture fournisseur finalisée
+        -- le jour de la réception (ADR 0018)
         IF m < 5 AND p.rec_mois > 0 THEN
             d_rec := rec_jour[m];
             INSERT INTO dqa.fact_transaction
-                (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation, lot_id_source)
+                (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation,
+                 date_finalisation, lot_id_source)
             VALUES (format('RC-%s-%s-%s', p.site, replace(p.produit,'ITM-',''), mois),
-                    p.site, 'reception', p.prog, 'fn', d_rec, d_rec, lot);
+                    p.site, 'facture_fournisseur', p.prog, 'fn', d_rec, d_rec, d_rec, lot);
             INSERT INTO dqa.fact_ligne_transaction
                 (ligne_id, transaction_id, produit_id, programme_id, quantite, taille_conditionnement, issu_ajustement, lot_id_source)
             VALUES (format('RC-%s-%s-%s-L', p.site, replace(p.produit,'ITM-',''), mois),
@@ -293,23 +301,6 @@ VALUES
     ('AJ-BDK-07-L','AJ-BDK-07','ITM-HIV','PRG-VIH',-4,1,true,3),
     ('AJ-BDK-08-L','AJ-BDK-08','ITM-ARV','PRG-VIH',-5,1,true,4),
     ('AJ-GAG-07-L','AJ-GAG-07','ITM-ARV','PRG-VIH', 4,1,true,3);
-
--- ── Factures fournisseur (dénominateur de la complétude des réceptions P1) ─
---  Une facture par réception de traceur pour les hôpitaux + BEDIALA / GUEMENEDOU
---  (ratio 100 %) ; pour CHR Bondoukou, une facture de plus par mois -> alerte.
-INSERT INTO dqa.fact_transaction
-    (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation, lot_id_source)
-SELECT 'FA-' || rc.transaction_id, rc.site_id, 'facture_fournisseur', rc.programme_id, 'fn',
-       rc.date_confirmation, rc.date_confirmation, rc.lot_id_source
-FROM dqa.fact_transaction rc
-WHERE rc.nature = 'reception'
-  AND rc.site_id IN (:'h_bdk',:'h_dal',:'h_gag',:'h_nia',:'e_bed',:'e_gue');
-
-INSERT INTO dqa.fact_transaction
-    (transaction_id, site_id, nature, programme_id, statut, date_saisie, date_confirmation, lot_id_source)
-SELECT format('FA-BDK-EXTRA-%s', m.mois), :'h_bdk', 'facture_fournisseur', 'PRG-VIH', 'fn',
-       (m.mois || '-06')::date, (m.mois || '-06')::date, m.lot
-FROM (VALUES ('2026-05',1),('2026-06',2),('2026-07',3),('2026-08',4)) AS m(mois, lot);
 
 -- ── Réquisitions (rapports mensuels) : à l'heure, en retard, manquantes ──
 --  Limite : mois M+1 + (jour_limite - 1). ESPC -> 5, Hôpital de référence -> 7,

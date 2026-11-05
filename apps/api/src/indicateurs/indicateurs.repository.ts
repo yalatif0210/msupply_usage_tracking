@@ -58,10 +58,7 @@ import {
   type SyntheseRapports,
   type TableauDeBord,
 } from '@dqa/contracts';
-import {
-  COLONNES_REGLES_SQL, COLONNES_SEUIL_SQL, versReglesCalcul, versSeuilSousComposante,
-  type LigneRegles, type LigneSeuil,
-} from '../commun/lecture-grille.js';
+import { lireGrilleDuMois } from '../commun/lecture-grille.js';
 import { PG_POOL } from '../database/database.module.js';
 
 interface LigneSite {
@@ -72,21 +69,6 @@ interface LigneSite {
   region: string | null;
   type_structure: string | null;
 }
-
-/**
- * Valeurs brutes d'une sous-composante telles que rendues par `pg` (texte) :
- * `pct` = taux mesuré, `score` = 100 / 0 / null (CONFORME / ALERTE / NON_CALCULABLE).
- * Les deux voyagent toujours ensemble.
- */
-interface ValeurBrute {
-  pct: string | null;
-  score: string | null;
-}
-
-const brute = (pct: string | null | undefined, score: string | null | undefined): ValeurBrute => ({
-  pct: pct ?? null,
-  score: score ?? null,
-});
 
 /** Nombre de scores de pilier non nuls, calculé en SQL sur la ligne gelée `h`. */
 const COMPTE_PILIERS_SQL = `(
@@ -109,25 +91,32 @@ const nombreOuNull = (v: string | null): number | null => (v === null ? null : N
 /** `AAAA-MM-JJ` vers `JJ/MM/AAAA`, pour les messages. */
 const dateCourte = (iso: string): string => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 
-/** Seuil de chaque sous-composante dans la grille du mois affiché. */
-/** Ce qu'un site déclare sortir de son stock : un district distribue, un site de soins dispense (ADR 0012). */
-type FluxDeclare = 'consommation' | 'distribution';
+/**
+ * Cause d'une conformité SDU, consommation ou concordance non chiffrée ou
+ * sanctionnée, lue dans `mv_cloture_mois` / `mv_p4_ecart` / `mv_p5_concordance`
+ * (migration 0062) ; l'API ne fait que la traduire en phrase.
+ */
+type CauseP4P5 =
+  | 'calculee' | 'cloture' | 'non_jugee' | 'hors_fenetre' | 'sans_cloture'
+  | 'sans_ouverture' | 'ouverture_non_jugee' | 'sans_produit_commun';
 
-/** Explications de P4 / P5 non calculables ou sanctionnés (ADR 0022). */
-interface CausesCloture {
-  /** Conformité SDU et concordance : l'inventaire de clôture. */
-  inventaire: string;
-  /** Conformité consommation : la clôture et l'ouverture. */
-  consommation: string;
+/** Clôture d'un site, d'un programme et d'un mois, pour expliquer P4 et P5. */
+interface LigneCauses {
+  cause_sdu: CauseP4P5 | null;
+  cause_conso: CauseP4P5 | null;
+  cause_concordance: CauseP4P5 | null;
+  fenetre_debut: string;
+  fenetre_fin: string;
+  fin_jugee: string;
+  date_hors_fenetre: string | null;
 }
 
-/** Règle d'une sous-composante dans la grille du mois : seuil et place dans le pilier. */
-interface RegleSousComposante {
-  seuil: string | null;
-  retenue: boolean;
-  poidsPct: string;
-}
-type SeuilsDuMois = Partial<Record<SousComposante, RegleSousComposante>>;
+/** Valeur, note et sanction figées de chaque sous-composante (hist_score_site). */
+type ColonnesSousComposantes =
+  & { [K in SousComposante as `sc_${K}`]: string | null }
+  & { [K in SousComposante as `note_${K}`]: string | null };
+
+const NOMBRE_FR = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
 
 /** Les six colonnes de score de pilier gelées, telles que rendues par `pg`. */
 interface PiliersBruts {
@@ -542,6 +531,7 @@ export class IndicateursRepository {
         national: versBloc(undefined),
         progression: [],
         sousComposantesEnDifficulte: [],
+        regles: null,
       };
     }
 
@@ -570,6 +560,7 @@ export class IndicateursRepository {
       national: versBloc(national.rows[0]),
       progression: points,
       sousComposantesEnDifficulte: difficulte.rows.map(versLigneSousComposante),
+      regles: (await lireGrilleDuMois(this.pool, mois))?.regles ?? null,
     };
   }
 
@@ -590,115 +581,34 @@ export class IndicateursRepository {
   }
 
   /**
-   * Seuil de chaque sous-composante dans la grille du mois (ADR 0019 : chaque
-   * sous-composante a le sien). Le seuil district de la régularité de saisie
-   * remplace le seuil général pour un district (ADR 0011).
+   * Phrase d'une cause P4 / P5 (ADR 0022). Sans ligne de clôture pour un
+   * programme filtré : programme non géré par le site, rien n'est attendu.
    */
-  private async seuilsGrille(grilleId: string | null, mois: string, estDistrict: boolean): Promise<SeuilsDuMois> {
-    const { rows } = await this.pool.query<{
-      sous_composante: SousComposante;
-      seuil: string;
-      seuil_district: string | null;
-      retenue: boolean;
-      poids_pct: string;
-    }>(
-      `SELECT sous_composante, seuil, seuil_district, retenue, poids_pct
-       FROM dqa.grille_seuil_sous_composante
-       WHERE grille_id = coalesce($1::bigint, dqa.grille_pour_mois($2))`,
-      [grilleId, mois],
-    );
-    const seuils: SeuilsDuMois = {};
-    for (const r of rows) {
-      seuils[r.sous_composante] = {
-        seuil: estDistrict && r.seuil_district !== null ? r.seuil_district : r.seuil,
-        retenue: r.retenue,
-        poidsPct: r.poids_pct,
-      };
+  private raisonP4P5(cause: CauseP4P5 | null | undefined, c: LigneCauses | undefined, noteSanction: number): string {
+    if (!c || !cause) {
+      return "Programme non éligible pour ce site (voir l'écran Programmes) : aucun inventaire de clôture attendu";
     }
-    return seuils;
-  }
-
-  /**
-   * Pourquoi P4 / P5 ne sont pas calculables, ou valent 0 par sanction, pour ce
-   * site, ce mois et ce programme (ADR 0022) : une seule explication par
-   * sous-composante, celle qui s'applique. `inventaire` vaut pour la
-   * conformité SDU et la concordance (clôture) ; `consommation` ajoute
-   * l'ouverture.
-   */
-  private async causesCloture(
-    siteId: string,
-    mois: string,
-    prog: string | null,
-    flux: FluxDeclare,
-  ): Promise<CausesCloture> {
-    const { rows } = await this.pool.query<{
-      cloture: boolean;
-      cloture_traceur: boolean;
-      ouverture: boolean;
-      juge: boolean;
-      juge_precedent: boolean;
-      hors_fenetre: string | null;
-      programme_gere: boolean;
-      fenetre_debut: string;
-      fenetre_fin: string;
-    }>(
-      `WITH f AS (SELECT debut, fin FROM dqa.fenetre_cloture($2))
-       SELECT
-         EXISTS (SELECT 1 FROM dqa.v_cloture_inventaire vc
-                  WHERE vc.site_id = $1 AND vc.programme_id IS NOT DISTINCT FROM $3
-                    AND vc.mois_paqd = $2) AS cloture,
-         EXISTS (SELECT 1 FROM dqa.mv_p4_ecart_produit ep
-                  WHERE ep.site_id = $1 AND ep.programme_id IS NOT DISTINCT FROM $3
-                    AND ep.mois_paqd = $2) AS cloture_traceur,
-         EXISTS (SELECT 1 FROM dqa.v_cloture_inventaire vc
-                  WHERE vc.site_id = $1 AND vc.programme_id IS NOT DISTINCT FROM $3
-                    AND vc.mois_paqd = dqa.mois_precedent($2)) AS ouverture,
-         dqa.mois_juge_p4_p5($2) AS juge,
-         dqa.mois_juge_p4_p5(dqa.mois_precedent($2)) AS juge_precedent,
-         (SELECT to_char(max(fi.date_inventaire), 'YYYY-MM-DD') FROM dqa.fact_inventaire fi
-           WHERE fi.site_id = $1 AND fi.statut = 'fn'
-             AND ($3::text IS NULL OR fi.programme_id = $3)
-             AND to_char(fi.date_inventaire, 'YYYY-MM') = $2
-             AND dqa.mois_cloture_inventaire(fi.date_inventaire) IS NULL) AS hors_fenetre,
-         -- au grain programme, seuls les programmes gérés sont sanctionnés (migration 0061)
-         ($3::text IS NULL OR EXISTS (
-           SELECT 1 FROM dqa.dim_site_programme sp
-           WHERE sp.site_id = $1 AND sp.programme_id = $3 AND sp.actif)) AS programme_gere,
-         to_char(f.debut, 'YYYY-MM-DD') AS fenetre_debut,
-         to_char(f.fin, 'YYYY-MM-DD')   AS fenetre_fin
-       FROM f`,
-      [siteId, mois, prog],
-    );
-    const c = rows[0];
-    if (!c) return { inventaire: 'Aucun inventaire de clôture', consommation: 'Aucun inventaire de clôture' };
-    const inventaire = this.causeCloture(c, `du ${dateCourte(c.fenetre_debut)} au ${dateCourte(c.fenetre_fin)}`);
-    return { inventaire, consommation: c.cloture ? this.causeOuverture(c, flux) : inventaire };
-  }
-
-  private causeCloture(
-    c: { cloture: boolean; cloture_traceur: boolean; juge: boolean; hors_fenetre: string | null; programme_gere: boolean },
-    fenetre: string,
-  ): string {
-    if (c.cloture && !c.cloture_traceur) return "L'inventaire de clôture ne porte aucun produit traceur";
-    if (c.cloture) return 'Produits traceurs inventoriés, mais aucun stock compté exploitable';
-    if (!c.programme_gere) return "Programme non géré par ce site (voir l'écran Programmes) : pas d'inventaire de clôture attendu";
-    if (!c.juge) return `Clôture pas encore couverte par les données : inventaire attendu ${fenetre}`;
-    if (c.hors_fenetre) {
-      return `Inventaire du ${dateCourte(c.hors_fenetre)} hors de la fenêtre de clôture (${fenetre}) : P4 et P5 à 0`;
+    const fenetre = `du ${dateCourte(c.fenetre_debut)} au ${dateCourte(c.fenetre_fin)}`;
+    const sanction = `sanction, note ${NOMBRE_FR.format(noteSanction)}`;
+    switch (cause) {
+      case 'calculee':
+      case 'cloture':
+        return "L'inventaire de clôture ne porte aucune quantité exploitable pour ce calcul";
+      case 'non_jugee':
+        return `Mois pas encore jugé : inventaire de clôture attendu ${fenetre}, imports à couvrir jusqu'au ${dateCourte(c.fin_jugee)}`;
+      case 'hors_fenetre':
+        return c.date_hors_fenetre
+          ? `Inventaire du ${dateCourte(c.date_hors_fenetre)} hors de la fenêtre de clôture (${fenetre}) : ${sanction}`
+          : `Aucun inventaire de clôture (${fenetre}) : ${sanction}`;
+      case 'sans_cloture':
+        return `Aucun inventaire de clôture portant un produit traceur (${fenetre}) : ${sanction}`;
+      case 'sans_ouverture':
+        return `Pas d'inventaire d'ouverture (clôture du mois précédent) : ${sanction}`;
+      case 'ouverture_non_jugee':
+        return "Ouverture non jugée : la fenêtre de clôture du mois précédent n'est pas entièrement couverte par les imports";
+      case 'sans_produit_commun':
+        return `Aucun produit commun aux inventaires d'ouverture et de clôture : ${sanction}`;
     }
-    return `Aucun inventaire de clôture (${fenetre}) : P4 et P5 à 0`;
-  }
-
-  private causeOuverture(
-    c: { ouverture: boolean; juge: boolean; juge_precedent: boolean },
-    flux: FluxDeclare,
-  ): string {
-    if (c.ouverture) return "Aucun produit n'est présent à la fois à l'ouverture et à la clôture";
-    if (!c.juge_precedent) return "Inventaire d'ouverture antérieur au début des données importées";
-    if (!c.juge) {
-      return `Pas d'inventaire d'ouverture (clôture du mois précédent) : l'écart de ${flux} sera à 0 une fois le mois jugé`;
-    }
-    return `Pas d'inventaire d'ouverture (clôture du mois précédent) : écart de ${flux} à 0`;
   }
 
   /** Suivi des réceptions du site, hors score (ADR 0019). */
@@ -890,148 +800,127 @@ export class IndicateursRepository {
       };
     }
 
-    const { rows } = await this.pool.query<{
-      sc: AtteintesParSc | null;
-      grille_id: string;
-      score_composite: string | null;
-      classification: Classification | null;
-      piliers_couverts: number | null;
-      p_completude: string | null;
-      p_promptitude: string | null;
-      p_regularite: string | null;
-      p_ecart_sdu: string | null;
-      p_concordance: string | null;
-      p_ajustements: string | null;
-      completude_requisitions_pct: string | null;
-      completude_receptions_pct: string | null;
-      score_requisitions: string | null;
-      score_receptions: string | null;
-      nb_requisitions_attendu: number | null;
-      promptitude_inventaires_pct: string | null;
-      promptitude_requisitions_pct: string | null;
-      p2_score_inventaires: string | null;
-      p2_score_requisitions: string | null;
-      taux_regularite_pct: string | null;
-      est_district: boolean;
-      taux_sdu_pct: string | null;
-      taux_conso_pct: string | null;
-      score_sdu: string | null;
-      score_conso: string | null;
-      nb_produits_sdu: number | null;
-      nb_produits_conso: number | null;
-      taux_concordance_pct: string | null;
-      nb_produits_concordance: number | null;
-      ratio_ajustements_pct: string | null;
-      note_regularite_saisie: string | null;
-      note_concordance: string | null;
-      note_ratio_ajustements: string | null;
-      poids_calc: Record<Pilier, string> | null;
-      poids_piliers_calcules: string | null;
-      echeance_requisitions: string;
-      echeance_inventaire: string;
-    }>(
-      `SELECT h.score_composite, h.classification, h.grille_id, vsc.sc,
-              ${COMPTE_PILIERS_SQL} AS piliers_couverts,
-              h.p_completude, h.p_promptitude, h.p_regularite,
-              h.p_ecart_sdu, h.p_concordance, h.p_ajustements,
-              p1.completude_requisitions_pct, p1.completude_receptions_pct,
-              sp.note_completude_requisitions AS score_requisitions,
-              sp.note_completude_receptions AS score_receptions, p1.nb_requisitions_attendu,
-              p2.promptitude_inventaires_pct, p2.promptitude_requisitions_pct,
-              sp.note_promptitude_inventaires AS p2_score_inventaires,
-              sp.note_promptitude_requisitions AS p2_score_requisitions,
-              p3.taux_regularite_pct, coalesce(p3.est_district, false) AS est_district,
-              sp.note_regularite_saisie, sp.note_concordance, sp.note_ratio_ajustements,
-              CASE WHEN sp.site_id IS NOT NULL THEN jsonb_build_object(
-                'P1', sp.poids_calc_p1, 'P2', sp.poids_calc_p2, 'P3', sp.poids_calc_p3,
-                'P4', sp.poids_calc_p4, 'P5', sp.poids_calc_p5, 'P6', sp.poids_calc_p6) END AS poids_calc,
-              sp.poids_piliers_calcules,
-              p4.taux_sdu_pct, p4.taux_conso_pct,
-              sp.note_ecart_sdu AS score_sdu, sp.note_ecart_consommation AS score_conso,
-              p4.nb_produits_sdu::int AS nb_produits_sdu, p4.nb_produits_conso::int AS nb_produits_conso,
-              p5.taux_concordance_pct, p5.nb_produits::int AS nb_produits_concordance,
-              p6.ratio_ajustements_pct,
-              to_char(dqa.echeance_requisition(h.mois_paqd, s.type_structure), 'YYYY-MM-DD') AS echeance_requisitions,
-              to_char(dqa.echeance_inventaire(h.mois_paqd), 'YYYY-MM-DD') AS echeance_inventaire
-       FROM dqa.hist_score_site h
-       JOIN dqa.dim_site s ON s.site_id = h.site_id
-       LEFT JOIN dqa.mv_p1_completude p1
-              ON p1.site_id = h.site_id AND p1.mois_paqd = h.mois_paqd
-             AND p1.programme_id IS NOT DISTINCT FROM h.programme_id
-       LEFT JOIN dqa.mv_p2_promptitude p2
-              ON p2.site_id = h.site_id AND p2.mois_paqd = h.mois_paqd
-             AND p2.programme_id IS NOT DISTINCT FROM h.programme_id
-       LEFT JOIN dqa.mv_p3_regularite p3
-              ON p3.site_id = h.site_id AND p3.mois_paqd = h.mois_paqd
-             AND p3.programme_id IS NOT DISTINCT FROM h.programme_id
-       LEFT JOIN dqa.mv_p4_ecart p4
-              ON p4.site_id = h.site_id AND p4.mois_paqd = h.mois_paqd
-             AND p4.programme_id IS NOT DISTINCT FROM h.programme_id
-       LEFT JOIN dqa.mv_p5_concordance p5
-              ON p5.site_id = h.site_id AND p5.mois_paqd = h.mois_paqd
-             AND p5.programme_id IS NOT DISTINCT FROM h.programme_id
-       LEFT JOIN dqa.mv_p6_ajustements p6
-              ON p6.site_id = h.site_id AND p6.mois_paqd = h.mois_paqd
-             AND p6.programme_id IS NOT DISTINCT FROM h.programme_id
-       -- notes des sous-composantes, sanction comprise (migration 0059)
-       LEFT JOIN dqa.mv_score_pilier sp
-              ON sp.site_id = h.site_id AND sp.mois_paqd = h.mois_paqd
-             AND sp.programme_id IS NOT DISTINCT FROM h.programme_id
-       ${ATTEINTE_JSONB_SQL}
-       WHERE h.site_id = $1 AND h.mois_paqd = $2 AND h.programme_id IS NOT DISTINCT FROM $3`,
-      [siteId, mois, prog],
-    );
-    const h = rows[0];
-    const moisClos = await this.moisEstClos(mois);
-    const seuils = await this.seuilsGrille(h?.grille_id ?? null, mois, estDistrict);
-    const causes = await this.causesCloture(siteId, mois, prog, estDistrict ? 'distribution' : 'consommation');
-    const aujourdhui = await this.dateDuJour();
+    const [hist, causes, comptesParPilier, moisClos, aujourdhui, suiviReceptions] = await Promise.all([
+      this.pool.query<PiliersBruts & ColonnesSousComposantes & {
+        sc: AtteintesParSc | null;
+        grille_id: string;
+        score_composite: string | null;
+        classification: Classification | null;
+        piliers_couverts: number | null;
+        sanction_ecart_sdu: boolean;
+        sanction_ecart_consommation: boolean;
+        sanction_concordance: boolean;
+        poids_calc_p1: string | null;
+        poids_calc_p2: string | null;
+        poids_calc_p3: string | null;
+        poids_calc_p4: string | null;
+        poids_calc_p5: string | null;
+        poids_calc_p6: string | null;
+        poids_piliers_calcules: string | null;
+        echeance_requisitions: string;
+        echeance_inventaire: string;
+      }>(
+        // Valeurs, notes, sanctions et dénominateurs figés au gel : la
+        // décomposition redonne exactement le score affiché.
+        `SELECT h.score_composite, h.classification, h.grille_id::text AS grille_id, vsc.sc,
+                ${COMPTE_PILIERS_SQL} AS piliers_couverts,
+                h.p_completude, h.p_promptitude, h.p_regularite,
+                h.p_ecart_sdu, h.p_concordance, h.p_ajustements,
+                ${SOUS_COMPOSANTES.map((sc) => `h.sc_${sc}, h.note_${sc}`).join(', ')},
+                h.sanction_ecart_sdu, h.sanction_ecart_consommation, h.sanction_concordance,
+                h.poids_calc_p1, h.poids_calc_p2, h.poids_calc_p3,
+                h.poids_calc_p4, h.poids_calc_p5, h.poids_calc_p6, h.poids_piliers_calcules,
+                to_char(dqa.echeance_requisition(h.mois_paqd, s.type_structure), 'YYYY-MM-DD') AS echeance_requisitions,
+                to_char(dqa.echeance_inventaire(h.mois_paqd), 'YYYY-MM-DD') AS echeance_inventaire
+         FROM dqa.hist_score_site h
+         JOIN dqa.dim_site s ON s.site_id = h.site_id
+         ${ATTEINTE_JSONB_SQL}
+         WHERE h.site_id = $1 AND h.mois_paqd = $2 AND h.programme_id IS NOT DISTINCT FROM $3`,
+        [siteId, mois, prog],
+      ),
+      this.pool.query<LigneCauses>(
+        `SELECT p4.cause_cloture AS cause_sdu, p4.cause_consommation AS cause_conso,
+                p5.cause_cloture AS cause_concordance,
+                to_char(cm.fenetre_debut, 'YYYY-MM-DD') AS fenetre_debut,
+                to_char(cm.fenetre_fin, 'YYYY-MM-DD') AS fenetre_fin,
+                to_char(cm.fenetre_fin + dqa.jours_marge_jugement($2), 'YYYY-MM-DD') AS fin_jugee,
+                to_char(cm.date_hors_fenetre, 'YYYY-MM-DD') AS date_hors_fenetre
+         FROM dqa.mv_cloture_mois cm
+         LEFT JOIN dqa.mv_p4_ecart p4
+                ON p4.site_id = cm.site_id AND p4.mois_paqd = cm.mois_paqd
+               AND p4.programme_id IS NOT DISTINCT FROM cm.programme_id
+         LEFT JOIN dqa.mv_p5_concordance p5
+                ON p5.site_id = cm.site_id AND p5.mois_paqd = cm.mois_paqd
+               AND p5.programme_id IS NOT DISTINCT FROM cm.programme_id
+         WHERE cm.site_id = $1 AND cm.mois_paqd = $2 AND cm.programme_id IS NOT DISTINCT FROM $3`,
+        [siteId, mois, prog],
+      ),
+      this.comptesBrutsParPilier(siteId, mois, prog, estDistrict),
+      this.moisEstClos(mois),
+      this.dateDuJour(),
+      this.suiviReceptions(siteId, mois),
+    ]);
+    const h = hist.rows[0];
+    const c = causes.rows[0];
+    const grille = await lireGrilleDuMois(this.pool, mois, h?.grille_id ?? null);
+    const noteSanction = grille?.regles.noteSanction ?? 0;
     const echeanceReq = h?.echeance_requisitions ?? `${mois}-28`;
     const echeanceInv = h?.echeance_inventaire ?? `${mois}-28`;
+    const reqNonArrivee = `Échéance non arrivée : réquisition attendue au plus tard le ${dateCourte(echeanceReq)}`;
+    const sansProgramme = "Aucun programme éligible pour ce site (voir l'écran Programmes)";
 
-    const piliers: ScorePilier[] = [
-      this.pilierP1(h?.p_completude ?? null, seuils, {
-        req: brute(h?.completude_requisitions_pct, h?.score_requisitions),
-        rec: brute(h?.completude_receptions_pct, h?.score_receptions),
-      }, {
-        req: aujourdhui <= echeanceReq
-          ? `Échéance non arrivée : réquisition attendue au plus tard le ${dateCourte(echeanceReq)}`
-          : 'Aucun programme éligible pour ce site (voir l\'écran Programmes)',
-        rec: 'Aucune facture fournisseur ne répond aux réquisitions ordinaires du mois précédent',
-      }),
-      this.pilierP2(h?.p_promptitude ?? null, seuils, {
-        inv: brute(h?.promptitude_inventaires_pct, h?.p2_score_inventaires),
-        req: brute(h?.promptitude_requisitions_pct, h?.p2_score_requisitions),
-      }, {
-        inv: aujourdhui <= echeanceInv
-          ? `Échéance non arrivée : inventaire de fin de mois attendu jusqu'au ${dateCourte(echeanceInv)}`
-          : 'Aucun programme éligible pour ce site (voir l\'écran Programmes)',
-        req: aujourdhui <= echeanceReq
-          ? `Échéance non arrivée : réquisition attendue au plus tard le ${dateCourte(echeanceReq)}`
-          : 'Aucun programme éligible pour ce site (voir l\'écran Programmes)',
-      }),
-      this.pilierP3(h?.p_regularite ?? null, seuils.regularite_saisie,
-        brute(h?.taux_regularite_pct, h?.note_regularite_saisie), estDistrict),
-      this.pilierP4(h?.p_ecart_sdu ?? null, {
-        sdu: brute(h?.taux_sdu_pct, h?.score_sdu),
-        regleSdu: seuils.ecart_sdu,
-        conso: brute(h?.taux_conso_pct, h?.score_conso),
-        regleConso: seuils.ecart_consommation,
-        nbProduitsConso: h?.nb_produits_conso ?? 0,
-      }, estDistrict, causes, h?.nb_produits_sdu ?? 0),
-      this.pilierP5(h?.p_concordance ?? null, seuils.concordance,
-        brute(h?.taux_concordance_pct, h?.note_concordance), causes.inventaire, h?.nb_produits_concordance ?? 0),
-      this.pilierP6(h?.p_ajustements ?? null, seuils.ratio_ajustements,
-        brute(h?.ratio_ajustements_pct, h?.note_ratio_ajustements)),
-    ];
+    const raisons: Record<SousComposante, string> = {
+      completude_requisitions: aujourdhui <= echeanceReq ? reqNonArrivee : sansProgramme,
+      completude_receptions: 'Aucune facture fournisseur ne répond aux réquisitions ordinaires du mois précédent',
+      promptitude_inventaires: aujourdhui <= echeanceInv
+        ? `Échéance non arrivée : inventaire de fin de mois attendu jusqu'au ${dateCourte(echeanceInv)}`
+        : sansProgramme,
+      promptitude_requisitions: aujourdhui <= echeanceReq ? reqNonArrivee : sansProgramme,
+      regularite_saisie: estDistrict
+        ? 'Aucune réquisition de la zone du district à évaluer ce mois'
+        : 'Aucune sortie de stock exploitable sur le mois',
+      ecart_sdu: this.raisonP4P5(c?.cause_sdu, c, noteSanction),
+      ecart_consommation: this.raisonP4P5(c?.cause_conso, c, noteSanction),
+      concordance: this.raisonP4P5(c?.cause_concordance, c, noteSanction),
+      ratio_ajustements: 'Aucun mouvement de stock pour le mois',
+    };
+    const sanctions: Record<SousComposante, boolean> = {
+      completude_requisitions: false,
+      completude_receptions: false,
+      promptitude_inventaires: false,
+      promptitude_requisitions: false,
+      regularite_saisie: false,
+      ecart_sdu: h?.sanction_ecart_sdu ?? false,
+      ecart_consommation: h?.sanction_ecart_consommation ?? false,
+      concordance: h?.sanction_concordance ?? false,
+      ratio_ajustements: false,
+    };
+    const scores: Record<Pilier, string | null> = {
+      P1: h?.p_completude ?? null, P2: h?.p_promptitude ?? null, P3: h?.p_regularite ?? null,
+      P4: h?.p_ecart_sdu ?? null, P5: h?.p_concordance ?? null, P6: h?.p_ajustements ?? null,
+    };
+    const poidsCalculables: Record<Pilier, string | null> = {
+      P1: h?.poids_calc_p1 ?? null, P2: h?.poids_calc_p2 ?? null, P3: h?.poids_calc_p3 ?? null,
+      P4: h?.poids_calc_p4 ?? null, P5: h?.poids_calc_p5 ?? null, P6: h?.poids_calc_p6 ?? null,
+    };
+    const seuils = new Map(grille?.seuils.map((r) => [r.sousComposante, r]) ?? []);
 
-    const comptesParPilier = await this.comptesBrutsParPilier(siteId, mois, prog, estDistrict);
-    const grille = await this.grilleDuCalcul(h?.grille_id ?? null, mois);
-    const piliersDuMois = piliers.map((p) => ({
-      ...p,
-      poids: grille?.poids.get(p.pilier) ?? 0,
-      poidsCalculables: Number(h?.poids_calc?.[p.pilier] ?? 0),
-      comptesBruts: comptesParPilier.get(p.pilier) ?? [],
+    const piliers: ScorePilier[] = PILIERS.map((pilier) => ({
+      pilier,
+      // P3 se lit « (dispensation) » ou « (distribution) » selon le site (ADR 0011)
+      libelle: pilier === 'P3' ? libelleSousComposante('regularite_saisie', estDistrict) : LIBELLES_PILIER[pilier],
+      poids: grille?.poids.get(pilier) ?? 0,
+      score: nombreOuNull(scores[pilier]),
+      sousComposantes: SOUS_COMPOSANTES_DU_PILIER[pilier].map((sc) => this.mesure(sc, {
+        valeur: h?.[`sc_${sc}`] ?? null,
+        note: h?.[`note_${sc}`] ?? null,
+        regle: seuils.get(sc),
+        raison: raisons[sc],
+        sanction: sanctions[sc],
+        estDistrict,
+      })),
+      poidsCalculables: Number(poidsCalculables[pilier] ?? 0),
+      comptesBruts: comptesParPilier.get(pilier) ?? [],
     }));
 
     return {
@@ -1045,7 +934,7 @@ export class IndicateursRepository {
       piliersTotal: 6,
       scoreComposite: nombreOuNull(h?.score_composite ?? null),
       classification: h?.classification ?? null,
-      piliers: piliersDuMois,
+      piliers,
       calcul: grille
         ? {
             grille: grille.resume,
@@ -1054,56 +943,19 @@ export class IndicateursRepository {
           }
         : null,
       sousComposantes: sousComposantesDuMois(h?.sc ?? null),
-      suiviReceptions: await this.suiviReceptions(siteId, mois),
-    };
-  }
-
-  /** Grille qui a produit les scores d'un mois (à défaut, celle du mois) : version, règles, poids. */
-  private async grilleDuCalcul(grilleIdGele: string | null, mois: string): Promise<{
-    resume: GrilleResume; regles: ReglesCalcul; poids: Map<Pilier, number>;
-  } | null> {
-    const id = await this.pool.query<{ id: string | null }>(
-      `SELECT coalesce($1::bigint, dqa.grille_pour_mois($2))::text AS id`,
-      [grilleIdGele, mois],
-    );
-    const grilleId = id.rows[0]?.id;
-    if (!grilleId) return null;
-    const g = await this.pool.query<LigneRegles & { id: number; version: string; effet: string }>(
-      `SELECT id::int, version, to_char(effet_a_partir_de, 'YYYY-MM-DD') AS effet, ${COLONNES_REGLES_SQL}
-       FROM dqa.grille_parametre WHERE id = $1`,
-      [grilleId],
-    );
-    const r = g.rows[0];
-    if (!r) return null;
-    const poids = await this.pool.query<{ pilier: Pilier; poids_pct: string }>(
-      `SELECT pilier, poids_pct FROM dqa.grille_poids_pilier WHERE grille_id = $1`,
-      [grilleId],
-    );
-    return {
-      resume: { id: r.id, version: r.version, effetAPartirDe: r.effet },
-      regles: versReglesCalcul(r),
-      poids: new Map(poids.rows.map((p) => [p.pilier, Number(p.poids_pct)])),
+      suiviReceptions,
     };
   }
 
   /** La grille d'un mois décrite pour les écrans de lecture (dépliable « méthode »). */
   async methodeCalcul(q: MethodeCalculQuery): Promise<MethodeCalcul | null> {
-    const m = await this.pool.query<{ mois: string | null; grille_id: string | null }>(
-      `SELECT m.mois, dqa.grille_pour_mois(m.mois)::text AS grille_id
-       FROM (SELECT coalesce($1::text, (SELECT max(mois_paqd) FROM dqa.hist_score_site),
-                             to_char(CURRENT_DATE, 'YYYY-MM')) AS mois) m`,
-      [q.mois ?? null],
-    );
-    const mois = m.rows[0]?.mois;
-    const grilleId = m.rows[0]?.grille_id;
-    if (!mois || !grilleId) return null;
-    const grille = await this.grilleDuCalcul(grilleId, mois);
+    // même mois par défaut que les écrans de liste (dernier mois clos) ; un
+    // mois demandé hors des mois mesurés se décrit quand même s'il a une grille
+    const mois = q.mois ?? (await this.moisParDefaut(undefined)) ?? null;
+    if (!mois) return null;
+    const grille = await lireGrilleDuMois(this.pool, mois);
     if (!grille) return null;
-    const seuils = await this.pool.query<LigneSeuil>(
-      `SELECT ${COLONNES_SEUIL_SQL} FROM dqa.grille_seuil_sous_composante WHERE grille_id = $1`,
-      [grilleId],
-    );
-    const parSc = new Map(seuils.rows.map((r) => [r.sous_composante, r]));
+    const parSc = new Map(grille.seuils.map((r) => [r.sousComposante, r]));
     return {
       moisPaqd: mois,
       grille: grille.resume,
@@ -1114,8 +966,7 @@ export class IndicateursRepository {
         poidsPct: grille.poids.get(pilier) ?? 0,
         sousComposantes: SOUS_COMPOSANTES_DU_PILIER[pilier].flatMap((sc) => {
           const r = parSc.get(sc);
-          return r ? [{ ...versSeuilSousComposante(r), libelle: LIBELLES_SOUS_COMPOSANTE[sc] }]
-            : [];
+          return r ? [{ ...r, libelle: LIBELLES_SOUS_COMPOSANTE[sc] }] : [];
         }),
       })),
     };
@@ -1216,144 +1067,35 @@ export class IndicateursRepository {
   }
 
   /**
-   * Une sous-composante rendue : statut binaire dérivé du score de
-   * sous-composante. `sanction` : la valeur est un 0 imposé faute de donnée
-   * (ADR 0022), pas une mesure ; la raison l'explique.
+   * Une sous-composante rendue depuis l'historique gelé : son statut se déduit
+   * de la note (100 : conforme ; une note de sanction n'atteint jamais 100).
+   * La raison accompagne une sous-composante non calculable ou sanctionnée.
    */
   private mesure(
     sc: SousComposante,
-    m: ValeurBrute,
-    regle: RegleSousComposante | undefined,
-    raisonNC: string,
-    options: { libelle?: string; sanction?: boolean } = {},
+    m: {
+      valeur: string | null;
+      note: string | null;
+      regle: SeuilSousComposante | undefined;
+      raison: string;
+      sanction: boolean;
+      estDistrict: boolean;
+    },
   ): MesureSousComposante {
-    const { libelle = LIBELLES_SOUS_COMPOSANTE[sc], sanction = false } = options;
-    const statut = m.score === null ? 'NON_CALCULABLE' : Number(m.score) >= 100 ? 'CONFORME' : 'ALERTE';
-    const sanctionnee = sanction && m.pct !== null && Number(m.pct) === 0;
+    const statut = m.note === null ? 'NON_CALCULABLE' : Number(m.note) >= 100 ? 'CONFORME' : 'ALERTE';
+    const seuil = m.estDistrict && m.regle?.seuilDistrict != null ? m.regle.seuilDistrict : m.regle?.seuil ?? null;
     return {
       sousComposante: sc,
-      libelle,
-      valeur: nombreOuNull(m.pct),
+      libelle: libelleSousComposante(sc, m.estDistrict),
+      valeur: nombreOuNull(m.valeur),
       unite: 'pct',
-      seuil: nombreOuNull(regle?.seuil ?? null),
+      seuil,
       statut,
-      raison: statut === 'NON_CALCULABLE' || sanctionnee ? raisonNC : null,
-      retenue: regle?.retenue ?? true,
-      poidsDansPilierPct: Number(regle?.poidsPct ?? 0),
-      note: nombreOuNull(m.score),
-      sanction: sanctionnee,
-    };
-  }
-
-  private pilierP1(
-    score: string | null,
-    seuils: SeuilsDuMois,
-    m: { req: ValeurBrute; rec: ValeurBrute },
-    raisons: { req: string; rec: string },
-  ): ScorePilier {
-    return this.envelopper('P1', score, [
-      this.mesure('completude_requisitions', m.req, seuils.completude_requisitions, raisons.req),
-      this.mesure('completude_receptions', m.rec, seuils.completude_receptions, raisons.rec),
-    ]);
-  }
-
-  private pilierP2(
-    score: string | null,
-    seuils: SeuilsDuMois,
-    m: { inv: ValeurBrute; req: ValeurBrute },
-    raisons: { inv: string; req: string },
-  ): ScorePilier {
-    return this.envelopper('P2', score, [
-      this.mesure('promptitude_inventaires', m.inv, seuils.promptitude_inventaires, raisons.inv),
-      this.mesure('promptitude_requisitions', m.req, seuils.promptitude_requisitions, raisons.req),
-    ]);
-  }
-
-  private pilierP3(
-    score: string | null,
-    regle: RegleSousComposante | undefined,
-    m: ValeurBrute,
-    estDistrict: boolean,
-  ): ScorePilier {
-    const p = this.envelopper('P3', score, [
-      this.mesure(
-        'regularite_saisie',
-        m,
-        regle,
-        estDistrict
-          ? 'Aucune réquisition de la zone du district à évaluer ce mois'
-          : 'Aucune sortie de stock exploitable sur le mois',
-        { libelle: libelleSousComposante('regularite_saisie', estDistrict) },
-      ),
-    ]);
-    // Libellé adaptatif (ADR 0011) : la sous-composante est unique, l'écran
-    // distingue le district par le suffixe.
-    return { ...p, libelle: libelleSousComposante('regularite_saisie', estDistrict) };
-  }
-
-  /** Régime district (`dqa.est_district`) : P3 mesuré autrement (ADR 0011, ADR 0013). */
-  private async estSiteDistrict(siteId: string): Promise<boolean> {
-    const { rows } = await this.pool.query<{ d: boolean }>(
-      `SELECT dqa.est_district(type_structure) AS d FROM dqa.dim_site WHERE site_id = $1`,
-      [siteId],
-    );
-    return rows[0]?.d ?? false;
-  }
-
-  private pilierP4(
-    score: string | null,
-    m: {
-      sdu: ValeurBrute; regleSdu: RegleSousComposante | undefined;
-      conso: ValeurBrute; regleConso: RegleSousComposante | undefined; nbProduitsConso: number;
-    },
-    estDistrict: boolean,
-    causes: CausesCloture,
-    nbProduitsSdu: number,
-  ): ScorePilier {
-    // Pour un district, l'écart consommation se lit « écart distribution » :
-    // la consommation déclarée compte les quantités distribuées (ADR 0012).
-    return this.envelopper('P4', score, [
-      this.mesure('ecart_sdu', m.sdu, m.regleSdu, causes.inventaire, { sanction: nbProduitsSdu === 0 }),
-      this.mesure('ecart_consommation', m.conso, m.regleConso, causes.consommation, {
-        libelle: libelleSousComposante('ecart_consommation', estDistrict),
-        sanction: m.nbProduitsConso === 0,
-      }),
-    ]);
-  }
-
-  private pilierP5(
-    score: string | null,
-    regle: RegleSousComposante | undefined,
-    m: ValeurBrute,
-    causeInventaire: string,
-    nbProduits: number,
-  ): ScorePilier {
-    return this.envelopper('P5', score, [
-      this.mesure('concordance', m, regle, causeInventaire, { sanction: nbProduits === 0 }),
-    ]);
-  }
-
-  private pilierP6(score: string | null, regle: RegleSousComposante | undefined, m: ValeurBrute): ScorePilier {
-    return this.envelopper('P6', score, [
-      this.mesure('ratio_ajustements', m, regle, 'Aucun mouvement de stock pour le mois'),
-    ]);
-  }
-
-  private envelopper(
-    pilier: Pilier,
-    score: string | null,
-    sousComposantes: MesureSousComposante[],
-  ): ScorePilier {
-    return {
-      pilier,
-      libelle: LIBELLES_PILIER[pilier],
-      // poids du pilier et dénominateur de son score : posés par detailSite,
-      // lus dans la grille du mois et dans mv_score_pilier
-      poids: 0,
-      score: score === null ? null : Number(score),
-      sousComposantes,
-      poidsCalculables: 0,
-      comptesBruts: [],
+      raison: statut === 'NON_CALCULABLE' || m.sanction ? m.raison : null,
+      retenue: m.regle?.retenue ?? false,
+      poidsDansPilierPct: m.regle?.poidsDansPilierPct ?? 0,
+      note: nombreOuNull(m.note),
+      sanction: m.sanction,
     };
   }
 
@@ -1496,12 +1238,12 @@ export class IndicateursRepository {
       produit_code: string; libelle: string | null;
       sens: ProduitEcarte['sens']; qualification: ProduitEcarte['qualification'];
       date_ouverture: string; date_cloture: string;
-      stock_connu: string; receptions: string; sorties_declarees: string; stock_calcule: string;
+      stock_connu: string; entrees: string; sorties: string; stock_calcule: string;
     }>(
       `SELECT produit_code, libelle, sens, qualification,
               to_char(date_ouverture, 'YYYY-MM-DD') AS date_ouverture,
               to_char(date_cloture, 'YYYY-MM-DD') AS date_cloture,
-              stock_connu, receptions, sorties_declarees, stock_calcule
+              stock_connu, entrees, sorties, stock_calcule
        FROM dqa.hist_produit_ecarte
        WHERE site_id = $1 AND mois_paqd = $2
        ORDER BY sens DESC, qualification, produit_code`,
@@ -1515,8 +1257,8 @@ export class IndicateursRepository {
       dateOuverture: r.date_ouverture,
       dateCloture: r.date_cloture,
       stockConnu: Number(r.stock_connu),
-      receptions: Number(r.receptions),
-      sortiesDeclarees: Number(r.sorties_declarees),
+      entrees: Number(r.entrees),
+      sorties: Number(r.sorties),
       stockCalcule: Number(r.stock_calcule),
     }));
   }
@@ -1759,7 +1501,7 @@ export class IndicateursRepository {
    * Détail de P3. Pour un district (ADR 0011) : le couple réquisitions de la
    * zone couvrant M-1 / servies dans M par une distribution liée. Sinon : le
    * bandeau calendaire (un item par jour du mois PAQD, marqué s'il a porté ≥ 1
-   * sortie de stock — mêmes prédicats que `mv_p3_regularite`).
+   * sortie de stock : mêmes prédicats que `mv_p3_regularite`).
    */
   private async detailPilierP3(
     siteId: string,
@@ -1966,7 +1708,7 @@ export class IndicateursRepository {
    * vue). La concordance par produit (pilier P5) est un détail de mise en forme
    * lue directement de `mv_p4_ecart_produit` (colonnes `concordance_pct` /
    * `concordance_conforme` ajoutées migration 0033, sémantique NULL alignée sur
-   * `mv_p5_concordance`) — jamais recalculée ici.
+   * `mv_p5_concordance`), jamais recalculée ici.
    */
   private async detailPilierP4(
     siteId: string,
@@ -1994,6 +1736,7 @@ export class IndicateursRepository {
       receptions: string | null;
       declaree: string | null;
       reconstituee: string | null;
+      conso_borne_ok: boolean;
       conso_evaluable: boolean;
       conso_raison_exclusion: RaisonExclusionConso | null;
       ecart_conso_pct: string | null;
@@ -2011,7 +1754,7 @@ export class IndicateursRepository {
               ep.theorique, ep.comptee,
               ep.ecart_sdu_pct, ep.sdu_conforme,
               ep.stock_debut, ep.stock_fin, ep.receptions, ep.declaree, ep.reconstituee,
-              ep.conso_evaluable, ep.conso_raison_exclusion, ep.ecart_conso_pct, ep.conso_conforme,
+              ep.conso_borne_ok, ep.conso_evaluable, ep.conso_raison_exclusion, ep.ecart_conso_pct, ep.conso_conforme,
               ep.concordance_pct, ep.concordance_conforme,
               to_char(ep.date_inventaire, 'YYYY-MM-DD') AS date_inventaire,
               to_char(ep.date_debut, 'YYYY-MM-DD') AS date_debut,
@@ -2020,32 +1763,41 @@ export class IndicateursRepository {
        FROM dqa.mv_p4_ecart_produit ep
        JOIN dqa.dim_produit p ON p.produit_id = ep.produit_id
        WHERE ep.site_id = $1 AND ep.mois_paqd = $2 AND ep.programme_id IS NOT DISTINCT FROM $3
-       -- les articles d'un même code restent groupés, codes non conformes d'abord
-       ORDER BY bool_and(ep.sdu_conforme) OVER (PARTITION BY ep.produit_code),
+       -- les articles d'un même code restent groupés ; d'abord les codes non
+       -- conformes en consommation (la sous-composante retenue), puis écartés
+       ORDER BY min(CASE WHEN ep.conso_borne_ok AND NOT ep.conso_conforme THEN 0
+                         WHEN NOT ep.conso_borne_ok THEN 1 ELSE 2 END)
+                  OVER (PARTITION BY ep.produit_code),
                 ep.produit_code, ep.produit_id`,
       params,
     );
 
+    // P4 de n lit l'ouverture (fenêtre de n-1), la clôture (fenêtre de n) et
+    // les mouvements entre les deux : c'est cette période qui doit être
+    // surveillée pour signaler un ré-import postérieur au gel.
     const maj = await this.pool.query<{ core_maj_le: Date | null }>(
-      `SELECT GREATEST(
-         (SELECT max(fi.maj_le) FROM dqa.fact_inventaire fi
+      `WITH periode AS (SELECT (dqa.fenetre_cloture(dqa.mois_precedent($2))).debut AS debut,
+                               (dqa.fenetre_cloture($2)).fin AS fin)
+       SELECT GREATEST(
+         (SELECT max(fi.maj_le) FROM dqa.fact_inventaire fi, periode pe
            WHERE fi.site_id = $1 AND fi.statut = 'fn'
-             AND to_char(fi.date_inventaire, 'YYYY-MM') = $2
+             AND fi.date_inventaire BETWEEN pe.debut AND pe.fin
              AND ($3::text IS NULL OR fi.programme_id = $3)),
          (SELECT max(fil.maj_le) FROM dqa.fact_inventaire_ligne fil
-           JOIN dqa.fact_inventaire fi ON fi.inventaire_id = fil.inventaire_id
+           JOIN dqa.fact_inventaire fi ON fi.inventaire_id = fil.inventaire_id, periode pe
            WHERE fi.site_id = $1 AND fi.statut = 'fn'
-             AND to_char(fi.date_inventaire, 'YYYY-MM') = $2
+             AND fi.date_inventaire BETWEEN pe.debut AND pe.fin
              AND ($3::text IS NULL OR fi.programme_id = $3)),
-         (SELECT max(ft.maj_le) FROM dqa.fact_transaction ft
+         (SELECT max(ft.maj_le) FROM dqa.fact_transaction ft, periode pe
            WHERE ft.site_id = $1 AND ft.nature IN ('facture_fournisseur', 'dispensation', 'distribution')
              AND coalesce(ft.annulation, false) = false
-             AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $2
+             AND coalesce(ft.date_confirmation, ft.date_saisie) BETWEEN pe.debut AND pe.fin
              AND ($3::text IS NULL OR ft.programme_id = $3))
        ) AS core_maj_le`,
       params,
     );
 
+    const produitsEcartes = await this.produitsEcartes(siteId, mois);
     const produits: LigneProduitP4P5[] = rows.map((r) => {
       const bornes =
         r.date_debut !== null && r.date_fin !== null && r.reconstituee !== null
@@ -2073,10 +1825,7 @@ export class IndicateursRepository {
           ecartPct: nombreOuNull(r.ecart_sdu_pct),
           conforme: r.sdu_conforme,
         },
-        consommation:
-          r.conso_evaluable && bornes
-            ? { evaluable: true, ...bornes, ecartPct: Number(r.ecart_conso_pct), conforme: r.conso_conforme }
-            : { evaluable: false, raisonExclusion: r.conso_raison_exclusion ?? 'sans_ouverture', bornes },
+        consommation: this.consommationProduit(r, bornes),
         concordance: {
           tauxPct: nombreOuNull(r.concordance_pct),
           conforme: r.concordance_conforme,
@@ -2087,9 +1836,28 @@ export class IndicateursRepository {
     return {
       produits,
       estDistrict,
-      produitsEcartes: await this.produitsEcartes(siteId, mois),
+      produitsEcartes,
       coreMajLe: maj.rows[0]?.core_maj_le ?? null,
     };
+  }
+
+  /**
+   * Écart de consommation d'un article : chiffré, ou la raison donnée par la
+   * vue. Une raison absente pour un écart non chiffré trahirait une vue
+   * incohérente : on le signale au lieu d'inventer une raison.
+   */
+  private consommationProduit(
+    r: { conso_evaluable: boolean; conso_borne_ok: boolean; conso_raison_exclusion: RaisonExclusionConso | null;
+         ecart_conso_pct: string | null; conso_conforme: boolean },
+    bornes: NonNullable<Extract<LigneProduitP4P5['consommation'], { evaluable: false }>['bornes']> | null,
+  ): LigneProduitP4P5['consommation'] {
+    if (r.conso_evaluable && bornes) {
+      return { evaluable: true, ...bornes, ecartPct: Number(r.ecart_conso_pct), conforme: r.conso_conforme };
+    }
+    if (r.conso_raison_exclusion === null) {
+      throw new Error('mv_p4_ecart_produit : écart de consommation non chiffré sans raison');
+    }
+    return { evaluable: false, raison: r.conso_raison_exclusion, compteAuDenominateur: r.conso_borne_ok, bornes };
   }
 
   /**
@@ -2109,8 +1877,9 @@ export class IndicateursRepository {
     code: string,
     q: FicheProduitMoisQuery,
   ): Promise<FicheProduitMois | null> {
-    const site = await this.pool.query<LigneSite>(
-      `SELECT site_id, site_code, site_nom, district, region, type_structure
+    const site = await this.pool.query<LigneSite & { est_district: boolean }>(
+      `SELECT site_id, site_code, site_nom, district, region, type_structure,
+              dqa.est_district(type_structure) AS est_district
        FROM dqa.dim_site WHERE site_id = $1 AND dans_perimetre_dqa`,
       [siteId],
     );
@@ -2141,11 +1910,13 @@ export class IndicateursRepository {
       moisPaqd: mois ?? null,
       moisDisponibles,
       programmeId: prog,
+      estDistrict: siteRow.est_district,
     };
 
     if (!mois) {
       return {
         ...commun,
+        periode: null,
         inventaires: [],
         snapshots: [],
         receptions: [],
@@ -2160,7 +1931,53 @@ export class IndicateursRepository {
       };
     }
 
-    const params = [siteId, code, mois, prog];
+    // Période que P4 compare : ouverture et clôture du produit (ses articles),
+    // à défaut celles du site, à défaut les fenêtres de clôture (ADR 0022).
+    const per = await this.pool.query<{
+      debut: string; fin: string; debut_mouvements: string;
+      ouverture_connue: boolean; cloture_connue: boolean;
+    }>(
+      `WITH fenetres AS (
+         SELECT (dqa.fenetre_cloture(dqa.mois_precedent($3))).debut AS debut,
+                (dqa.fenetre_cloture($3)).fin                       AS fin
+       ),
+       produit AS (
+         SELECT min(ep.date_debut) AS ouverture, max(ep.date_inventaire) AS cloture
+         FROM dqa.mv_p4_ecart_produit ep
+         WHERE ep.site_id = $1 AND ep.produit_code = $2 AND ep.mois_paqd = $3
+           AND ep.programme_id IS NOT DISTINCT FROM $4
+       ),
+       site AS (
+         SELECT cm.date_ouverture AS ouverture, cm.date_cloture AS cloture
+         FROM dqa.mv_cloture_mois cm
+         WHERE cm.site_id = $1 AND cm.mois_paqd = $3 AND cm.programme_id IS NOT DISTINCT FROM $4
+       ),
+       bornes AS (
+         SELECT coalesce(p.ouverture, s.ouverture) AS ouverture,
+                coalesce(p.cloture, s.cloture)     AS cloture,
+                f.debut, f.fin
+         FROM fenetres f CROSS JOIN produit p LEFT JOIN site s ON true
+       )
+       SELECT to_char(coalesce(ouverture, debut), 'YYYY-MM-DD')        AS debut,
+              to_char(coalesce(cloture, fin), 'YYYY-MM-DD')            AS fin,
+              -- l'inventaire d'ouverture clôt le stock d'ouverture : les
+              -- mouvements comptent à partir du lendemain
+              to_char(coalesce(ouverture + 1, debut), 'YYYY-MM-DD')    AS debut_mouvements,
+              ouverture IS NOT NULL                                    AS ouverture_connue,
+              cloture IS NOT NULL                                      AS cloture_connue
+       FROM bornes`,
+      [siteId, code, mois, prog],
+    );
+    const pr = per.rows[0]!;
+    const periode = {
+      debut: pr.debut,
+      fin: pr.fin,
+      ouvertureConnue: pr.ouverture_connue,
+      clotureConnue: pr.cloture_connue,
+    };
+    // $1 site, $2 code, $3 programme, $4 et $5 : la période, bornes comprises
+    const pInventaires = [siteId, code, prog, pr.debut, pr.fin];
+    const pMouvements = [siteId, code, prog, pr.debut_mouvements, pr.fin];
 
     const inventaires = await this.pool.query<{
       date: string;
@@ -2178,11 +1995,11 @@ export class IndicateursRepository {
        JOIN dqa.fact_inventaire_ligne fil ON fil.inventaire_id = fi.inventaire_id
        JOIN dqa.dim_produit p ON p.produit_id = fil.produit_id AND p.produit_code = $2
        WHERE fi.site_id = $1 AND fi.statut = 'fn'
-         AND to_char(fi.date_inventaire, 'YYYY-MM') = $3
-         AND ($4::text IS NULL OR fi.programme_id = $4)
+         AND fi.date_inventaire BETWEEN $4::date AND $5::date
+         AND ($3::text IS NULL OR fi.programme_id = $3)
        GROUP BY fi.inventaire_id, fi.date_inventaire, fi.statut
        ORDER BY fi.date_inventaire, fi.inventaire_id`,
-      params,
+      pInventaires,
     );
 
     const snapshots = await this.pool.query<{ date_photo: string; quantite_disponible: string }>(
@@ -2190,10 +2007,10 @@ export class IndicateursRepository {
               sum(fss.quantite_disponible)          AS quantite_disponible
        FROM dqa.fact_stock_snapshot fss
        JOIN dqa.dim_produit p ON p.produit_id = fss.produit_id AND p.produit_code = $2
-       WHERE fss.site_id = $1 AND to_char(fss.date_photo, 'YYYY-MM') = $3
+       WHERE fss.site_id = $1 AND fss.date_photo BETWEEN $3::date AND $4::date
        GROUP BY fss.date_photo
        ORDER BY fss.date_photo`,
-      [siteId, code, mois],
+      [siteId, code, pr.debut, pr.fin],
     );
 
     const receptions = await this.pool.query<{ date: string; quantite: string }>(
@@ -2205,25 +2022,26 @@ export class IndicateursRepository {
        WHERE ft.site_id = $1 AND ft.nature = 'facture_fournisseur'
          AND ft.statut = 'fn' AND coalesce(ft.annulation, false) = false
          AND NOT coalesce(fl.issu_ajustement, false)
-         AND to_char(r.jour, 'YYYY-MM') = $3
-         AND ($4::text IS NULL OR ft.programme_id = $4)
+         AND r.jour BETWEEN $4::date AND $5::date
+         AND ($3::text IS NULL OR ft.programme_id = $3)
        GROUP BY ft.transaction_id, r.jour
        ORDER BY r.jour, ft.transaction_id`,
-      params,
+      pMouvements,
     );
 
+    // la consommation déclarée d'un district est sa distribution (ADR 0018)
     const dispensations = await this.pool.query<{ total: string | null; nb_jours: number }>(
       `SELECT sum(fl.quantite_unitaire)                                              AS total,
               count(DISTINCT coalesce(ft.date_confirmation, ft.date_saisie))::int    AS nb_jours
        FROM dqa.fact_transaction ft
        JOIN dqa.fact_ligne_transaction fl ON fl.transaction_id = ft.transaction_id
        JOIN dqa.dim_produit p ON p.produit_id = fl.produit_id AND p.produit_code = $2
-       WHERE ft.site_id = $1 AND ft.nature = 'dispensation' AND ft.statut = 'fn'
+       WHERE ft.site_id = $1 AND ft.statut = 'fn'
+         AND ft.nature = $6
          AND coalesce(ft.annulation, false) = false
-         AND coalesce(ft.date_confirmation, ft.date_saisie) IS NOT NULL
-         AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $3
-         AND ($4::text IS NULL OR ft.programme_id = $4)`,
-      params,
+         AND coalesce(ft.date_confirmation, ft.date_saisie) BETWEEN $4::date AND $5::date
+         AND ($3::text IS NULL OR ft.programme_id = $3)`,
+      [...pMouvements, siteRow.est_district ? 'distribution' : 'dispensation'],
     );
 
     const ajustements = await this.pool.query<{
@@ -2244,12 +2062,11 @@ export class IndicateursRepository {
        JOIN dqa.dim_produit p ON p.produit_id = fl.produit_id AND p.produit_code = $2
        WHERE ft.site_id = $1 AND ft.statut = 'fn'
          AND coalesce(ft.annulation, false) = false
-         AND coalesce(ft.date_confirmation, ft.date_saisie) IS NOT NULL
-         AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $3
-         AND ($4::text IS NULL OR ft.programme_id = $4)
+         AND coalesce(ft.date_confirmation, ft.date_saisie) BETWEEN $4::date AND $5::date
+         AND ($3::text IS NULL OR ft.programme_id = $3)
          AND (fl.issu_ajustement OR ft.nature IN ('ajustement_positif', 'ajustement_negatif'))
        ORDER BY coalesce(ft.date_confirmation, ft.date_saisie), fl.ligne_id`,
-      params,
+      pMouvements,
     );
 
     const conso = await this.pool.query<{
@@ -2257,66 +2074,57 @@ export class IndicateursRepository {
       stock_fin: string | null;
       declaree: string | null;
       reconstituee: string | null;
+      ecart: string | null;
     }>(
       // un code = un produit : ses articles s'additionnent, et la consommation
       // n'est connue que si chacun a ses deux bornes (ADR 0016)
       `SELECT CASE WHEN bool_and(ep.conso_borne_ok) THEN sum(ep.stock_debut) END  AS stock_debut,
               CASE WHEN bool_and(ep.conso_borne_ok) THEN sum(ep.stock_fin) END    AS stock_fin,
               CASE WHEN bool_and(ep.conso_borne_ok) THEN sum(ep.declaree) END     AS declaree,
-              CASE WHEN bool_and(ep.conso_borne_ok) THEN sum(ep.reconstituee) END AS reconstituee
+              CASE WHEN bool_and(ep.conso_borne_ok) THEN sum(ep.reconstituee) END AS reconstituee,
+              CASE WHEN bool_and(ep.conso_borne_ok) THEN sum(ep.ecart_conso) END  AS ecart
        FROM dqa.mv_p4_ecart_produit ep
        WHERE ep.site_id = $1 AND ep.produit_code = $2 AND ep.mois_paqd = $3
          AND ep.programme_id IS NOT DISTINCT FROM $4`,
-      params,
+      [siteId, code, mois, prog],
     );
     const cp = conso.rows[0];
-    const reconstituee = nombreOuNull(cp?.reconstituee ?? null);
-    const declaree = nombreOuNull(cp?.declaree ?? null);
-    const ecartConso =
-      reconstituee !== null && declaree !== null ? declaree - reconstituee : null;
 
     const calculeLe = await this.horodatageGelFiche(siteId, mois, prog);
 
+    // Toute écriture du core sur la période après le gel : la fiche, lue en
+    // direct, peut alors différer des comptes figés.
     const maj = await this.pool.query<{ core_maj_le: Date | null }>(
       `SELECT GREATEST(
-         (SELECT max(fi.maj_le) FROM dqa.fact_inventaire fi
+         (SELECT max(GREATEST(fi.maj_le, fil.maj_le)) FROM dqa.fact_inventaire fi
             JOIN dqa.fact_inventaire_ligne fil ON fil.inventaire_id = fi.inventaire_id
             JOIN dqa.dim_produit p ON p.produit_id = fil.produit_id AND p.produit_code = $2
            WHERE fi.site_id = $1 AND fi.statut = 'fn'
-             AND to_char(fi.date_inventaire, 'YYYY-MM') = $3
-             AND ($4::text IS NULL OR fi.programme_id = $4)),
-         (SELECT max(fil.maj_le) FROM dqa.fact_inventaire fi
-            JOIN dqa.fact_inventaire_ligne fil ON fil.inventaire_id = fi.inventaire_id
-            JOIN dqa.dim_produit p ON p.produit_id = fil.produit_id AND p.produit_code = $2
-           WHERE fi.site_id = $1 AND fi.statut = 'fn'
-             AND to_char(fi.date_inventaire, 'YYYY-MM') = $3
-             AND ($4::text IS NULL OR fi.programme_id = $4)),
+             AND fi.date_inventaire BETWEEN $4::date AND $5::date
+             AND ($3::text IS NULL OR fi.programme_id = $3)),
          (SELECT max(fss.maj_le) FROM dqa.fact_stock_snapshot fss
             JOIN dqa.dim_produit p ON p.produit_id = fss.produit_id AND p.produit_code = $2
-           WHERE fss.site_id = $1 AND to_char(fss.date_photo, 'YYYY-MM') = $3),
-         (SELECT max(ft.maj_le) FROM dqa.fact_transaction ft
+           WHERE fss.site_id = $1 AND fss.date_photo BETWEEN $4::date AND $5::date),
+         (SELECT max(GREATEST(ft.maj_le, fl.maj_le)) FROM dqa.fact_transaction ft
             JOIN dqa.fact_ligne_transaction fl ON fl.transaction_id = ft.transaction_id
             JOIN dqa.dim_produit p ON p.produit_id = fl.produit_id AND p.produit_code = $2
            WHERE ft.site_id = $1 AND coalesce(ft.annulation, false) = false
-             AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $3
-             AND ($4::text IS NULL OR ft.programme_id = $4)
+             AND CASE WHEN ft.nature = 'facture_fournisseur'
+                      THEN dqa.date_reception_facture(ft.date_finalisation, ft.date_confirmation, ft.date_saisie)
+                      ELSE coalesce(ft.date_confirmation, ft.date_saisie)
+                 END BETWEEN $6::date AND $5::date
+             AND ($3::text IS NULL OR ft.programme_id = $3)
              AND (fl.issu_ajustement
-                  OR ft.nature IN ('facture_fournisseur', 'dispensation', 'ajustement_positif', 'ajustement_negatif'))),
-         (SELECT max(fl.maj_le) FROM dqa.fact_transaction ft
-            JOIN dqa.fact_ligne_transaction fl ON fl.transaction_id = ft.transaction_id
-            JOIN dqa.dim_produit p ON p.produit_id = fl.produit_id AND p.produit_code = $2
-           WHERE ft.site_id = $1 AND coalesce(ft.annulation, false) = false
-             AND to_char(coalesce(ft.date_confirmation, ft.date_saisie), 'YYYY-MM') = $3
-             AND ($4::text IS NULL OR ft.programme_id = $4)
-             AND (fl.issu_ajustement
-                  OR ft.nature IN ('facture_fournisseur', 'dispensation', 'ajustement_positif', 'ajustement_negatif')))
+                  OR ft.nature IN ('facture_fournisseur', 'dispensation', 'distribution',
+                                   'ajustement_positif', 'ajustement_negatif')))
        ) AS core_maj_le`,
-      params,
+      [...pInventaires, pr.debut_mouvements],
     );
     const coreMajLe = maj.rows[0]?.core_maj_le ?? null;
 
     return {
       ...commun,
+      periode,
       inventaires: inventaires.rows.map((r) => ({
         date: r.date,
         statut: r.statut,
@@ -2338,7 +2146,11 @@ export class IndicateursRepository {
         quantite: Number(r.quantite),
         sens: r.sens,
       })),
-      consommation: { reconstituee, declaree, ecart: ecartConso },
+      consommation: {
+        reconstituee: nombreOuNull(cp?.reconstituee ?? null),
+        declaree: nombreOuNull(cp?.declaree ?? null),
+        ecart: nombreOuNull(cp?.ecart ?? null),
+      },
       stockDebut: nombreOuNull(cp?.stock_debut ?? null),
       stockFin: nombreOuNull(cp?.stock_fin ?? null),
       calculeLe: calculeLe ? calculeLe.toISOString() : null,

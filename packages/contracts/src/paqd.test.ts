@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  classifier,
   CLASSIFICATIONS,
   dateIsoSchema,
   LIBELLES_PILIER,
   libelleSousComposante,
   PILIER_DE_SOUS_COMPOSANTE,
   PILIERS,
-  POIDS_PILIER,
   resultatImportSchema,
   SOUS_COMPOSANTES,
   SOUS_COMPOSANTES_DU_PILIER,
@@ -23,28 +21,6 @@ describe('libellés de pilier', () => {
     expect(libelleSousComposante('ecart_sdu', false)).toBe('Conformité SDU');
     expect(libelleSousComposante('ecart_consommation', false)).toBe('Conformité consommation');
     expect(libelleSousComposante('ecart_consommation', true)).toBe('Conformité distribution');
-  });
-});
-
-describe('poids des piliers', () => {
-  it('somme à 1', () => {
-    const somme = PILIERS.reduce((acc, p) => acc + POIDS_PILIER[p], 0);
-    expect(somme).toBeCloseTo(1, 10);
-  });
-});
-
-describe('classifier', () => {
-  it('CONFORME au seuil de 90 et au-dessus', () => {
-    expect(classifier(90)).toBe('CONFORME');
-    expect(classifier(100)).toBe('CONFORME');
-  });
-  it('PARTIELLEMENT_CONFORME entre 75 et 89', () => {
-    expect(classifier(75)).toBe('PARTIELLEMENT_CONFORME');
-    expect(classifier(89.9)).toBe('PARTIELLEMENT_CONFORME');
-  });
-  it('NON_CONFORME en dessous de 75', () => {
-    expect(classifier(74.9)).toBe('NON_CONFORME');
-    expect(classifier(0)).toBe('NON_CONFORME');
   });
 });
 
@@ -64,13 +40,13 @@ describe('sous-composantes', () => {
       expect(PILIERS).toContain(PILIER_DE_SOUS_COMPOSANTE[sc]);
     }
   });
-  it('la liste par pilier couvre exactement les 10 sous-composantes', () => {
+  it('la liste par pilier couvre exactement les 9 sous-composantes (ADR 0019)', () => {
     const aplat = PILIERS.flatMap((p) => SOUS_COMPOSANTES_DU_PILIER[p]);
     expect([...aplat].sort()).toEqual([...SOUS_COMPOSANTES].sort());
-    expect(SOUS_COMPOSANTES).toHaveLength(10);
+    expect(SOUS_COMPOSANTES).toHaveLength(9);
   });
-  it('P1 en a trois, P2 et P4 deux, P3/P5/P6 une', () => {
-    expect(SOUS_COMPOSANTES_DU_PILIER.P1).toHaveLength(3);
+  it('P1, P2 et P4 en ont deux, P3, P5 et P6 une', () => {
+    expect(SOUS_COMPOSANTES_DU_PILIER.P1).toHaveLength(2);
     expect(SOUS_COMPOSANTES_DU_PILIER.P2).toHaveLength(2);
     expect(SOUS_COMPOSANTES_DU_PILIER.P3).toHaveLength(1);
     expect(SOUS_COMPOSANTES_DU_PILIER.P4).toHaveLength(2);

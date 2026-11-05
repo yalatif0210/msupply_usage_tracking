@@ -5,10 +5,11 @@ import { demarrerBaseEphemere, type BaseEphemere } from './helpers/db.js';
 
 /**
  * ADR 0022 : P4 et P5 reposent sur l'inventaire de clôture du mois (3 derniers
- * jours du mois ou 1er du mois suivant) ; l'ouverture est la clôture du mois
- * précédent. Sans clôture : 0 sur P4 et P5 ; sans ouverture : 0 sur l'écart de
- * consommation. Aucune sanction tant que les données ne couvrent pas la
- * fenêtre de clôture.
+ * jours du mois ou 1er du mois suivant), qui doit porter un produit traceur ;
+ * l'ouverture est la clôture du mois précédent. Une fois le mois jugé (sa
+ * fenêtre de clôture et 3 jours de marge couverts par les imports) : sans
+ * clôture, note de sanction sur P4 et P5 ; sans ouverture ou sans produit
+ * commun aux deux inventaires, note de sanction sur la conformité consommation.
  */
 describe('clôture de mois (P4, P5)', () => {
   let base: BaseEphemere;
@@ -30,10 +31,11 @@ describe('clôture de mois (P4, P5)', () => {
       dqa.dim_produit_traceur, dqa.dim_produit, dqa.dim_programme, dqa.dim_site,
       dqa.import_lot RESTART IDENTITY CASCADE`);
     await db.query(`DELETE FROM dqa.grille_parametre WHERE version <> 'v1'`);
-    // lot sans fenêtre : les données sont réputées couvrir jusqu'à aujourd'hui
+    // fenêtre d'extraction du 1er juillet au 30 septembre : août est jugé (sa
+    // fenêtre de clôture, du 29/08 au 01/09, plus 3 jours de marge, est couverte)
     await db.query(
-      `INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, statut)
-       VALUES ('t.xlsx','2026-C2','2026-08','2026-08-01','2026-08-31','valide')`,
+      `INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, statut, fenetre_debut, fenetre_fin)
+       VALUES ('t.xlsx','2026-C2','2026-08','2026-08-01','2026-08-31','valide','2026-07-01','2026-09-30')`,
     );
     await db.query(`INSERT INTO dqa.dim_site (site_id, site_nom, dans_perimetre_dqa) VALUES ('S1','CSU',true)`);
     await db.query(`INSERT INTO dqa.dim_programme (programme_id, programme_nom) VALUES ('P1','VIH')`);
@@ -42,6 +44,8 @@ describe('clôture de mois (P4, P5)', () => {
       await db.query(`INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom) VALUES ($1,$2,$1)`, [id, code]);
       await db.query(`INSERT INTO dqa.dim_produit_traceur (produit_code, libelle) VALUES ($1,$1)`, [code]);
     }
+    // un produit qui n'est pas traceur
+    await db.query(`INSERT INTO dqa.dim_produit (produit_id, produit_code, produit_nom) VALUES ('I9','X9','I9')`);
   });
 
   /** Grille v2, copie de la v1 avec d'autres règles, en vigueur à partir de `effet`. */
@@ -128,11 +132,16 @@ describe('clôture de mois (P4, P5)', () => {
   it('mois_cloture_inventaire : 3 derniers jours du mois ou 1er du suivant', async () => {
     const { rows } = await db.query<{ d: string; m: string | null }>(
       `SELECT d::text, dqa.mois_cloture_inventaire(d::date) AS m
-       FROM unnest(ARRAY['2026-08-28','2026-08-29','2026-08-31','2026-09-01','2026-09-02','2026-09-27','2026-09-28','2026-02-26']) d`,
+       FROM unnest(ARRAY['2026-08-28','2026-08-29','2026-08-31','2026-09-01','2026-09-02','2026-09-27','2026-09-28','2026-02-26',
+                         '2026-12-29','2027-01-01','2027-01-02','2028-02-26','2028-02-27','2028-02-29','2028-03-01']) d`,
     );
     expect(Object.fromEntries(rows.map((r) => [r.d, r.m]))).toEqual({
       '2026-08-28': null, '2026-08-29': '2026-08', '2026-08-31': '2026-08', '2026-09-01': '2026-08',
       '2026-09-02': null, '2026-09-27': null, '2026-09-28': '2026-09', '2026-02-26': '2026-02',
+      // changement d'année : le 1er janvier clôture décembre
+      '2026-12-29': '2026-12', '2027-01-01': '2026-12', '2027-01-02': null,
+      // février bissextile : les 3 derniers jours sont les 27, 28 et 29
+      '2028-02-26': null, '2028-02-27': '2028-02', '2028-02-29': '2028-02', '2028-03-01': '2028-02',
     });
   });
 
@@ -213,7 +222,7 @@ describe('clôture de mois (P4, P5)', () => {
     const sc = (pilier: string, code: string) =>
       d?.piliers.find((p) => p.pilier === pilier)?.sousComposantes.find((s) => s.sousComposante === code);
     expect(sc('P5', 'concordance')).toMatchObject({ statut: 'ALERTE', valeur: 0 });
-    expect(sc('P5', 'concordance')?.raison).toBe('Inventaire du 20/08/2026 hors de la fenêtre de clôture (du 29/08/2026 au 01/09/2026) : P4 et P5 à 0');
+    expect(sc('P5', 'concordance')?.raison).toBe('Inventaire du 20/08/2026 hors de la fenêtre de clôture (du 29/08/2026 au 01/09/2026) : sanction, note 0');
     expect(sc('P4', 'ecart_consommation')?.raison).toBe(sc('P5', 'concordance')?.raison);
   });
 
@@ -224,7 +233,7 @@ describe('clôture de mois (P4, P5)', () => {
     const p4 = d?.piliers.find((p) => p.pilier === 'P4');
     const conso = p4?.sousComposantes.find((s) => s.sousComposante === 'ecart_consommation');
     expect(conso).toMatchObject({ statut: 'ALERTE', valeur: 0 });
-    expect(conso?.raison).toBe("Pas d'inventaire d'ouverture (clôture du mois précédent) : écart de consommation à 0");
+    expect(conso?.raison).toBe("Pas d'inventaire d'ouverture (clôture du mois précédent) : sanction, note 0");
     expect(p4?.sousComposantes.find((s) => s.sousComposante === 'ecart_sdu')?.raison).toBeNull();
   });
 
@@ -265,18 +274,35 @@ describe('clôture de mois (P4, P5)', () => {
     expect(d?.calcul?.regles.noteSanction).toBe(40);
   });
 
-  it('grille datée : bornes de classification', async () => {
-    const { rows } = await db.query<{ v1: string; v2: string }>(
-      `SELECT dqa.classer_composite(85, dqa.grille_pour_mois('2026-01')) AS v1,
-              dqa.classer_composite(85, (SELECT id FROM dqa.grille_parametre WHERE version = 'v1')) AS v2`,
+  it('grille datée : la classification lit les bornes de la grille du mois, borne comprise', async () => {
+    await inventaire('O', '2026-07-31', [['I1', 100, 100]]);
+    await inventaire('C', '2026-08-31', [['I1', 70, 70]]);
+    await dispensation('D1', '2026-08-15', 'I1', 30);
+    await calculer();
+    const gele = async () => {
+      const { rows } = await db.query<{ score_composite: string; classification: string }>(
+        `SELECT score_composite, classification FROM dqa.hist_score_site
+         WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+      );
+      return rows[0]!;
+    };
+    const composite = Number((await gele()).score_composite);
+    // borne conforme égale au composite : la borne est atteinte
+    // la borne basse d'abord : chaque mise à jour garde 0 < partiellement conforme < conforme
+    await grilleV2('2026-08-01', { borne_partiellement_conforme: composite / 2, borne_conforme: composite });
+    await calculer();
+    expect((await gele()).classification).toBe('CONFORME');
+    // un dixième au-dessus : partiellement conforme
+    await db.query(`UPDATE dqa.grille_parametre SET borne_conforme = $1 WHERE version = 'v2'`, [composite + 0.1]);
+    await calculer();
+    expect((await gele()).classification).toBe('PARTIELLEMENT_CONFORME');
+    // juillet, avant la date d'effet, garde la grille v1
+    const juillet = await db.query<{ grille_id: string }>(
+      `SELECT grille_id::text FROM dqa.hist_score_site WHERE site_id = 'S1' AND mois_paqd = '2026-07' AND programme_id IS NULL`,
     );
-    expect(rows[0]).toEqual({ v1: 'PARTIELLEMENT_CONFORME', v2: 'PARTIELLEMENT_CONFORME' });
-    await grilleV2('2026-08-01', { borne_conforme: 80, borne_partiellement_conforme: 60 });
-    const r2 = await db.query<{ c: string; p: string }>(
-      `SELECT dqa.classer_composite(85, dqa.grille_pour_mois('2026-08')) AS c,
-              dqa.classer_composite(65, dqa.grille_pour_mois('2026-08')) AS p`,
-    );
-    expect(r2.rows[0]).toEqual({ c: 'CONFORME', p: 'PARTIELLEMENT_CONFORME' });
+    for (const r of juillet.rows) {
+      expect(r.grille_id).toBe((await db.query<{ id: string }>(`SELECT id::text FROM dqa.grille_parametre WHERE version = 'v1'`)).rows[0]!.id);
+    }
   });
 
   it('données couvrant la clôture, sans inventaire : 0 sur P4 et P5', async () => {
@@ -285,6 +311,113 @@ describe('clôture de mois (P4, P5)', () => {
     await dispensation('D1', '2026-08-15', 'I1', 30);
     await calculer();
     expect(await p4p5()).toEqual({ taux_sdu_pct: '0.0', taux_conso_pct: '0.0', taux_concordance_pct: '0.0' });
+  });
+
+  it('clôture sans traceur : ce n\'est pas une clôture, sanction sur P4 et P5', async () => {
+    await inventaire('O', '2026-07-31', [['I1', 100, 100]]);
+    await inventaire('C', '2026-08-31', [['I9', 70, 70]]); // seul un produit non traceur
+    await dispensation('D1', '2026-08-15', 'I1', 30);
+    await calculer();
+    expect(await p4p5()).toEqual({ taux_sdu_pct: '0.0', taux_conso_pct: '0.0', taux_concordance_pct: '0.0' });
+    const { rows } = await db.query(
+      `SELECT cause_cloture, a_cloture FROM dqa.mv_cloture_mois WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+    );
+    expect(rows[0]).toEqual({ cause_cloture: 'sans_cloture', a_cloture: false });
+  });
+
+  it('ouverture et clôture sans produit commun : sanction sur la consommation, P5 calculé', async () => {
+    await inventaire('O', '2026-07-31', [['I1', 100, 100]]);
+    await inventaire('C', '2026-08-31', [['I2', 10, 10]]);
+    await calculer();
+    expect(await p4p5()).toEqual({ taux_sdu_pct: '100.0', taux_conso_pct: '0.0', taux_concordance_pct: '100.0' });
+    const { rows } = await db.query(
+      `SELECT sanction_conso, cause_consommation FROM dqa.mv_p4_ecart
+       WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+    );
+    expect(rows[0]).toEqual({ sanction_conso: true, cause_consommation: 'sans_produit_commun' });
+    const d = await new IndicateursRepository(db).detailSite('S1', '2026-08', undefined);
+    const conso = d?.piliers.find((p) => p.pilier === 'P4')?.sousComposantes.find((sc) => sc.sousComposante === 'ecart_consommation');
+    expect(conso?.raison).toBe("Aucun produit commun aux inventaires d'ouverture et de clôture : sanction, note 0");
+  });
+
+  it('marge de jugement : août est jugé quand les imports couvrent le 4 septembre', async () => {
+    await inventaire('O', '2026-07-31', [['I1', 100, 100]]);
+    await dispensation('D1', '2026-08-15', 'I1', 30);
+    await fenetreDonnees('2026-07-01', '2026-09-03');
+    await calculer();
+    expect(await p4p5()).toEqual({ taux_sdu_pct: null, taux_conso_pct: null, taux_concordance_pct: null });
+    await fenetreDonnees('2026-07-01', '2026-09-04');
+    await calculer();
+    expect(await p4p5()).toEqual({ taux_sdu_pct: '0.0', taux_conso_pct: '0.0', taux_concordance_pct: '0.0' });
+  });
+
+  it('marge de jugement lue dans la grille du mois', async () => {
+    await grilleV2('2026-08-01', { jours_marge_jugement: 0 });
+    await inventaire('O', '2026-07-31', [['I1', 100, 100]]);
+    await dispensation('D1', '2026-08-15', 'I1', 30);
+    await fenetreDonnees('2026-07-01', '2026-09-01');
+    await calculer();
+    expect((await p4p5())?.taux_concordance_pct).toBe('0.0');
+  });
+
+  it('deux imports contigus couvrent la fenêtre : le mois est jugé', async () => {
+    await fenetreDonnees('2026-07-01', '2026-08-30');
+    await db.query(
+      `INSERT INTO dqa.import_lot (nom_fichier, cycle_paqd, mois_paqd, mois_debut, mois_fin, fenetre_debut, fenetre_fin, statut)
+       VALUES ('t2.xlsx','2026-C3','2026-09','2026-09-01','2026-09-30','2026-08-31','2026-09-30','valide')`,
+    );
+    await inventaire('O', '2026-07-31', [['I1', 100, 100]]);
+    await dispensation('D1', '2026-08-15', 'I1', 30);
+    await calculer();
+    expect(await p4p5()).toEqual({ taux_sdu_pct: '0.0', taux_conso_pct: '0.0', taux_concordance_pct: '0.0' });
+  });
+
+  it('grille sans jour du mois suivant : un inventaire du 1er ne clôture plus le mois', async () => {
+    await grilleV2('2026-08-01', { jours_cloture_mois_suivant: 0 });
+    await inventaire('O', '2026-07-31', [['I1', 100, 100]]);
+    await inventaire('C', '2026-09-01', [['I1', 70, 70]]);
+    await calculer();
+    expect(await produits()).toEqual({});
+    expect((await p4p5())?.taux_concordance_pct).toBe('0.0');
+  });
+
+  it('deux inventaires le même jour : le plus tardif est retenu', async () => {
+    await inventaire('O', '2026-07-31', [['I1', 100, 100]]);
+    await inventaire('C1', '2026-08-31', [['I1', 80, 50]]);
+    await inventaire('C2', '2026-08-31', [['I1', 70, 70]]);
+    await db.query(`UPDATE dqa.fact_inventaire SET heure_inventaire = '09:00' WHERE inventaire_id = 'C1'`);
+    await db.query(`UPDATE dqa.fact_inventaire SET heure_inventaire = '17:00' WHERE inventaire_id = 'C2'`);
+    await calculer();
+    expect((await p4p5())?.taux_concordance_pct).toBe('100.0');
+  });
+
+  it('sanction à note non nulle sur P5 et au grain programme', async () => {
+    await grilleV2('2026-08-01', { note_sanction: 40 });
+    await inventaire('O', '2026-07-31', [['I1', 100, 100]]);
+    await inventaire('H', '2026-08-20', [['I1', 70, 70]]); // hors fenêtre
+    await calculer();
+    const { rows } = await db.query(
+      `SELECT programme_id, score_concordance, sanction FROM dqa.mv_p5_concordance
+       WHERE site_id = 'S1' AND mois_paqd = '2026-08' ORDER BY programme_id NULLS FIRST`,
+    );
+    expect(rows).toEqual([
+      { programme_id: null, score_concordance: '40.0', sanction: true },
+      { programme_id: 'P1', score_concordance: '40.0', sanction: true },
+    ]);
+  });
+
+  it('gel : une ligne qui n\'est plus calculée sort de l\'historique', async () => {
+    await inventaire('C', '2026-08-31', [['I1', 70, 70]]);
+    await calculer();
+    const ligne = () => db.query(
+      `SELECT 1 FROM dqa.hist_score_site WHERE site_id = 'S1' AND mois_paqd = '2026-08' AND programme_id IS NULL`,
+    );
+    expect((await ligne()).rowCount).toBe(1);
+    // le ré-import retire l'inventaire : plus aucune activité du site en août
+    await db.query(`DELETE FROM dqa.fact_inventaire_ligne`);
+    await db.query(`DELETE FROM dqa.fact_inventaire`);
+    await calculer();
+    expect((await ligne()).rowCount).toBe(0);
   });
 
   // ── Produits absents d'un inventaire (ticket 05) ──────────────────────────
@@ -365,7 +498,7 @@ describe('clôture de mois (P4, P5)', () => {
     expect(rows[0]).toEqual({ nb_absents_ouverture: 0, nb_oublis_ouverture: 0, nb_absents_cloture: 1, nb_oublis_cloture: 1 });
   });
 
-  // ── Corrections de la revue (migration 0061) ──────────────────────────────
+  // ── Grain programme et jugement du mois (migration 0062) ────────────────
   it('grain programme : un programme géré sans clôture prend 0 sur P4 et P5, la raison le dit', async () => {
     await db.query(`INSERT INTO dqa.dim_programme (programme_id, programme_nom) VALUES ('P2','PALU')`);
     // clôture du site faite sous un autre programme (P2) ; P1, géré, n'a pas la sienne

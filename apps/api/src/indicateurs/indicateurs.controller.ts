@@ -1,27 +1,35 @@
 import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
 import type {
   DetailPilier,
+  DetailPilierQuery,
   DetailSite,
+  DetailSiteQuery,
   FicheProduitMois,
+  FicheProduitMoisQuery,
+  FiltreSites,
+  HistoriqueQuery,
   HistoriqueSite,
   MethodeCalcul,
+  MethodeCalculQuery,
   Programme,
   ScoreSite,
   SyntheseNationale,
+  SyntheseQuery,
   SyntheseRapports,
   TableauDeBord,
 } from '@dqa/contracts';
 import {
   codeDetailPilierSchema,
   detailPilierQuerySchema,
+  detailSiteQuerySchema,
   ficheProduitMoisQuerySchema,
   filtreSitesSchema,
   historiqueQuerySchema,
   methodeCalculQuerySchema,
-  moisPaqdSchema,
   syntheseQuerySchema,
   type MoisMesure,
 } from '@dqa/contracts';
+import { ZodValidationPipe } from '../commun/zod-validation.pipe.js';
 import { IndicateursRepository } from './indicateurs.repository.js';
 
 @Controller()
@@ -29,19 +37,16 @@ export class IndicateursController {
   constructor(private readonly repo: IndicateursRepository) {}
 
   @Get('sites')
-  sites(@Query() query: Record<string, string>): Promise<ScoreSite[]> {
-    const f = filtreSitesSchema.parse(query);
+  sites(@Query(new ZodValidationPipe(filtreSitesSchema)) f: FiltreSites): Promise<ScoreSite[]> {
     return this.repo.listerSites(f);
   }
 
   @Get('sites/:id')
   async detailSite(
     @Param('id') id: string,
-    @Query('mois') mois?: string,
-    @Query('programmeId') programmeId?: string,
+    @Query(new ZodValidationPipe(detailSiteQuerySchema)) q: DetailSiteQuery,
   ): Promise<DetailSite> {
-    const moisValide = mois ? moisPaqdSchema.parse(mois) : undefined;
-    const detail = await this.repo.detailSite(id, moisValide, programmeId || undefined);
+    const detail = await this.repo.detailSite(id, q.mois, q.programmeId);
     if (!detail) throw new NotFoundException('Site hors périmètre ou inconnu');
     return detail;
   }
@@ -49,9 +54,8 @@ export class IndicateursController {
   @Get('sites/:id/historique')
   async historiqueSite(
     @Param('id') id: string,
-    @Query() query: Record<string, string>,
+    @Query(new ZodValidationPipe(historiqueQuerySchema)) q: HistoriqueQuery,
   ): Promise<HistoriqueSite> {
-    const q = historiqueQuerySchema.parse(query);
     const h = await this.repo.historiqueSite(id, q);
     if (!h) throw new NotFoundException('Site hors périmètre ou inconnu');
     return h;
@@ -66,13 +70,12 @@ export class IndicateursController {
   async detailPilier(
     @Param('id') id: string,
     @Param('code') code: string,
-    @Query() query: Record<string, string>,
+    @Query(new ZodValidationPipe(detailPilierQuerySchema)) q: DetailPilierQuery,
   ): Promise<DetailPilier> {
     const codeDetail = codeDetailPilierSchema.safeParse(code);
     if (!codeDetail.success) {
       throw new NotFoundException(`Détail du pilier ${code} non disponible`);
     }
-    const q = detailPilierQuerySchema.parse(query);
     const detail = await this.repo.detailPilier(id, codeDetail.data, q);
     if (!detail) throw new NotFoundException('Site hors périmètre ou inconnu');
     return detail;
@@ -87,9 +90,8 @@ export class IndicateursController {
   async ficheProduitMois(
     @Param('id') id: string,
     @Param('code') code: string,
-    @Query() query: Record<string, string>,
+    @Query(new ZodValidationPipe(ficheProduitMoisQuerySchema)) q: FicheProduitMoisQuery,
   ): Promise<FicheProduitMois> {
-    const q = ficheProduitMoisQuerySchema.parse(query);
     const fiche = await this.repo.ficheProduitMois(id, code, q);
     if (!fiche) throw new NotFoundException('Produit traceur ou site introuvable');
     return fiche;
@@ -97,28 +99,27 @@ export class IndicateursController {
 
   /** Grille d'un mois décrite pour les écrans de lecture : composition, seuils, règles. */
   @Get('methode-calcul')
-  async methodeCalcul(@Query() query: Record<string, string>): Promise<MethodeCalcul> {
-    const m = await this.repo.methodeCalcul(methodeCalculQuerySchema.parse(query));
+  async methodeCalcul(
+    @Query(new ZodValidationPipe(methodeCalculQuerySchema)) q: MethodeCalculQuery,
+  ): Promise<MethodeCalcul> {
+    const m = await this.repo.methodeCalcul(q);
     if (m === null) throw new NotFoundException('Aucune grille en vigueur pour ce mois');
     return m;
   }
 
   @Get('synthese')
-  synthese(@Query() query: Record<string, string>): Promise<SyntheseNationale> {
-    const q = syntheseQuerySchema.parse(query);
+  synthese(@Query(new ZodValidationPipe(syntheseQuerySchema)) q: SyntheseQuery): Promise<SyntheseNationale> {
     return this.repo.synthese(q);
   }
 
   @Get('synthese/rapports')
-  syntheseRapports(@Query() query: Record<string, string>): Promise<SyntheseRapports> {
-    const q = syntheseQuerySchema.parse(query);
+  syntheseRapports(@Query(new ZodValidationPipe(syntheseQuerySchema)) q: SyntheseQuery): Promise<SyntheseRapports> {
     return this.repo.syntheseRapports(q);
   }
 
   @Get('tableau-de-bord')
-  tableauDeBord(@Query('mois') mois?: string): Promise<TableauDeBord> {
-    const moisValide = mois ? moisPaqdSchema.parse(mois) : undefined;
-    return this.repo.tableauDeBord(moisValide);
+  tableauDeBord(@Query(new ZodValidationPipe(methodeCalculQuerySchema)) q: MethodeCalculQuery): Promise<TableauDeBord> {
+    return this.repo.tableauDeBord(q.mois);
   }
 
   @Get('referentiel/programmes')
