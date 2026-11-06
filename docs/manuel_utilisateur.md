@@ -112,14 +112,18 @@ sélecteur **Mois affiché**. Puis :
 
 - le **score composite** du site sur 100, sa classification, et sa
   **progression** par rapport au mois précédent. Le dépliable **Calcul du
-  score composite** liste le score et le poids de chaque pilier, ceux qui
-  sortent du calcul, et la grille appliquée ;
+  score composite** liste le score et le poids de chaque pilier, écrit le
+  calcul avec ses valeurs (pour le CHR de Daloa en août,
+  « (100 × 10 + 100 × 15 + 100 × 15 + 100 × 25 + 0 × 25 + 100 × 10) ÷ 100 = 75 »), nomme les
+  piliers qui en sortent, et donne la grille appliquée ;
 - une **carte par pilier** (P1 à P6) avec le score du pilier, ses
   sous-composantes, et les couples **attendu / réalisé** (par exemple
   « 2 inventaires attendus, 2 réalisés »). Le dépliable **Calcul du score**
   donne la note de chaque sous-composante (100, 0, note de sanction), son
-  poids dans le pilier, et celles qui sont hors du calcul (non retenues ou
-  non calculables) ;
+  poids dans le pilier, celles qui sont hors du calcul (non retenues ou
+  non calculables), puis le calcul lui-même : « (100 × 50 + 0 × 50) ÷ 100 = 50 »,
+  ou « note « Conformité consommation » (sanction) = 0 » quand une seule
+  sous-composante compte ;
 - un **détail ligne à ligne**, dépliable, pour chaque pilier : la liste des
   inventaires, réquisitions, transactions ou ajustements qui ont produit le
   chiffre affiché ;

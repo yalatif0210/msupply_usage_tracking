@@ -39,6 +39,7 @@ import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { HlmSkeleton } from '@spartan-ng/helm/skeleton';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { VALEUR_ABSENTE, versChaine } from '../core/affichage';
+import { formuleComposite, formulePilier } from '../core/formule-score';
 import { bornesClassification, fenetreCloture } from '../core/regles-calcul';
 import { ressource } from '../core/ressource';
 import { SitesService } from '../core/sites.service';
@@ -226,11 +227,15 @@ function reculerMois(mois: string, n: number): string {
                   @if (d.scoreComposite === null) {
                     Aucun pilier calculable : pas de score composite.
                   } @else {
-                    Score composite = moyenne des scores de pilier pondérée sur
-                    {{ c.poidsPiliersCalculables | number: '1.0-1' }} % de poids
-                    = <b class="font-semibold tabular-nums">{{ d.scoreComposite | number: '1.0-1' }}</b>.
-                    Conforme à partir de {{ c.regles.borneConforme | number: '1.0-1' }}, partiellement conforme à partir de
-                    {{ c.regles.bornePartiellementConforme | number: '1.0-1' }}.
+                    @if (formuleComposite(d.piliers, c.poidsPiliersCalculables); as f) {
+                      Score composite = <span class="tabular-nums">{{ f.calcul }}</span>
+                      = <b class="font-semibold tabular-nums">{{ d.scoreComposite | number: '1.0-1' }}</b>.
+                      @for (h of f.horsCalcul; track h) { <span class="block text-muted-foreground">{{ h }}</span> }
+                    }
+                    <span class="mt-1 block">
+                      Conforme à partir de {{ c.regles.borneConforme | number: '1.0-1' }}, partiellement conforme à partir de
+                      {{ c.regles.bornePartiellementConforme | number: '1.0-1' }}.
+                    </span>
                   }
                 </p>
                 <p class="mt-1 text-muted-foreground">
@@ -295,8 +300,11 @@ function reculerMois(mois: string, n: number): string {
                       @if (pil.score === null) {
                         Aucune sous-composante retenue n'est calculable : le pilier sort du score composite.
                       } @else {
-                        Score du pilier = moyenne des notes pondérée sur {{ pil.poidsCalculables | number: '1.0-1' }} % de poids
-                        = <b class="font-semibold tabular-nums">{{ pil.score | number: '1.0-1' }}</b>
+                        @if (formulePilier(pil); as f) {
+                          Score du pilier = <span class="tabular-nums">{{ f.calcul }}</span>
+                          = <b class="font-semibold tabular-nums">{{ pil.score | number: '1.0-1' }}</b>
+                          @for (h of f.horsCalcul; track h) { <span class="block text-muted-foreground">{{ h }}</span> }
+                        }
                       }
                     </p>
                   </details>
@@ -1188,6 +1196,8 @@ export class DetailSitePage {
   protected readonly verdictConso = verdictConso;
   protected readonly libelleSansBorne = libelleSansBorne;
   protected readonly fenetreCloture = fenetreCloture;
+  protected readonly formulePilier = formulePilier;
+  protected readonly formuleComposite = formuleComposite;
   protected readonly ecartSdu = ecartSdu;
   protected readonly jourMoisCourt = jourMoisCourt;
   protected readonly libelleLots = libelleLots;
